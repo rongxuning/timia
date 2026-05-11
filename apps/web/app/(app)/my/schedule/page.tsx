@@ -149,6 +149,33 @@ function toLocalDatetimeInputValue(iso: string) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+/** 倒计时锚点：优先结束时间，否则开始时间 */
+function countdownTargetForItem(it: MyItem): Date | null {
+  if (it.end_at) {
+    const d = new Date(it.end_at);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  if (it.start_at) {
+    const d = new Date(it.start_at);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function formatRemainDHM(targetMs: number, nowMs: number): { text: string; overdue: boolean } {
+  const diff = targetMs - nowMs;
+  const overdue = diff <= 0;
+  const abs = Math.abs(diff);
+  const totalMinutes = Math.floor(abs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  if (!overdue) {
+    return { text: `剩余${days}日${hours}时${minutes}分`, overdue: false };
+  }
+  return { text: `已逾期${days}日${hours}时${minutes}分`, overdue: true };
+}
+
 const MONTHS = [
   "1月",
   "2月",
@@ -207,6 +234,12 @@ export default function MySchedulePage() {
   const [dragItemId, setDragItemId] = useState<string | null>(null);
   const [dragOverPriority, setDragOverPriority] = useState<PriorityKey | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<StatusKey | null>(null);
+
+  const [priorityCountdownNowMs, setPriorityCountdownNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setPriorityCountdownNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   async function reload() {
     if (!token) return;
@@ -506,17 +539,26 @@ export default function MySchedulePage() {
           {depth === 0 && (
             <div className="flex items-center gap-2 sm:ml-auto">
               <span className="text-neutral-muted shrink-0">状态</span>
-              <select
-                className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
-                value={c.completion_status === "done" ? "done" : "pending"}
-                onChange={(e) =>
-                  patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
-                }
+              <button
+                type="button"
+                role="switch"
+                aria-checked={c.completion_status === "done"}
                 aria-label="评论状态"
+                className={[
+                  "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border-subtle transition-colors",
+                  c.completion_status === "done" ? "bg-emerald-500" : "bg-zinc-300",
+                ].join(" ")}
+                onClick={() =>
+                  patchCommentCompletion(c.id, c.completion_status === "done" ? "pending" : "done")
+                }
               >
-                <option value="pending">未完成</option>
-                <option value="done">已完成</option>
-              </select>
+                <span
+                  className={[
+                    "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform",
+                    c.completion_status === "done" ? "translate-x-5" : "translate-x-1",
+                  ].join(" ")}
+                />
+              </button>
             </div>
           )}
         </div>
@@ -804,30 +846,50 @@ export default function MySchedulePage() {
                       {list.length === 0 ? (
                         <div className="text-[12px] text-neutral-muted">暂无任务。</div>
                       ) : (
-                        list.slice(0, 6).map((it) => (
-                          <button
-                            key={it.id}
-                            type="button"
-                            onClick={() => openDrawer(it)}
-                            draggable
-                            onDragStart={(e) => {
-                              setDragItemId(it.id);
-                              e.dataTransfer.setData("text/task-id", it.id);
-                              e.dataTransfer.effectAllowed = "move";
-                            }}
-                            onDragEnd={() => {
-                              setDragItemId(null);
-                              setDragOverPriority(null);
-                            }}
-                            className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary truncate transition-colors"
-                            title={`${it.title} · ${it.workspace_name} / ${it.project_name}`}
-                          >
-                            <span className="truncate">{it.title}</span>
-                            <span className="ml-2 text-[10px] text-neutral-muted">
-                              {it.project_name}
-                            </span>
-                          </button>
-                        ))
+                        list.slice(0, 6).map((it) => {
+                          const target = countdownTargetForItem(it);
+                          const cd = target ? formatRemainDHM(target.getTime(), priorityCountdownNowMs) : null;
+                          return (
+                            <button
+                              key={it.id}
+                              type="button"
+                              onClick={() => openDrawer(it)}
+                              draggable
+                              onDragStart={(e) => {
+                                setDragItemId(it.id);
+                                e.dataTransfer.setData("text/task-id", it.id);
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
+                              onDragEnd={() => {
+                                setDragItemId(null);
+                                setDragOverPriority(null);
+                              }}
+                              className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary transition-colors"
+                              title={
+                                cd
+                                  ? `${it.title} · ${cd.text} · ${it.workspace_name} / ${it.project_name}`
+                                  : `${it.title} · ${it.workspace_name} / ${it.project_name}`
+                              }
+                            >
+                              <div className="flex items-start justify-between gap-2 min-w-0">
+                                <span className="min-w-0 flex-1 truncate font-medium">{it.title}</span>
+                                {cd ? (
+                                  <span
+                                    className={[
+                                      "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
+                                      cd.overdue
+                                        ? "bg-red-100 text-red-700 ring-1 ring-red-200"
+                                        : priorityBadgeClass(it.priority),
+                                    ].join(" ")}
+                                  >
+                                    {cd.text}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="mt-0.5 truncate text-[10px] text-neutral-muted">{it.project_name}</div>
+                            </button>
+                          );
+                        })
                       )}
                       {list.length > 6 && (
                         <div className="text-[11px] text-neutral-muted font-medium">还有 +{list.length - 6} 个</div>
@@ -1107,7 +1169,6 @@ export default function MySchedulePage() {
           <aside className="absolute inset-y-0 right-0 w-[min(1120px,100vw)] bg-surface border-l border-border-subtle shadow-xl flex flex-col overflow-hidden">
             <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-border-subtle">
               <div className="min-w-0">
-                <div className="text-overline text-zinc-400">编辑任务</div>
                 <div className="font-subhead text-subhead text-text-primary truncate">{drawerItem.title}</div>
                 <div className="text-caption text-neutral-muted truncate mt-1">
                   {drawerItem.workspace_name} / {drawerItem.project_name}
@@ -1124,8 +1185,8 @@ export default function MySchedulePage() {
               </button>
             </div>
 
-            <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
-              <div className="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6 border-b lg:border-b-0 lg:border-r border-border-subtle">
+            <div className="flex flex-1 min-h-0 min-w-0 flex-col lg:flex-row">
+              <div className="w-full min-h-0 min-w-0 overflow-y-auto px-6 py-6 border-b lg:flex-[0_0_40%] lg:border-b-0 lg:border-r border-border-subtle">
                 <form onSubmit={onSaveTask} className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskTitle">
@@ -1243,7 +1304,7 @@ export default function MySchedulePage() {
                 </form>
               </div>
 
-              <div className="flex w-full flex-col lg:w-[min(440px,42%)] shrink-0 min-h-0 max-h-[48vh] lg:max-h-none">
+              <div className="flex w-full min-h-0 min-w-0 flex-col max-h-[48vh] lg:max-h-none lg:flex-[0_0_60%]">
                 <div className="shrink-0 px-6 pt-4">
                   <div className="text-overline text-zinc-400">任务评论</div>
                 </div>
