@@ -127,12 +127,7 @@ export default function WorkspacesPage() {
     <main className="min-h-screen">
       <div className="max-w-[1280px] mx-auto px-6 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h1 className="font-section-heading text-section-heading text-gray-900">工作空间</h1>
-            <p className="text-text-secondary font-body mt-1">
-              管理工作空间，查看跨项目进展。
-            </p>
-          </div>
+          <div />
           <button
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm active:translate-y-px"
             type="button"

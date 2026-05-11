@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { clearToken, getToken } from "@/lib/auth";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { NomiaLogoMark } from "@/components/NomiaLogoMark";
 
 type MeResponse = { id: string; email: string; display_name: string };
 
@@ -78,81 +79,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
 
   return (
-    <>
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full border-b z-50 bg-white/80 backdrop-blur-md border-gray-200">
-        <div className="flex justify-between items-center h-14 px-4 w-full">
-          <div className="flex items-center gap-3 min-w-0">
-            <img alt="Nomia 标志" src="/nomia-logo-mark.png" className="w-6 h-6 object-contain" />
-            <span className="text-xl font-bold tracking-tight text-gray-900 font-display">Nomia</span>
-            <Breadcrumbs className="hidden sm:block min-w-0 md:pl-container-padding" />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="relative group hidden sm:block">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                <span className="material-symbols-outlined text-[20px]">search</span>
-              </span>
-              <input
-                className="pl-10 pr-4 py-1.5 bg-surface-container-low border-none rounded-xl text-small focus:ring-2 focus:ring-primary/10 w-64"
-                placeholder="搜索（⌘K）"
-                type="text"
-              />
+    <div className="flex h-screen min-h-0 overflow-hidden">
+      {/* SideNavBar：视口内固定，主区域单独滚动 */}
+      <aside className="hidden h-full w-48 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white md:flex">
+        <div className="flex h-14 items-center px-4">
+          <Link href="/my/schedule" className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+              <NomiaLogoMark size={20} />
             </div>
-
-            <button
-              className="p-2 text-gray-500 hover:bg-gray-50 rounded-md transition-colors duration-200 active:scale-95"
-              type="button"
-              onClick={() => undefined}
-            >
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
-            <button
-              className="p-2 text-gray-500 hover:bg-gray-50 rounded-md transition-colors duration-200 active:scale-95"
-              type="button"
-              onClick={() => undefined}
-            >
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-
-            <div ref={userMenuRef} className="relative">
-              <button
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={userMenuOpen}
-                onClick={() => setUserMenuOpen((v) => !v)}
-                className="w-8 h-8 rounded-full border border-gray-200 bg-white flex items-center justify-center text-sm font-semibold text-gray-900 hover:bg-gray-50 transition-colors"
-              >
-                {userInitial}
-              </button>
-
-              {userMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 mt-2 w-32 rounded-xl border border-border-subtle bg-surface shadow-sm py-2"
-                >
-                  <button
-                    type="button"
-                    className="w-full text-left px-3 py-2 text-small text-text-secondary hover:bg-surface-container-lowest transition-colors"
-                    role="menuitem"
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      clearToken();
-                      router.push("/login");
-                    }}
-                  >
-                    退出登录
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+            <span className="font-display text-xl font-bold tracking-tight text-gray-900">Nomia</span>
+          </Link>
         </div>
-      </header>
-
-      {/* SideNavBar */}
-      <aside className="h-screen w-48 border-r fixed left-0 top-14 bg-white border-gray-200 hidden md:block">
-        <div className="flex flex-col p-4 space-y-2 h-full">
+        <div className="flex flex-col space-y-2 p-4">
           <nav className="space-y-1">
             <NavItem
               href="/my/schedule"
@@ -206,9 +144,60 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Content */}
-      <div className="md:ml-48 pt-14 min-h-screen">{children}</div>
-    </>
+      {/* 右侧：上为顶部工具栏，下为主区域（仅此区域滚动） */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="z-50 flex h-14 shrink-0 items-center border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md">
+          <div className="flex w-full items-center justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              {/* 小屏无侧栏时保留品牌识别 */}
+              <Link href="/my/schedule" className="flex items-center gap-2 md:hidden">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <NomiaLogoMark size={20} />
+                </div>
+                <span className="font-display text-lg font-bold tracking-tight text-gray-900">Nomia</span>
+              </Link>
+              <Breadcrumbs className="hidden min-w-0 sm:block md:pl-container-padding" />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div ref={userMenuRef} className="relative">
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50"
+                >
+                  {userInitial}
+                </button>
+
+                {userMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 mt-2 w-32 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
+                  >
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
+                      role="menuitem"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        clearToken();
+                        router.push("/login");
+                      }}
+                    >
+                      退出登录
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      </div>
+    </div>
   );
 }
 

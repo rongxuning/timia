@@ -266,7 +266,8 @@ export default function MySchedulePage() {
   const itemsByPriority = useMemo(() => {
     const out: Record<PriorityKey, MyItem[]> = { "1": [], "2": [], "3": [], "4": [] };
     for (const it of items) {
-      if (it.status === "archived") continue;
+      // Priority quadrants should only show active work
+      if (it.status === "done" || it.status === "archived") continue;
       out[normalizePriority(it.priority)].push(it);
     }
     for (const k of ["1", "2", "3", "4"] as const) {
@@ -680,13 +681,13 @@ export default function MySchedulePage() {
   }
 
   return (
-    <main className="pt-8 pb-12 px-container-padding">
+    <main className="px-lg py-lg">
       <div className="max-w-container-max mx-auto">
         {/* Top blocks */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter mb-3xl">
-          <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">我的日程</span>
-            <div className="space-y-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg mb-lg">
+          <section className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+            <span className="text-sm font-semibold text-primary">我的日程</span>
+            <div className="w-full min-w-0 space-y-1 text-left">
               <div className="font-subhead text-lg text-text-primary truncate">{me?.display_name ?? "—"}</div>
               <div className="text-small text-text-secondary truncate">{me?.email ?? "—"}</div>
               <div className="text-caption text-neutral-muted">
@@ -695,48 +696,50 @@ export default function MySchedulePage() {
             </div>
           </section>
 
-          <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">覆盖范围</span>
-            <div className="space-y-2 mt-1.5">
+          <section className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+            <span className="text-sm font-semibold text-primary">覆盖范围</span>
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 text-left">
               <div className="flex items-baseline gap-2">
                 <span className="font-headline text-section-heading">{workspaceCount}</span>
                 <span className="text-text-secondary text-caption">个工作空间</span>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">项目数</div>
-                <div className="font-bold text-text-primary">{projectCount}</div>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">任务总数</div>
-                <div className="font-bold text-text-primary">{items.length}</div>
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">项目数</span>
+                  <span className="font-bold text-text-primary tabular-nums">{projectCount}</span>
+                </div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">任务总数</span>
+                  <span className="font-bold text-text-primary tabular-nums">{items.length}</span>
+                </div>
               </div>
             </div>
           </section>
 
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">健康度</span>
-            <div className="space-y-2">
+          <div className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+            <span className="text-sm font-semibold text-primary">健康度</span>
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 text-left">
               <div className="flex items-baseline gap-2">
                 <span className="font-headline text-section-heading">
                   {healthPercent == null ? "—" : `${healthPercent}%`}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">待办</div>
-                  <div className="font-bold text-lg text-text-primary">{todoCount}</div>
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">待办</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{todoCount}</span>
                 </div>
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">进行中</div>
-                  <div className="font-bold text-lg text-text-primary">{doingCount}</div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">进行中</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{doingCount}</span>
                 </div>
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">已完成</div>
-                  <div className="font-bold text-lg text-text-primary">{doneCount}</div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">已完成</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{doneCount}</span>
                 </div>
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">已归档</div>
-                  <div className="font-bold text-lg text-text-primary">{archivedCount}</div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">已归档</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{archivedCount}</span>
                 </div>
               </div>
             </div>
@@ -745,22 +748,19 @@ export default function MySchedulePage() {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">
+          <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
           </div>
         )}
 
         {/* Priority Quadrants */}
-        <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-6">
-          <div className="p-xl flex items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="text-overline text-zinc-400">优先级象限</div>
-              <div className="font-subhead text-lg text-text-primary">按优先级查看任务</div>
-            </div>
+        <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
+          <div className="p-lg flex items-center justify-between gap-lg">
+            <div className="text-sm font-semibold text-primary">优先级象限</div>
           </div>
 
-          <div className="p-xl pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-lg pt-0">
+            <div className="grid grid-cols-1 gap-lg md:grid-cols-2">
               {(
                 [
                   { p: "1", title: "P1（低）", colorClass: "bg-blue-50 border-blue-100", dotClass: "bg-blue-500" },
@@ -774,7 +774,7 @@ export default function MySchedulePage() {
                   <div
                     key={q.p}
                     className={[
-                      `rounded-xl border ${q.colorClass} p-4`,
+                      `rounded-xl border ${q.colorClass} p-lg`,
                       dragOverPriority === q.p ? "ring-2 ring-primary/25 ring-inset" : "",
                     ].join(" ")}
                     onDragOver={(e) => {
@@ -793,7 +793,7 @@ export default function MySchedulePage() {
                       updateTaskPriority(id, q.p);
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-lg">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2.5 h-2.5 rounded-full ${q.dotClass}`} />
                         <div className="font-medium text-text-primary truncate">{q.title}</div>
@@ -841,10 +841,10 @@ export default function MySchedulePage() {
         </section>
 
         {/* Calendar */}
-        <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-6">
-          <div className="p-xl flex items-center justify-between gap-3">
+        <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
+          <div className="p-lg flex items-center justify-between gap-lg">
             <div className="space-y-1">
-              <div className="text-overline text-zinc-400">日历</div>
+              <div className="text-sm font-semibold text-primary">日历</div>
               <div className="font-subhead text-lg text-text-primary">
                 {MONTHS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
               </div>
@@ -888,7 +888,7 @@ export default function MySchedulePage() {
               <div className="bg-surface">
                 <div className="grid grid-cols-7 border-t border-border-subtle bg-surface-container-lowest">
                   {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
-                    <div key={d} className="p-3 text-center font-overline text-neutral-muted">
+                    <div key={d} className="p-lg text-center font-overline text-neutral-muted">
                       {d}
                     </div>
                   ))}
@@ -980,10 +980,10 @@ export default function MySchedulePage() {
         </section>
 
         {/* Kanban */}
-        <div className="bg-white rounded-xl border border-border-subtle overflow-hidden">
+        <div className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 border-b border-border-subtle bg-zinc-50/50">
             {STATUSES.map((s) => (
-              <div key={s.key} className="p-4 border-r border-border-subtle last:border-r-0 flex items-center justify-between">
+              <div key={s.key} className="flex items-center justify-between border-r border-border-subtle p-lg last:border-r-0">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${s.dotClass}`} />
                   <span className="text-overline">{s.label}</span>
@@ -998,7 +998,7 @@ export default function MySchedulePage() {
               <div
                 key={s.key}
                 className={[
-                  `p-4 space-y-4 overflow-y-auto ${s.bgClass}`,
+                  `space-y-4 overflow-y-auto p-lg ${s.bgClass}`,
                   dragOverStatus === s.key ? "ring-2 ring-primary/20 ring-inset" : "",
                 ].join(" ")}
                 onDragOver={(e) => {
@@ -1033,7 +1033,7 @@ export default function MySchedulePage() {
                         setDragItemId(null);
                         setDragOverStatus(null);
                       }}
-                      className="w-full text-left bg-white border border-border-subtle rounded-xl p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer block"
+                      className="w-full text-left bg-white border border-border-subtle rounded-xl p-lg hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer block"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${priorityBadgeClass(it.priority)}`}>

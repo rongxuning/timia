@@ -742,7 +742,7 @@ export default function ProjectPage() {
         {/* Top blocks */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-3xl">
           <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">项目</span>
+            <span className="text-sm font-semibold text-primary">项目</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{project?.name ?? "—"}</div>
               <div className="text-small text-text-secondary line-clamp-2">{project?.description || "暂无描述。"}</div>
@@ -752,7 +752,7 @@ export default function ProjectPage() {
           </section>
 
           <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">成员</span>
+            <span className="text-sm font-semibold text-primary">成员</span>
 
             {members.length === 0 ? (
               <div className="text-small text-text-secondary">暂无成员。</div>
@@ -780,7 +780,7 @@ export default function ProjectPage() {
           </section>
 
           <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">项目健康度</span>
+            <span className="text-sm font-semibold text-primary">项目健康度</span>
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <span className="font-headline text-section-heading">
@@ -809,7 +809,7 @@ export default function ProjectPage() {
           </div>
 
           <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">设置</span>
+            <span className="text-sm font-semibold text-primary">设置</span>
 
             <div className="grid grid-cols-1 gap-sm">
               <a
@@ -843,10 +843,7 @@ export default function ProjectPage() {
         {/* Priority Quadrants */}
         <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-6">
           <div className="p-xl flex items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="text-overline text-zinc-400">优先级象限</div>
-              <div className="font-subhead text-lg text-text-primary">按优先级查看任务</div>
-            </div>
+            <div className="text-sm font-semibold text-primary">优先级象限</div>
           </div>
 
           <div className="p-xl pt-0">
@@ -931,7 +928,7 @@ export default function ProjectPage() {
         <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-6">
           <div className="p-xl flex items-center justify-between gap-3">
             <div className="space-y-1">
-              <div className="text-overline text-zinc-400">日历</div>
+              <div className="text-sm font-semibold text-primary">日历</div>
               <div className="font-subhead text-lg text-text-primary">
                 {MONTHS[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
               </div>

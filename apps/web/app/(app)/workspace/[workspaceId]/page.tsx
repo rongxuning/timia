@@ -250,7 +250,7 @@ export default function WorkspaceHome() {
 
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] gap-gutter">
           <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">工作空间</span>
+            <span className="text-sm font-semibold text-primary">工作空间</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{workspace?.name ?? "—"}</div>
               <div className="text-small text-text-secondary truncate">{workspace?.description || "暂无描述。"}</div>
@@ -264,7 +264,7 @@ export default function WorkspaceHome() {
           </div>
 
           <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">成员</span>
+            <span className="text-sm font-semibold text-primary">成员</span>
             <div className="space-y-2 mt-1.5">
               {/* Row 1: Total */}
               <div className="flex items-baseline gap-2">
@@ -317,7 +317,7 @@ export default function WorkspaceHome() {
           </div>
 
           <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">项目数量</span>
+            <span className="text-sm font-semibold text-primary">项目数量</span>
             <div className="flex items-baseline gap-2">
               <span className="font-headline text-section-heading">{stats?.project_count ?? projects.length}</span>
               <span className="text-text-secondary text-caption">个项目</span>
@@ -325,7 +325,7 @@ export default function WorkspaceHome() {
           </div>
 
           <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">项目健康度</span>
+            <span className="text-sm font-semibold text-primary">项目健康度</span>
             <div className="space-y-3 mt-1.5">
               <div className="flex items-baseline gap-2">
                 <span className="font-headline text-section-heading">
@@ -353,7 +353,7 @@ export default function WorkspaceHome() {
           </div>
 
           <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
-            <span className="text-overline text-zinc-400">工作空间设置</span>
+            <span className="text-sm font-semibold text-primary">工作空间设置</span>
             <div className="grid grid-cols-1 gap-sm">
               <a
                 className="w-full px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center justify-center gap-2"
