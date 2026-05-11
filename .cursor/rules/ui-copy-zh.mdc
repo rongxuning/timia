@@ -1,9 +1,0 @@
----
-description: apps/web 用户可见文案默认使用简体中文
-globs: apps/web/**/*.{tsx,ts,jsx,js}
-alwaysApply: false
----
-
-# 界面文案语言
-
-在 `apps/web` 新增或修改页面、组件时，**用户可见的 UI 文案**（标题、副标题、按钮、导航、表单标签与占位符、空状态、错误提示、对话框、`aria-label`、`title`、`alt` 等）使用**简体中文**。产品英文名 “Nomia” 可保留。若需展示 API 枚举值（如 `todo`、`owner`），在界面上优先用中文说明或并列展示。

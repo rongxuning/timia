@@ -1,0 +1,76 @@
+---
+description: Nomia Web 视觉交互与界面文案规范（apps/web）
+globs: apps/web/**/*.{tsx,ts,jsx,js}
+alwaysApply: false
+---
+
+# Nomia Web 视觉与交互规范
+
+## 风格小结
+
+- **气质**：浅色、偏 Material 3 语义的协作工具界面；白底卡片 + 淡紫主色（`primary` / `indigo` 系），干净、信息密度中等。
+- **技术栈**：Next.js + Tailwind v4（`globals.css` 中 `@config` 指向 `tailwind.config.js`）。优先使用 **主题色名**（`primary`、`surface`、`border-subtle` 等），与 **语义字号**（`text-body`、`text-small`、`font-subhead` 等）；`gray` / `zinc` / `indigo` 仅在与现有壳层一致或缺 token 时使用。
+- **品牌区**：顶栏 Logo + `font-display`「Nomia」；登录等营销区可用 `dot-grid` + 轻渐变底。
+
+## 字体与排版
+
+- **展示/标题**：`font-display` / `font-subhead` / `font-headline` / `font-section-heading`（Epilogue，见 `layout.tsx` 变量 `--font-epilogue`）。
+- **正文**：`font-body`（Be Vietnam Pro，`text-body` 默认 15px/1.6）。
+- **代码**：`font-code`（JetBrains Mono）。
+- **层级**：页面主标题用 `font-subhead text-subhead text-text-primary`；分区标签用 `text-overline text-zinc-400`（或 `text-neutral-muted`）；辅助说明 `text-small` / `text-caption` + `text-text-secondary` / `text-neutral-muted`。
+
+## 色彩与表面
+
+- **页面底**：`bg-background`；正文色 `text-on-background` / `text-text-primary`。
+- **卡片/面板**：`bg-white` 或 `bg-surface`，描边 `border border-border-subtle`，与 `rounded-xl` 成套出现较常见。
+- **主操作**：`bg-primary text-on-primary`，悬停 `hover:bg-primary-hover`；环状焦点 `focus:ring-primary/10`（输入框常用 `focus:ring-4`）。
+- **状态**：错误 `text-error` / `border-error-container` / `bg-error-container/10`；成功等用 `success`（config 内已定义）。
+- **侧栏当前项**：`bg-indigo-50 text-indigo-700`，图标 `material-symbols-outlined` 且激活态 `FILL` 1（与全局壳层一致即可）。
+
+## 布局与壳层
+
+- **应用壳**（参考 `shell.tsx`）：顶栏固定 `h-14`、`bg-white/80 backdrop-blur-md`、底边 `border-gray-200`；侧栏 `w-48`、`top-14`、桌面 `hidden md:block`；主内容 `md:ml-48 pt-14 min-h-screen`。
+- **内容区**：外层 `px-container-padding`，内层大列表/仪表盘用 `max-w-container-max mx-auto`，纵向节间距 `space-y-3xl` 或 `gap-gutter` 网格。
+- **响应式**：顶栏搜索等 `hidden sm:block`；导航在窄屏依赖顶栏与路由（保持与现有一致）。
+
+## 圆角、阴影与动效
+
+- **圆角**：卡片、主按钮、大输入框用 `rounded-xl`（对应 theme `borderRadius.xl`）；小控件可用 `rounded-lg` / `rounded-md`。
+- **阴影**：卡片默认 `shadow-sm`，悬停 `hover:shadow-md` / `hover:shadow-lg` / `hover:shadow-xl` 逐级加强；主 CTA 可有轻阴影 + `hover:-translate-y-0.5`。
+- **反馈**：图标按钮 `hover:bg-gray-50`、`active:scale-95`、`transition-colors` 或 `transition-all`；列表行 `hover:bg-surface-container-lowest/80`。
+
+## 图标
+
+- 使用 **Material Symbols Outlined**（`layout.tsx` 已引入）；默认线框，需要强调时用 `style={{ fontVariationSettings: "'FILL' 1" }}`。
+- 图标与文案并排时用 `flex items-center gap-2` / `gap-3`，尺寸常见 `text-[18px]`～`text-xl`。
+
+## 表单与输入
+
+- 标签：`text-sm font-medium text-on-surface-variant`（或与登录页一致的 `text-small font-medium`）。
+- 输入框：`bg-surface-bright border-border-subtle rounded-xl px-lg py-md`，焦点 `focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none`。
+- 禁用与加载：`disabled:opacity-50`；提交中在按钮内用「…」文案（如「登录中…」「删除中…」）。
+
+## 交互模式
+
+- **链接**：正文内次要链可用 `text-primary hover:underline`；面包屑等浅灰导航用 `text-gray-500` + `hover:text-gray-700`。
+- **下拉/菜单**：`rounded-xl border border-border-subtle bg-surface shadow-sm`；项 `px-3 py-2 text-small hover:bg-surface-container-lowest`；区外点击关闭（`mousedown` 监听）与 `aria-expanded` / `role="menu"` 与现有一致。
+- **抽屉/模态**：遮罩 `bg-black/30`～`bg-black/40`；面板 `bg-surface border-border-subtle rounded-xl`；抽屉右侧 `shadow-xl border-l`；关闭按钮 `rounded-xl border-border-subtle` 方形容器。
+- **危险操作**：确认框内警示区 `border-error-container bg-error-container/10`；主删除按钮 `bg-red-600 hover:bg-red-700 text-white`；次要「取消」为描边按钮。
+- **强调/定位**：短时高亮可用 `ring-2 ring-primary/50 ring-offset-2` 等（如评论定位）。
+
+## 界面文案语言
+
+在 `apps/web` 新增或修改页面、组件时，**用户可见的 UI 文案**（标题、副标题、按钮、导航、表单标签与占位符、空状态、错误提示、对话框、`aria-label`、`title`、`alt` 等）使用**简体中文**。产品英文名 “Nomia” 可保留。若需展示 API 枚举值（如 `todo`、`owner`），在界面上优先用中文说明或并列展示。
+
+## 可访问性
+
+- 日期格式、`lang`（根布局已为 `zh-CN`）与 `aria-*` 与上述文案语言一致。
+- 图标按钮补 `title` 或 `aria-label`；表单控件与 `label` / `htmlFor` 关联。
+
+## 新增页面时的检查清单
+
+1. 使用主题色与语义字号，避免硬编码仅存在于单页的色值。
+2. 主按钮与卡片圆角、阴影级别与登录页 / 工作空间首页保持一致。
+3. 焦点环使用 `primary/10`，保证键盘可见性。
+4. 加载、空状态、错误三条路径都有明确**简体中文**文案与样式（`text-text-secondary` / `text-error`）。
+5. 与壳层并用时尊重 `pt-14`、`md:ml-48` 与顶栏 `z-50`，避免内容被固定头遮挡。
