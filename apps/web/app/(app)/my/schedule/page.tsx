@@ -887,28 +887,41 @@ export default function MySchedulePage() {
             return (
               <div className="bg-surface">
                 <div className="grid grid-cols-7 border-t border-border-subtle bg-surface-container-lowest">
-                  {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
-                    <div key={d} className="p-lg text-center font-overline text-neutral-muted">
+                  {["日", "一", "二", "三", "四", "五", "六"].map((d, di) => (
+                    <div
+                      key={d}
+                      className={[
+                        "p-lg text-center font-overline text-neutral-muted border-r border-b border-border-subtle",
+                        di === 0 ? "border-l border-border-subtle" : "",
+                        "last:border-r-0",
+                      ].join(" ")}
+                    >
                       {d}
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-col min-h-[520px]">
+                <div className="flex flex-col">
                   {calendarWeeks.map((week, wi) => {
                     const maxLane = week.segments.reduce((m, s) => Math.max(m, s.lane), -1);
                     const rowCount = maxLane < 0 ? 0 : maxLane + 1;
+                    // 任务区：至少 3 行任务高度；随 lane 增多变高，不设上限（与 gap-y-1、pt-1、pb-2、gridAutoRows 一致）
+                    const minTaskLanes = 3;
+                    const lanes = Math.max(rowCount, minTaskLanes);
+                    const taskAreaMinHeightPx =
+                      4 + 8 + lanes * 22 + Math.max(0, lanes - 1) * 4;
                     return (
-                      <div key={wi} className="flex-1 border-b border-border-subtle last:border-b-0 flex flex-col min-h-0">
+                      <div key={wi} className="border-b border-border-subtle last:border-b-0 flex flex-col min-h-0">
                         <div className="grid grid-cols-7 shrink-0">
-                          {week.days.map(({ date, key, inMonth }) => {
+                          {week.days.map(({ date, key, inMonth }, di) => {
                             const isToday = key === todayKey;
                             return (
                               <div
                                 key={key}
                                 className={[
-                                  "border-r border-border-subtle p-2 min-h-[44px]",
+                                  "border-r border-b border-border-subtle p-2 min-h-[44px]",
+                                  di === 0 ? "border-l border-border-subtle" : "",
                                   inMonth ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted opacity-60",
-                                  isToday ? "ring-2 ring-primary/30 ring-inset z-[1]" : "",
+                                  isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "",
                                   "last:border-r-0",
                                 ].join(" ")}
                               >
@@ -916,59 +929,69 @@ export default function MySchedulePage() {
                                   <span className={inMonth ? "font-small font-medium text-text-primary" : "font-small"}>
                                     {date.getDate()}
                                   </span>
-                                  {isToday && (
-                                    <span
-                                      className="material-symbols-outlined text-primary text-sm"
-                                      style={{ fontVariationSettings: "'FILL' 1" }}
-                                    >
-                                      push_pin
-                                    </span>
-                                  )}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                        <div
-                          className="grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1 border-t border-border-subtle/70 bg-surface grow"
-                          style={{
-                            gridAutoRows: "minmax(22px, auto)",
-                            minHeight: rowCount === 0 ? 6 : 6 + rowCount * 26,
-                          }}
-                        >
-                          {week.segments.map((seg) => {
-                            const c = taskCalendarColors(seg.item.id);
-                            const radius =
-                              seg.roundLeft && seg.roundRight
-                                ? 8
-                                : seg.roundLeft
-                                  ? "8px 0 0 8px"
-                                  : seg.roundRight
-                                    ? "0 8px 8px 0"
-                                    : 0;
-                            const showLabel = seg.roundLeft || seg.colStart === 1;
-                            return (
-                              <button
-                                key={`${seg.item.id}-${wi}-${seg.colStart}-${seg.lane}`}
-                                type="button"
-                                onClick={() => openDrawer(seg.item)}
-                                title={`${seg.item.title} · ${seg.item.workspace_name} / ${seg.item.project_name}`}
-                                className="text-left text-[11px] px-1.5 py-1 font-medium truncate border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm"
-                                style={{
-                                  gridColumn: `${seg.colStart} / span ${seg.colSpan}`,
-                                  gridRow: seg.lane + 1,
-                                  backgroundColor: c.bg,
-                                  color: c.fg,
-                                  borderColor: c.border,
-                                  borderWidth: 1,
-                                  borderLeftWidth: seg.roundLeft ? 4 : 1,
-                                  borderRadius: radius,
-                                }}
-                              >
-                                {showLabel ? seg.item.title : "\u00a0"}
-                              </button>
-                            );
-                          })}
+                        <div className="relative border-t border-border-subtle/70 bg-surface">
+                          <div
+                            className="relative z-[1] grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1"
+                            style={{
+                              // 固定任务行高：不随区域高度拉伸
+                              gridAutoRows: 22,
+                              minHeight: taskAreaMinHeightPx,
+                            }}
+                          >
+                            {week.segments.map((seg) => {
+                              const c = taskCalendarColors(seg.item.id);
+                              const radius =
+                                seg.roundLeft && seg.roundRight
+                                  ? 8
+                                  : seg.roundLeft
+                                    ? "8px 0 0 8px"
+                                    : seg.roundRight
+                                      ? "0 8px 8px 0"
+                                      : 0;
+                              const showLabel = seg.roundLeft || seg.colStart === 1;
+                              return (
+                                <button
+                                  key={`cal-${seg.item.id}-${wi}-${seg.colStart}-${seg.lane}`}
+                                  type="button"
+                                  onClick={() => openDrawer(seg.item)}
+                                  title={`${seg.item.title} · ${seg.item.workspace_name} / ${seg.item.project_name}`}
+                                  className="h-[22px] flex items-center text-left text-[11px] px-1.5 font-medium truncate border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm"
+                                  style={{
+                                    gridColumn: `${seg.colStart} / span ${seg.colSpan}`,
+                                    gridRow: seg.lane + 1,
+                                    backgroundColor: c.bg,
+                                    color: c.fg,
+                                    borderColor: c.border,
+                                    borderWidth: 1,
+                                    borderLeftWidth: seg.roundLeft ? 4 : 1,
+                                    borderRadius: radius,
+                                  }}
+                                >
+                                  {showLabel ? seg.item.title : "\u00a0"}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div
+                            className="pointer-events-none absolute inset-0 z-0 grid grid-cols-7"
+                            aria-hidden
+                          >
+                            {[0, 1, 2, 3, 4, 5, 6].map((col) => (
+                              <div
+                                key={col}
+                                className={[
+                                  "border-r border-border-subtle",
+                                  col === 0 ? "border-l border-border-subtle" : "",
+                                  col === 6 ? "border-r-0" : "",
+                                ].join(" ")}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
                     );
@@ -979,8 +1002,12 @@ export default function MySchedulePage() {
           })()}
         </section>
 
-        {/* Kanban */}
-        <div className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
+        {/* 泳道图（标题区）+ 看板 */}
+        <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
+          <div className="border-b border-border-subtle p-lg">
+            <div className="text-sm font-semibold text-primary">泳道图</div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 border-b border-border-subtle bg-zinc-50/50">
             {STATUSES.map((s) => (
               <div key={s.key} className="flex items-center justify-between border-r border-border-subtle p-lg last:border-r-0">
@@ -1070,7 +1097,7 @@ export default function MySchedulePage() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Task Drawer */}
