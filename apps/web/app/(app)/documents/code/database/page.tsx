@@ -23,6 +23,7 @@ export default function DatabaseDiagramPage() {
         datetime created_at
         datetime updated_at
         string name
+        string description
         uuid created_by_user_id FK
       }
 
@@ -41,9 +42,21 @@ export default function DatabaseDiagramPage() {
         datetime created_at
         datetime updated_at
         uuid workspace_id FK
+        uuid created_by_user_id FK
         string name
         string description
         bool archived
+      }
+
+      PROJECT_MEMBERS {
+        uuid id PK
+        datetime created_at
+        datetime updated_at
+        uuid workspace_id FK
+        uuid project_id FK
+        uuid user_id FK
+        string role
+        string status
       }
 
       ITEMS {
@@ -71,6 +84,8 @@ export default function DatabaseDiagramPage() {
         uuid author_user_id FK
         string body
         datetime deleted_at
+        uuid parent_comment_id FK
+        string completion_status
       }
 
       ACTIVITY_LOG {
@@ -89,11 +104,14 @@ export default function DatabaseDiagramPage() {
       WORKSPACES ||--o{ WORKSPACE_MEMBERS : has
       USERS ||--o{ WORKSPACE_MEMBERS : joins
       WORKSPACES ||--o{ PROJECTS : contains
+      PROJECTS ||--o{ PROJECT_MEMBERS : has
+      USERS ||--o{ PROJECT_MEMBERS : joins
       WORKSPACES ||--o{ ITEMS : contains
       PROJECTS ||--o{ ITEMS : contains
       WORKSPACES ||--o{ COMMENTS : contains
       ITEMS ||--o{ COMMENTS : has
       USERS ||--o{ COMMENTS : writes
+      COMMENTS ||--o{ COMMENTS : threads
       WORKSPACES ||--o{ ACTIVITY_LOG : records
       USERS ||--o{ ACTIVITY_LOG : acts
     `,
@@ -128,7 +146,7 @@ export default function DatabaseDiagramPage() {
         <div className="space-y-xs">
           <h1 className="font-section-heading text-section-heading text-text-primary">数据库结构</h1>
           <p className="text-body text-text-secondary">
-            从迁移文件（`0001_init_schema`、`0002_add_item_schedule_fields`）推断的表结构、字段与关联关系。
+            从迁移文件（`0001_init_schema` → `0007_comment_threading`）推断的表结构、字段与关联关系。
           </p>
         </div>
 

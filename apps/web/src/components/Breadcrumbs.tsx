@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 
@@ -14,12 +14,17 @@ function titleCase(input: string) {
     .join(" ");
 }
 
+function looksLikeOpaqueId(segment: string) {
+  if (/^[0-9a-f]{8,}$/i.test(segment)) return true;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
+}
+
 function humanizeSegment(segment: string, labelBySegment: Record<string, string>) {
   const mapped = labelBySegment[segment];
   if (mapped) return mapped;
 
-  // likely UUID / opaque ids: show short but stable label
-  if (/^[0-9a-f]{8,}$/i.test(segment)) return segment.slice(0, 8);
+  // likely UUID / opaque ids: short stable label (workspace/project/item use path placeholders instead)
+  if (looksLikeOpaqueId(segment)) return segment.slice(0, 8);
 
   return titleCase(segment.replace(/[-_]+/g, " "));
 }
@@ -30,6 +35,42 @@ type ResolvedName = { label: string };
 
 const workspaceNameCache = new Map<string, ResolvedName>();
 const projectNameCache = new Map<string, ResolvedName>();
+
+const breadcrumbNameCacheListeners = new Set<() => void>();
+let breadcrumbNameCacheEpoch = 0;
+
+function subscribeBreadcrumbNameCache(onStoreChange: () => void) {
+  breadcrumbNameCacheListeners.add(onStoreChange);
+  return () => breadcrumbNameCacheListeners.delete(onStoreChange);
+}
+
+function getBreadcrumbNameCacheEpoch() {
+  return breadcrumbNameCacheEpoch;
+}
+
+function notifyBreadcrumbNameCache() {
+  breadcrumbNameCacheEpoch += 1;
+  for (const l of breadcrumbNameCacheListeners) l();
+}
+
+/** 在任意已拿到工作空间名称的地方调用，使面包屑无需再等自身请求即可显示名称。 */
+export function primeWorkspaceNameForBreadcrumb(workspaceId: string, name: string) {
+  const n = name?.trim();
+  if (!workspaceId || !n) return;
+  if (workspaceNameCache.get(workspaceId)?.label === n) return;
+  workspaceNameCache.set(workspaceId, { label: n });
+  notifyBreadcrumbNameCache();
+}
+
+/** 在任意已拿到项目名称的地方调用（与 {@link primeWorkspaceNameForBreadcrumb} 同理）。 */
+export function primeProjectNameForBreadcrumb(workspaceId: string, projectId: string, name: string) {
+  const n = name?.trim();
+  if (!workspaceId || !projectId || !n) return;
+  const key = `${workspaceId}:${projectId}`;
+  if (projectNameCache.get(key)?.label === n) return;
+  projectNameCache.set(key, { label: n });
+  notifyBreadcrumbNameCache();
+}
 
 export function Breadcrumbs({
   className,
@@ -44,6 +85,11 @@ export function Breadcrumbs({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const nameCacheEpoch = useSyncExternalStore(
+    subscribeBreadcrumbNameCache,
+    getBreadcrumbNameCacheEpoch,
+    getBreadcrumbNameCacheEpoch,
+  );
 
   const [workspaceLabels, setWorkspaceLabels] = useState<Record<string, string>>({});
   const [projectLabels, setProjectLabels] = useState<Record<string, string>>({});
@@ -70,7 +116,7 @@ export function Breadcrumbs({
         apiFetch<{ id: string; name: string }>(`/workspaces/${workspaceId}`, { token })
           .then((w) => {
             if (cancelled) return;
-            workspaceNameCache.set(workspaceId, { label: w.name });
+            primeWorkspaceNameForBreadcrumb(workspaceId, w.name);
             setWorkspaceLabels((prev) => ({ ...prev, [workspaceId]: w.name }));
           })
           .catch(() => {
@@ -90,7 +136,7 @@ export function Breadcrumbs({
         apiFetch<{ id: string; name: string }>(`/workspaces/${workspaceId}/projects/${projectId}`, { token })
           .then((p) => {
             if (cancelled) return;
-            projectNameCache.set(key, { label: p.name });
+            primeProjectNameForBreadcrumb(workspaceId, projectId, p.name);
             // Store both keyed by workspace+project and by projectId alone
             // so breadcrumb rendering remains robust even if path parsing changes.
             setProjectLabels((prev) => ({ ...prev, [key]: p.name, [projectId]: p.name }));
@@ -126,6 +172,7 @@ export function Breadcrumbs({
       database: "数据库结构",
       my: "我的",
       schedule: "日程",
+      analytics: "数据分析",
     };
 
     const labels = { ...defaultLabelBySegment, ...(labelBySegment ?? {}) };
@@ -159,22 +206,54 @@ export function Breadcrumbs({
         continue;
       }
 
+      if (segment === "my" && segments[i + 1] === "analytics") {
+        href += `/${segment}`;
+        continue;
+      }
+      if (segment === "analytics" && prev === "my") {
+        href += `/${segment}`;
+        out.push({ href, label: "数据分析" });
+        continue;
+      }
+
       href += `/${segment}`;
       const resolvedWorkspace =
-        prev === "workspace" && workspaceLabels[segment] ? workspaceLabels[segment] : undefined;
-      const resolvedProject =
-        // /workspace/:wid/projects/:pid  -> i points at :pid, prev is "projects", wid is segments[i-2]
-        prev === "projects" && segments[i - 3] === "workspace"
-          ? projectLabels[segment] ?? projectLabels[`${segments[i - 2]}:${segment}`]
+        prev === "workspace"
+          ? workspaceLabels[segment] ?? workspaceNameCache.get(segment)?.label
           : undefined;
+      const workspaceIdForProject =
+        prev === "projects" && segments[i - 3] === "workspace" ? segments[i - 2] : undefined;
+      const resolvedProject =
+        prev === "projects" && workspaceIdForProject
+          ? projectLabels[segment] ??
+            projectLabels[`${workspaceIdForProject}:${segment}`] ??
+            projectNameCache.get(`${workspaceIdForProject}:${segment}`)?.label
+          : undefined;
+
+      let label = resolvedProject ?? resolvedWorkspace;
+      if (!label) {
+        // 工作空间名称由列表/子页 prime + 缓存订阅尽快显示，此处不再用「工作空间」占位以免与真实名称切换闪烁。
+        const idSlotPlaceholder =
+          prev === "projects" && segments[i - 3] === "workspace"
+            ? "项目"
+            : prev === "items"
+              ? "任务"
+              : undefined;
+        if (idSlotPlaceholder && looksLikeOpaqueId(segment)) {
+          label = idSlotPlaceholder;
+        }
+      }
+      if (!label) {
+        label = humanizeSegment(segment, labels);
+      }
 
       out.push({
         href: overrides[segment] ?? href,
-        label: resolvedProject ?? resolvedWorkspace ?? humanizeSegment(segment, labels),
+        label,
       });
     }
     return out;
-  }, [hideOnPaths, labelBySegment, pathname, projectLabels, rootHrefOverrides, workspaceLabels]);
+  }, [hideOnPaths, labelBySegment, nameCacheEpoch, pathname, projectLabels, rootHrefOverrides, workspaceLabels]);
 
   if (crumbs.length === 0) return null;
 

@@ -200,6 +200,7 @@ def list_recent_discussions(
             created_at=c.created_at,
             author_display_name=name or "",
             is_reply=c.parent_comment_id is not None,
+            completion_status=c.completion_status or "pending",
             project_id=str(pid),
             project_name=pname or "",
             item_id=str(iid),

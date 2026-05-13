@@ -4,9 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import type { ScheduleTaskItem } from "@/components/schedule/types";
+import { countdownTargetForItem, formatRemainDHM } from "@/components/schedule/taskUtils";
+import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
+import { TaskDrawerWithComments, type TaskDrawerItem } from "@/components/TaskDrawerWithComments";
 
 type Workspace = { id: string; name: string; description?: string | null };
-type Member = { id: string; user_id: string; email: string; display_name: string; role: string; status: string };
+type Member = { id: string; user_id: string; email: string; display_name: string; role: string; status: string; is_creator?: boolean };
 type Project = {
   id: string;
   name: string;
@@ -25,37 +29,6 @@ type Item = {
   end_at?: string | null;
   version: number;
 };
-
-type ItemComment = {
-  id: string;
-  author_user_id: string;
-  author_display_name: string;
-  body: string;
-  created_at: string;
-  deleted_at?: string | null;
-  parent_comment_id: string | null;
-  completion_status: string;
-};
-
-const COMMENT_BODY_PREVIEW_CHARS = 200;
-
-function buildRepliesByParentId(flat: ItemComment[]) {
-  const m = new Map<string, ItemComment[]>();
-  for (const c of flat) {
-    const pid = c.parent_comment_id;
-    if (!pid) continue;
-    if (!m.has(pid)) m.set(pid, []);
-    m.get(pid)!.push(c);
-  }
-  for (const arr of m.values()) {
-    arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }
-  return m;
-}
-
-function itemCommentsPath(workspaceId: string, projectId: string, itemId: string) {
-  return `/workspaces/${workspaceId}/projects/${projectId}/items/${itemId}/comments`;
-}
 
 function normalizePriority(p?: string | null): "1" | "2" | "3" | "4" {
   const v = (p ?? "").trim().toLowerCase();
@@ -204,35 +177,19 @@ export default function ProjectPage() {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createTitle, setCreateTitle] = useState("");
-  const [createBody, setCreateBody] = useState("");
-  const [createStatus, setCreateStatus] = useState<Item["status"]>("todo");
-  const [createPriority, setCreatePriority] = useState<"1" | "2" | "3" | "4">("1");
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createStartAt, setCreateStartAt] = useState("");
-  const [createEndAt, setCreateEndAt] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerItem, setDrawerItem] = useState<Item | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editBody, setEditBody] = useState("");
-  const [editStatus, setEditStatus] = useState<Item["status"]>("todo");
-  const [editPriority, setEditPriority] = useState<string>("");
-  const [editStartAt, setEditStartAt] = useState<string>("");
-  const [editEndAt, setEditEndAt] = useState<string>("");
-  const [editError, setEditError] = useState<string | null>(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [comments, setComments] = useState<ItemComment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentError, setCommentError] = useState<string | null>(null);
-  const [newCommentBody, setNewCommentBody] = useState("");
-  const [commentSubmitting, setCommentSubmitting] = useState(false);
-  const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
-  const [expandedCommentContent, setExpandedCommentContent] = useState<Record<string, boolean>>({});
+  const [createInitialStatus, setCreateInitialStatus] = useState<Item["status"]>("todo");
+  const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
+  const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
+  const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
   const [dragItemId, setDragItemId] = useState<string | null>(null);
   const [dragOverPriority, setDragOverPriority] = useState<"1" | "2" | "3" | "4" | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<"todo" | "doing" | "done" | "archived" | null>(null);
+  const [priorityCountdownNowMs, setPriorityCountdownNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setPriorityCountdownNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   async function reload() {
     if (!token) return;
@@ -246,6 +203,8 @@ export default function ProjectPage() {
     setProject(p);
     setMembers(m);
     setItems(i);
+    if (w) primeWorkspaceNameForBreadcrumb(w.id, w.name);
+    primeProjectNameForBreadcrumb(workspaceId, p.id, p.name);
   }
 
   useEffect(() => {
@@ -278,6 +237,10 @@ export default function ProjectPage() {
   const archivedCount = byStatus.archived.length;
   const healthPercent =
     taskTotal === 0 ? null : Math.round(((doneCount + archivedCount) / taskTotal) * 100);
+
+  const activeMembers = members.filter((m) => m.status === "active");
+  const adminMembers = activeMembers.filter((m) => m.role === "owner" || m.role === "admin");
+  const contributorMembers = activeMembers.filter((m) => m.role === "member" || m.role === "guest");
 
   const itemsByPriority = useMemo(() => {
     const out: Record<"1" | "2" | "3" | "4", Item[]> = { "1": [], "2": [], "3": [], "4": [] };
@@ -389,129 +352,32 @@ export default function ProjectPage() {
     return weeks;
   }, [items, calendarMonth]);
 
-  async function onCreateTask(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token) return;
-    const title = createTitle.trim();
-    const body = createBody.trim();
-    if (!title) {
-      setCreateError("请输入任务标题");
-      return;
-    }
-    if (!createStartAt || !createEndAt) {
-      setCreateError("开始时间和结束时间为必填");
-      return;
-    }
-    const startIso = new Date(createStartAt).toISOString();
-    const endIso = new Date(createEndAt).toISOString();
-    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
-      setCreateError("结束时间不能早于开始时间");
-      return;
-    }
-    setCreateError(null);
-    setCreateLoading(true);
-    try {
-      const created = await apiFetch<Item>(`/workspaces/${workspaceId}/projects/${projectId}/items`, {
-        method: "POST",
-        token,
-        body: JSON.stringify({
-          title,
-          body: body || null,
-          status: createStatus,
-          priority: createPriority,
-          start_at: startIso,
-          end_at: endIso,
-          details: null,
-        }),
-      });
-      setItems((prev) => [created, ...prev]);
-      setCreateOpen(false);
-      setCreateTitle("");
-      setCreateBody("");
-      setCreateStatus("todo");
-      setCreatePriority("1");
-      setCreateStartAt("");
-      setCreateEndAt("");
-    } catch (e: any) {
-      setCreateError(e?.message ?? "创建失败");
-    } finally {
-      setCreateLoading(false);
-    }
+  function openTaskCreate(status: Item["status"] = "todo") {
+    setTaskDrawerOpen(false);
+    setTaskDrawerItemId(null);
+    setCreateInitialStatus(status);
+    setTaskCreateDrawerOpen(true);
+  }
+
+  const taskDrawerListItem = useMemo(
+    () => (taskDrawerItemId ? items.find((x) => x.id === taskDrawerItemId) ?? null : null),
+    [items, taskDrawerItemId],
+  );
+  const taskDrawerSyncVersion = taskDrawerListItem?.version ?? 0;
+
+  function handleTaskDrawerSaved(updated: TaskDrawerItem) {
+    setItems((prev) => prev.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)));
   }
 
   function openDrawer(it: Item) {
-    setDrawerItem(it);
-    setEditTitle(it.title ?? "");
-    setEditBody(it.body ?? "");
-    setEditStatus((it.status as any) ?? "todo");
-    setEditPriority(normalizePriority(it.priority));
-    setEditStartAt(it.start_at ? toLocalDatetimeInputValue(it.start_at) : "");
-    setEditEndAt(it.end_at ? toLocalDatetimeInputValue(it.end_at) : "");
-    setEditError(null);
-    setCommentError(null);
-    setNewCommentBody("");
-    setReplyToCommentId(null);
-    setExpandedCommentContent({});
-    setDrawerOpen(true);
+    setTaskCreateDrawerOpen(false);
+    setTaskDrawerItemId(it.id);
+    setTaskDrawerOpen(true);
   }
 
-  function closeDrawer() {
-    if (editLoading) return;
-    setDrawerOpen(false);
-    setDrawerItem(null);
-    setComments([]);
-    setCommentError(null);
-    setNewCommentBody("");
-    setReplyToCommentId(null);
-    setExpandedCommentContent({});
-  }
-
-  async function onSaveTask(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token || !drawerItem) return;
-    const title = editTitle.trim();
-    if (!title) {
-      setEditError("请输入任务标题");
-      return;
-    }
-    if (!editStartAt || !editEndAt) {
-      setEditError("开始时间和结束时间为必填");
-      return;
-    }
-    const startIso = new Date(editStartAt).toISOString();
-    const endIso = new Date(editEndAt).toISOString();
-    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
-      setEditError("结束时间不能早于开始时间");
-      return;
-    }
-
-    setEditError(null);
-    setEditLoading(true);
-    try {
-      const updated = await apiFetch<Item>(
-        `/workspaces/${workspaceId}/projects/${projectId}/items/${drawerItem.id}`,
-        {
-          method: "PATCH",
-          token,
-          body: JSON.stringify({
-            title,
-            body: editBody.trim() || null,
-            status: editStatus,
-              priority: normalizePriority(editPriority),
-            start_at: startIso,
-            end_at: endIso,
-            details: null,
-            version: drawerItem.version,
-          }),
-        },
-      );
-      setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-      setDrawerItem(updated);
-    } catch (e: any) {
-      setEditError(e?.message ?? "保存失败");
-    } finally {
-      setEditLoading(false);
-    }
+  function closeTaskDrawer() {
+    setTaskDrawerOpen(false);
+    setTaskDrawerItemId(null);
   }
 
   async function updateTaskPriority(itemId: string, newPriority: "1" | "2" | "3" | "4") {
@@ -531,7 +397,6 @@ export default function ProjectPage() {
         },
       );
       setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-      if (drawerItem?.id === updated.id) setDrawerItem(updated);
     } catch (e: any) {
       // keep UX simple: surface error banner
       setError(e?.message ?? "更新优先级失败");
@@ -556,211 +421,43 @@ export default function ProjectPage() {
         },
       );
       setItems((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-      if (drawerItem?.id === updated.id) setDrawerItem(updated);
     } catch (e: any) {
       setError(e?.message ?? "更新状态失败");
     }
   }
 
-  useEffect(() => {
-    if (!drawerOpen || !drawerItem || !token) return;
-    let cancelled = false;
-    setCommentsLoading(true);
-    setCommentError(null);
-    apiFetch<ItemComment[]>(itemCommentsPath(workspaceId, projectId, drawerItem.id), { token })
-      .then((list) => {
-        if (!cancelled) setComments(list);
-      })
-      .catch((e: any) => {
-        if (!cancelled) setCommentError(e?.message ?? "评论加载失败");
-      })
-      .finally(() => {
-        if (!cancelled) setCommentsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [drawerOpen, drawerItem?.id, workspaceId, projectId, token]);
-
-  async function submitNewComment(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token || !drawerItem) return;
-    const body = newCommentBody.trim();
-    if (!body) return;
-    setCommentSubmitting(true);
-    setCommentError(null);
-    try {
-      const payload: { body: string; parent_comment_id?: string } = { body };
-      if (replyToCommentId) payload.parent_comment_id = replyToCommentId;
-      await apiFetch<ItemComment>(itemCommentsPath(workspaceId, projectId, drawerItem.id), {
-        method: "POST",
-        token,
-        body: JSON.stringify(payload),
-      });
-      setNewCommentBody("");
-      setReplyToCommentId(null);
-      const list = await apiFetch<ItemComment[]>(
-        itemCommentsPath(workspaceId, projectId, drawerItem.id),
-        { token },
-      );
-      setComments(list);
-    } catch (e: any) {
-      setCommentError(e?.message ?? "发表评论失败");
-    } finally {
-      setCommentSubmitting(false);
-    }
-  }
-
-  async function patchCommentCompletion(commentId: string, completion_status: "pending" | "done") {
-    if (!token || !drawerItem) return;
-    setCommentError(null);
-    try {
-      const updated = await apiFetch<ItemComment>(
-        `${itemCommentsPath(workspaceId, projectId, drawerItem.id)}/${commentId}`,
-        { method: "PATCH", token, body: JSON.stringify({ completion_status }) },
-      );
-      setComments((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
-    } catch (e: any) {
-      setCommentError(e?.message ?? "更新评论状态失败");
-    }
-  }
-
-  const repliesByParent = useMemo(() => buildRepliesByParentId(comments), [comments]);
-  const rootCommentsSorted = useMemo(
-    () =>
-      comments
-        .filter((c) => !c.parent_comment_id)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [comments],
-  );
-  const replyTargetLabel = replyToCommentId
-    ? comments.find((c) => c.id === replyToCommentId)?.author_display_name ?? "该评论"
-    : null;
-
-  function renderCommentNode(c: ItemComment, depth: number) {
-    const replies = repliesByParent.get(c.id) ?? [];
-    const isLong = c.body.length > COMMENT_BODY_PREVIEW_CHARS;
-    const expanded = expandedCommentContent[c.id];
-    const timeStr = new Date(c.created_at).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    return (
-      <div
-        key={c.id}
-        id={`task-comment-${c.id}`}
-        className={
-          depth > 0
-            ? "mt-3 pl-3 ml-1 border-l border-border-subtle scroll-mt-24"
-            : "border-b border-border-subtle pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 scroll-mt-24"
-        }
-      >
-        <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 text-caption text-neutral-muted">
-          <span className="font-medium text-text-primary">{c.author_display_name || "用户"}</span>
-          <span className="hidden sm:inline">·</span>
-          <span>{timeStr}</span>
-          {depth === 0 && (
-            <div className="flex items-center gap-2 sm:ml-auto">
-              <span className="text-neutral-muted shrink-0">状态</span>
-              <select
-                className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
-                value={c.completion_status === "done" ? "done" : "pending"}
-                onChange={(e) =>
-                  patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
-                }
-                aria-label="评论状态"
-              >
-                <option value="pending">未完成</option>
-                <option value="done">已完成</option>
-              </select>
-            </div>
-          )}
-        </div>
-        <div className="mt-2 text-small text-text-primary">
-          {isLong && !expanded ? (
-            <>
-              <p className="whitespace-pre-wrap line-clamp-4">{c.body}</p>
-              <button
-                type="button"
-                className="mt-1 text-primary text-caption font-medium hover:underline"
-                onClick={() =>
-                  setExpandedCommentContent((prev) => ({ ...prev, [c.id]: true }))
-                }
-              >
-                展开全文
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="whitespace-pre-wrap">{c.body}</p>
-              {isLong && expanded && (
-                <button
-                  type="button"
-                  className="mt-1 text-primary text-caption font-medium hover:underline"
-                  onClick={() =>
-                    setExpandedCommentContent((prev) => {
-                      const next = { ...prev };
-                      delete next[c.id];
-                      return next;
-                    })
-                  }
-                >
-                  收起
-                </button>
-              )}
-            </>
-          )}
-        </div>
-        {depth === 0 && (
-          <div className="mt-2">
-            <button
-              type="button"
-              className="text-caption font-medium text-primary hover:underline"
-              onClick={() => {
-                setReplyToCommentId(c.id);
-                setCommentError(null);
-              }}
-            >
-              回复
-            </button>
+  return (
+    <main className="px-lg py-lg">
+      <div className="max-w-container-max mx-auto space-y-2xl">
+        {error && (
+          <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+            {error}
           </div>
         )}
-        {replies.length > 0 && depth === 0 && (
-          <div className="mt-2 space-y-0">{replies.map((r) => renderCommentNode(r, 1))}</div>
-        )}
-      </div>
-    );
-  }
 
-  return (
-    <main className="pt-8 pb-12 px-container-padding">
-      <div className="max-w-container-max mx-auto">
-        {/* Top blocks */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-3xl">
-          <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
+        <section className="grid grid-cols-1 gap-lg md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_2fr_2fr] items-stretch">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">项目</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{project?.name ?? "—"}</div>
-              <div className="text-small text-text-secondary line-clamp-2">{project?.description || "暂无描述。"}</div>
+              <div className="text-small text-text-secondary truncate">{project?.description || "暂无描述。"}</div>
               <div className="text-caption text-neutral-muted">创建于 {project?.created_at ? formatYmdHm(project.created_at) : "—"}</div>
               <div className="text-caption text-neutral-muted">创建者 {project?.created_by_display_name ?? "—"}</div>
             </div>
-          </section>
+          </div>
 
-          <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">成员</span>
+            <div className="space-y-2 mt-1.5">
+              <div className="flex items-baseline gap-2">
+                <span className="font-headline text-section-heading">{activeMembers.length}</span>
+                <span className="text-text-secondary text-caption">总计</span>
+              </div>
 
-            {members.length === 0 ? (
-              <div className="text-small text-text-secondary">暂无成员。</div>
-            ) : (
               <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">共 {members.length} 人</div>
+                <div className="text-caption text-neutral-muted">管理员 {adminMembers.length}</div>
                 <div className="flex -space-x-2">
-                  {members.slice(0, 3).map((m) => (
+                  {adminMembers.slice(0, 3).map((m) => (
                     <div
                       key={m.id}
                       className="w-8 h-8 rounded-full border-2 border-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
@@ -769,85 +466,95 @@ export default function ProjectPage() {
                       {(m.display_name?.trim().slice(0, 1) || m.email.trim().slice(0, 1)).toUpperCase()}
                     </div>
                   ))}
-                  {members.length > 3 && (
+                  {adminMembers.length > 3 && (
                     <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                      +{members.length - 3}
+                      +{adminMembers.length - 3}
                     </div>
                   )}
                 </div>
               </div>
-            )}
-          </section>
 
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-sm font-semibold text-primary">项目健康度</span>
-            <div className="space-y-2">
-              <div className="flex items-baseline gap-2">
-                <span className="font-headline text-section-heading">
-                  {healthPercent == null ? "—" : `${healthPercent}%`}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">待办</div>
-                  <div className="font-bold text-lg text-text-primary">{backlogCount}</div>
-                </div>
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">进行中</div>
-                  <div className="font-bold text-lg text-text-primary">{activeCount}</div>
-                </div>
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">已完成</div>
-                  <div className="font-bold text-lg text-text-primary">{doneCount}</div>
-                </div>
-                <div className="space-y-0.5">
-                  <div className="text-caption text-neutral-muted">已归档</div>
-                  <div className="font-bold text-lg text-text-primary">{archivedCount}</div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-caption text-neutral-muted">贡献者 {contributorMembers.length}</div>
+                <div className="flex -space-x-2">
+                  {contributorMembers.slice(0, 3).map((m) => (
+                    <div
+                      key={m.id}
+                      className="w-8 h-8 rounded-full border-2 border-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
+                      title={m.display_name || m.email}
+                    >
+                      {(m.display_name?.trim().slice(0, 1) || m.email.trim().slice(0, 1)).toUpperCase()}
+                    </div>
+                  ))}
+                  {contributorMembers.length > 3 && (
+                    <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                      +{contributorMembers.length - 3}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          <section className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-48 hover:shadow-lg transition-all">
-            <span className="text-sm font-semibold text-primary">设置</span>
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+            <span className="text-sm font-semibold text-primary">项目健康度</span>
+            <div className="space-y-3 mt-1.5">
+              <div className="flex items-baseline gap-2">
+                <span className="font-headline text-section-heading">
+                  {healthPercent == null ? "—" : `${healthPercent}%`}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">待办</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{backlogCount}</span>
+                </div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">进行中</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{activeCount}</span>
+                </div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">已完成</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{doneCount}</span>
+                </div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">已归档</span>
+                  <span className="font-bold text-lg text-text-primary tabular-nums">{archivedCount}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+            <span className="text-sm font-semibold text-primary">项目设置</span>
             <div className="grid grid-cols-1 gap-sm">
               <a
-                className="w-full px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 px-lg py-sm text-sm font-medium text-text-primary transition-all hover:bg-zinc-50"
                 href={`/workspace/${workspaceId}/projects/${projectId}/members`}
               >
                 <span className="material-symbols-outlined text-lg">person_add</span>
                 添加成员
               </a>
               <button
-                className="w-full px-lg py-sm rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary-hover shadow-indigo-100 shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-lg py-sm text-sm font-semibold text-on-primary shadow-lg shadow-indigo-100 transition-all hover:bg-primary-hover hover:-translate-y-0.5"
                 type="button"
-                onClick={() => {
-                  setCreateError(null);
-                  setCreateOpen(true);
-                }}
+                onClick={() => openTaskCreate("todo")}
               >
                 <span className="material-symbols-outlined text-lg">add</span>
                 新建任务
               </button>
             </div>
-          </section>
-        </div>
-
-        {error && (
-          <div className="mb-6 rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">
-            {error}
           </div>
-        )}
+        </section>
 
         {/* Priority Quadrants */}
-        <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-6">
-          <div className="p-xl flex items-center justify-between gap-3">
+        <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
+          <div className="flex items-center justify-between gap-lg p-lg">
             <div className="text-sm font-semibold text-primary">优先级象限</div>
           </div>
 
-          <div className="p-xl pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-lg pt-0">
+            <div className="grid grid-cols-1 gap-lg md:grid-cols-2">
               {(
                 [
                   { p: "1", title: "P1（低）", colorClass: "bg-blue-50 border-blue-100", dotClass: "bg-blue-500" },
@@ -861,7 +568,7 @@ export default function ProjectPage() {
                   <div
                     key={q.p}
                     className={[
-                      `rounded-xl border ${q.colorClass} p-4`,
+                      `rounded-xl border ${q.colorClass} p-lg`,
                       dragOverPriority === q.p ? "ring-2 ring-primary/25 ring-inset" : "",
                     ].join(" ")}
                     onDragOver={(e) => {
@@ -880,7 +587,7 @@ export default function ProjectPage() {
                       updateTaskPriority(id, q.p);
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-lg">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2.5 h-2.5 rounded-full ${q.dotClass}`} />
                         <div className="font-medium text-text-primary truncate">{q.title}</div>
@@ -891,27 +598,45 @@ export default function ProjectPage() {
                       {list.length === 0 ? (
                         <div className="text-[12px] text-neutral-muted">暂无任务。</div>
                       ) : (
-                        list.slice(0, 6).map((it) => (
-                          <button
-                            key={it.id}
-                            type="button"
-                            onClick={() => openDrawer(it)}
-                            draggable
-                            onDragStart={(e) => {
-                              setDragItemId(it.id);
-                              e.dataTransfer.setData("text/task-id", it.id);
-                              e.dataTransfer.effectAllowed = "move";
-                            }}
-                            onDragEnd={() => {
-                              setDragItemId(null);
-                              setDragOverPriority(null);
-                            }}
-                            className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary truncate transition-colors"
-                            title={it.title}
-                          >
-                            {it.title}
-                          </button>
-                        ))
+                        list.slice(0, 6).map((it) => {
+                          const target = countdownTargetForItem(it as unknown as ScheduleTaskItem);
+                          const cd = target ? formatRemainDHM(target.getTime(), priorityCountdownNowMs) : null;
+                          return (
+                            <button
+                              key={it.id}
+                              type="button"
+                              onClick={() => openDrawer(it)}
+                              draggable
+                              onDragStart={(e) => {
+                                setDragItemId(it.id);
+                                e.dataTransfer.setData("text/task-id", it.id);
+                                e.dataTransfer.effectAllowed = "move";
+                              }}
+                              onDragEnd={() => {
+                                setDragItemId(null);
+                                setDragOverPriority(null);
+                              }}
+                              className="w-full rounded-lg border border-border-subtle bg-white/70 px-2 py-1.5 text-left text-[12px] text-text-primary transition-colors hover:bg-white"
+                              title={cd ? `${it.title} · ${cd.text}` : it.title}
+                            >
+                              <div className="flex min-w-0 items-start justify-between gap-2">
+                                <span className="min-w-0 flex-1 truncate font-medium">{it.title}</span>
+                                {cd ? (
+                                  <span
+                                    className={[
+                                      "shrink-0 whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-bold tabular-nums leading-none",
+                                      cd.overdue
+                                        ? "bg-red-100 text-red-700 ring-1 ring-red-200"
+                                        : priorityBadgeClass(it.priority),
+                                    ].join(" ")}
+                                  >
+                                    {cd.text}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </button>
+                          );
+                        })
                       )}
                       {list.length > 6 && (
                         <div className="text-[11px] text-neutral-muted font-medium">还有 +{list.length - 6} 个</div>
@@ -925,8 +650,8 @@ export default function ProjectPage() {
         </section>
 
         {/* Calendar */}
-        <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-6">
-          <div className="p-xl flex items-center justify-between gap-3">
+        <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
+          <div className="flex items-center justify-between gap-lg p-lg">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-primary">日历</div>
               <div className="font-subhead text-lg text-text-primary">
@@ -975,28 +700,39 @@ export default function ProjectPage() {
             return (
               <div className="bg-surface">
                 <div className="grid grid-cols-7 border-t border-border-subtle bg-surface-container-lowest">
-                  {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
-                    <div key={d} className="p-3 text-center font-overline text-neutral-muted">
+                  {["日", "一", "二", "三", "四", "五", "六"].map((d, di) => (
+                    <div
+                      key={d}
+                      className={[
+                        "p-lg text-center font-overline text-neutral-muted border-r border-b border-border-subtle",
+                        di === 0 ? "border-l border-border-subtle" : "",
+                        "last:border-r-0",
+                      ].join(" ")}
+                    >
                       {d}
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-col min-h-[520px]">
+                <div className="flex flex-col">
                   {calendarWeeks.map((week, wi) => {
                     const maxLane = week.segments.reduce((m, s) => Math.max(m, s.lane), -1);
                     const rowCount = maxLane < 0 ? 0 : maxLane + 1;
+                    const minTaskLanes = 3;
+                    const lanes = Math.max(rowCount, minTaskLanes);
+                    const taskAreaMinHeightPx = 4 + 8 + lanes * 22 + Math.max(0, lanes - 1) * 4;
                     return (
-                      <div key={wi} className="flex-1 border-b border-border-subtle last:border-b-0 flex flex-col min-h-0">
+                      <div key={wi} className="border-b border-border-subtle last:border-b-0 flex flex-col min-h-0">
                         <div className="grid grid-cols-7 shrink-0">
-                          {week.days.map(({ date, key, inMonth }) => {
+                          {week.days.map(({ date, key, inMonth }, di) => {
                             const isToday = key === todayKey;
                             return (
                               <div
                                 key={key}
                                 className={[
-                                  "border-r border-border-subtle p-2 min-h-[44px]",
+                                  "border-r border-b border-border-subtle p-2 min-h-[44px]",
+                                  di === 0 ? "border-l border-border-subtle" : "",
                                   inMonth ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted opacity-60",
-                                  isToday ? "ring-2 ring-primary/30 ring-inset z-[1]" : "",
+                                  isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "",
                                   "last:border-r-0",
                                 ].join(" ")}
                               >
@@ -1004,59 +740,65 @@ export default function ProjectPage() {
                                   <span className={inMonth ? "font-small font-medium text-text-primary" : "font-small"}>
                                     {date.getDate()}
                                   </span>
-                                  {isToday && (
-                                    <span
-                                      className="material-symbols-outlined text-primary text-sm"
-                                      style={{ fontVariationSettings: "'FILL' 1" }}
-                                    >
-                                      push_pin
-                                    </span>
-                                  )}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                        <div
-                          className="grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1 border-t border-border-subtle/70 bg-surface grow"
-                          style={{
-                            gridAutoRows: "minmax(22px, auto)",
-                            minHeight: rowCount === 0 ? 6 : 6 + rowCount * 26,
-                          }}
-                        >
-                          {week.segments.map((seg) => {
-                            const c = taskCalendarColors(seg.item.id);
-                            const radius =
-                              seg.roundLeft && seg.roundRight
-                                ? 8
-                                : seg.roundLeft
-                                  ? "8px 0 0 8px"
-                                  : seg.roundRight
-                                    ? "0 8px 8px 0"
-                                    : 0;
-                            const showLabel = seg.roundLeft || seg.colStart === 1;
-                            return (
-                              <button
-                                key={`${seg.item.id}-${wi}-${seg.colStart}-${seg.lane}`}
-                                type="button"
-                                onClick={() => openDrawer(seg.item)}
-                                title={seg.item.title}
-                                className="text-left text-[11px] px-1.5 py-1 font-medium truncate border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm"
-                                style={{
-                                  gridColumn: `${seg.colStart} / span ${seg.colSpan}`,
-                                  gridRow: seg.lane + 1,
-                                  backgroundColor: c.bg,
-                                  color: c.fg,
-                                  borderColor: c.border,
-                                  borderWidth: 1,
-                                  borderLeftWidth: seg.roundLeft ? 4 : 1,
-                                  borderRadius: radius,
-                                }}
-                              >
-                                {showLabel ? seg.item.title : "\u00a0"}
-                              </button>
-                            );
-                          })}
+                        <div className="relative border-t border-border-subtle/70 bg-surface">
+                          <div
+                            className="relative z-[1] grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1"
+                            style={{
+                              gridAutoRows: 22,
+                              minHeight: taskAreaMinHeightPx,
+                            }}
+                          >
+                            {week.segments.map((seg) => {
+                              const c = taskCalendarColors(seg.item.id);
+                              const radius =
+                                seg.roundLeft && seg.roundRight
+                                  ? 8
+                                  : seg.roundLeft
+                                    ? "8px 0 0 8px"
+                                    : seg.roundRight
+                                      ? "0 8px 8px 0"
+                                      : 0;
+                              const showLabel = seg.roundLeft || seg.colStart === 1;
+                              return (
+                                <button
+                                  key={`cal-${seg.item.id}-${wi}-${seg.colStart}-${seg.lane}`}
+                                  type="button"
+                                  onClick={() => openDrawer(seg.item)}
+                                  title={seg.item.title}
+                                  className="h-[22px] flex items-center text-left text-[11px] px-1.5 font-medium truncate border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm"
+                                  style={{
+                                    gridColumn: `${seg.colStart} / span ${seg.colSpan}`,
+                                    gridRow: seg.lane + 1,
+                                    backgroundColor: c.bg,
+                                    color: c.fg,
+                                    borderColor: c.border,
+                                    borderWidth: 1,
+                                    borderLeftWidth: seg.roundLeft ? 4 : 1,
+                                    borderRadius: radius,
+                                  }}
+                                >
+                                  {showLabel ? seg.item.title : "\u00a0"}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="pointer-events-none absolute inset-0 z-0 grid grid-cols-7" aria-hidden>
+                            {[0, 1, 2, 3, 4, 5, 6].map((col) => (
+                              <div
+                                key={col}
+                                className={[
+                                  "border-r border-border-subtle",
+                                  col === 0 ? "border-l border-border-subtle" : "",
+                                  col === 6 ? "border-r-0" : "",
+                                ].join(" ")}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1067,10 +809,13 @@ export default function ProjectPage() {
           })()}
         </section>
 
-        <div className="bg-white rounded-xl border border-border-subtle overflow-hidden">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 border-b border-border-subtle bg-zinc-50/50">
+        <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
+          <div className="border-b border-border-subtle p-lg">
+            <div className="text-sm font-semibold text-primary">泳道图</div>
+          </div>
+          <div className="grid grid-cols-1 border-b border-border-subtle bg-zinc-50/50 md:grid-cols-2 xl:grid-cols-4">
                 {STATUSES.map((s) => (
-                  <div key={s.key} className="p-4 border-r border-border-subtle last:border-r-0 flex items-center justify-between">
+                  <div key={s.key} className="flex items-center justify-between border-r border-border-subtle p-lg last:border-r-0">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${s.dotClass}`} />
                       <span className="text-overline">{s.label}</span>
@@ -1079,25 +824,21 @@ export default function ProjectPage() {
                     <button
                       type="button"
                       className="material-symbols-outlined text-lg text-neutral-muted cursor-pointer hover:text-text-primary"
-                      onClick={() => {
-                        setCreateStatus(s.key);
-                        setCreateError(null);
-                        setCreateOpen(true);
-                      }}
+                      onClick={() => openTaskCreate(s.key)}
                       title="添加任务"
                     >
                       add
                     </button>
                   </div>
                 ))}
-              </div>
+          </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 h-[700px] divide-x divide-border-subtle">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 h-[700px] divide-x divide-border-subtle">
                 {STATUSES.map((s) => (
                   <div
                     key={s.key}
                     className={[
-                      `p-4 space-y-4 overflow-y-auto ${s.bgClass}`,
+                      `space-y-4 overflow-y-auto p-lg ${s.bgClass}`,
                       dragOverStatus === s.key ? "ring-2 ring-primary/20 ring-inset" : "",
                     ].join(" ")}
                     onDragOver={(e) => {
@@ -1129,7 +870,7 @@ export default function ProjectPage() {
                           setDragItemId(null);
                           setDragOverStatus(null);
                         }}
-                        className="w-full text-left bg-white border border-border-subtle rounded-xl p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer block"
+                        className="block w-full cursor-pointer rounded-xl border border-border-subtle bg-white p-lg text-left transition-all hover:-translate-y-0.5 hover:shadow-lg"
                       >
                         <span
                           className={`px-2 py-0.5 text-[10px] rounded font-bold ${priorityBadgeClass(it.priority)}`}
@@ -1161,348 +902,35 @@ export default function ProjectPage() {
                     ))}
                   </div>
                 ))}
-              </div>
-        </div>
+          </div>
+        </section>
       </div>
 
-      {/* Task Drawer */}
-      {drawerOpen && drawerItem && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={closeDrawer} />
-          <aside className="absolute inset-y-0 right-0 w-[min(1120px,100vw)] bg-surface border-l border-border-subtle shadow-xl flex flex-col overflow-hidden">
-            <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-border-subtle">
-              <div className="min-w-0">
-                <div className="text-overline text-zinc-400">编辑任务</div>
-                <div className="font-subhead text-subhead text-text-primary truncate">{drawerItem.title}</div>
-              </div>
-              <button
-                type="button"
-                className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl border border-border-subtle hover:bg-surface-container-lowest disabled:opacity-50"
-                onClick={closeDrawer}
-                disabled={editLoading}
-                title="关闭"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
+      <TaskDrawerWithComments
+        open={taskDrawerOpen && !!taskDrawerItemId}
+        onClose={closeTaskDrawer}
+        workspaceId={workspaceId}
+        projectId={projectId}
+        itemId={taskDrawerItemId}
+        highlightCommentId={null}
+        token={token}
+        syncVersion={taskDrawerSyncVersion}
+        onTaskSaved={handleTaskDrawerSaved}
+      />
 
-            <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
-              <div className="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6 border-b lg:border-b-0 lg:border-r border-border-subtle">
-                <form onSubmit={onSaveTask} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskTitle">
-                      标题
-                    </label>
-                    <input
-                      id="editTaskTitle"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      disabled={editLoading}
-                    />
-                  </div>
+      <TaskDrawerWithComments
+        open={taskCreateDrawerOpen}
+        onClose={() => setTaskCreateDrawerOpen(false)}
+        workspaceId={workspaceId}
+        projectId={projectId}
+        itemId={null}
+        highlightCommentId={null}
+        token={token}
+        variant="create"
+        initialCreateStatus={createInitialStatus}
+        onTaskCreated={(created) => setItems((prev) => [created as Item, ...prev])}
+      />
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskBody">
-                      描述
-                    </label>
-                    <textarea
-                      id="editTaskBody"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none min-h-[120px] resize-none"
-                      value={editBody}
-                      onChange={(e) => setEditBody(e.target.value)}
-                      disabled={editLoading}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskStatus">
-                        状态
-                      </label>
-                      <select
-                        id="editTaskStatus"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editStatus}
-                        onChange={(e) => setEditStatus(e.target.value as any)}
-                        disabled={editLoading}
-                      >
-                        <option value="todo">待办（todo）</option>
-                        <option value="doing">进行中（doing）</option>
-                        <option value="done">已完成（done）</option>
-                        <option value="archived">已归档（archived）</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskPriority">
-                        优先级
-                      </label>
-                      <select
-                        id="editTaskPriority"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editPriority}
-                        onChange={(e) => setEditPriority(e.target.value)}
-                        disabled={editLoading}
-                      >
-                        <option value="1">1（低）</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4（高）</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskStartAt">
-                        开始时间
-                      </label>
-                      <input
-                        id="editTaskStartAt"
-                        type="datetime-local"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editStartAt}
-                        onChange={(e) => setEditStartAt(e.target.value)}
-                        disabled={editLoading}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor="editTaskEndAt">
-                        结束时间
-                      </label>
-                      <input
-                        id="editTaskEndAt"
-                        type="datetime-local"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editEndAt}
-                        onChange={(e) => setEditEndAt(e.target.value)}
-                        disabled={editLoading}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {editError && <div className="text-small text-error">{editError}</div>}
-
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      className="text-sm rounded-xl border border-border-subtle px-4 py-2 disabled:opacity-50"
-                      onClick={closeDrawer}
-                      disabled={editLoading}
-                    >
-                      取消
-                    </button>
-                    <button
-                      type="submit"
-                      className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 disabled:opacity-50"
-                      disabled={editLoading}
-                    >
-                      {editLoading ? "保存中…" : "保存"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div className="flex w-full flex-col lg:w-[min(440px,42%)] shrink-0 min-h-0 max-h-[48vh] lg:max-h-none">
-                <div className="shrink-0 px-6 pt-4">
-                  <div className="text-overline text-zinc-400">任务评论</div>
-                </div>
-                <form
-                  onSubmit={submitNewComment}
-                  className="shrink-0 px-6 py-4 border-b border-border-subtle space-y-3"
-                >
-                  {replyToCommentId && (
-                    <div className="flex items-center justify-between gap-2 rounded-xl bg-primary-container/15 px-3 py-2 text-caption text-text-primary">
-                      <span className="min-w-0 truncate">正在回复：{replyTargetLabel}</span>
-                      <button
-                        type="button"
-                        className="shrink-0 text-primary font-medium hover:underline"
-                        onClick={() => setReplyToCommentId(null)}
-                      >
-                        取消回复
-                      </button>
-                    </div>
-                  )}
-                  <textarea
-                    className="w-full min-h-[88px] rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-small text-text-primary focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none resize-y"
-                    placeholder="写下评论…"
-                    value={newCommentBody}
-                    onChange={(e) => setNewCommentBody(e.target.value)}
-                    disabled={commentSubmitting}
-                    aria-label="新评论"
-                  />
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 font-semibold disabled:opacity-50"
-                      disabled={commentSubmitting || !newCommentBody.trim()}
-                    >
-                      {commentSubmitting ? "提交中…" : "发表评论"}
-                    </button>
-                  </div>
-                </form>
-                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
-                  {commentsLoading && (
-                    <div className="text-caption text-neutral-muted">加载评论中…</div>
-                  )}
-                  {commentError && <div className="text-small text-error mb-3">{commentError}</div>}
-                  {!commentsLoading && rootCommentsSorted.length === 0 && !commentError && (
-                    <div className="text-caption text-neutral-muted">暂无评论。</div>
-                  )}
-                  {rootCommentsSorted.map((c) => renderCommentNode(c, 0))}
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
-      )}
-
-      {/* Create Task Modal */}
-      {createOpen && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => {
-              if (!createLoading) setCreateOpen(false);
-            }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm max-h-[calc(100vh-6rem)] overflow-auto">
-              <div className="flex items-center justify-between">
-                <div className="font-semibold font-subhead">新建任务</div>
-                <button
-                  className="text-sm underline"
-                  type="button"
-                  onClick={() => {
-                    if (!createLoading) setCreateOpen(false);
-                  }}
-                >
-                  关闭
-                </button>
-              </div>
-
-              <form onSubmit={onCreateTask} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-on-surface-variant" htmlFor="createTaskTitle">
-                    标题
-                  </label>
-                  <input
-                    id="createTaskTitle"
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                    value={createTitle}
-                    onChange={(e) => setCreateTitle(e.target.value)}
-                    placeholder="例如：完善日程周视图"
-                    autoFocus
-                    disabled={createLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-on-surface-variant" htmlFor="createTaskBody">
-                    描述
-                  </label>
-                  <textarea
-                    id="createTaskBody"
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none min-h-[96px] resize-none"
-                    value={createBody}
-                    onChange={(e) => setCreateBody(e.target.value)}
-                    placeholder="需要完成什么？"
-                    disabled={createLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-on-surface-variant" htmlFor="createTaskStatus">
-                    状态
-                  </label>
-                  <select
-                    id="createTaskStatus"
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                    value={createStatus}
-                    onChange={(e) => setCreateStatus(e.target.value as any)}
-                    disabled={createLoading}
-                  >
-                    <option value="todo">待办（todo）</option>
-                    <option value="doing">进行中（doing）</option>
-                    <option value="done">已完成（done）</option>
-                    <option value="archived">已归档（archived）</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-on-surface-variant" htmlFor="createTaskPriority">
-                    优先级
-                  </label>
-                  <select
-                    id="createTaskPriority"
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                    value={createPriority}
-                    onChange={(e) => setCreatePriority(e.target.value as any)}
-                    disabled={createLoading}
-                  >
-                    <option value="1">1（低）</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4（高）</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor="createTaskStartAt">
-                      开始时间
-                    </label>
-                    <input
-                      id="createTaskStartAt"
-                      type="datetime-local"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={createStartAt}
-                      onChange={(e) => setCreateStartAt(e.target.value)}
-                      disabled={createLoading}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor="createTaskEndAt">
-                      结束时间
-                    </label>
-                    <input
-                      id="createTaskEndAt"
-                      type="datetime-local"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={createEndAt}
-                      onChange={(e) => setCreateEndAt(e.target.value)}
-                      disabled={createLoading}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {createError && <div className="text-small text-error">{createError}</div>}
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    className="text-sm rounded-xl border border-border-subtle px-4 py-2 disabled:opacity-50"
-                    onClick={() => setCreateOpen(false)}
-                    disabled={createLoading}
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="submit"
-                    className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 disabled:opacity-50"
-                    disabled={createLoading}
-                  >
-                    {createLoading ? "创建中…" : "创建"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

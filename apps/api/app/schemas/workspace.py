@@ -43,6 +43,7 @@ class RecentDiscussionOut(BaseModel):
     created_at: datetime
     author_display_name: str
     is_reply: bool
+    completion_status: str
     project_id: str
     project_name: str
     item_id: str

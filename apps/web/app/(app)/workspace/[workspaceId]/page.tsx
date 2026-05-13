@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments } from "@/components/TaskDrawerWithComments";
 
 const RECENT_DISCUSSIONS_PAGE_SIZE = 20;
@@ -38,6 +40,7 @@ type RecentDiscussion = {
   created_at: string;
   author_display_name: string;
   is_reply: boolean;
+  completion_status?: string;
   project_id: string;
   project_name: string;
   item_id: string;
@@ -109,6 +112,12 @@ export default function WorkspaceHome() {
   const [taskDrawerProjectId, setTaskDrawerProjectId] = useState<string | null>(null);
   const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
   const [taskDrawerHighlightId, setTaskDrawerHighlightId] = useState<string | null>(null);
+  /** 勾选后仅展示未完成（pending）的评论与回复 */
+  const [discussionsFilterIncompleteOnly, setDiscussionsFilterIncompleteOnly] = useState(false);
+  /** 勾选表示展示该类型；默认均展示 */
+  const [discussionsShowComments, setDiscussionsShowComments] = useState(true);
+  const [discussionsShowReplies, setDiscussionsShowReplies] = useState(true);
+  const [discussionsPatchingId, setDiscussionsPatchingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -129,14 +138,17 @@ export default function WorkspaceHome() {
       .then(([w, m, p, s, progress]) => {
         setWorkspace(w);
         setMembers(m);
+        primeWorkspaceNameForBreadcrumb(w.id, w.name);
         const prog = progress as Record<string, { todo_doing: number; done_archived: number }>;
-        setProjects(
-          p.filter((x) => !x.archived).map((proj) => ({
-            ...proj,
-            todo_doing: prog[proj.id]?.todo_doing ?? 0,
-            done_archived: prog[proj.id]?.done_archived ?? 0,
-          })),
-        );
+        const visible = p.filter((x) => !x.archived).map((proj) => ({
+          ...proj,
+          todo_doing: prog[proj.id]?.todo_doing ?? 0,
+          done_archived: prog[proj.id]?.done_archived ?? 0,
+        }));
+        setProjects(visible);
+        for (const proj of visible) {
+          primeProjectNameForBreadcrumb(w.id, proj.id, proj.name);
+        }
         setStats(s);
       })
       .catch((e: any) => setError(e?.message ?? "加载失败"));
@@ -209,6 +221,43 @@ export default function WorkspaceHome() {
     return () => observer.disconnect();
   }, [discussionsHasMore, loadMoreDiscussions]);
 
+  const visibleDiscussions = useMemo(() => {
+    return recentDiscussions.filter((row) => {
+      const status = row.completion_status ?? "pending";
+      if (discussionsFilterIncompleteOnly && status === "done") return false;
+      if (row.is_reply) {
+        if (!discussionsShowReplies) return false;
+        return true;
+      }
+      if (!discussionsShowComments) return false;
+      return true;
+    });
+  }, [
+    recentDiscussions,
+    discussionsFilterIncompleteOnly,
+    discussionsShowComments,
+    discussionsShowReplies,
+  ]);
+
+  async function patchDiscussionCommentCompletion(row: RecentDiscussion, completion_status: "pending" | "done") {
+    if (!token) return;
+    setDiscussionsPatchingId(row.id);
+    try {
+      const updated = await apiFetch<{ completion_status: string }>(
+        `/workspaces/${workspaceId}/projects/${row.project_id}/items/${row.item_id}/comments/${row.id}`,
+        { method: "PATCH", token, body: JSON.stringify({ completion_status }) },
+      );
+      const nextStatus = updated.completion_status === "done" ? "done" : "pending";
+      setRecentDiscussions((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, completion_status: nextStatus } : r)),
+      );
+    } catch {
+      /* 静默失败，抽屉内可再次操作 */
+    } finally {
+      setDiscussionsPatchingId(null);
+    }
+  }
+
   async function onDeleteProject(project: Project) {
     if (!token) {
       router.push("/login");
@@ -235,16 +284,16 @@ export default function WorkspaceHome() {
   const remainingMemberCount = Math.max(0, activeMembers.length - memberPreview.length);
 
   return (
-    <main className="px-lg py-lg">
-      <div className="max-w-container-max mx-auto space-y-2xl">
+    <main className="min-w-0 px-lg py-lg">
+      <div className="mx-auto min-w-0 max-w-container-max space-y-2xl">
         {error && (
           <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
           </div>
         )}
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] gap-lg">
-          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] items-stretch gap-lg">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">工作空间</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{workspace?.name ?? "—"}</div>
@@ -258,7 +307,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">成员</span>
             <div className="space-y-2 mt-1.5">
               {/* Row 1: Total */}
@@ -311,7 +360,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">项目数量</span>
             <div className="flex items-baseline gap-2">
               <span className="font-headline text-section-heading">{stats?.project_count ?? projects.length}</span>
@@ -319,7 +368,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">项目健康度</span>
             <div className="space-y-3 mt-1.5">
               <div className="flex items-baseline gap-2">
@@ -347,23 +396,23 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
+          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
             <span className="text-sm font-semibold text-primary">工作空间设置</span>
             <div className="grid grid-cols-1 gap-sm">
-              <a
+              <Link
                 className="w-full px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center justify-center gap-2"
                 href={`/workspace/${workspaceId}/members`}
               >
                 <span className="material-symbols-outlined text-lg">person_add</span>
                 添加成员
-              </a>
-              <a
+              </Link>
+              <Link
                 className="w-full px-lg py-sm rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover shadow-indigo-100 shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                 href={`/workspace/${workspaceId}/projects`}
               >
                 <span className="material-symbols-outlined text-lg">add</span>
                 新建项目
-              </a>
+              </Link>
             </div>
           </div>
         </section>
@@ -391,7 +440,7 @@ export default function WorkspaceHome() {
                 const total = todoDoing + doneArchived;
                 const progressPct = total === 0 ? 0 : Math.round((doneArchived / total) * 100);
                 return (
-                <a
+                <Link
                   key={p.id}
                   href={`/workspace/${workspaceId}/projects/${p.id}`}
                   className="bg-white rounded-xl border border-border-subtle overflow-hidden hover:shadow-xl transition-all group relative"
@@ -445,68 +494,145 @@ export default function WorkspaceHome() {
                       </div>
                     </div>
                   </div>
-                </a>
+                </Link>
                 );
               })}
             </div>
           )}
         </section>
 
-        <section className="grid grid-cols-1 gap-lg">
-          <div className="bg-white p-lg rounded-xl border border-border-subtle hover:shadow-md transition-all flex flex-col gap-lg">
-            <h3 className="font-subhead text-lg text-text-primary">最近讨论</h3>
+        <section className="grid min-w-0 grid-cols-1 gap-lg">
+          <div className="flex min-w-0 flex-col gap-lg rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-md">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <h3 className="font-subhead text-lg text-text-primary shrink-0">最近讨论</h3>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-small text-text-secondary">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-subtle bg-surface-bright px-2.5 py-1 hover:bg-surface-container-lowest">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-border-subtle text-primary focus:ring-primary/20"
+                    checked={discussionsFilterIncompleteOnly}
+                    onChange={(e) => setDiscussionsFilterIncompleteOnly(e.target.checked)}
+                  />
+                  <span className="text-[12px] font-medium text-text-primary" title="仅展示未完成的评论与回复">
+                    未完成
+                  </span>
+                </label>
+                <span className="hidden sm:inline text-neutral-muted" aria-hidden>
+                  |
+                </span>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-subtle bg-surface-bright px-2.5 py-1 hover:bg-surface-container-lowest">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-border-subtle text-primary focus:ring-primary/20"
+                    checked={discussionsShowComments}
+                    onChange={(e) => setDiscussionsShowComments(e.target.checked)}
+                  />
+                  <span className="text-[12px] font-medium text-text-primary">评论</span>
+                </label>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-subtle bg-surface-bright px-2.5 py-1 hover:bg-surface-container-lowest">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-border-subtle text-primary focus:ring-primary/20"
+                    checked={discussionsShowReplies}
+                    onChange={(e) => setDiscussionsShowReplies(e.target.checked)}
+                  />
+                  <span className="text-[12px] font-medium text-text-primary">回复</span>
+                </label>
+              </div>
+            </div>
 
             {recentDiscussions.length === 0 && !discussionsLoading && !discussionsError ? (
               <div className="text-small text-text-secondary">暂无任务评论。</div>
             ) : (
-              <div className="space-y-lg max-h-[640px] overflow-y-auto pr-1">
-                {recentDiscussions.map((row) => (
-                  <button
-                    key={row.id}
-                    type="button"
-                    className="w-full text-left flex gap-lg items-start rounded-xl p-2 -m-2 hover:bg-surface-container-lowest/80 transition-colors"
-                    onClick={() => {
-                      setTaskDrawerProjectId(row.project_id);
-                      setTaskDrawerItemId(row.item_id);
-                      setTaskDrawerHighlightId(row.id);
-                      setTaskDrawerOpen(true);
-                    }}
-                  >
-                    <div className="h-10 w-10 rounded-full bg-surface-container shrink-0 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-indigo-400 text-xl">
-                        {row.is_reply ? "reply" : "chat_bubble"}
-                      </span>
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            row.is_reply ? "bg-zinc-100 text-zinc-600" : "bg-indigo-50 text-indigo-700"
-                          }`}
+              <div className="max-h-[640px] min-w-0 space-y-lg overflow-x-hidden overflow-y-auto pr-1">
+                {visibleDiscussions.length === 0 && !discussionsLoading && !discussionsError ? (
+                  <div className="text-small text-text-secondary">没有符合筛选条件的讨论。</div>
+                ) : null}
+                {visibleDiscussions.map((row) => {
+                  const done = (row.completion_status ?? "pending") === "done";
+                  return (
+                    <div
+                      key={row.id}
+                      className="flex min-w-0 gap-md items-start rounded-xl p-2 -m-2 transition-colors hover:bg-surface-container-lowest/80"
+                    >
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 gap-lg items-start text-left"
+                        onClick={() => {
+                          setTaskDrawerProjectId(row.project_id);
+                          setTaskDrawerItemId(row.item_id);
+                          setTaskDrawerHighlightId(row.id);
+                          setTaskDrawerOpen(true);
+                        }}
+                      >
+                        <div className="h-10 w-10 rounded-full bg-surface-container shrink-0 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-indigo-400 text-xl">
+                            {row.is_reply ? "reply" : "chat_bubble"}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                row.is_reply ? "bg-zinc-100 text-zinc-600" : "bg-indigo-50 text-indigo-700"
+                              }`}
+                            >
+                              {row.is_reply ? "回复" : "评论"}
+                            </span>
+                            <span className="text-small font-bold text-text-primary">
+                              {row.author_display_name || "用户"}
+                            </span>
+                          </div>
+                          <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
+                            {row.body}
+                          </p>
+                          <div className="text-[11px] text-zinc-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span>
+                              {row.is_reply ? "回复" : "评论"}时间：{formatDiscussionExact(row.created_at)}
+                            </span>
+                            <span>距今：{formatDiscussionAgo(row.created_at)}</span>
+                          </div>
+                          <div className="text-caption text-neutral-muted truncate">
+                            {row.project_name} · {row.item_title}
+                          </div>
+                        </div>
+                      </button>
+                      <div className="shrink-0 flex flex-col items-end gap-1 pt-1">
+                        <span className="text-[10px] text-neutral-muted">状态</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={done}
+                          aria-label={
+                            row.is_reply
+                              ? done
+                                ? "回复标记为未完成"
+                                : "回复标记为已完成"
+                              : done
+                                ? "评论标记为未完成"
+                                : "评论标记为已完成"
+                          }
+                          disabled={discussionsPatchingId === row.id}
+                          className={[
+                            "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border-subtle transition-colors disabled:opacity-50",
+                            done ? "bg-emerald-500" : "bg-zinc-300",
+                          ].join(" ")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void patchDiscussionCommentCompletion(row, done ? "pending" : "done");
+                          }}
                         >
-                          {row.is_reply ? "回复" : "评论"}
-                        </span>
-                        <span className="text-small font-bold text-text-primary">
-                          {row.author_display_name || "用户"}
-                        </span>
-                      </div>
-                      <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap break-words">
-                        {row.body}
-                      </p>
-                      <div className="text-[11px] text-zinc-500 flex flex-wrap gap-x-3 gap-y-0.5">
-                        <span>
-                          {row.is_reply ? "回复" : "评论"}时间：{formatDiscussionExact(row.created_at)}
-                        </span>
-                        <span>
-                          距今：{formatDiscussionAgo(row.created_at)}
-                        </span>
-                      </div>
-                      <div className="text-caption text-neutral-muted truncate">
-                        {row.project_name} · {row.item_title}
+                          <span
+                            className={[
+                              "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform",
+                              done ? "translate-x-5" : "translate-x-1",
+                            ].join(" ")}
+                          />
+                        </button>
                       </div>
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
 
                 <div ref={discussionsSentinelRef} className="h-px" aria-hidden />
 

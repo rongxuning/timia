@@ -41,6 +41,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(get_current_user
                 display_name=u.display_name,
                 status=u.status,
                 workspace_count=int(workspace_count or 0),
+                created_at=u.created_at,
             )
         )
     return out

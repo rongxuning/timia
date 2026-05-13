@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -7,6 +9,7 @@ class UserOut(BaseModel):
     display_name: str
     status: str
     workspace_count: int
+    created_at: datetime
 
 
 class WorkspaceBrief(BaseModel):

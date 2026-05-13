@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 
 type Activity = {
   id: string;
@@ -65,6 +66,7 @@ export default function ActivityPage() {
     ])
       .then(([w, list]) => {
         setWorkspace(w);
+        if (w) primeWorkspaceNameForBreadcrumb(w.id, w.name);
         setItems(list);
       })
       .catch((e: any) => setError(e?.message ?? "加载失败"))

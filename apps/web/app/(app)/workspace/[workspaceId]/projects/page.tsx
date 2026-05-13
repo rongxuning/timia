@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 
 type Workspace = { id: string; name: string; description?: string | null };
 type Project = { id: string; name: string; description?: string | null; archived: boolean };
@@ -32,6 +34,9 @@ export default function ProjectsPage() {
     }
     const data = await apiFetch<Project[]>(`/workspaces/${workspaceId}/projects`, { token });
     setItems(data);
+    for (const p of data) {
+      primeProjectNameForBreadcrumb(workspaceId, p.id, p.name);
+    }
   }
 
   useEffect(() => {
@@ -41,7 +46,12 @@ export default function ProjectsPage() {
     }
     setError(null);
     Promise.all([
-      apiFetch<Workspace>(`/workspaces/${workspaceId}`, { token }).then(setWorkspace).catch(() => setWorkspace(null)),
+      apiFetch<Workspace>(`/workspaces/${workspaceId}`, { token })
+        .then((w) => {
+          setWorkspace(w);
+          primeWorkspaceNameForBreadcrumb(w.id, w.name);
+        })
+        .catch(() => setWorkspace(null)),
       reload(),
     ]).catch((e: any) => setError(e?.message ?? "加载失败"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,13 +117,13 @@ export default function ProjectsPage() {
           </div>
 
           <div className="flex items-center gap-sm">
-            <a
+            <Link
               className="px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center gap-2"
               href={`/workspace/${workspaceId}`}
             >
               <span className="material-symbols-outlined text-lg">arrow_back</span>
               返回
-            </a>
+            </Link>
           </div>
         </section>
 
@@ -209,13 +219,13 @@ export default function ProjectsPage() {
                           </span>
                         </button>
 
-                        <a
+                        <Link
                           className="px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center gap-2"
                           href={`/workspace/${workspaceId}/projects/${p.id}`}
                         >
                           <span className="material-symbols-outlined text-lg">open_in_new</span>
                           打开
-                        </a>
+                        </Link>
                       </div>
                     </div>
                   </li>

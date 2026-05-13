@@ -1,9 +1,15 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
 class ProjectMemberAdd(BaseModel):
     user_id: str
-    role: str = "member"
+    role: Literal["admin", "member"] = "member"
+
+
+class ProjectMemberRoleUpdate(BaseModel):
+    role: Literal["admin", "member"]
 
 
 class ProjectMemberOut(BaseModel):
@@ -13,4 +19,5 @@ class ProjectMemberOut(BaseModel):
     display_name: str
     role: str
     status: str
+    is_creator: bool = False
 

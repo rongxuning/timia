@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 
 type Workspace = { id: string; name: string; description?: string | null };
 type Member = {
@@ -41,7 +42,12 @@ export default function MembersPage() {
     }
     setError(null);
     Promise.all([
-      apiFetch<Workspace>(`/workspaces/${workspaceId}`, { token }).then(setWorkspace).catch(() => setWorkspace(null)),
+      apiFetch<Workspace>(`/workspaces/${workspaceId}`, { token })
+        .then((w) => {
+          setWorkspace(w);
+          primeWorkspaceNameForBreadcrumb(w.id, w.name);
+        })
+        .catch(() => setWorkspace(null)),
       reload(),
     ]).catch((e: any) => setError(e?.message ?? "加载失败"));
     // eslint-disable-next-line react-hooks/exhaustive-deps

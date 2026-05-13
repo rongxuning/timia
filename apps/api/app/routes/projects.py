@@ -10,7 +10,7 @@ from app.models.item import Item
 from app.models.project import Project, ProjectMember
 from app.models.user import User
 from app.models.workspace import WorkspaceMember
-from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut
+from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
 from app.services.activity import log_activity
 
@@ -37,6 +37,34 @@ def _require_admin_or_owner(db: Session, workspace_id: uuid.UUID, user: User) ->
     return member
 
 
+def _ensure_project_creator_as_admin(db: Session, workspace_id: uuid.UUID, p: Project) -> None:
+    """Creator must have an active project membership with role admin (legacy DBs may lack the row)."""
+    if not p.created_by_user_id:
+        return
+    uid = p.created_by_user_id
+    m = db.scalar(
+        select(ProjectMember).where(
+            ProjectMember.workspace_id == workspace_id,
+            ProjectMember.project_id == p.id,
+            ProjectMember.user_id == uid,
+        )
+    )
+    if not m:
+        db.add(
+            ProjectMember(
+                workspace_id=workspace_id,
+                project_id=p.id,
+                user_id=uid,
+                role="admin",
+                status="active",
+            )
+        )
+    else:
+        if m.status != "active":
+            m.status = "active"
+        m.role = "admin"
+
+
 @router.get("", response_model=list[ProjectOut])
 def list_projects(
     workspace_id: uuid.UUID,
@@ -57,6 +85,7 @@ def list_projects(
             description=p.description,
             archived=p.archived,
             created_at=p.created_at,
+            created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
             created_by_display_name=creators.get(p.created_by_user_id).display_name if p.created_by_user_id in creators else None,
         )
         for p in rows
@@ -111,6 +140,15 @@ def create_project(
     )
     db.add(p)
     db.flush()
+    db.add(
+        ProjectMember(
+            workspace_id=workspace_id,
+            project_id=p.id,
+            user_id=user.id,
+            role="admin",
+            status="active",
+        )
+    )
     log_activity(
         db,
         workspace_id=workspace_id,
@@ -127,6 +165,7 @@ def create_project(
         description=p.description,
         archived=p.archived,
         created_at=p.created_at,
+        created_by_user_id=str(user.id),
         created_by_display_name=user.display_name,
     )
 
@@ -149,6 +188,7 @@ def get_project(
         description=p.description,
         archived=p.archived,
         created_at=p.created_at,
+        created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
         created_by_display_name=creator.display_name if creator else None,
     )
 
@@ -165,6 +205,9 @@ def list_project_members(
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
+    _ensure_project_creator_as_admin(db, workspace_id, p)
+    db.commit()
+
     rows = db.execute(
         select(ProjectMember, User)
         .join(User, User.id == ProjectMember.user_id)
@@ -173,6 +216,7 @@ def list_project_members(
     ).all()
     out: list[ProjectMemberOut] = []
     for m, u in rows:
+        is_creator = bool(p.created_by_user_id and u.id == p.created_by_user_id)
         out.append(
             ProjectMemberOut(
                 id=str(m.id),
@@ -181,6 +225,7 @@ def list_project_members(
                 display_name=u.display_name,
                 role=m.role,
                 status=m.status,
+                is_creator=is_creator,
             )
         )
     return out
@@ -224,16 +269,18 @@ def add_project_member(
     if existing and existing.status == "active":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_member")
 
+    effective_role = "admin" if (p.created_by_user_id and target_user_id == p.created_by_user_id) else payload.role
+
     if existing:
         existing.status = "active"
-        existing.role = payload.role
+        existing.role = effective_role
         member_row = existing
     else:
         member_row = ProjectMember(
             workspace_id=workspace_id,
             project_id=project_id,
             user_id=target_user_id,
-            role=payload.role,
+            role=effective_role,
             status="active",
         )
         db.add(member_row)
@@ -241,6 +288,7 @@ def add_project_member(
 
     u = db.get(User, target_user_id)
     db.commit()
+    is_creator = bool(p.created_by_user_id and target_user_id == p.created_by_user_id)
     return ProjectMemberOut(
         id=str(member_row.id),
         user_id=str(target_user_id),
@@ -248,6 +296,47 @@ def add_project_member(
         display_name=u.display_name if u else "Unknown",
         role=member_row.role,
         status=member_row.status,
+        is_creator=is_creator,
+    )
+
+
+@router.patch("/{project_id}/members/{user_id}", response_model=ProjectMemberOut)
+def update_project_member_role(
+    workspace_id: uuid.UUID,
+    project_id: uuid.UUID,
+    user_id: uuid.UUID,
+    payload: ProjectMemberRoleUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    _require_admin_or_owner(db, workspace_id, user)
+    p = db.get(Project, project_id)
+    if not p or p.workspace_id != workspace_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    if p.created_by_user_id and user_id == p.created_by_user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="cannot_change_creator_role")
+
+    m = db.scalar(
+        select(ProjectMember).where(
+            ProjectMember.workspace_id == workspace_id,
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user_id,
+            ProjectMember.status == "active",
+        )
+    )
+    if not m:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    m.role = payload.role
+    db.commit()
+    u = db.get(User, user_id)
+    return ProjectMemberOut(
+        id=str(m.id),
+        user_id=str(user_id),
+        email=u.email if u else "unknown@example.com",
+        display_name=u.display_name if u else "Unknown",
+        role=m.role,
+        status=m.status,
+        is_creator=False,
     )
 
 
@@ -274,9 +363,12 @@ def remove_project_member(
     )
     if not m:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    if p.created_by_user_id and user_id == p.created_by_user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="cannot_remove_project_creator")
     m.status = "removed"
     db.commit()
     return None
+
 
 @router.patch("/{project_id}", response_model=ProjectOut)
 def update_project(
@@ -315,6 +407,7 @@ def update_project(
         description=p.description,
         archived=p.archived,
         created_at=p.created_at,
+        created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
         created_by_display_name=creator.display_name if creator else None,
     )
 

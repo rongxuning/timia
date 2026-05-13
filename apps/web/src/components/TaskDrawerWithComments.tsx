@@ -64,14 +64,34 @@ function toLocalDatetimeInputValue(iso: string) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+type DrawerVariant = "edit" | "create";
+
 type Props = {
   open: boolean;
   onClose: () => void;
   workspaceId: string;
   projectId: string;
+  /** 编辑已有任务时传入 id；`variant="create"` 时为 null */
   itemId: string | null;
   highlightCommentId: string | null;
   token: string | null;
+  /** 默认 `edit`；`create` 为新建任务（不拉取 item、提交走 POST） */
+  variant?: DrawerVariant;
+  /**
+   * 是否展示右侧评论区；默认在 `create` 下为 false，其余为 true。
+   * 也可显式传入以覆盖。
+   */
+  showComments?: boolean;
+  /** Optional second line under the title (e.g. workspace / project on 我的日程). */
+  titleSubtitle?: string | null;
+  /** Called after a successful task save so parent lists can refresh. */
+  onTaskSaved?: (item: TaskDrawerItem) => void;
+  /** Called after successful create (POST). Drawer will then call `onClose`. */
+  onTaskCreated?: (item: TaskDrawerItem) => void;
+  /** When this changes while open (e.g. list item `version` after drag), task is refetched. */
+  syncVersion?: number;
+  /** 新建任务时表单的初始状态（例如看板列「添加」） */
+  initialCreateStatus?: string;
 };
 
 export function TaskDrawerWithComments({
@@ -82,8 +102,16 @@ export function TaskDrawerWithComments({
   itemId,
   highlightCommentId,
   token,
+  variant = "edit",
+  showComments: showCommentsProp,
+  titleSubtitle = null,
+  onTaskSaved,
+  onTaskCreated,
+  syncVersion = 0,
+  initialCreateStatus,
 }: Props) {
   const uid = useId().replace(/:/g, "");
+  const effectiveShowComments = showCommentsProp ?? (variant !== "create");
 
   const [drawerItem, setDrawerItem] = useState<TaskDrawerItem | null>(null);
   const [itemLoading, setItemLoading] = useState(false);
@@ -105,8 +133,21 @@ export function TaskDrawerWithComments({
   const [expandedCommentContent, setExpandedCommentContent] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!open || !itemId || !token) {
-      setDrawerItem(null);
+    if (!open || variant !== "create") return;
+    setDrawerItem(null);
+    setEditTitle("");
+    setEditBody("");
+    setEditStatus(initialCreateStatus ?? "todo");
+    setEditPriority("1");
+    setEditStartAt("");
+    setEditEndAt("");
+    setEditError(null);
+    setItemLoading(false);
+  }, [open, variant, initialCreateStatus]);
+
+  useEffect(() => {
+    if (!open || variant !== "edit" || !itemId || !token) {
+      if (!open) setDrawerItem(null);
       return;
     }
     let cancelled = false;
@@ -132,10 +173,10 @@ export function TaskDrawerWithComments({
     return () => {
       cancelled = true;
     };
-  }, [open, itemId, workspaceId, projectId, token]);
+  }, [open, variant, itemId, workspaceId, projectId, token, syncVersion]);
 
   useEffect(() => {
-    if (!open || !drawerItem || !token) return;
+    if (!effectiveShowComments || !open || !drawerItem || !token) return;
     let cancelled = false;
     setCommentsLoading(true);
     setCommentError(null);
@@ -152,11 +193,11 @@ export function TaskDrawerWithComments({
     return () => {
       cancelled = true;
     };
-  }, [open, drawerItem?.id, workspaceId, projectId, token]);
+  }, [open, drawerItem?.id, workspaceId, projectId, token, effectiveShowComments]);
 
   useEffect(() => {
-    if (!open || !highlightCommentId || commentsLoading || comments.length === 0) return;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (!effectiveShowComments || !open || !highlightCommentId || commentsLoading || comments.length === 0) return;
+    let timeoutId: number | undefined;
     const raf = requestAnimationFrame(() => {
       const el = document.getElementById(`task-comment-${highlightCommentId}`);
       if (el) {
@@ -171,7 +212,7 @@ export function TaskDrawerWithComments({
       cancelAnimationFrame(raf);
       if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, [open, highlightCommentId, commentsLoading, comments]);
+  }, [open, highlightCommentId, commentsLoading, comments, effectiveShowComments]);
 
   useEffect(() => {
     if (!open) {
@@ -190,7 +231,7 @@ export function TaskDrawerWithComments({
 
   async function onSaveTask(e: React.FormEvent) {
     e.preventDefault();
-    if (!token || !drawerItem) return;
+    if (!token) return;
     const title = editTitle.trim();
     if (!title) {
       setEditError("请输入任务标题");
@@ -210,26 +251,49 @@ export function TaskDrawerWithComments({
     setEditError(null);
     setEditLoading(true);
     try {
-      const updated = await apiFetch<TaskDrawerItem>(
-        `/workspaces/${workspaceId}/projects/${projectId}/items/${drawerItem.id}`,
-        {
-          method: "PATCH",
-          token,
-          body: JSON.stringify({
-            title,
-            body: editBody.trim() || null,
-            status: editStatus,
-            priority: normalizePriority(editPriority),
-            start_at: startIso,
-            end_at: endIso,
-            details: null,
-            version: drawerItem.version,
-          }),
-        },
-      );
-      setDrawerItem(updated);
+      if (variant === "create") {
+        const created = await apiFetch<TaskDrawerItem>(
+          `/workspaces/${workspaceId}/projects/${projectId}/items`,
+          {
+            method: "POST",
+            token,
+            body: JSON.stringify({
+              title,
+              body: editBody.trim() || null,
+              status: editStatus,
+              priority: normalizePriority(editPriority),
+              start_at: startIso,
+              end_at: endIso,
+              details: null,
+            }),
+          },
+        );
+        onTaskCreated?.(created);
+        onClose();
+      } else {
+        if (!drawerItem) return;
+        const updated = await apiFetch<TaskDrawerItem>(
+          `/workspaces/${workspaceId}/projects/${projectId}/items/${drawerItem.id}`,
+          {
+            method: "PATCH",
+            token,
+            body: JSON.stringify({
+              title,
+              body: editBody.trim() || null,
+              status: editStatus,
+              priority: normalizePriority(editPriority),
+              start_at: startIso,
+              end_at: endIso,
+              details: null,
+              version: drawerItem.version,
+            }),
+          },
+        );
+        setDrawerItem(updated);
+        onTaskSaved?.(updated);
+      }
     } catch (e: any) {
-      setEditError(e?.message ?? "保存失败");
+      setEditError(e?.message ?? (variant === "create" ? "创建失败" : "保存失败"));
     } finally {
       setEditLoading(false);
     }
@@ -316,22 +380,20 @@ export function TaskDrawerWithComments({
           <span className="font-medium text-text-primary">{c.author_display_name || "用户"}</span>
           <span className="hidden sm:inline">·</span>
           <span>{timeStr}</span>
-          {depth === 0 && (
-            <div className="flex items-center gap-2 sm:ml-auto">
-              <span className="text-neutral-muted shrink-0">状态</span>
-              <select
-                className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
-                value={c.completion_status === "done" ? "done" : "pending"}
-                onChange={(e) =>
-                  patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
-                }
-                aria-label="评论状态"
-              >
-                <option value="pending">未完成</option>
-                <option value="done">已完成</option>
-              </select>
-            </div>
-          )}
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <span className="text-neutral-muted shrink-0">状态</span>
+            <select
+              className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
+              value={c.completion_status === "done" ? "done" : "pending"}
+              onChange={(e) =>
+                patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
+              }
+              aria-label={depth === 0 ? "评论状态" : "回复状态"}
+            >
+              <option value="pending">未完成</option>
+              <option value="done">已完成</option>
+            </select>
+          </div>
         </div>
         <div className="mt-2 text-small text-text-primary">
           {isLong && !expanded ? (
@@ -389,7 +451,17 @@ export function TaskDrawerWithComments({
     );
   }
 
-  if (!open || !itemId) return null;
+  if (!open) return null;
+  if (variant === "edit" && !itemId) return null;
+  if (variant === "create" && (!workspaceId || !projectId)) return null;
+
+  const showForm = variant === "create" || !!drawerItem;
+  const headerTitle =
+    variant === "create"
+      ? "新建任务"
+      : itemLoading
+        ? "加载中…"
+        : drawerItem?.title ?? "—";
 
   return (
     <div className="fixed inset-0 z-50">
@@ -397,10 +469,10 @@ export function TaskDrawerWithComments({
       <aside className="absolute inset-y-0 right-0 w-[min(1120px,100vw)] bg-surface border-l border-border-subtle shadow-xl flex flex-col overflow-hidden">
         <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-border-subtle">
           <div className="min-w-0">
-            <div className="text-overline text-zinc-400">编辑任务</div>
-            <div className="font-subhead text-subhead text-text-primary truncate">
-              {itemLoading ? "加载中…" : drawerItem?.title ?? "—"}
-            </div>
+            <div className="font-subhead text-subhead text-text-primary truncate">{headerTitle}</div>
+            {titleSubtitle ? (
+              <div className="mt-1 truncate text-caption text-neutral-muted">{titleSubtitle}</div>
+            ) : null}
           </div>
           <button
             type="button"
@@ -413,13 +485,25 @@ export function TaskDrawerWithComments({
           </button>
         </div>
 
-        {itemLoading && !drawerItem ? (
+        {itemLoading && variant === "edit" && !drawerItem ? (
           <div className="p-6 text-caption text-neutral-muted">加载任务中…</div>
-        ) : editError && !drawerItem ? (
+        ) : editError && variant === "edit" && !drawerItem ? (
           <div className="p-6 text-small text-error">{editError}</div>
-        ) : drawerItem ? (
-          <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
-            <div className="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6 border-b lg:border-b-0 lg:border-r border-border-subtle">
+        ) : showForm ? (
+          <div
+            className={
+              effectiveShowComments
+                ? "flex flex-1 min-h-0 flex-col lg:flex-row"
+                : "flex flex-1 min-h-0 flex-col"
+            }
+          >
+            <div
+              className={
+                effectiveShowComments
+                  ? "flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6 border-b lg:border-b-0 lg:border-r border-border-subtle"
+                  : "flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6"
+              }
+            >
               <form onSubmit={onSaveTask} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-title`}>
@@ -531,13 +615,20 @@ export function TaskDrawerWithComments({
                     className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 disabled:opacity-50"
                     disabled={editLoading}
                   >
-                    {editLoading ? "保存中…" : "保存"}
+                    {editLoading
+                      ? variant === "create"
+                        ? "创建中…"
+                        : "保存中…"
+                      : variant === "create"
+                        ? "创建"
+                        : "保存"}
                   </button>
                 </div>
               </form>
             </div>
 
-            <div className="flex w-full flex-col lg:w-[min(440px,42%)] shrink-0 min-h-0 max-h-[48vh] lg:max-h-none">
+            {effectiveShowComments ? (
+              <div className="flex w-full flex-col lg:w-[min(440px,42%)] shrink-0 min-h-0 max-h-[48vh] lg:max-h-none">
               <div className="shrink-0 px-6 pt-4">
                 <div className="text-overline text-zinc-400">任务评论</div>
               </div>
@@ -585,7 +676,8 @@ export function TaskDrawerWithComments({
                 )}
                 {rootCommentsSorted.map((c) => renderCommentNode(c, 0))}
               </div>
-            </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </aside>

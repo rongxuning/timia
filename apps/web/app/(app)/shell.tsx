@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { clearToken, getToken } from "@/lib/auth";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { NomiaLogoMark } from "@/components/NomiaLogoMark";
 
 type MeResponse = { id: string; email: string; display_name: string };
 
@@ -109,7 +109,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <div className="flex h-14 items-center px-4">
           <Link href="/my/schedule" className="flex items-center gap-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-              <NomiaLogoMark size={20} />
+              <Image
+                src="/icons/icon-32.png"
+                alt="Nomia"
+                width={20}
+                height={20}
+                className="h-5 w-5"
+                priority
+              />
             </div>
             <span className="font-display text-xl font-bold tracking-tight text-gray-900">Nomia</span>
           </Link>
@@ -129,15 +136,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
               active={pathname === "/workspaces" || pathname.startsWith("/workspace/")}
             />
             <NavItem href="/member" icon="group" label="成员" active={pathname.startsWith("/member")} />
-            <div className="pt-1">
-              <div className="flex items-center gap-3 px-3 py-2 text-gray-600 rounded-md transition-all font-medium text-sm select-none">
-                <span className="material-symbols-outlined text-indigo-600">query_stats</span>
-                数据分析
-              </div>
-              <div className="mt-1 space-y-1">
-                {/* reserved for future analytics pages */}
-              </div>
-            </div>
+            <NavItem
+              href="/my/analytics"
+              icon="query_stats"
+              label="数据分析"
+              active={pathname.startsWith("/my/analytics")}
+            />
 
             <div className="pt-1">
               <Link
@@ -176,7 +180,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
               {/* 小屏无侧栏时保留品牌识别 */}
               <Link href="/my/schedule" className="flex items-center gap-2 md:hidden">
                 <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-                  <NomiaLogoMark size={20} />
+                  <Image
+                    src="/icons/icon-32.png"
+                    alt="Nomia"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5"
+                    priority
+                  />
                 </div>
                 <span className="font-display text-lg font-bold tracking-tight text-gray-900">Nomia</span>
               </Link>

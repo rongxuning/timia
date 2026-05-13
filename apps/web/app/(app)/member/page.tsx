@@ -11,6 +11,7 @@ type UserRow = {
   display_name: string;
   status: string;
   workspace_count: number;
+  created_at?: string | null;
 };
 
 type UserWorkspace = {
@@ -18,6 +19,16 @@ type UserWorkspace = {
   membership: { id: string; role: string; status: string };
   projects: { id: string; name: string; description?: string | null; archived: boolean }[];
 };
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function formatYmdHm(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
 
 export default function MemberPage() {
   const router = useRouter();
@@ -116,27 +127,81 @@ export default function MemberPage() {
     }
   }
 
+  const userTotal = users.length;
+  const usersWithWorkspace = useMemo(
+    () => users.filter((u) => u.workspace_count > 0).length,
+    [users],
+  );
+  const workspaceAssignmentsTotal = useMemo(
+    () => users.reduce((sum, u) => sum + u.workspace_count, 0),
+    [users],
+  );
+
   return (
-    <main className="pt-4 pb-12 px-container-padding">
-      <div className="max-w-container-max mx-auto space-y-3xl">
-        <section className="flex flex-col md:flex-row md:items-end justify-between gap-lg">
-          <div className="space-y-xs">
-            <div className="flex items-center gap-2">
-              <h1 className="font-subhead text-subhead text-text-primary">成员</h1>
-              <span className="text-small text-text-secondary">· 共 {users.length} 人</span>
+    <main className="px-lg py-lg">
+      <div className="max-w-container-max mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg mb-lg">
+          <section className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+            <span className="text-sm font-semibold text-primary">成员</span>
+            <div className="w-full min-w-0 space-y-1 text-left">
+              <div className="font-subhead text-lg text-text-primary">全局用户</div>
+              <div className="text-small text-text-secondary">全局用户列表，以及他们所属的工作空间。</div>
+              <div className="text-caption text-neutral-muted">点击一行可展开查看工作空间与项目</div>
             </div>
-            <div className="text-small text-text-secondary">全局用户列表，以及他们所属的工作空间。</div>
-          </div>
-        </section>
+          </section>
+
+          <section className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+            <span className="text-sm font-semibold text-primary">用户规模</span>
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 text-left">
+              <div className="flex items-baseline gap-2">
+                <span className="font-headline text-section-heading">
+                  {loading ? "—" : userTotal}
+                </span>
+                <span className="text-text-secondary text-caption">位用户</span>
+              </div>
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">已加入工作空间</span>
+                  <span className="font-bold text-text-primary tabular-nums">
+                    {loading ? "—" : usersWithWorkspace}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-caption text-neutral-muted">尚未加入</span>
+                  <span className="font-bold text-text-primary tabular-nums">
+                    {loading ? "—" : userTotal - usersWithWorkspace}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+            <span className="text-sm font-semibold text-primary">工作空间归属</span>
+            <div className="flex w-full min-w-0 flex-col items-start gap-2 text-left">
+              <div className="flex items-baseline gap-2">
+                <span className="font-headline text-section-heading">
+                  {loading ? "—" : workspaceAssignmentsTotal}
+                </span>
+                <span className="text-text-secondary text-caption">次归属</span>
+              </div>
+              <div className="text-caption text-neutral-muted">
+                每位用户在各工作空间计为 1 次；用于粗略观察组织规模。
+              </div>
+            </div>
+          </section>
+        </div>
 
         {error && (
-          <div className="rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">{error}</div>
+          <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+            {error}
+          </div>
         )}
 
         {loading ? (
-          <div className="bg-white rounded-xl border border-border-subtle p-xl text-small text-text-secondary">加载中…</div>
+          <div className="rounded-xl border border-border-subtle bg-white p-lg text-small text-text-secondary">加载中…</div>
         ) : users.length === 0 ? (
-          <div className="bg-white rounded-xl border border-border-subtle p-xl text-small text-text-secondary">暂无用户。</div>
+          <div className="rounded-xl border border-border-subtle bg-white p-lg text-small text-text-secondary">暂无用户。</div>
         ) : (
           <ul className="space-y-sm">
             {users.map((u) => {
@@ -147,7 +212,7 @@ export default function MemberPage() {
               const copyState = copyStateByUserId[u.id] ?? "idle";
 
               return (
-                <li key={u.id} className="bg-white rounded-xl border border-border-subtle p-xl hover:shadow-md transition-all">
+                <li key={u.id} className="bg-white rounded-xl border border-border-subtle p-xl hover:shadow-lg transition-all">
                   <div
                     role="button"
                     tabIndex={0}
@@ -161,28 +226,35 @@ export default function MemberPage() {
                     }}
                     aria-expanded={expanded}
                   >
-                    <div className="flex items-start justify-between gap-lg">
-                      <div className="space-y-1 min-w-0">
-                        <div className="font-subhead text-lg text-text-primary truncate">
+                    <div className="flex items-center justify-between gap-lg">
+                      <div className="min-w-0 flex items-center gap-2 text-small text-text-secondary">
+                        <span className="font-subhead text-text-primary truncate">
                           {u.display_name || u.email}
-                        </div>
-                        <div className="flex items-center gap-2 text-small text-text-secondary min-w-0">
-                          <span className="font-body truncate">({u.email})</span>
-                          <button
-                            type="button"
-                            className="inline-flex items-center justify-center rounded-md border border-border-subtle bg-white px-2 py-1 text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors"
-                            onClick={(e) => handleCopyEmail(e, u.id, u.email)}
-                            aria-label={`复制邮箱 ${u.email}`}
-                            title={copyState === "success" ? "已复制" : copyState === "error" ? "复制失败" : "复制邮箱"}
-                          >
-                            <span className="material-symbols-outlined text-[18px] leading-none">
-                              {copyState === "success" ? "done" : copyState === "error" ? "error" : "content_copy"}
-                            </span>
-                          </button>
-                        </div>
-                        <div className="text-small text-text-secondary">
+                        </span>
+                        <span className="shrink-0 text-text-secondary">·</span>
+                        <span className="font-body truncate">({u.email})</span>
+                        <button
+                          type="button"
+                          className="shrink-0 inline-flex items-center justify-center rounded-md border border-border-subtle bg-white px-2 py-1 text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors"
+                          onClick={(e) => handleCopyEmail(e, u.id, u.email)}
+                          aria-label={`复制邮箱 ${u.email}`}
+                          title={copyState === "success" ? "已复制" : copyState === "error" ? "复制失败" : "复制邮箱"}
+                        >
+                          <span className="material-symbols-outlined text-[18px] leading-none">
+                            {copyState === "success" ? "done" : copyState === "error" ? "error" : "content_copy"}
+                          </span>
+                        </button>
+                        <span className="shrink-0 text-text-secondary">·</span>
+                        <span className="truncate text-text-secondary">
+                          创建于{" "}
+                          <span className="font-semibold text-text-primary">
+                            {u.created_at ? formatYmdHm(u.created_at) : "—"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-text-secondary">·</span>
+                        <span className="shrink-0 text-text-secondary">
                           状态：<span className="font-semibold text-text-primary">{u.status}</span>
-                        </div>
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">

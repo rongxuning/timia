@@ -19,5 +19,6 @@ class ProjectOut(BaseModel):
     description: str | None
     archived: bool
     created_at: datetime
+    created_by_user_id: str | None = None
     created_by_display_name: str | None = None
 

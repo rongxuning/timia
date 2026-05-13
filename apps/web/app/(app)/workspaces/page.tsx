@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { getToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
@@ -57,6 +58,7 @@ export default function WorkspacesPage() {
     if (!token) return;
     const cards = await apiFetch<WorkspaceCard[]>("/workspaces/cards", { token });
     setItems(cards);
+    for (const c of cards) primeWorkspaceNameForBreadcrumb(c.id, c.name);
   }
 
   useEffect(() => {
@@ -66,7 +68,10 @@ export default function WorkspacesPage() {
       return;
     }
     apiFetch<WorkspaceCard[]>("/workspaces/cards", { token })
-      .then(setItems)
+      .then((cards) => {
+        setItems(cards);
+        for (const c of cards) primeWorkspaceNameForBreadcrumb(c.id, c.name);
+      })
       .catch((e: any) => setError(e?.message ?? "加载失败"));
   }, [router]);
 
@@ -125,22 +130,18 @@ export default function WorkspacesPage() {
 
   return (
     <main className="min-h-screen px-lg py-lg">
+      <button
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm active:translate-y-px"
+        type="button"
+        onClick={() => {
+          setCreateError(null);
+          setCreateOpen(true);
+        }}
+      >
+        <span className="material-symbols-outlined">add_circle</span>
+        <span className="font-medium">创建工作空间</span>
+      </button>
       <div className="max-w-container-max mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-lg gap-lg">
-          <div />
-          <button
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm active:translate-y-px"
-            type="button"
-            onClick={() => {
-              setCreateError(null);
-              setCreateOpen(true);
-            }}
-          >
-            <span className="material-symbols-outlined">add_circle</span>
-            <span className="font-medium">创建工作空间</span>
-          </button>
-        </div>
-
         {error && (
           <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
