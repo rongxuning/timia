@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -10,6 +10,8 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NomiaLogoMark } from "@/components/NomiaLogoMark";
 
 type MeResponse = { id: string; email: string; display_name: string };
+
+const LOGIN_EXPIRED_MSG = "登录已过期，请重新登录。";
 
 function NavItem({
   href,
@@ -47,21 +49,36 @@ function NavItem({
 export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const token = useMemo(() => getToken(), []);
 
   const [me, setMe] = useState<MeResponse | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
+  /** 路由切换时若本地已无 token，视为未登录/已过期 */
   useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
+    if (!getToken()) {
+      window.alert(LOGIN_EXPIRED_MSG);
+      router.replace("/login");
     }
-    apiFetch<MeResponse>("/auth/me", { token })
+  }, [pathname, router]);
+
+  /** 任意已带 token 的请求返回 401 时，由 apiFetch 派发 */
+  useEffect(() => {
+    function onSessionExpired() {
+      window.alert(LOGIN_EXPIRED_MSG);
+      router.replace("/login");
+    }
+    window.addEventListener("nomia:session-expired", onSessionExpired);
+    return () => window.removeEventListener("nomia:session-expired", onSessionExpired);
+  }, [router]);
+
+  useEffect(() => {
+    const t = getToken();
+    if (!t) return;
+    apiFetch<MeResponse>("/auth/me", { token: t })
       .then(setMe)
       .catch(() => setMe(null));
-  }, [router, token]);
+  }, [router]);
 
   useEffect(() => {
     if (!userMenuOpen) return;

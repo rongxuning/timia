@@ -1,60 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
 type LoginResponse = { access_token: string; token_type: string };
 
+function SpeechBubble({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div
+      className={`pointer-events-none absolute whitespace-nowrap rounded-2xl border border-border-subtle bg-surface px-md py-sm font-body text-caption font-medium text-on-surface-variant shadow-sm ring-1 ring-black/[0.03] ${className ?? ""}`}
+      aria-hidden
+    >
+      {children}
+    </div>
+  );
+}
+
 function ShowcaseCard({
   title,
   subtitle,
   body,
+  timeText,
   headerTintClass,
+  headerIconClass,
   iconName,
-  iconTintClass,
   stackClass,
-  iconPositionClass,
+  behindCard,
 }: {
   title: string;
   subtitle: string;
-  body: string;
+  body?: string;
+  timeText: string;
   headerTintClass: string;
+  headerIconClass: string;
   iconName: string;
-  iconTintClass: string;
   stackClass: string;
-  iconPositionClass: string;
+  behindCard?: ReactNode;
 }) {
   return (
     <div className={`relative w-[min(100%,280px)] ${stackClass}`}>
-      <div
-        className={`pointer-events-none absolute z-0 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface shadow-sm ring-1 ring-border-subtle ${iconPositionClass}`}
-        aria-hidden
-      >
-        <span className={`material-symbols-outlined text-[32px] ${iconTintClass}`}>{iconName}</span>
-      </div>
-      <article
-        className="relative z-10 rounded-xl border border-border-subtle bg-surface p-lg shadow-sm ring-1 ring-black/[0.02]"
-        aria-hidden
-      >
+      {behindCard ? (
+        <div className="pointer-events-none absolute -inset-10 z-30 overflow-visible" aria-hidden>
+          {behindCard}
+        </div>
+      ) : null}
+      <article className="relative z-10 rounded-xl border border-border-subtle bg-surface p-lg shadow-sm ring-1 ring-black/[0.02]">
         <div className="mb-md flex items-start justify-between gap-md">
           <div className="flex min-w-0 items-center gap-sm">
             <div
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${headerTintClass}`}
               aria-hidden
             >
-              <span className="material-symbols-outlined text-[18px] text-on-primary" style={{ fontVariationSettings: "'FILL' 1" }}>
+              <span
+                className={`material-symbols-outlined text-[18px] ${headerIconClass}`}
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
                 {iconName}
               </span>
             </div>
             <span className="truncate font-overline text-overline tracking-[0.12em] text-on-surface-variant">NOMIA</span>
           </div>
-          <span className="shrink-0 font-body text-caption text-outline-variant">现在</span>
+          <span className="shrink-0 font-body text-caption text-outline-variant">{timeText}</span>
         </div>
-        <h2 className="font-section-heading text-small font-semibold leading-snug text-on-surface">{title}</h2>
-        <p className="mt-xs font-body text-small font-semibold text-on-surface">{subtitle}</p>
-        <p className="mt-sm font-body text-small leading-relaxed text-text-secondary">{body}</p>
+        <h2 className="font-body text-small font-semibold leading-snug text-on-surface">{title}</h2>
+        {subtitle ? <p className="mt-xs font-body text-caption font-medium text-on-surface-variant">{subtitle}</p> : null}
+        {body ? (
+          <p
+            className={`font-body text-small leading-relaxed text-text-secondary ${subtitle ? "mt-sm" : "mt-xs"}`}
+          >
+            {body}
+          </p>
+        ) : null}
       </article>
     </div>
   );
@@ -95,8 +113,8 @@ export default function LoginPage() {
 
       {/* 左侧：纯展示任务卡片（方案 B：轻微错位浮动） */}
       <section
-        className="relative z-[1] flex w-full flex-none items-center justify-center overflow-hidden bg-surface-container-low px-container-padding py-5xl md:w-1/2 md:min-h-screen md:py-8xl"
-        aria-label="产品展示"
+        className="relative z-[1] order-2 flex w-full flex-none items-center justify-center overflow-hidden bg-surface-container-low px-container-padding py-5xl md:order-none md:w-1/2 md:min-h-screen md:py-8xl"
+        aria-hidden
       >
         <div className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-primary-fixed/30 blur-3xl" aria-hidden />
         <div className="pointer-events-none absolute -right-16 bottom-1/4 h-56 w-56 rounded-full bg-secondary-fixed/25 blur-3xl" aria-hidden />
@@ -104,42 +122,63 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute right-[22%] top-[38%] h-6 w-11 rounded-full bg-white/60 shadow-sm" aria-hidden />
         <div className="pointer-events-none absolute left-[28%] bottom-[20%] h-7 w-12 rounded-full bg-white/55 shadow-sm" aria-hidden />
 
-        <div className="relative flex w-full max-w-[360px] flex-col items-center gap-2xl md:max-w-[400px]" aria-hidden>
+        <div className="relative flex w-full max-w-[360px] flex-col items-center gap-2xl md:max-w-[400px]">
           <ShowcaseCard
-            title="早上任务"
-            subtitle="示例公司"
-            body="用清晰的安排开启新的一天。"
+            title="空腹晨跑锻炼"
+            subtitle=""
+            body="启动身心开启新的一天。"
+            timeText="7:00 AM"
             headerTintClass="bg-warning"
+            headerIconClass="text-on-primary"
             iconName="wb_sunny"
-            iconTintClass="text-warning"
             stackClass="md:translate-x-4 md:-rotate-1"
-            iconPositionClass="-left-2 -top-3 md:-left-4 md:-top-4"
+            behindCard={
+              <>
+                <SpeechBubble className="left-0 top-[55%] -translate-x-[75%] -rotate-6">配速6‘30</SpeechBubble>
+                <SpeechBubble className="right-0 top-[28%] translate-x-[75%] rotate-3">8km</SpeechBubble>
+                <SpeechBubble className="left-0 top-[12%] -translate-x-[75%] -rotate-2">中山公园</SpeechBubble>
+              </>
+            }
           />
           <ShowcaseCard
-            title="工作任务"
-            subtitle="示例公司"
-            body="把注意力放在今日最重要的事情上。"
+            title="会议与交付物排进同一张视图里，工作安排心中有数。"
+            subtitle=""
+            body="优先级写清楚，少一次临时救火。"
+            timeText="11:00 AM"
             headerTintClass="bg-primary"
+            headerIconClass="text-on-primary"
             iconName="coffee"
-            iconTintClass="text-primary"
             stackClass="md:-translate-x-6 md:translate-y-1 md:rotate-1"
-            iconPositionClass="-right-2 -top-3 md:-right-5 md:-top-2"
+            behindCard={
+              <>
+                <SpeechBubble className="left-0 top-[55%] -translate-x-[75%] -rotate-6">周五交付</SpeechBubble>
+                <SpeechBubble className="right-0 top-[28%] translate-x-[75%] rotate-3">对齐会</SpeechBubble>
+                <SpeechBubble className="right-0 top-[58%] translate-x-[75%] rotate-3">产品评审</SpeechBubble>
+              </>
+            }
           />
           <ShowcaseCard
-            title="晚上任务"
-            subtitle="示例公司"
-            body="回顾今天的进展，并为明天做好准备。"
-            headerTintClass="bg-primary-fixed-dim"
-            iconName="bedtime"
-            iconTintClass="text-primary-fixed-variant"
+            title="机票、酒店和每日动线对齐放好，旅行计划说走就走。"
+            subtitle=""
+            body="行前提醒不漏项，路上少分心。"
+            timeText="16:00PM"
+            headerTintClass="bg-tertiary"
+            headerIconClass="text-on-tertiary"
+            iconName="flight_takeoff"
             stackClass="md:translate-x-8 md:-translate-y-1 md:-rotate-1"
-            iconPositionClass="-left-1 -top-3 md:-left-3 md:-top-5"
+            behindCard={
+              <>
+                <SpeechBubble className="left-0 top-[55%] -translate-x-[75%] -rotate-6">行程单</SpeechBubble>
+                <SpeechBubble className="right-0 top-[38%] translate-x-[75%] rotate-3">机票已出票</SpeechBubble>
+                <SpeechBubble className="left-0 top-[22%] -translate-x-[75%] -rotate-2">签证材料</SpeechBubble>
+              </>
+            }
           />
         </div>
       </section>
 
       {/* 右侧：现有登录界面 */}
-      <section className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-container-padding py-5xl md:w-1/2 md:min-h-screen md:py-8xl">
+      <section className="relative z-10 order-1 flex w-full flex-1 flex-col items-center justify-center px-container-padding py-5xl md:order-none md:w-1/2 md:min-h-screen md:py-8xl">
         <div className="w-full max-w-[440px]">
           <div className="mb-8xl flex flex-col items-center">
             <div className="mb-lg flex items-center gap-2">

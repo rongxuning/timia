@@ -1,3 +1,5 @@
+import { clearToken } from "./auth";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 if (!API_BASE_URL) {
@@ -19,6 +21,12 @@ export async function apiFetch<T>(
 
   const resp = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   if (!resp.ok) {
+    if (resp.status === 401 && options.token) {
+      clearToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("nomia:session-expired"));
+      }
+    }
     let msg = resp.statusText;
     try {
       const data = await resp.json();
