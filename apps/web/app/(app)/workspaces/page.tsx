@@ -124,9 +124,9 @@ export default function WorkspacesPage() {
   }
 
   return (
-    <main className="min-h-screen">
-      <div className="max-w-[1280px] mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <main className="min-h-screen px-lg py-lg">
+      <div className="max-w-container-max mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-lg gap-lg">
           <div />
           <button
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm active:translate-y-px"
@@ -142,17 +142,17 @@ export default function WorkspacesPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">
+          <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
           </div>
         )}
         {deleteError && (
-          <div className="mb-4 rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">
+          <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {deleteError}
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
           {items.map((w) => {
             const admins = w.admins ?? [];
             const contributors = w.contributors ?? [];
@@ -166,7 +166,7 @@ export default function WorkspacesPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") router.push(`/workspace/${w.id}`);
                 }}
-                className="bg-white border border-border-subtle rounded-[12px] p-6 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer outline-none focus:ring-4 focus:ring-primary/10"
+                className="flex h-full flex-col bg-white border border-border-subtle rounded-[12px] p-6 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer outline-none focus:ring-4 focus:ring-primary/10"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -195,10 +195,10 @@ export default function WorkspacesPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-6 border-t border-gray-50 pt-4">
+                <div className="flex flex-1 flex-col space-y-4 border-t border-gray-50 pt-4 mb-6 min-h-0">
                   <div>
                     <span className="text-overline text-gray-400 mb-2 block">管理员</span>
-                    <div className="flex -space-x-2">
+                    <div className="flex min-h-8 items-center -space-x-2">
                       {admins.slice(0, 2).map((m) => (
                         <AvatarCircle
                           key={m.id}
@@ -216,7 +216,7 @@ export default function WorkspacesPage() {
 
                   <div>
                     <span className="text-overline text-gray-400 mb-2 block">贡献者</span>
-                    <div className="flex -space-x-2">
+                    <div className="flex min-h-8 items-center -space-x-2">
                       {contributors.slice(0, 3).map((m) => (
                         <AvatarCircle
                           key={m.id}
@@ -233,7 +233,7 @@ export default function WorkspacesPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 border-t border-gray-50 pt-4">
+                <div className="mt-auto flex shrink-0 items-center gap-2 border-t border-gray-50 pt-4">
                   <a
                     className="flex-1 h-10 flex items-center justify-center gap-1.5 px-3 border border-border-subtle rounded-lg text-small font-medium hover:bg-gray-50 transition-colors"
                     href={`/workspace/${w.id}/members`}
@@ -254,7 +254,7 @@ export default function WorkspacesPage() {
                   </a>
                   <button
                     type="button"
-                    className="w-10 h-10 flex items-center justify-center border border-border-subtle rounded-lg hover:bg-red-50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 group disabled:cursor-not-allowed disabled:opacity-50"
                     title="删除工作空间"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -264,7 +264,7 @@ export default function WorkspacesPage() {
                     }}
                     disabled={deletingId === w.id}
                   >
-                    <span className="material-symbols-outlined text-[18px] text-gray-400 group-hover:text-red-600">
+                    <span className="material-symbols-outlined text-[18px] text-red-600 group-hover:text-red-700">
                       delete
                     </span>
                   </button>

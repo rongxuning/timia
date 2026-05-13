@@ -195,7 +195,7 @@ export default function ProjectsPage() {
                       <div className="flex items-center gap-sm">
                         <button
                           type="button"
-                          className="w-10 h-10 flex items-center justify-center border border-border-subtle rounded-xl hover:bg-red-50 transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-10 h-10 flex items-center justify-center rounded-xl border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 group disabled:cursor-not-allowed disabled:opacity-50"
                           title="删除项目"
                           disabled={deletingId === p.id}
                           onClick={() => {
@@ -204,7 +204,7 @@ export default function ProjectsPage() {
                             setDeleteOpen(true);
                           }}
                         >
-                          <span className="material-symbols-outlined text-[18px] text-gray-400 group-hover:text-red-600">
+                          <span className="material-symbols-outlined text-[18px] text-red-600 group-hover:text-red-700">
                             delete
                           </span>
                         </button>

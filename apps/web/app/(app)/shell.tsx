@@ -13,6 +13,15 @@ type MeResponse = { id: string; email: string; display_name: string };
 
 const LOGIN_EXPIRED_MSG = "登录已过期，请重新登录。";
 
+/** alert 关闭后使用硬跳转：部分环境下 alert 之后 `router.replace` 不会完成导航 */
+function notifySessionExpiredAndGoLogin() {
+  if (typeof window === "undefined") return;
+  window.alert(LOGIN_EXPIRED_MSG);
+  window.setTimeout(() => {
+    window.location.replace("/login");
+  }, 0);
+}
+
 function NavItem({
   href,
   icon,
@@ -57,20 +66,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
   /** 路由切换时若本地已无 token，视为未登录/已过期 */
   useEffect(() => {
     if (!getToken()) {
-      window.alert(LOGIN_EXPIRED_MSG);
-      router.replace("/login");
+      notifySessionExpiredAndGoLogin();
     }
-  }, [pathname, router]);
+  }, [pathname]);
 
   /** 任意已带 token 的请求返回 401 时，由 apiFetch 派发 */
   useEffect(() => {
     function onSessionExpired() {
-      window.alert(LOGIN_EXPIRED_MSG);
-      router.replace("/login");
+      notifySessionExpiredAndGoLogin();
     }
     window.addEventListener("nomia:session-expired", onSessionExpired);
     return () => window.removeEventListener("nomia:session-expired", onSessionExpired);
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const t = getToken();

@@ -235,21 +235,16 @@ export default function WorkspaceHome() {
   const remainingMemberCount = Math.max(0, activeMembers.length - memberPreview.length);
 
   return (
-    <main className="pt-4 pb-12 px-container-padding">
-      <div className="max-w-container-max mx-auto space-y-3xl">
-        <section className="flex flex-col md:flex-row md:items-end justify-between gap-lg">
-          <div />
-          <div />
-        </section>
-
+    <main className="px-lg py-lg">
+      <div className="max-w-container-max mx-auto space-y-2xl">
         {error && (
-          <div className="rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">
+          <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
           </div>
         )}
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] gap-gutter">
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] gap-lg">
+          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
             <span className="text-sm font-semibold text-primary">工作空间</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{workspace?.name ?? "—"}</div>
@@ -263,7 +258,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
+          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
             <span className="text-sm font-semibold text-primary">成员</span>
             <div className="space-y-2 mt-1.5">
               {/* Row 1: Total */}
@@ -316,7 +311,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
+          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
             <span className="text-sm font-semibold text-primary">项目数量</span>
             <div className="flex items-baseline gap-2">
               <span className="font-headline text-section-heading">{stats?.project_count ?? projects.length}</span>
@@ -324,7 +319,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
+          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
             <span className="text-sm font-semibold text-primary">项目健康度</span>
             <div className="space-y-3 mt-1.5">
               <div className="flex items-baseline gap-2">
@@ -352,7 +347,7 @@ export default function WorkspaceHome() {
             </div>
           </div>
 
-          <div className="p-xl bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-40 hover:shadow-lg transition-all">
+          <div className="p-lg bg-white rounded-xl border border-border-subtle flex flex-col justify-between h-44 hover:shadow-lg transition-all">
             <span className="text-sm font-semibold text-primary">工作空间设置</span>
             <div className="grid grid-cols-1 gap-sm">
               <a
@@ -385,78 +380,80 @@ export default function WorkspaceHome() {
           </div>
 
           {projects.length === 0 ? (
-            <div className="bg-white rounded-xl border border-border-subtle p-xl text-small text-text-secondary">
+            <div className="bg-white rounded-xl border border-border-subtle p-lg text-small text-text-secondary">
               暂无项目。创建第一个项目即可开始。
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
-              {projects.slice(0, 4).map((p) => (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+              {projects.slice(0, 4).map((p) => {
+                const doneArchived = p.done_archived ?? 0;
+                const todoDoing = p.todo_doing ?? 0;
+                const total = todoDoing + doneArchived;
+                const progressPct = total === 0 ? 0 : Math.round((doneArchived / total) * 100);
+                return (
                 <a
                   key={p.id}
                   href={`/workspace/${workspaceId}/projects/${p.id}`}
                   className="bg-white rounded-xl border border-border-subtle overflow-hidden hover:shadow-xl transition-all group relative"
                 >
-                  <div className="p-xl space-y-lg">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-xs">
-                        <h3 className="font-subhead text-xl text-text-primary group-hover:text-primary transition-colors">
-                          {p.name}
-                        </h3>
+                  <div className="p-lg space-y-lg">
+                    <div className="flex justify-between items-start gap-md">
+                      <div className="min-w-0 flex-1 space-y-xs">
+                        <div className="flex w-max max-w-full min-w-0 flex-nowrap items-center gap-sm">
+                          <h3 className="font-subhead text-xl text-text-primary group-hover:text-primary transition-colors min-w-0 truncate">
+                            {p.name}
+                          </h3>
+                          <span className="shrink-0 whitespace-nowrap bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-overline">
+                            进行中
+                          </span>
+                        </div>
                         <p className="text-body text-text-secondary text-sm">
                           {p.description || "暂无描述。"}
                         </p>
                       </div>
-                      <div className="flex items-center gap-sm">
-                        <button
-                          type="button"
-                          className="w-10 h-10 flex items-center justify-center border border-border-subtle rounded-xl bg-white/90 hover:bg-red-50 transition-colors group/delete disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="删除项目"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDeleteProjectError(null);
-                            setDeleteProjectTarget(p);
-                            setDeleteProjectOpen(true);
-                          }}
-                          disabled={deletingProjectId === p.id}
-                        >
-                          <span className="material-symbols-outlined text-[18px] text-gray-400 group-hover/delete:text-red-600">
-                            delete
-                          </span>
-                        </button>
-                        <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-overline">进行中</span>
-                      </div>
+                      <button
+                        type="button"
+                        className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 group/delete disabled:cursor-not-allowed disabled:opacity-50"
+                        title="删除项目"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDeleteProjectError(null);
+                          setDeleteProjectTarget(p);
+                          setDeleteProjectOpen(true);
+                        }}
+                        disabled={deletingProjectId === p.id}
+                      >
+                        <span className="material-symbols-outlined text-[18px] text-red-600 group-hover/delete:text-red-700">
+                          delete
+                        </span>
+                      </button>
                     </div>
 
                     <div className="space-y-sm">
                       <div className="flex justify-between text-caption">
                         <span className="text-zinc-500">项目进度</span>
                         <span className="font-bold text-primary">
-                          {(p.done_archived ?? 0)}/{(p.todo_doing ?? 0) + (p.done_archived ?? 0)}
+                          {doneArchived}/{total}（{progressPct}%）
                         </span>
                       </div>
                       <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary rounded-full"
-                          style={{
-                            width: `${
-                              (p.todo_doing ?? 0) + (p.done_archived ?? 0) === 0
-                                ? 0
-                                : Math.round(((p.done_archived ?? 0) / ((p.todo_doing ?? 0) + (p.done_archived ?? 0))) * 100)
-                            }%`,
-                          }}
+                          style={{ width: `${progressPct}%` }}
                         />
                       </div>
                     </div>
                   </div>
                 </a>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
 
-        <section className="grid grid-cols-1 gap-gutter">
-          <div className="bg-white p-xl rounded-xl border border-border-subtle hover:shadow-md transition-all flex flex-col gap-lg">
+        <section className="grid grid-cols-1 gap-lg">
+          <div className="bg-white p-lg rounded-xl border border-border-subtle hover:shadow-md transition-all flex flex-col gap-lg">
             <h3 className="font-subhead text-lg text-text-primary">最近讨论</h3>
 
             {recentDiscussions.length === 0 && !discussionsLoading && !discussionsError ? (
