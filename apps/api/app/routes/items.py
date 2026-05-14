@@ -9,24 +9,11 @@ from app.db.deps import get_db
 from app.models.item import Item
 from app.models.project import Project
 from app.models.user import User
-from app.models.workspace import WorkspaceMember
 from app.schemas.item import ItemCreate, ItemOut, ItemUpdate
 from app.services.activity import log_activity
+from app.services.permissions import require_project_content_access
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/projects/{project_id}/items", tags=["items"])
-
-
-def _require_member(db: Session, workspace_id: uuid.UUID, user: User) -> WorkspaceMember:
-    member = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
-    return member
 
 
 def _get_project(db: Session, workspace_id: uuid.UUID, project_id: uuid.UUID) -> Project:
@@ -44,7 +31,7 @@ def list_items(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     _get_project(db, workspace_id, project_id)
 
     q = select(Item).where(Item.project_id == project_id, Item.workspace_id == workspace_id)
@@ -76,7 +63,7 @@ def create_item(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     _get_project(db, workspace_id, project_id)
     i = Item(
         workspace_id=workspace_id,
@@ -123,7 +110,7 @@ def get_item(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     _get_project(db, workspace_id, project_id)
     i = db.get(Item, item_id)
     if not i or i.project_id != project_id or i.workspace_id != workspace_id:
@@ -150,7 +137,7 @@ def update_item(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     _get_project(db, workspace_id, project_id)
     i = db.get(Item, item_id)
     if not i or i.project_id != project_id or i.workspace_id != workspace_id:
@@ -230,7 +217,7 @@ def delete_item(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     _get_project(db, workspace_id, project_id)
     i = db.get(Item, item_id)
     if not i or i.project_id != project_id or i.workspace_id != workspace_id:
@@ -247,4 +234,3 @@ def delete_item(
     )
     db.commit()
     return None
-

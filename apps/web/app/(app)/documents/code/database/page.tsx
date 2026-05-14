@@ -128,7 +128,7 @@ export default function DatabaseDiagramPage() {
           theme: "neutral",
           securityLevel: "strict",
         });
-        const { svg } = await mermaid.render("nomia-db-er", diagram);
+        const { svg } = await mermaid.render("timia-db-er", diagram);
         if (!cancelled) setSvg(svg);
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? "渲染失败");
@@ -143,11 +143,20 @@ export default function DatabaseDiagramPage() {
   return (
     <main className="min-h-screen px-container-padding py-8">
       <div className="max-w-container-max mx-auto space-y-4xl">
-        <div className="space-y-xs">
-          <h1 className="font-section-heading text-section-heading text-text-primary">数据库结构</h1>
-          <p className="text-body text-text-secondary">
-            从迁移文件（`0001_init_schema` → `0007_comment_threading`）推断的表结构、字段与关联关系。
-          </p>
+        <div className="flex flex-col gap-sm sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-xs">
+            <h1 className="font-section-heading text-section-heading text-text-primary">数据库结构</h1>
+            <p className="text-body text-text-secondary">
+              从迁移文件（`0001_init_schema` → `0007_comment_threading`）推断的表结构、字段与关联关系。
+            </p>
+          </div>
+          <a
+            className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg border border-border-subtle bg-surface px-md py-sm text-small font-medium text-text-primary hover:bg-surface-container-lowest transition-colors sm:self-auto"
+            href="/documents/code/database/data"
+          >
+            <span className="material-symbols-outlined text-[16px]">table</span>
+            查看表数据
+          </a>
         </div>
 
         {error ? (

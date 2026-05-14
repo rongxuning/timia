@@ -7,26 +7,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
-from app.models.workspace import WorkspaceMember
+from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace import MemberAdd, MemberOut, MemberRoleUpdate
 from app.services.activity import log_activity
+from app.services.permissions import require_workspace_member, require_workspace_owner
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/members", tags=["members"])
-
-
-def _require_admin_or_owner(db: Session, workspace_id: uuid.UUID, user: User) -> WorkspaceMember:
-    member = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
-    if member.role not in {"owner", "admin"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_role")
-    return member
 
 
 @router.get("", response_model=list[MemberOut])
@@ -36,15 +22,10 @@ def list_members(
     user: User = Depends(get_current_user),
 ):
     # any member can list members (common in collaboration tools)
-    member = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
+    require_workspace_member(db, workspace_id, user)
+
+    ws = db.get(Workspace, workspace_id)
+    creator_id = ws.created_by_user_id if ws else None
 
     rows = db.execute(
         select(WorkspaceMember, User)
@@ -62,6 +43,7 @@ def list_members(
                 display_name=u.display_name,
                 role=m.role,
                 status=m.status,
+                is_creator=bool(creator_id and u.id == creator_id),
             )
         )
     return out
@@ -74,12 +56,20 @@ def add_member(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_admin_or_owner(db, workspace_id, user)
+    require_workspace_owner(db, workspace_id, user)
+
+    ws = db.get(Workspace, workspace_id)
+    if not ws:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
     email = payload.email.strip().lower()
     target_user = db.scalar(select(User).where(User.email == email))
     if not target_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found")
+
+    effective_role = payload.role
+    if target_user.id == ws.created_by_user_id:
+        effective_role = "owner"
 
     existing = db.scalar(
         select(WorkspaceMember).where(
@@ -92,11 +82,11 @@ def add_member(
 
     if existing:
         existing.status = "active"
-        existing.role = payload.role
+        existing.role = effective_role
         member_row = existing
     else:
         member_row = WorkspaceMember(
-            workspace_id=workspace_id, user_id=target_user.id, role=payload.role, status="active"
+            workspace_id=workspace_id, user_id=target_user.id, role=effective_role, status="active"
         )
         db.add(member_row)
         db.flush()
@@ -108,7 +98,7 @@ def add_member(
         entity_type="member",
         entity_id=member_row.id,
         action="add_member",
-        metadata={"user_id": str(target_user.id), "role": payload.role},
+        metadata={"user_id": str(target_user.id), "role": effective_role},
     )
     db.commit()
     return MemberOut(
@@ -118,6 +108,7 @@ def add_member(
         display_name=target_user.display_name,
         role=member_row.role,
         status=member_row.status,
+        is_creator=target_user.id == ws.created_by_user_id,
     )
 
 
@@ -129,12 +120,21 @@ def update_member_role(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_admin_or_owner(db, workspace_id, user)
+    require_workspace_owner(db, workspace_id, user)
     m = db.get(WorkspaceMember, member_id)
     if not m or m.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
-    m.role = payload.role
+    ws = db.get(Workspace, workspace_id)
+    if ws and m.user_id == ws.created_by_user_id:
+        if payload.role != "owner":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="cannot_change_workspace_creator_role",
+            )
+        m.role = "owner"
+    else:
+        m.role = payload.role
     log_activity(
         db,
         workspace_id=workspace_id,
@@ -142,7 +142,7 @@ def update_member_role(
         entity_type="member",
         entity_id=m.id,
         action="change_role",
-        metadata={"role": payload.role, "user_id": str(m.user_id)},
+        metadata={"role": m.role, "user_id": str(m.user_id)},
     )
     db.commit()
 
@@ -154,6 +154,7 @@ def update_member_role(
         display_name=u.display_name if u else "Unknown",
         role=m.role,
         status=m.status,
+        is_creator=bool(ws and m.user_id == ws.created_by_user_id),
     )
 
 
@@ -164,10 +165,17 @@ def remove_member(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_admin_or_owner(db, workspace_id, user)
+    require_workspace_owner(db, workspace_id, user)
     m = db.get(WorkspaceMember, member_id)
     if not m or m.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+
+    ws = db.get(Workspace, workspace_id)
+    if ws and m.user_id == ws.created_by_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="cannot_remove_workspace_creator",
+        )
 
     m.status = "removed"
     log_activity(
@@ -181,4 +189,3 @@ def remove_member(
     )
     db.commit()
     return None
-

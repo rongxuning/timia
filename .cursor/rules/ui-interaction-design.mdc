@@ -1,16 +1,16 @@
 ---
-description: Nomia Web 视觉交互与界面文案规范（apps/web）
+description: Timia Web 视觉交互与界面文案规范（apps/web）
 globs: apps/web/**/*.{tsx,ts,jsx,js}
 alwaysApply: false
 ---
 
-# Nomia Web 视觉与交互规范
+# Timia Web 视觉与交互规范
 
 ## 风格小结
 
 - **气质**：浅色、偏 Material 3 语义的协作工具界面；白底卡片 + 淡紫主色（`primary` / `indigo` 系），干净、信息密度中等。
 - **技术栈**：Next.js + Tailwind v4（`globals.css` 中 `@config` 指向 `tailwind.config.js`）。优先使用 **主题色名**（`primary`、`surface`、`border-subtle` 等），与 **语义字号**（`text-body`、`text-small`、`font-subhead` 等）；`gray` / `zinc` / `indigo` 仅在与现有壳层一致或缺 token 时使用。
-- **品牌区**：顶栏 Logo + `font-display`「Nomia」；登录等营销区可用 `dot-grid` + 轻渐变底。
+- **品牌区**：顶栏 Logo + `font-display`「Timia」；登录等营销区可用 `dot-grid` + 轻渐变底。
 
 ## 字体与排版
 
@@ -60,7 +60,7 @@ alwaysApply: false
 
 ## 界面文案语言
 
-在 `apps/web` 新增或修改页面、组件时，**用户可见的 UI 文案**（标题、副标题、按钮、导航、表单标签与占位符、空状态、错误提示、对话框、`aria-label`、`title`、`alt` 等）使用**简体中文**。产品英文名 “Nomia” 可保留。若需展示 API 枚举值（如 `todo`、`owner`），在界面上优先用中文说明或并列展示。
+在 `apps/web` 新增或修改页面、组件时，**用户可见的 UI 文案**（标题、副标题、按钮、导航、表单标签与占位符、空状态、错误提示、对话框、`aria-label`、`title`、`alt` 等）使用**简体中文**。产品英文名 “Timia” 可保留。若需展示 API 枚举值（如 `todo`、`owner`），在界面上优先用中文说明或并列展示。
 
 ## 可访问性
 

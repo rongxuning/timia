@@ -18,6 +18,7 @@ class WorkspaceCardOut(BaseModel):
     todo_count: int = 0
     doing_count: int = 0
     done_count: int = 0
-    admins: list[WorkspaceCardUser]
-    contributors: list[WorkspaceCardUser]
+    owners: list[WorkspaceCardUser]
+    members: list[WorkspaceCardUser]
+    my_workspace_role: str = "member"
 

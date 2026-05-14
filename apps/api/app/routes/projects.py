@@ -10,35 +10,24 @@ from app.models.item import Item
 from app.models.project import Project, ProjectMember
 from app.models.user import User
 from app.models.workspace import WorkspaceMember
-from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
+from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.services.activity import log_activity
+from app.services.permissions import (
+    PROJECT_OWNER,
+    accessible_project_ids,
+    require_can_manage_project,
+    require_project_content_access,
+    require_workspace_member,
+    require_workspace_owner,
+    user_can_manage_project,
+)
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/projects", tags=["projects"])
 
 
-def _require_member(db: Session, workspace_id: uuid.UUID, user: User) -> WorkspaceMember:
-    member = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
-    return member
-
-
-def _require_admin_or_owner(db: Session, workspace_id: uuid.UUID, user: User) -> WorkspaceMember:
-    member = _require_member(db, workspace_id, user)
-    if member.role not in {"owner", "admin"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_role")
-    return member
-
-
-def _ensure_project_creator_as_admin(db: Session, workspace_id: uuid.UUID, p: Project) -> None:
-    """Creator must have an active project membership with role admin (legacy DBs may lack the row)."""
+def _ensure_project_creator_as_owner(db: Session, workspace_id: uuid.UUID, p: Project) -> None:
+    """Creator must have an active project membership with role owner (legacy DBs may lack the row)."""
     if not p.created_by_user_id:
         return
     uid = p.created_by_user_id
@@ -55,14 +44,33 @@ def _ensure_project_creator_as_admin(db: Session, workspace_id: uuid.UUID, p: Pr
                 workspace_id=workspace_id,
                 project_id=p.id,
                 user_id=uid,
-                role="admin",
+                role=PROJECT_OWNER,
                 status="active",
             )
         )
     else:
         if m.status != "active":
             m.status = "active"
-        m.role = "admin"
+        m.role = PROJECT_OWNER
+
+
+def _project_out(
+    p: Project,
+    *,
+    creators: dict[uuid.UUID, User],
+    can_manage: bool,
+) -> ProjectOut:
+    creator = creators.get(p.created_by_user_id) if p.created_by_user_id else None
+    return ProjectOut(
+        id=str(p.id),
+        name=p.name,
+        description=p.description,
+        archived=p.archived,
+        created_at=p.created_at,
+        created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
+        created_by_display_name=creator.display_name if creator else None,
+        can_manage=can_manage,
+    )
 
 
 @router.get("", response_model=list[ProjectOut])
@@ -71,22 +79,24 @@ def list_projects(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
-    rows = db.scalars(select(Project).where(Project.workspace_id == workspace_id).order_by(Project.created_at.desc())).all()
+    ws = require_workspace_member(db, workspace_id, user)
+    allowed = accessible_project_ids(db, workspace_id, user, ws)
+    q = select(Project).where(Project.workspace_id == workspace_id).order_by(Project.created_at.desc())
+    if allowed is not None:
+        if not allowed:
+            return []
+        q = q.where(Project.id.in_(allowed))
+    rows = db.scalars(q).all()
     creator_ids = {p.created_by_user_id for p in rows if p.created_by_user_id}
-    creators = {}
+    creators: dict[uuid.UUID, User] = {}
     if creator_ids:
         creators = {u.id: u for u in db.scalars(select(User).where(User.id.in_(creator_ids))).all()}
 
     return [
-        ProjectOut(
-            id=str(p.id),
-            name=p.name,
-            description=p.description,
-            archived=p.archived,
-            created_at=p.created_at,
-            created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
-            created_by_display_name=creators.get(p.created_by_user_id).display_name if p.created_by_user_id in creators else None,
+        _project_out(
+            p,
+            creators=creators,
+            can_manage=user_can_manage_project(db, workspace_id, p.id, user),
         )
         for p in rows
     ]
@@ -103,13 +113,15 @@ def list_project_progress(
     A = todo + doing
     B = done + archived
     """
-    _require_member(db, workspace_id, user)
+    ws = require_workspace_member(db, workspace_id, user)
+    allowed = accessible_project_ids(db, workspace_id, user, ws)
 
-    rows = db.execute(
-        select(Item.project_id, Item.status, func.count(Item.id))
-        .where(Item.workspace_id == workspace_id)
-        .group_by(Item.project_id, Item.status)
-    ).all()
+    q = select(Item.project_id, Item.status, func.count(Item.id)).where(Item.workspace_id == workspace_id)
+    if allowed is not None:
+        if not allowed:
+            return {}
+        q = q.where(Item.project_id.in_(allowed))
+    rows = db.execute(q.group_by(Item.project_id, Item.status)).all()
 
     out: dict[str, dict[str, int]] = {}
     for project_id, status_value, cnt in rows:
@@ -130,7 +142,7 @@ def create_project(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_workspace_owner(db, workspace_id, user)
     p = Project(
         workspace_id=workspace_id,
         created_by_user_id=user.id,
@@ -145,7 +157,7 @@ def create_project(
             workspace_id=workspace_id,
             project_id=p.id,
             user_id=user.id,
-            role="admin",
+            role=PROJECT_OWNER,
             status="active",
         )
     )
@@ -159,15 +171,7 @@ def create_project(
         metadata={"name": p.name},
     )
     db.commit()
-    return ProjectOut(
-        id=str(p.id),
-        name=p.name,
-        description=p.description,
-        archived=p.archived,
-        created_at=p.created_at,
-        created_by_user_id=str(user.id),
-        created_by_display_name=user.display_name,
-    )
+    return _project_out(p, creators={user.id: user}, can_manage=True)
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
@@ -177,19 +181,18 @@ def get_project(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
-    creator = db.get(User, p.created_by_user_id) if p.created_by_user_id else None
-    return ProjectOut(
-        id=str(p.id),
-        name=p.name,
-        description=p.description,
-        archived=p.archived,
-        created_at=p.created_at,
-        created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
-        created_by_display_name=creator.display_name if creator else None,
+    creator_ids = {p.created_by_user_id} if p.created_by_user_id else set()
+    creators = {}
+    if creator_ids:
+        creators = {u.id: u for u in db.scalars(select(User).where(User.id.in_(creator_ids))).all()}
+    return _project_out(
+        p,
+        creators=creators,
+        can_manage=user_can_manage_project(db, workspace_id, project_id, user),
     )
 
 
@@ -200,18 +203,22 @@ def list_project_members(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
-    _ensure_project_creator_as_admin(db, workspace_id, p)
+    _ensure_project_creator_as_owner(db, workspace_id, p)
     db.commit()
 
     rows = db.execute(
         select(ProjectMember, User)
         .join(User, User.id == ProjectMember.user_id)
-        .where(ProjectMember.project_id == project_id, ProjectMember.workspace_id == workspace_id, ProjectMember.status == "active")
+        .where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.workspace_id == workspace_id,
+            ProjectMember.status == "active",
+        )
         .order_by(ProjectMember.created_at.asc())
     ).all()
     out: list[ProjectMemberOut] = []
@@ -239,7 +246,7 @@ def add_project_member(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_admin_or_owner(db, workspace_id, user)
+    require_can_manage_project(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
@@ -269,7 +276,7 @@ def add_project_member(
     if existing and existing.status == "active":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_member")
 
-    effective_role = "admin" if (p.created_by_user_id and target_user_id == p.created_by_user_id) else payload.role
+    effective_role = PROJECT_OWNER if (p.created_by_user_id and target_user_id == p.created_by_user_id) else payload.role
 
     if existing:
         existing.status = "active"
@@ -309,13 +316,10 @@ def update_project_member_role(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_admin_or_owner(db, workspace_id, user)
+    require_can_manage_project(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
-    if p.created_by_user_id and user_id == p.created_by_user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="cannot_change_creator_role")
-
     m = db.scalar(
         select(ProjectMember).where(
             ProjectMember.workspace_id == workspace_id,
@@ -326,9 +330,20 @@ def update_project_member_role(
     )
     if not m:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
-    m.role = payload.role
+
+    if p.created_by_user_id and user_id == p.created_by_user_id:
+        if payload.role != PROJECT_OWNER:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="cannot_change_project_creator_role",
+            )
+        m.role = PROJECT_OWNER
+    else:
+        m.role = payload.role
+
     db.commit()
     u = db.get(User, user_id)
+    is_creator = bool(p.created_by_user_id and user_id == p.created_by_user_id)
     return ProjectMemberOut(
         id=str(m.id),
         user_id=str(user_id),
@@ -336,7 +351,7 @@ def update_project_member_role(
         display_name=u.display_name if u else "Unknown",
         role=m.role,
         status=m.status,
-        is_creator=False,
+        is_creator=is_creator,
     )
 
 
@@ -348,7 +363,7 @@ def remove_project_member(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_admin_or_owner(db, workspace_id, user)
+    require_can_manage_project(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
@@ -378,7 +393,7 @@ def update_project(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_can_manage_project(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
@@ -400,15 +415,14 @@ def update_project(
         metadata={"before": before, "after": after},
     )
     db.commit()
-    creator = db.get(User, p.created_by_user_id) if p.created_by_user_id else None
-    return ProjectOut(
-        id=str(p.id),
-        name=p.name,
-        description=p.description,
-        archived=p.archived,
-        created_at=p.created_at,
-        created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
-        created_by_display_name=creator.display_name if creator else None,
+    creator_ids = {p.created_by_user_id} if p.created_by_user_id else set()
+    creators = {}
+    if creator_ids:
+        creators = {u.id: u for u in db.scalars(select(User).where(User.id.in_(creator_ids))).all()}
+    return _project_out(
+        p,
+        creators=creators,
+        can_manage=user_can_manage_project(db, workspace_id, project_id, user),
     )
 
 
@@ -419,7 +433,7 @@ def delete_project(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_can_manage_project(db, workspace_id, project_id, user)
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
@@ -435,4 +449,3 @@ def delete_project(
     )
     db.commit()
     return None
-

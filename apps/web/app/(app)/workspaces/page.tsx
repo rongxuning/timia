@@ -15,8 +15,9 @@ type WorkspaceCard = {
   todo_count: number;
   doing_count: number;
   done_count: number;
-  admins: CardUser[];
-  contributors: CardUser[];
+  owners: CardUser[];
+  members: CardUser[];
+  my_workspace_role: string;
 };
 
 type Workspace = { id: string; name: string; description?: string | null };
@@ -155,8 +156,9 @@ export default function WorkspacesPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
           {items.map((w) => {
-            const admins = w.admins ?? [];
-            const contributors = w.contributors ?? [];
+            const owners = w.owners ?? [];
+            const members = w.members ?? [];
+            const isWorkspaceOwner = w.my_workspace_role === "owner";
 
             return (
               <section
@@ -198,36 +200,36 @@ export default function WorkspacesPage() {
 
                 <div className="flex flex-1 flex-col space-y-4 border-t border-gray-50 pt-4 mb-6 min-h-0">
                   <div>
-                    <span className="text-overline text-gray-400 mb-2 block">管理员</span>
+                    <span className="text-overline text-gray-400 mb-2 block">负责人（空间 owner）</span>
                     <div className="flex min-h-8 items-center -space-x-2">
-                      {admins.slice(0, 2).map((m) => (
+                      {owners.slice(0, 2).map((m) => (
                         <AvatarCircle
                           key={m.id}
                           label={m.display_name || m.email}
                           title={`${m.display_name || m.email} (${m.email}) · ${m.role}`}
                         />
                       ))}
-                      {admins.length > 2 && (
+                      {owners.length > 2 && (
                         <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                          +{admins.length - 2}
+                          +{owners.length - 2}
                         </div>
                       )}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-overline text-gray-400 mb-2 block">贡献者</span>
+                    <span className="text-overline text-gray-400 mb-2 block">成员</span>
                     <div className="flex min-h-8 items-center -space-x-2">
-                      {contributors.slice(0, 3).map((m) => (
+                      {members.slice(0, 3).map((m) => (
                         <AvatarCircle
                           key={m.id}
                           label={m.display_name || m.email}
                           title={`${m.display_name || m.email} (${m.email}) · ${m.role}`}
                         />
                       ))}
-                      {contributors.length > 3 && (
+                      {members.length > 3 && (
                         <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                          +{contributors.length - 3}
+                          +{members.length - 3}
                         </div>
                       )}
                     </div>
@@ -235,14 +237,25 @@ export default function WorkspacesPage() {
                 </div>
 
                 <div className="mt-auto flex shrink-0 items-center gap-2 border-t border-gray-50 pt-4">
-                  <a
-                    className="flex-1 h-10 flex items-center justify-center gap-1.5 px-3 border border-border-subtle rounded-lg text-small font-medium hover:bg-gray-50 transition-colors"
-                    href={`/workspace/${w.id}/members`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">person_add</span>
-                    添加成员
-                  </a>
+                  {isWorkspaceOwner ? (
+                    <a
+                      className="flex-1 h-10 flex items-center justify-center gap-1.5 px-3 border border-border-subtle rounded-lg text-small font-medium hover:bg-gray-50 transition-colors"
+                      href={`/workspace/${w.id}/members`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">person_add</span>
+                      成员管理
+                    </a>
+                  ) : (
+                    <a
+                      className="flex-1 h-10 flex items-center justify-center gap-1.5 px-3 border border-border-subtle rounded-lg text-small font-medium hover:bg-gray-50 transition-colors"
+                      href={`/workspace/${w.id}/members`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">group</span>
+                      查看成员
+                    </a>
+                  )}
                   <a
                     className="w-10 h-10 flex items-center justify-center border border-border-subtle rounded-lg hover:bg-gray-50 transition-colors group"
                     href={`/workspace/${w.id}/activity`}
@@ -253,22 +266,24 @@ export default function WorkspacesPage() {
                       history
                     </span>
                   </a>
-                  <button
-                    type="button"
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 group disabled:cursor-not-allowed disabled:opacity-50"
-                    title="删除工作空间"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteError(null);
-                      setDeleteTarget(w);
-                      setDeleteOpen(true);
-                    }}
-                    disabled={deletingId === w.id}
-                  >
-                    <span className="material-symbols-outlined text-[18px] text-red-600 group-hover:text-red-700">
-                      delete
-                    </span>
-                  </button>
+                  {isWorkspaceOwner ? (
+                    <button
+                      type="button"
+                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 group disabled:cursor-not-allowed disabled:opacity-50"
+                      title="删除工作空间"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteError(null);
+                        setDeleteTarget(w);
+                        setDeleteOpen(true);
+                      }}
+                      disabled={deletingId === w.id}
+                    >
+                      <span className="material-symbols-outlined text-[18px] text-red-600 group-hover:text-red-700">
+                        delete
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
               </section>
             );

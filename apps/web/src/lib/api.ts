@@ -1,4 +1,4 @@
-import { clearToken } from "./auth";
+import { clearToken, redirectToLoginPage, takeSessionExpiredFrom401 } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -23,8 +23,8 @@ export async function apiFetch<T>(
   if (!resp.ok) {
     if (resp.status === 401 && options.token) {
       clearToken();
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("nomia:session-expired"));
+      if (typeof window !== "undefined" && takeSessionExpiredFrom401()) {
+        redirectToLoginPage({ reason: "session-expired" });
       }
     }
     let msg = resp.statusText;

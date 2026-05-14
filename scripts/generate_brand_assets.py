@@ -162,12 +162,12 @@ def generate(
 
     recolored = _recolor_icon(src, icon_box)
 
-    # Build wordmark: reuse icon placement + draw "Nomia".
+    # Build wordmark: reuse icon placement + draw "Timia".
     wordmark = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     wordmark.paste(recolored.crop((icon_box.left, icon_box.top, icon_box.right, icon_box.bottom)), (icon_box.left, icon_box.top))
     draw = ImageDraw.Draw(wordmark)
 
-    text = "Nomia"
+    text = "Timia"
     target_text_h = int(h * 0.62)
     font = _fit_font(draw, text, target_text_h)
     tb = draw.textbbox((0, 0), text, font=font)
@@ -221,19 +221,19 @@ def generate(
 
 if __name__ == "__main__":
     repo_root = Path(__file__).resolve().parents[1]
-    env_ref = os.environ.get("NOMIA_REFERENCE_PNG")
+    env_ref = os.environ.get("TIMIA_REFERENCE_PNG") or os.environ.get("NOMIA_REFERENCE_PNG")
     if not env_ref:
         raise SystemExit(
-            "Set NOMIA_REFERENCE_PNG to the source logo PNG path, e.g.\n"
-            "  NOMIA_REFERENCE_PNG=/absolute/path/to/jibble-logo.png python scripts/generate_brand_assets.py"
+            "Set TIMIA_REFERENCE_PNG to the source logo PNG path (or legacy NOMIA_REFERENCE_PNG), e.g.\n"
+            "  TIMIA_REFERENCE_PNG=/absolute/path/to/jibble-logo.png python scripts/generate_brand_assets.py"
         )
     reference = Path(env_ref)
 
     public_dir = repo_root / "apps/web/public"
     generate(
         reference_png=reference,
-        out_wordmark_png=public_dir / "brand/nomia-wordmark.png",
-        out_icon_png=public_dir / "brand/nomia-icon-512.png",
+        out_wordmark_png=public_dir / "brand/timia-wordmark.png",
+        out_icon_png=public_dir / "brand/timia-icon-512.png",
         out_icons_dir=public_dir / "icons",
         out_favicon_ico=public_dir / "favicon.ico",
     )

@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.core.security import hash_password
 from app.db.session import SessionLocal
@@ -8,11 +8,13 @@ from app.models.user import User
 def main():
     db = SessionLocal()
     try:
-        existing = db.scalar(select(User).where(User.email == "admin@nomia.com"))
+        existing = db.scalar(
+            select(User).where(or_(User.email == "admin@timia.com", User.email == "admin@nomia.com"))
+        )
         if existing:
             return
         u = User(
-            email="admin@nomia.com",
+            email="admin@timia.com",
             password_hash=hash_password("admin1234"),
             display_name="Admin",
             status="active",

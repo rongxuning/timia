@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setToken } from "@/lib/auth";
@@ -60,7 +60,7 @@ function ShowcaseCard({
                 {iconName}
               </span>
             </div>
-            <span className="truncate font-overline text-overline tracking-[0.12em] text-on-surface-variant">NOMIA</span>
+            <span className="truncate font-overline text-overline tracking-[0.12em] text-on-surface-variant">TIMIA</span>
           </div>
           <span className="shrink-0 font-body text-caption text-outline-variant">{timeText}</span>
         </div>
@@ -80,10 +80,22 @@ function ShowcaseCard({
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@nomia.com");
+  const [email, setEmail] = useState("rongxuning@gmail.com");
   const [password, setPassword] = useState("admin1234");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("reason") === "session-expired") {
+      setSessionNotice("登录已过期，请重新登录。");
+      params.delete("reason");
+      const next = params.toString();
+      const path = next ? `${window.location.pathname}?${next}` : window.location.pathname;
+      window.history.replaceState(null, "", path);
+    }
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -183,9 +195,9 @@ export default function LoginPage() {
           <div className="mb-8xl flex flex-col items-center">
             <div className="mb-lg flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-subtle bg-white shadow-sm">
-                <img alt="Nomia 图标" src="/icons/icon-48.png" className="h-6.5 w-6.5 object-contain" />
+                <img alt="Timia 图标" src="/icons/icon-48.png" className="h-6.5 w-6.5 object-contain" />
               </div>
-              <span className="font-headline text-subhead tracking-tight text-on-surface">Nomia</span>
+              <span className="font-headline text-subhead tracking-tight text-on-surface">Timia</span>
             </div>
             <p className="mt-sm text-center font-body text-text-secondary">全天候管理你的日程</p>
           </div>
@@ -232,6 +244,12 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {sessionNotice && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-md py-sm text-small text-amber-900">
+                  {sessionNotice}
+                </div>
+              )}
+
               {error && <div className="text-small text-error">{error}</div>}
 
               <button
@@ -247,7 +265,7 @@ export default function LoginPage() {
       </section>
 
       <footer className="fixed bottom-lg z-20 flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
-        <span>© 2026 Nomia</span>
+        <span>© 2026 Timia</span>
         <div className="flex flex-wrap justify-center gap-lg">
           <a className="transition-colors hover:text-text-secondary" href="#">
             隐私

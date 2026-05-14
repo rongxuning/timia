@@ -22,7 +22,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nomia · 协作管理",
+  title: "Timia · 协作管理",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },

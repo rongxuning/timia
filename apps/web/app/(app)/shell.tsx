@@ -6,21 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { clearToken, getToken } from "@/lib/auth";
+import { clearToken, getToken, loginRedirectReasonWhenUnauthenticated, redirectToLoginPage } from "@/lib/auth";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 type MeResponse = { id: string; email: string; display_name: string };
-
-const LOGIN_EXPIRED_MSG = "登录已过期，请重新登录。";
-
-/** alert 关闭后使用硬跳转：部分环境下 alert 之后 `router.replace` 不会完成导航 */
-function notifySessionExpiredAndGoLogin() {
-  if (typeof window === "undefined") return;
-  window.alert(LOGIN_EXPIRED_MSG);
-  window.setTimeout(() => {
-    window.location.replace("/login");
-  }, 0);
-}
 
 function NavItem({
   href,
@@ -63,21 +52,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
-  /** 路由切换时若本地已无 token，视为未登录/已过期 */
+  /** 路由切换时若本地已无 token：与 401 共用 `sessionExpiredHandled`，避免先跳 /login 再被 401 覆盖丢 query */
   useEffect(() => {
     if (!getToken()) {
-      notifySessionExpiredAndGoLogin();
+      redirectToLoginPage({ reason: loginRedirectReasonWhenUnauthenticated() });
     }
   }, [pathname]);
-
-  /** 任意已带 token 的请求返回 401 时，由 apiFetch 派发 */
-  useEffect(() => {
-    function onSessionExpired() {
-      notifySessionExpiredAndGoLogin();
-    }
-    window.addEventListener("nomia:session-expired", onSessionExpired);
-    return () => window.removeEventListener("nomia:session-expired", onSessionExpired);
-  }, []);
 
   useEffect(() => {
     const t = getToken();
@@ -106,19 +86,21 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen min-h-0 overflow-hidden">
       {/* SideNavBar：视口内固定，主区域单独滚动 */}
       <aside className="hidden h-full w-48 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white md:flex">
-        <div className="flex h-14 items-center px-4">
+        <div className="flex h-14 items-center justify-center px-4">
           <Link href="/my/schedule" className="flex items-center gap-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
               <Image
                 src="/icons/icon-32.png"
-                alt="Nomia"
+                alt="Timia"
                 width={20}
                 height={20}
-                className="h-5 w-5"
+                className="block h-5 w-5 shrink-0"
                 priority
               />
             </div>
-            <span className="font-display text-xl font-bold tracking-tight text-gray-900">Nomia</span>
+            <span className="font-display text-xl font-bold leading-none tracking-tight text-gray-900">
+              Timia
+            </span>
           </Link>
         </div>
         <div className="flex flex-col space-y-2 p-4">
@@ -179,17 +161,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="flex min-w-0 items-center gap-3">
               {/* 小屏无侧栏时保留品牌识别 */}
               <Link href="/my/schedule" className="flex items-center gap-2 md:hidden">
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
                   <Image
                     src="/icons/icon-32.png"
-                    alt="Nomia"
+                    alt="Timia"
                     width={20}
                     height={20}
-                    className="h-5 w-5"
+                    className="block h-5 w-5 shrink-0"
                     priority
                   />
                 </div>
-                <span className="font-display text-lg font-bold tracking-tight text-gray-900">Nomia</span>
+                <span className="font-display text-lg font-bold leading-none tracking-tight text-gray-900">
+                  Timia
+                </span>
               </Link>
               <Breadcrumbs className="hidden min-w-0 sm:block md:pl-container-padding" />
             </div>

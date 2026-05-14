@@ -10,9 +10,10 @@ from app.routes.members import router as members_router
 from app.routes.projects import router as projects_router
 from app.routes.users import router as users_router
 from app.routes.workspaces import router as workspaces_router
+from app.routes.dev_db_tables import router as dev_db_tables_router
 
 
-app = FastAPI(title="Nomia API")
+app = FastAPI(title="Timia API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +35,7 @@ app.include_router(items_router)
 app.include_router(comments_router)
 app.include_router(activity_router)
 app.include_router(me_router)
+app.include_router(dev_db_tables_router)
 
 
 @app.get("/health")

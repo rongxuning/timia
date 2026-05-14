@@ -9,27 +9,14 @@ from app.db.deps import get_db
 from app.models.comment import Comment
 from app.models.item import Item
 from app.models.user import User
-from app.models.workspace import WorkspaceMember
 from app.schemas.comment import CommentCreate, CommentOut, CommentUpdate
 from app.services.activity import log_activity
+from app.services.permissions import can_moderate_comments, require_project_content_access
 
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/projects/{project_id}/items/{item_id}/comments",
     tags=["comments"],
 )
-
-
-def _require_member(db: Session, workspace_id: uuid.UUID, user: User) -> WorkspaceMember:
-    member = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
-    return member
 
 
 def _require_item(db: Session, workspace_id: uuid.UUID, item_id: uuid.UUID) -> Item:
@@ -60,7 +47,7 @@ def list_comments(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     i = _require_item(db, workspace_id, item_id)
     if i.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item_not_found")
@@ -87,7 +74,7 @@ def add_comment(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    _require_member(db, workspace_id, user)
+    require_project_content_access(db, workspace_id, project_id, user)
     i = _require_item(db, workspace_id, item_id)
     if i.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item_not_found")
@@ -147,7 +134,7 @@ def patch_comment(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    member = _require_member(db, workspace_id, user)
+    ws, pm = require_project_content_access(db, workspace_id, project_id, user)
     i = _require_item(db, workspace_id, item_id)
     if i.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item_not_found")
@@ -156,7 +143,7 @@ def patch_comment(
     if not c or c.item_id != item_id or c.workspace_id != workspace_id or c.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
-    if c.author_user_id != user.id and member.role not in {"owner", "admin"}:
+    if c.author_user_id != user.id and not can_moderate_comments(ws, pm):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
     c.completion_status = payload.completion_status
@@ -175,7 +162,7 @@ def delete_comment(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    member = _require_member(db, workspace_id, user)
+    ws, pm = require_project_content_access(db, workspace_id, project_id, user)
     i = _require_item(db, workspace_id, item_id)
     if i.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item_not_found")
@@ -184,7 +171,7 @@ def delete_comment(
     if not c or c.item_id != item_id or c.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
-    if c.author_user_id != user.id and member.role not in {"owner", "admin"}:
+    if c.author_user_id != user.id and not can_moderate_comments(ws, pm):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
     db.delete(c)

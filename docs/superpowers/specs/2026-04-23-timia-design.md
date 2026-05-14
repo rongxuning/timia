@@ -1,4 +1,4 @@
-# Nomia (MVP-1) — Workspace 协作管理 Web 规格说明
+# Timia (MVP-1) — Workspace 协作管理 Web 规格说明
 
 **目标**：在一个 Workspace 内，多用户登录后可进行日常管理（项目/条目）并协作（评论 + 活动流），管理员可手动管理成员。
 

@@ -1,10 +1,17 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr
 
 
 class WorkspaceCreate(BaseModel):
     name: str
+    description: str | None = None
+
+
+class WorkspaceUpdate(BaseModel):
+    name: str | None = None
     description: str | None = None
 
 
@@ -24,15 +31,16 @@ class MemberOut(BaseModel):
     display_name: str
     role: str
     status: str
+    is_creator: bool = False
 
 
 class MemberAdd(BaseModel):
     email: EmailStr
-    role: str = "member"
+    role: Literal["owner", "member"] = "member"
 
 
 class MemberRoleUpdate(BaseModel):
-    role: str
+    role: Literal["owner", "member"]
 
 
 class RecentDiscussionOut(BaseModel):

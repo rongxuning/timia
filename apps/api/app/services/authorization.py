@@ -30,6 +30,8 @@ def require_workspace_member(workspace_id: uuid.UUID):
 
 
 def require_workspace_role(workspace_id: uuid.UUID, allowed_roles: set[str]):
+    """allowed_roles should use values from app.services.permissions (workspace: owner | member)."""
+
     def _dep(member: WorkspaceMember = Depends(require_workspace_member(workspace_id))) -> WorkspaceMember:
         if member.role not in allowed_roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_role")

@@ -9,12 +9,18 @@ from app.db.deps import get_db
 from app.models.activity import ActivityLog
 from app.models.comment import Comment
 from app.models.item import Item
-from app.models.project import Project
+from app.models.project import Project, ProjectMember
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace_cards import WorkspaceCardOut, WorkspaceCardUser
-from app.schemas.workspace import RecentDiscussionOut, WorkspaceCreate, WorkspaceOut
+from app.schemas.workspace import RecentDiscussionOut, WorkspaceCreate, WorkspaceOut, WorkspaceUpdate
 from app.services.activity import log_activity
+from app.services.permissions import (
+    WORKSPACE_OWNER,
+    accessible_project_ids,
+    require_workspace_member,
+    require_workspace_owner,
+)
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
@@ -43,6 +49,17 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
 
     workspace_ids = [w.id for w in workspaces]
 
+    my_memberships = {
+        m.workspace_id: m
+        for m in db.scalars(
+            select(WorkspaceMember).where(
+                WorkspaceMember.user_id == user.id,
+                WorkspaceMember.workspace_id.in_(workspace_ids),
+                WorkspaceMember.status == "active",
+            )
+        ).all()
+    }
+
     project_counts = dict(
         db.execute(
             select(Project.workspace_id, func.count(Project.id))
@@ -59,16 +76,13 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
     ).all()
 
     item_status_rows = db.execute(
-        select(Item.workspace_id, Item.status, func.count(Item.id))
+        select(Item.workspace_id, Item.project_id, Item.status, func.count(Item.id))
         .where(Item.workspace_id.in_(workspace_ids), Item.status.in_(("todo", "doing", "done")))
-        .group_by(Item.workspace_id, Item.status)
+        .group_by(Item.workspace_id, Item.project_id, Item.status)
     ).all()
-    item_counts_by_ws: dict[uuid.UUID, dict[str, int]] = {}
-    for ws_id, st, cnt in item_status_rows:
-        item_counts_by_ws.setdefault(ws_id, {})[str(st)] = int(cnt)
 
-    admins_by_ws: dict[uuid.UUID, list[WorkspaceCardUser]] = {}
-    contributors_by_ws: dict[uuid.UUID, list[WorkspaceCardUser]] = {}
+    owners_by_ws: dict[uuid.UUID, list[WorkspaceCardUser]] = {}
+    members_by_ws: dict[uuid.UUID, list[WorkspaceCardUser]] = {}
     for m, u in member_rows:
         card_user = WorkspaceCardUser(
             id=str(u.id),
@@ -79,25 +93,53 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
         )
         if m.status != "active":
             continue
-        if m.role in ("owner", "admin"):
-            admins_by_ws.setdefault(m.workspace_id, []).append(card_user)
-        elif m.role in ("member", "guest"):
-            contributors_by_ws.setdefault(m.workspace_id, []).append(card_user)
+        if m.role == WORKSPACE_OWNER:
+            owners_by_ws.setdefault(m.workspace_id, []).append(card_user)
+        else:
+            members_by_ws.setdefault(m.workspace_id, []).append(card_user)
 
     out: list[WorkspaceCardOut] = []
     for w in workspaces:
-        status_map = item_counts_by_ws.get(w.id, {})
+        wm = my_memberships.get(w.id)
+        if not wm:
+            continue
+        allowed = accessible_project_ids(db, w.id, user, wm)
+        if allowed is None:
+            status_map: dict[str, int] = {}
+            for ws_id, _pid, st, cnt in item_status_rows:
+                if ws_id != w.id:
+                    continue
+                status_map[str(st)] = status_map.get(str(st), 0) + int(cnt)
+            pc = int(project_counts.get(w.id, 0))
+        else:
+            if not allowed:
+                status_map = {}
+                pc = 0
+            else:
+                allowed_set = set(allowed)
+                status_map = {}
+                for ws_id, pid, st, cnt in item_status_rows:
+                    if ws_id != w.id or pid not in allowed_set:
+                        continue
+                    status_map[str(st)] = status_map.get(str(st), 0) + int(cnt)
+                pc = db.scalar(
+                    select(func.count(Project.id)).where(
+                        Project.workspace_id == w.id,
+                        Project.id.in_(allowed),
+                    )
+                ) or 0
         out.append(
             WorkspaceCardOut(
                 id=str(w.id),
                 name=w.name,
                 description=w.description,
-                project_count=int(project_counts.get(w.id, 0)),
+                project_count=int(pc),
                 todo_count=int(status_map.get("todo", 0)),
                 doing_count=int(status_map.get("doing", 0)),
                 done_count=int(status_map.get("done", 0)),
-                admins=admins_by_ws.get(w.id, []),
-                contributors=contributors_by_ws.get(w.id, []),
+                owners=owners_by_ws.get(w.id, []),
+                members=members_by_ws.get(w.id, []),
+                my_workspace_role=wm.role,
             )
         )
     return out
@@ -133,19 +175,59 @@ def create_workspace(payload: WorkspaceCreate, db: Session = Depends(get_db), us
 
 @router.get("/{workspace_id}", response_model=WorkspaceOut)
 def get_workspace(workspace_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    m = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not m:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
+    require_workspace_member(db, workspace_id, user)
 
     w = db.get(Workspace, workspace_id)
     if not w:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+
+    creator = db.get(User, w.created_by_user_id)
+    return WorkspaceOut(
+        id=str(w.id),
+        name=w.name,
+        description=w.description,
+        created_at=w.created_at,
+        created_by_user_id=str(w.created_by_user_id),
+        created_by_display_name=creator.display_name if creator else None,
+    )
+
+
+@router.patch("/{workspace_id}", response_model=WorkspaceOut)
+def update_workspace(
+    workspace_id: uuid.UUID,
+    payload: WorkspaceUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_workspace_owner(db, workspace_id, user)
+
+    if payload.name is None and payload.description is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_update")
+
+    w = db.get(Workspace, workspace_id)
+    if not w:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+
+    before = {"name": w.name, "description": w.description}
+    if payload.name is not None:
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_name")
+        w.name = name
+    if payload.description is not None:
+        desc = payload.description.strip()
+        w.description = desc or None
+    after = {"name": w.name, "description": w.description}
+    log_activity(
+        db,
+        workspace_id=w.id,
+        actor_user_id=user.id,
+        entity_type="workspace",
+        entity_id=w.id,
+        action="update",
+        metadata={"before": before, "after": after},
+    )
+    db.commit()
 
     creator = db.get(User, w.created_by_user_id)
     return WorkspaceOut(
@@ -166,19 +248,14 @@ def list_recent_discussions(
     limit: int = 20,
     offset: int = 0,
 ):
-    m = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not m:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
+    ws_m = require_workspace_member(db, workspace_id, user)
+    allowed = accessible_project_ids(db, workspace_id, user, ws_m)
+    if allowed is not None and not allowed:
+        return []
 
     lim = max(1, min(limit, 80))
     off = max(0, offset)
-    rows = db.execute(
+    q = (
         select(Comment, User.display_name, Item.title, Item.id, Project.id, Project.name)
         .join(Item, Item.id == Comment.item_id)
         .join(Project, Project.id == Item.project_id)
@@ -188,10 +265,10 @@ def list_recent_discussions(
             Comment.deleted_at.is_(None),
             Item.workspace_id == workspace_id,
         )
-        .order_by(Comment.created_at.desc(), Comment.id.desc())
-        .offset(off)
-        .limit(lim)
-    ).all()
+    )
+    if allowed is not None:
+        q = q.where(Item.project_id.in_(allowed))
+    rows = db.execute(q.order_by(Comment.created_at.desc(), Comment.id.desc()).offset(off).limit(lim)).all()
 
     return [
         RecentDiscussionOut(
@@ -212,27 +289,28 @@ def list_recent_discussions(
 
 @router.get("/{workspace_id}/stats")
 def get_workspace_stats(workspace_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    m = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not m:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_a_member")
+    ws_m = require_workspace_member(db, workspace_id, user)
+    allowed = accessible_project_ids(db, workspace_id, user, ws_m)
+    if allowed is not None and not allowed:
+        return {
+            "project_count": 0,
+            "total_task_count": 0,
+            "todo_count": 0,
+            "doing_count": 0,
+            "high_priority_count": 0,
+        }
 
-    project_count = db.scalar(select(func.count(Project.id)).where(Project.workspace_id == workspace_id)) or 0
-    total_task_count = db.scalar(select(func.count(Item.id)).where(Item.workspace_id == workspace_id)) or 0
-    todo_count = db.scalar(
-        select(func.count(Item.id)).where(Item.workspace_id == workspace_id, Item.status == "todo")
-    ) or 0
-    doing_count = db.scalar(
-        select(func.count(Item.id)).where(Item.workspace_id == workspace_id, Item.status == "doing")
-    ) or 0
-    high_priority_count = db.scalar(
-        select(func.count(Item.id)).where(Item.workspace_id == workspace_id, Item.priority == "high")
-    ) or 0
+    proj_filter = [Project.workspace_id == workspace_id]
+    item_filter = [Item.workspace_id == workspace_id]
+    if allowed is not None:
+        proj_filter.append(Project.id.in_(allowed))
+        item_filter.append(Item.project_id.in_(allowed))
+
+    project_count = db.scalar(select(func.count(Project.id)).where(*proj_filter)) or 0
+    total_task_count = db.scalar(select(func.count(Item.id)).where(*item_filter)) or 0
+    todo_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.status == "todo")) or 0
+    doing_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.status == "doing")) or 0
+    high_priority_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.priority == "high")) or 0
 
     return {
         "project_count": int(project_count),
@@ -245,15 +323,7 @@ def get_workspace_stats(workspace_id: uuid.UUID, db: Session = Depends(get_db), 
 
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_workspace(workspace_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    m = db.scalar(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.user_id == user.id,
-            WorkspaceMember.status == "active",
-        )
-    )
-    if not m or m.role not in ("owner", "admin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not_allowed")
+    require_workspace_owner(db, workspace_id, user)
 
     w = db.get(Workspace, workspace_id)
     if not w:

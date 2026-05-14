@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments } from "@/components/TaskDrawerWithComments";
+import { ProjectModal } from "@/components/ProjectModal";
 
 const RECENT_DISCUSSIONS_PAGE_SIZE = 20;
 
@@ -17,6 +18,7 @@ type Workspace = {
   created_at?: string | null;
   created_by_display_name?: string | null;
 };
+type Me = { id: string };
 type Member = { id: string; user_id: string; email: string; display_name: string; role: string; status: string };
 type Project = {
   id: string;
@@ -25,6 +27,8 @@ type Project = {
   archived: boolean;
   todo_doing?: number;
   done_archived?: number;
+  /** 当前用户是否可管理该项目（空间 owner 或项目 owner） */
+  can_manage?: boolean;
 };
 type WorkspaceStats = {
   project_count: number;
@@ -92,6 +96,7 @@ export default function WorkspaceHome() {
   const workspaceId = params.workspaceId;
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<WorkspaceStats | null>(null);
@@ -118,6 +123,18 @@ export default function WorkspaceHome() {
   const [discussionsShowComments, setDiscussionsShowComments] = useState(true);
   const [discussionsShowReplies, setDiscussionsShowReplies] = useState(true);
   const [discussionsPatchingId, setDiscussionsPatchingId] = useState<string | null>(null);
+  const [editWorkspaceOpen, setEditWorkspaceOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+
+  const canEditWorkspace = useMemo(() => {
+    if (!me?.id) return false;
+    const row = members.find((m) => m.user_id === me.id && m.status === "active");
+    return row?.role === "owner";
+  }, [me, members]);
 
   useEffect(() => {
     if (!token) {
@@ -134,14 +151,17 @@ export default function WorkspaceHome() {
         `/workspaces/${workspaceId}/projects/progress`,
         { token },
       ).catch(() => ({})),
+      apiFetch<Me>("/auth/me", { token }).catch(() => null as any),
     ])
-      .then(([w, m, p, s, progress]) => {
+      .then(([w, m, p, s, progress, meRes]) => {
         setWorkspace(w);
         setMembers(m);
+        setMe(meRes);
         primeWorkspaceNameForBreadcrumb(w.id, w.name);
         const prog = progress as Record<string, { todo_doing: number; done_archived: number }>;
         const visible = p.filter((x) => !x.archived).map((proj) => ({
           ...proj,
+          can_manage: (proj as { can_manage?: boolean }).can_manage ?? false,
           todo_doing: prog[proj.id]?.todo_doing ?? 0,
           done_archived: prog[proj.id]?.done_archived ?? 0,
         }));
@@ -258,6 +278,44 @@ export default function WorkspaceHome() {
     }
   }
 
+  function openEditWorkspaceModal() {
+    if (!workspace || !canEditWorkspace) return;
+    setEditName(workspace.name);
+    setEditDescription(workspace.description ?? "");
+    setEditError(null);
+    setEditWorkspaceOpen(true);
+  }
+
+  async function onSaveWorkspaceDetails(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !workspace) {
+      router.push("/login");
+      return;
+    }
+    const name = editName.trim();
+    const description = editDescription.trim();
+    if (!name) {
+      setEditError("请输入工作空间名称");
+      return;
+    }
+    setEditError(null);
+    setEditLoading(true);
+    try {
+      const updated = await apiFetch<Workspace>(`/workspaces/${workspaceId}`, {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ name, description: description || null }),
+      });
+      setWorkspace(updated);
+      primeWorkspaceNameForBreadcrumb(updated.id, updated.name);
+      setEditWorkspaceOpen(false);
+    } catch (err: any) {
+      setEditError(err?.message ?? "保存失败");
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
   async function onDeleteProject(project: Project) {
     if (!token) {
       router.push("/login");
@@ -278,8 +336,8 @@ export default function WorkspaceHome() {
   }
 
   const activeMembers = members.filter((m) => m.status === "active");
-  const adminMembers = activeMembers.filter((m) => m.role === "owner" || m.role === "admin");
-  const contributorMembers = activeMembers.filter((m) => m.role === "member" || m.role === "guest");
+  const ownerMembers = activeMembers.filter((m) => m.role === "owner");
+  const participantMembers = activeMembers.filter((m) => m.role === "member");
   const memberPreview = activeMembers.slice(0, 3);
   const remainingMemberCount = Math.max(0, activeMembers.length - memberPreview.length);
 
@@ -293,7 +351,27 @@ export default function WorkspaceHome() {
         )}
 
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] items-stretch gap-lg">
-          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+          <div
+            className={
+              canEditWorkspace
+                ? "flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+                : "flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg"
+            }
+            role={canEditWorkspace ? "button" : undefined}
+            tabIndex={canEditWorkspace ? 0 : undefined}
+            aria-label={canEditWorkspace ? "编辑工作空间名称与描述" : undefined}
+            onClick={canEditWorkspace ? openEditWorkspaceModal : undefined}
+            onKeyDown={
+              canEditWorkspace
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openEditWorkspaceModal();
+                    }
+                  }
+                : undefined
+            }
+          >
             <span className="text-sm font-semibold text-primary">工作空间</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{workspace?.name ?? "—"}</div>
@@ -304,6 +382,9 @@ export default function WorkspaceHome() {
               <div className="text-caption text-neutral-muted">
                 创建者 {workspace?.created_by_display_name ?? "—"}
               </div>
+              {canEditWorkspace && (
+                <div className="text-caption text-primary pt-1">点击编辑名称与描述</div>
+              )}
             </div>
           </div>
 
@@ -316,11 +397,11 @@ export default function WorkspaceHome() {
                 <span className="text-text-secondary text-caption">总计</span>
               </div>
 
-              {/* Row 2: Admin count + members */}
+              {/* Row 2: Workspace owners */}
               <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">管理员 {adminMembers.length}</div>
+                <div className="text-caption text-neutral-muted">负责人（owner）{ownerMembers.length}</div>
                 <div className="flex -space-x-2">
-                  {adminMembers.slice(0, 3).map((m) => (
+                  {ownerMembers.slice(0, 3).map((m) => (
                     <div
                       key={m.id}
                       className="w-8 h-8 rounded-full border-2 border-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
@@ -329,19 +410,19 @@ export default function WorkspaceHome() {
                       {(m.display_name?.trim().slice(0, 1) || m.email.trim().slice(0, 1)).toUpperCase()}
                     </div>
                   ))}
-                  {adminMembers.length > 3 && (
+                  {ownerMembers.length > 3 && (
                     <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                      +{adminMembers.length - 3}
+                      +{ownerMembers.length - 3}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Row 3: Contributor count + members */}
+              {/* Row 3: Workspace members */}
               <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">贡献者 {contributorMembers.length}</div>
+                <div className="text-caption text-neutral-muted">成员 {participantMembers.length}</div>
                 <div className="flex -space-x-2">
-                  {contributorMembers.slice(0, 3).map((m) => (
+                  {participantMembers.slice(0, 3).map((m) => (
                     <div
                       key={m.id}
                       className="w-8 h-8 rounded-full border-2 border-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
@@ -350,9 +431,9 @@ export default function WorkspaceHome() {
                       {(m.display_name?.trim().slice(0, 1) || m.email.trim().slice(0, 1)).toUpperCase()}
                     </div>
                   ))}
-                  {contributorMembers.length > 3 && (
+                  {participantMembers.length > 3 && (
                     <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                      +{contributorMembers.length - 3}
+                      +{participantMembers.length - 3}
                     </div>
                   )}
                 </div>
@@ -403,16 +484,25 @@ export default function WorkspaceHome() {
                 className="w-full px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center justify-center gap-2"
                 href={`/workspace/${workspaceId}/members`}
               >
-                <span className="material-symbols-outlined text-lg">person_add</span>
-                添加成员
+                <span className="material-symbols-outlined text-lg">
+                  {canEditWorkspace ? "person_add" : "group"}
+                </span>
+                {canEditWorkspace ? "成员管理" : "查看成员"}
               </Link>
-              <Link
-                className="w-full px-lg py-sm rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover shadow-indigo-100 shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-                href={`/workspace/${workspaceId}/projects`}
-              >
-                <span className="material-symbols-outlined text-lg">add</span>
-                新建项目
-              </Link>
+              {canEditWorkspace ? (
+                <button
+                  type="button"
+                  className="w-full px-lg py-sm rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover shadow-indigo-100 shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                  onClick={() => setCreateProjectOpen(true)}
+                >
+                  <span className="material-symbols-outlined text-lg">add</span>
+                  新建项目
+                </button>
+              ) : (
+                <p className="text-caption text-neutral-muted px-1 py-2 text-center">
+                  仅空间负责人可新建项目；你可访问被加入的项目与任务。
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -430,7 +520,9 @@ export default function WorkspaceHome() {
 
           {projects.length === 0 ? (
             <div className="bg-white rounded-xl border border-border-subtle p-lg text-small text-text-secondary">
-              暂无项目。创建第一个项目即可开始。
+              {canEditWorkspace
+                ? "暂无项目。创建第一个项目即可开始。"
+                : "暂无你可访问的项目。请联系空间负责人将你加入项目。"}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
@@ -460,6 +552,7 @@ export default function WorkspaceHome() {
                           {p.description || "暂无描述。"}
                         </p>
                       </div>
+                      {p.can_manage ? (
                       <button
                         type="button"
                         className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 group/delete disabled:cursor-not-allowed disabled:opacity-50"
@@ -477,6 +570,7 @@ export default function WorkspaceHome() {
                           delete
                         </span>
                       </button>
+                      ) : null}
                     </div>
 
                     <div className="space-y-sm">
@@ -659,6 +753,103 @@ export default function WorkspaceHome() {
           </div>
         </section>
       </div>
+
+      <ProjectModal
+        open={createProjectOpen}
+        onClose={() => setCreateProjectOpen(false)}
+        workspaceId={workspaceId}
+        token={token}
+        mode="create"
+        onSuccess={(created) => {
+          const row: Project = {
+            id: created.id,
+            name: created.name,
+            description: created.description ?? null,
+            archived: created.archived ?? false,
+            todo_doing: 0,
+            done_archived: 0,
+            can_manage: true,
+          };
+          setProjects((prev) => [row, ...prev]);
+          primeProjectNameForBreadcrumb(workspaceId, row.id, row.name);
+          setStats((s) => (s ? { ...s, project_count: (s.project_count ?? 0) + 1 } : s));
+        }}
+      />
+
+      {editWorkspaceOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => {
+              if (!editLoading) setEditWorkspaceOpen(false);
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm max-h-[calc(100vh-6rem)] overflow-auto">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold font-subhead">编辑工作空间</div>
+                <button
+                  className="text-sm underline disabled:opacity-50"
+                  type="button"
+                  disabled={editLoading}
+                  onClick={() => {
+                    if (!editLoading) setEditWorkspaceOpen(false);
+                  }}
+                >
+                  关闭
+                </button>
+              </div>
+              <form onSubmit={onSaveWorkspaceDetails} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-on-surface-variant" htmlFor="editWorkspaceName">
+                    名称
+                  </label>
+                  <input
+                    id="editWorkspaceName"
+                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="例如：产品团队"
+                    autoFocus
+                    disabled={editLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-on-surface-variant" htmlFor="editWorkspaceDescription">
+                    描述
+                  </label>
+                  <textarea
+                    id="editWorkspaceDescription"
+                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none min-h-[96px] resize-none"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="这个工作空间主要做什么？"
+                    disabled={editLoading}
+                  />
+                </div>
+                {editError && <div className="text-small text-error">{editError}</div>}
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="text-sm rounded-xl border border-border-subtle px-4 py-2 disabled:opacity-50"
+                    onClick={() => setEditWorkspaceOpen(false)}
+                    disabled={editLoading}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 disabled:opacity-50"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? "保存中…" : "保存"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TaskDrawerWithComments
         open={taskDrawerOpen}

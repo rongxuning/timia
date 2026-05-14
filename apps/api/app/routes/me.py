@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.item import Item
-from app.models.project import Project
+from app.models.project import Project, ProjectMember
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.me import MyItemOut
+from app.services.permissions import WORKSPACE_OWNER
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -18,7 +19,23 @@ def list_my_items(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """All items across workspaces where the current user is an active member."""
+    """Items in workspaces where the user is an active member, limited to accessible projects."""
+    owned_ws_subq = select(WorkspaceMember.workspace_id).where(
+        WorkspaceMember.user_id == user.id,
+        WorkspaceMember.status == "active",
+        WorkspaceMember.role == WORKSPACE_OWNER,
+    )
+
+    pm_exists = exists(
+        select(ProjectMember.id).where(
+            ProjectMember.project_id == Item.project_id,
+            ProjectMember.user_id == user.id,
+            ProjectMember.status == "active",
+        )
+    )
+
+    access = or_(Item.workspace_id.in_(owned_ws_subq), pm_exists)
+
     rows = db.execute(
         select(Item, Project, Workspace)
         .join(Project, Project.id == Item.project_id)
@@ -27,6 +44,7 @@ def list_my_items(
         .where(
             WorkspaceMember.user_id == user.id,
             WorkspaceMember.status == "active",
+            access,
         )
         .order_by(Item.created_at.desc())
     ).all()

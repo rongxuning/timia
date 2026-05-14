@@ -8,6 +8,7 @@ import type { ScheduleTaskItem } from "@/components/schedule/types";
 import { countdownTargetForItem, formatRemainDHM } from "@/components/schedule/taskUtils";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments, type TaskDrawerItem } from "@/components/TaskDrawerWithComments";
+import { ProjectModal } from "@/components/ProjectModal";
 
 type Workspace = { id: string; name: string; description?: string | null };
 type Member = { id: string; user_id: string; email: string; display_name: string; role: string; status: string; is_creator?: boolean };
@@ -18,6 +19,7 @@ type Project = {
   archived: boolean;
   created_at?: string;
   created_by_display_name?: string | null;
+  can_manage?: boolean;
 };
 type Item = {
   id: string;
@@ -185,6 +187,7 @@ export default function ProjectPage() {
   const [dragOverPriority, setDragOverPriority] = useState<"1" | "2" | "3" | "4" | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<"todo" | "doing" | "done" | "archived" | null>(null);
   const [priorityCountdownNowMs, setPriorityCountdownNowMs] = useState(() => Date.now());
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setPriorityCountdownNowMs(Date.now()), 60_000);
@@ -239,8 +242,8 @@ export default function ProjectPage() {
     taskTotal === 0 ? null : Math.round(((doneCount + archivedCount) / taskTotal) * 100);
 
   const activeMembers = members.filter((m) => m.status === "active");
-  const adminMembers = activeMembers.filter((m) => m.role === "owner" || m.role === "admin");
-  const contributorMembers = activeMembers.filter((m) => m.role === "member" || m.role === "guest");
+  const projectOwnerMembers = activeMembers.filter((m) => m.role === "owner");
+  const projectParticipantMembers = activeMembers.filter((m) => m.role === "member");
 
   const itemsByPriority = useMemo(() => {
     const out: Record<"1" | "2" | "3" | "4", Item[]> = { "1": [], "2": [], "3": [], "4": [] };
@@ -436,13 +439,38 @@ export default function ProjectPage() {
         )}
 
         <section className="grid grid-cols-1 gap-lg md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_2fr_2fr] items-stretch">
-          <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+          <div
+            className={
+              project?.can_manage
+                ? "flex min-h-44 cursor-pointer flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+                : "flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg"
+            }
+            role={project?.can_manage ? "button" : undefined}
+            tabIndex={project?.can_manage ? 0 : undefined}
+            aria-label={project?.can_manage ? "编辑项目名称与描述" : undefined}
+            onClick={project?.can_manage ? () => setEditProjectOpen(true) : undefined}
+            onKeyDown={
+              project?.can_manage
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setEditProjectOpen(true);
+                    }
+                  }
+                : undefined
+            }
+          >
             <span className="text-sm font-semibold text-primary">项目</span>
             <div className="space-y-1">
               <div className="font-subhead text-lg text-text-primary truncate">{project?.name ?? "—"}</div>
               <div className="text-small text-text-secondary truncate">{project?.description || "暂无描述。"}</div>
               <div className="text-caption text-neutral-muted">创建于 {project?.created_at ? formatYmdHm(project.created_at) : "—"}</div>
               <div className="text-caption text-neutral-muted">创建者 {project?.created_by_display_name ?? "—"}</div>
+              {project?.can_manage ? (
+                <div className="pt-1 text-caption text-primary">点击编辑名称与描述</div>
+              ) : (
+                <div className="pt-1 text-caption text-neutral-muted">仅项目/空间负责人可编辑项目信息</div>
+              )}
             </div>
           </div>
 
@@ -455,9 +483,9 @@ export default function ProjectPage() {
               </div>
 
               <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">管理员 {adminMembers.length}</div>
+                <div className="text-caption text-neutral-muted">负责人（owner）{projectOwnerMembers.length}</div>
                 <div className="flex -space-x-2">
-                  {adminMembers.slice(0, 3).map((m) => (
+                  {projectOwnerMembers.slice(0, 3).map((m) => (
                     <div
                       key={m.id}
                       className="w-8 h-8 rounded-full border-2 border-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
@@ -466,18 +494,18 @@ export default function ProjectPage() {
                       {(m.display_name?.trim().slice(0, 1) || m.email.trim().slice(0, 1)).toUpperCase()}
                     </div>
                   ))}
-                  {adminMembers.length > 3 && (
+                  {projectOwnerMembers.length > 3 && (
                     <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                      +{adminMembers.length - 3}
+                      +{projectOwnerMembers.length - 3}
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="flex items-center justify-between gap-3">
-                <div className="text-caption text-neutral-muted">贡献者 {contributorMembers.length}</div>
+                <div className="text-caption text-neutral-muted">成员 {projectParticipantMembers.length}</div>
                 <div className="flex -space-x-2">
-                  {contributorMembers.slice(0, 3).map((m) => (
+                  {projectParticipantMembers.slice(0, 3).map((m) => (
                     <div
                       key={m.id}
                       className="w-8 h-8 rounded-full border-2 border-white bg-surface-container flex items-center justify-center text-[10px] font-bold text-on-surface-variant"
@@ -486,9 +514,9 @@ export default function ProjectPage() {
                       {(m.display_name?.trim().slice(0, 1) || m.email.trim().slice(0, 1)).toUpperCase()}
                     </div>
                   ))}
-                  {contributorMembers.length > 3 && (
+                  {projectParticipantMembers.length > 3 && (
                     <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                      +{contributorMembers.length - 3}
+                      +{projectParticipantMembers.length - 3}
                     </div>
                   )}
                 </div>
@@ -905,6 +933,32 @@ export default function ProjectPage() {
           </div>
         </section>
       </div>
+
+      <ProjectModal
+        open={editProjectOpen && !!project?.can_manage}
+        onClose={() => setEditProjectOpen(false)}
+        workspaceId={workspaceId}
+        token={token}
+        mode="edit"
+        projectId={projectId}
+        initialName={project?.name ?? ""}
+        initialDescription={project?.description}
+        onSuccess={(updated) => {
+          setProject((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  name: updated.name,
+                  description: updated.description ?? null,
+                  archived: updated.archived ?? prev.archived,
+                  created_at: updated.created_at ?? prev.created_at,
+                  created_by_display_name: updated.created_by_display_name ?? prev.created_by_display_name,
+                }
+              : prev,
+          );
+          primeProjectNameForBreadcrumb(workspaceId, projectId, updated.name);
+        }}
+      />
 
       <TaskDrawerWithComments
         open={taskDrawerOpen && !!taskDrawerItemId}

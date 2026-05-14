@@ -2,14 +2,13 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: nomia
-      POSTGRES_PASSWORD: nomia
-      POSTGRES_DB: nomia
+      POSTGRES_USER: timia
+      POSTGRES_PASSWORD: timia
+      POSTGRES_DB: timia
     ports:
       - "5432:5432"
     volumes:
-      - nomia_pgdata:/var/lib/postgresql/data
+      - timia_pgdata:/var/lib/postgresql/data
 
 volumes:
-  nomia_pgdata:
-
+  timia_pgdata:

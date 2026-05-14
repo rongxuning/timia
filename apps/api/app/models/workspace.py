@@ -25,7 +25,7 @@ class WorkspaceMember(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")  # owner/admin/member/guest
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")  # owner | member
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active/removed
 
     workspace = relationship("Workspace", back_populates="members")

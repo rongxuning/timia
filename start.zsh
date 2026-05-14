@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-# Nomia local start guide (and optional helper).
+# Timia local start guide (and optional helper).
 #
 # Quick start (recommended: run in separate terminals):
 #

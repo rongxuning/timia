@@ -60,7 +60,7 @@ export default function RegisterPage() {
                 dataset
               </span>
             </div>
-            <span className="font-headline text-subhead tracking-tight text-on-surface">Nomia</span>
+            <span className="font-headline text-subhead tracking-tight text-on-surface">Timia</span>
           </div>
 
           <h1 className="font-display text-section-heading text-center text-on-surface">创建账号</h1>
@@ -171,7 +171,7 @@ export default function RegisterPage() {
       </div>
 
       <footer className="fixed bottom-lg w-full px-container-padding flex justify-between items-center text-overline text-outline-variant">
-        <span>© 2026 Nomia</span>
+        <span>© 2026 Timia</span>
         <div className="flex gap-lg">
           <a className="hover:text-text-secondary transition-colors" href="#">
             隐私
