@@ -1,3 +1,8 @@
+export type TaskUserBrief = {
+  id: string;
+  display_name: string;
+};
+
 export type ScheduleTaskItem = {
   id: string;
   title: string;
@@ -8,6 +13,10 @@ export type ScheduleTaskItem = {
   end_at?: string | null;
   details?: string | null;
   version: number;
+  created_by?: TaskUserBrief | null;
+  assignee?: TaskUserBrief | null;
+  participants?: TaskUserBrief[];
+  location?: string | null;
   workspace_id: string;
   workspace_name: string;
   project_id: string;

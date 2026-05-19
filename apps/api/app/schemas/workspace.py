@@ -2,7 +2,7 @@ from datetime import datetime
 
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class WorkspaceCreate(BaseModel):
@@ -35,8 +35,19 @@ class MemberOut(BaseModel):
 
 
 class MemberAdd(BaseModel):
-    email: EmailStr
+    """Add by email (legacy) or by user_id (preferred for UI). Exactly one must be set."""
+
+    email: EmailStr | None = None
+    user_id: str | None = Field(default=None, description="Target user UUID as string")
     role: Literal["owner", "member"] = "member"
+
+    @model_validator(mode="after")
+    def exactly_one_identifier(self) -> "MemberAdd":
+        has_email = self.email is not None
+        has_uid = bool(self.user_id and str(self.user_id).strip())
+        if has_email == has_uid:
+            raise ValueError("Provide exactly one of email or user_id")
+        return self
 
 
 class MemberRoleUpdate(BaseModel):
@@ -49,6 +60,7 @@ class RecentDiscussionOut(BaseModel):
     id: str
     body: str
     created_at: datetime
+    author_user_id: str
     author_display_name: str
     is_reply: bool
     completion_status: str

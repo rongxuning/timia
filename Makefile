@@ -12,7 +12,7 @@ api-install:
 	cd apps/api && uv sync
 
 api:
-	cd apps/api && uv run uvicorn app.main:app --reload --port 8000
+	cd apps/api && PYTHONPATH=. uv run alembic upgrade head && uv run uvicorn app.main:app --reload --port 8000
 
 web-install:
 	cd apps/web && npm install

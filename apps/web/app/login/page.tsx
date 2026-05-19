@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setToken } from "@/lib/auth";
@@ -81,16 +82,24 @@ function ShowcaseCard({
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("rongxuning@gmail.com");
-  const [password, setPassword] = useState("admin1234");
+  const [password, setPassword] = useState("11223344");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("reason") === "session-expired") {
+    const emailParam = params.get("email");
+    const sessionExpired = params.get("reason") === "session-expired";
+
+    if (emailParam) setEmail(emailParam);
+    if (sessionExpired) {
       setSessionNotice("登录已过期，请重新登录。");
       params.delete("reason");
+    }
+    if (emailParam) params.delete("email");
+
+    if (sessionExpired || emailParam) {
       const next = params.toString();
       const path = next ? `${window.location.pathname}?${next}` : window.location.pathname;
       window.history.replaceState(null, "", path);
@@ -259,6 +268,16 @@ export default function LoginPage() {
               >
                 {loading ? "登录中…" : "登录"}
               </button>
+
+              <p className="text-center text-small text-text-secondary">
+                还没有账号？{" "}
+                <Link
+                  className="font-semibold text-primary underline-offset-4 hover:underline decoration-2"
+                  href="/register"
+                >
+                  注册
+                </Link>
+              </p>
             </form>
           </div>
         </div>

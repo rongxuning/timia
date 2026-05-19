@@ -62,8 +62,15 @@ def add_member(
     if not ws:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
-    email = payload.email.strip().lower()
-    target_user = db.scalar(select(User).where(User.email == email))
+    if payload.user_id:
+        try:
+            target_user_id = uuid.UUID(str(payload.user_id).strip())
+        except Exception:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_user_id")
+        target_user = db.get(User, target_user_id)
+    else:
+        email = payload.email.strip().lower()  # type: ignore[union-attr]
+        target_user = db.scalar(select(User).where(User.email == email))
     if not target_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="user_not_found")
 
@@ -112,17 +119,23 @@ def add_member(
     )
 
 
-@router.patch("/{member_id}", response_model=MemberOut)
+@router.patch("/{user_id}", response_model=MemberOut)
 def update_member_role(
     workspace_id: uuid.UUID,
-    member_id: uuid.UUID,
+    user_id: uuid.UUID,
     payload: MemberRoleUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     require_workspace_owner(db, workspace_id, user)
-    m = db.get(WorkspaceMember, member_id)
-    if not m or m.workspace_id != workspace_id:
+    m = db.scalar(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+            WorkspaceMember.status == "active",
+        )
+    )
+    if not m:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
     ws = db.get(Workspace, workspace_id)
@@ -158,16 +171,22 @@ def update_member_role(
     )
 
 
-@router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_member(
     workspace_id: uuid.UUID,
-    member_id: uuid.UUID,
+    user_id: uuid.UUID,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     require_workspace_owner(db, workspace_id, user)
-    m = db.get(WorkspaceMember, member_id)
-    if not m or m.workspace_id != workspace_id:
+    m = db.scalar(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+            WorkspaceMember.status == "active",
+        )
+    )
+    if not m:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
     ws = db.get(Workspace, workspace_id)

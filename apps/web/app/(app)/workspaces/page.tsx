@@ -15,6 +15,7 @@ type WorkspaceCard = {
   todo_count: number;
   doing_count: number;
   done_count: number;
+  archived_count: number;
   owners: CardUser[];
   members: CardUser[];
   my_workspace_role: string;
@@ -195,6 +196,10 @@ export default function WorkspacesPage() {
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[11px] font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     {w.done_count ?? 0} 已完成
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-100 text-zinc-600 rounded-full text-[11px] font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                    {w.archived_count ?? 0} 已归档
                   </div>
                 </div>
 

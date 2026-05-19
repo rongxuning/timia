@@ -42,6 +42,9 @@ export default function ItemDetailPage() {
         itemId={itemId}
         highlightCommentId={null}
         token={token}
+        onTaskDeleted={() => {
+          router.push(projectHref);
+        }}
       />
     </main>
   );

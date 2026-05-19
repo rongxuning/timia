@@ -57,6 +57,25 @@ def fetch_active_project_member(
     )
 
 
+def user_can_access_project_content(
+    db: Session, workspace_id: uuid.UUID, project_id: uuid.UUID, target_user_id: uuid.UUID
+) -> bool:
+    """True if the user may view tasks in this project (workspace owner or active project member)."""
+    wm = db.scalar(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == target_user_id,
+            WorkspaceMember.status == "active",
+        )
+    )
+    if not wm:
+        return False
+    if workspace_owner_sees_all_projects(wm):
+        p = db.get(Project, project_id)
+        return bool(p and p.workspace_id == workspace_id)
+    return fetch_active_project_member(db, workspace_id, project_id, target_user_id) is not None
+
+
 def workspace_owner_sees_all_projects(ws: WorkspaceMember) -> bool:
     return ws.role == WORKSPACE_OWNER
 

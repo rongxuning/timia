@@ -1,6 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class UserBrief(BaseModel):
+    id: str
+    display_name: str
 
 
 class ItemCreate(BaseModel):
@@ -11,6 +16,9 @@ class ItemCreate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     details: str | None = None
+    assignee_user_id: str | None = None
+    participant_user_ids: list[str] = Field(default_factory=list)
+    location: str | None = None
 
 
 class ItemUpdate(BaseModel):
@@ -22,6 +30,9 @@ class ItemUpdate(BaseModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     details: str | None = None
+    assignee_user_id: str | None = None
+    participant_user_ids: list[str] | None = None
+    location: str | None = None
 
 
 class ItemOut(BaseModel):
@@ -34,4 +45,7 @@ class ItemOut(BaseModel):
     end_at: datetime | None
     details: str | None
     version: int
-
+    created_by: UserBrief | None = None
+    assignee: UserBrief | None = None
+    participants: list[UserBrief] = Field(default_factory=list)
+    location: str | None = None

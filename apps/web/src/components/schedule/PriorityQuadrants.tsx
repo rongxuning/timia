@@ -40,7 +40,10 @@ export function PriorityQuadrants({
   return (
     <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
       <div className="p-lg flex items-center justify-between gap-lg">
-        <div className="text-sm font-semibold text-primary">优先级象限</div>
+        <div>
+          <div className="text-sm font-semibold text-primary">优先级象限</div>
+          <p className="mt-0.5 text-caption text-neutral-muted">仅展示待办与进行中的任务</p>
+        </div>
       </div>
 
       <div className="p-lg pt-0">

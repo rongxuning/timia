@@ -136,6 +136,11 @@ export default function MySchedulePage() {
     );
   }
 
+  function handleTaskDrawerDeleted(deletedId: string) {
+    setItems((prev) => prev.filter((x) => x.id !== deletedId));
+    closeTaskDrawer();
+  }
+
   function openDrawer(it: ScheduleTaskItem) {
     setTaskDrawerWorkspaceId(it.workspace_id);
     setTaskDrawerProjectId(it.project_id);
@@ -210,7 +215,7 @@ export default function MySchedulePage() {
               <div className="font-subhead text-lg text-text-primary truncate">{me?.display_name ?? "—"}</div>
               <div className="text-small text-text-secondary truncate">{me?.email ?? "—"}</div>
               <div className="text-caption text-neutral-muted">
-                按登录人聚合，跨工作空间展示
+                仅展示你创建或参与的任务，跨工作空间聚合
               </div>
             </div>
           </section>
@@ -314,6 +319,7 @@ export default function MySchedulePage() {
         titleSubtitle={taskDrawerTitleSubtitle}
         syncVersion={taskDrawerSyncVersion}
         onTaskSaved={handleTaskDrawerSaved}
+        onTaskDeleted={handleTaskDrawerDeleted}
       />
     </main>
   );

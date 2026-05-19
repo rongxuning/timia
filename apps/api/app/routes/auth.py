@@ -34,9 +34,13 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     if len(payload.password) < 8:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password_too_short")
 
-    existing = db.scalar(select(User).where(User.email == email))
-    if existing:
+    existing_email = db.scalar(select(User).where(User.email == email))
+    if existing_email:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email_taken")
+
+    existing_name = db.scalar(select(User).where(User.display_name == display_name))
+    if existing_name:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="display_name_taken")
 
     u = User(
         email=email,

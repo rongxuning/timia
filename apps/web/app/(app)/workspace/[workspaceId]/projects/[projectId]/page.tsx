@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import type { ScheduleTaskItem } from "@/components/schedule/types";
-import { countdownTargetForItem, formatRemainDHM } from "@/components/schedule/taskUtils";
+import { buildItemsByPriority, countdownTargetForItem, formatRemainDHM } from "@/components/schedule/taskUtils";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments, type TaskDrawerItem } from "@/components/TaskDrawerWithComments";
 import { ProjectModal } from "@/components/ProjectModal";
@@ -21,6 +21,8 @@ type Project = {
   created_by_display_name?: string | null;
   can_manage?: boolean;
 };
+type TaskUserBrief = { id: string; display_name: string };
+
 type Item = {
   id: string;
   title: string;
@@ -29,7 +31,12 @@ type Item = {
   priority?: string | null;
   start_at?: string | null;
   end_at?: string | null;
+  details?: string | null;
   version: number;
+  created_by?: TaskUserBrief | null;
+  assignee?: TaskUserBrief | null;
+  participants?: TaskUserBrief[];
+  location?: string | null;
 };
 
 function normalizePriority(p?: string | null): "1" | "2" | "3" | "4" {
@@ -245,23 +252,10 @@ export default function ProjectPage() {
   const projectOwnerMembers = activeMembers.filter((m) => m.role === "owner");
   const projectParticipantMembers = activeMembers.filter((m) => m.role === "member");
 
-  const itemsByPriority = useMemo(() => {
-    const out: Record<"1" | "2" | "3" | "4", Item[]> = { "1": [], "2": [], "3": [], "4": [] };
-    for (const it of items) {
-      if (it.status === "archived") continue;
-      out[normalizePriority(it.priority)].push(it);
-    }
-    // recent first (fallback to title)
-    for (const k of ["1", "2", "3", "4"] as const) {
-      out[k].sort((a, b) => {
-        const as = a.start_at ? new Date(a.start_at).getTime() : 0;
-        const bs = b.start_at ? new Date(b.start_at).getTime() : 0;
-        if (bs !== as) return bs - as;
-        return (a.title || "").localeCompare(b.title || "");
-      });
-    }
-    return out;
-  }, [items]);
+  const itemsByPriority = useMemo(
+    () => buildItemsByPriority(items as ScheduleTaskItem[]) as Record<"1" | "2" | "3" | "4", Item[]>,
+    [items],
+  );
 
   const calendarWeeks = useMemo(() => {
     const year = calendarMonth.getFullYear();
@@ -370,6 +364,11 @@ export default function ProjectPage() {
 
   function handleTaskDrawerSaved(updated: TaskDrawerItem) {
     setItems((prev) => prev.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)));
+  }
+
+  function handleTaskDrawerDeleted(deletedId: string) {
+    setItems((prev) => prev.filter((x) => x.id !== deletedId));
+    closeTaskDrawer();
   }
 
   function openDrawer(it: Item) {
@@ -577,8 +576,12 @@ export default function ProjectPage() {
 
         {/* Priority Quadrants */}
         <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
+          
           <div className="flex items-center justify-between gap-lg p-lg">
-            <div className="text-sm font-semibold text-primary">优先级象限</div>
+            <div>
+              <div className="text-sm font-semibold text-primary">优先级象限</div>
+              <p className="mt-0.5 text-caption text-neutral-muted">仅展示待办与进行中的任务</p>
+            </div>
           </div>
 
           <div className="p-lg pt-0">
@@ -970,6 +973,7 @@ export default function ProjectPage() {
         token={token}
         syncVersion={taskDrawerSyncVersion}
         onTaskSaved={handleTaskDrawerSaved}
+        onTaskDeleted={handleTaskDrawerDeleted}
       />
 
       <TaskDrawerWithComments

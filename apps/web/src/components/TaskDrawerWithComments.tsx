@@ -1,7 +1,19 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  getCachedProjectName,
+  getCachedWorkspaceName,
+  primeProjectNameForBreadcrumb,
+  primeWorkspaceNameForBreadcrumb,
+  useBreadcrumbNameCacheEpoch,
+} from "@/components/Breadcrumbs";
 import { apiFetch } from "@/lib/api";
+
+export type TaskUserBrief = {
+  id: string;
+  display_name: string;
+};
 
 export type TaskDrawerItem = {
   id: string;
@@ -11,7 +23,12 @@ export type TaskDrawerItem = {
   priority?: string | null;
   start_at?: string | null;
   end_at?: string | null;
+  details?: string | null;
   version: number;
+  created_by?: TaskUserBrief | null;
+  assignee?: TaskUserBrief | null;
+  participants?: TaskUserBrief[];
+  location?: string | null;
 };
 
 type ItemComment = {
@@ -23,6 +40,14 @@ type ItemComment = {
   deleted_at?: string | null;
   parent_comment_id: string | null;
   completion_status: string;
+};
+
+type Me = { id: string; display_name?: string; email?: string };
+
+type ProjectMemberRow = {
+  user_id: string;
+  display_name: string;
+  email: string;
 };
 
 const COMMENT_BODY_PREVIEW_CHARS = 200;
@@ -64,6 +89,37 @@ function toLocalDatetimeInputValue(iso: string) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+function mergeMemberOptions(
+  me: Me | null,
+  rows: ProjectMemberRow[],
+  extraUsers: TaskUserBrief[],
+): ProjectMemberRow[] {
+  const byId = new Map<string, ProjectMemberRow>();
+  for (const r of rows) {
+    byId.set(r.user_id, r);
+  }
+  if (me?.id && !byId.has(me.id)) {
+    byId.set(me.id, {
+      user_id: me.id,
+      display_name: me.display_name?.trim() || me.email || "我",
+      email: me.email ?? "",
+    });
+  }
+  for (const u of extraUsers) {
+    if (!u?.id || byId.has(u.id)) continue;
+    byId.set(u.id, { user_id: u.id, display_name: u.display_name || u.id, email: "" });
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    a.display_name.localeCompare(b.display_name, "zh-CN"),
+  );
+}
+
+function memberMatchesQuery(m: ProjectMemberRow, q: string): boolean {
+  const s = q.trim().toLowerCase();
+  if (!s) return true;
+  return m.display_name.toLowerCase().includes(s) || m.email.toLowerCase().includes(s);
+}
+
 type DrawerVariant = "edit" | "create";
 
 type Props = {
@@ -88,6 +144,8 @@ type Props = {
   onTaskSaved?: (item: TaskDrawerItem) => void;
   /** Called after successful create (POST). Drawer will then call `onClose`. */
   onTaskCreated?: (item: TaskDrawerItem) => void;
+  /** Called after successful delete (DELETE). Drawer will then call `onClose`. */
+  onTaskDeleted?: (itemId: string) => void;
   /** When this changes while open (e.g. list item `version` after drag), task is refetched. */
   syncVersion?: number;
   /** 新建任务时表单的初始状态（例如看板列「添加」） */
@@ -107,6 +165,7 @@ export function TaskDrawerWithComments({
   titleSubtitle = null,
   onTaskSaved,
   onTaskCreated,
+  onTaskDeleted,
   syncVersion = 0,
   initialCreateStatus,
 }: Props) {
@@ -121,8 +180,33 @@ export function TaskDrawerWithComments({
   const [editPriority, setEditPriority] = useState<string>("");
   const [editStartAt, setEditStartAt] = useState("");
   const [editEndAt, setEditEndAt] = useState("");
+  const [editAssigneeUserId, setEditAssigneeUserId] = useState("");
+  const [editParticipantUserIds, setEditParticipantUserIds] = useState<string[]>([]);
+  const [editLocation, setEditLocation] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const [assigneeSearchQuery, setAssigneeSearchQuery] = useState("");
+  const [assigneePanelOpen, setAssigneePanelOpen] = useState(false);
+  const [participantSearchQuery, setParticipantSearchQuery] = useState("");
+  const [participantPanelOpen, setParticipantPanelOpen] = useState(false);
+  const [participantStagingIds, setParticipantStagingIds] = useState<string[]>([]);
+
+  const assigneePickerRef = useRef<HTMLDivElement | null>(null);
+  const participantPickerRef = useRef<HTMLDivElement | null>(null);
+
+  const [me, setMe] = useState<Me | null>(null);
+  const [projectMembersRaw, setProjectMembersRaw] = useState<ProjectMemberRow[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+
+  const breadcrumbNameCacheEpoch = useBreadcrumbNameCacheEpoch();
+  const [contextWorkspaceName, setContextWorkspaceName] = useState<string | null>(null);
+  const [contextProjectName, setContextProjectName] = useState<string | null>(null);
+  const [contextNamesLoading, setContextNamesLoading] = useState(false);
 
   const [comments, setComments] = useState<ItemComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -131,6 +215,140 @@ export function TaskDrawerWithComments({
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
   const [expandedCommentContent, setExpandedCommentContent] = useState<Record<string, boolean>>({});
+
+  const extraBriefsForOptions = useMemo(() => {
+    const list: TaskUserBrief[] = [];
+    if (drawerItem?.assignee) list.push(drawerItem.assignee);
+    if (drawerItem?.created_by) list.push(drawerItem.created_by);
+    for (const p of drawerItem?.participants ?? []) list.push(p);
+    return list;
+  }, [drawerItem]);
+
+  const memberOptions = useMemo(
+    () => mergeMemberOptions(me, projectMembersRaw, extraBriefsForOptions),
+    [me, projectMembersRaw, extraBriefsForOptions],
+  );
+
+  const memberById = useMemo(() => {
+    const m = new Map<string, ProjectMemberRow>();
+    for (const x of memberOptions) m.set(x.user_id, x);
+    return m;
+  }, [memberOptions]);
+
+  const filteredAssigneeCandidates = useMemo(
+    () => memberOptions.filter((row) => memberMatchesQuery(row, assigneeSearchQuery)),
+    [memberOptions, assigneeSearchQuery],
+  );
+
+  const filteredParticipantCandidates = useMemo(
+    () =>
+      memberOptions.filter((row) => {
+        if (row.user_id === editAssigneeUserId) return false;
+        if (editParticipantUserIds.includes(row.user_id)) return false;
+        return memberMatchesQuery(row, participantSearchQuery);
+      }),
+    [memberOptions, participantSearchQuery, editAssigneeUserId, editParticipantUserIds],
+  );
+
+  useEffect(() => {
+    if (!assigneePanelOpen && !participantPanelOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      const t = e.target as Node;
+      if (assigneePickerRef.current?.contains(t)) return;
+      if (participantPickerRef.current?.contains(t)) return;
+      setAssigneePanelOpen(false);
+      setParticipantPanelOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [assigneePanelOpen, participantPanelOpen]);
+
+  useEffect(() => {
+    if (!open || !token || !workspaceId || !projectId) {
+      if (!open) {
+        setProjectMembersRaw([]);
+        setMembersError(null);
+        setMe(null);
+      }
+      return;
+    }
+    let cancelled = false;
+    setMembersLoading(true);
+    setMembersError(null);
+    Promise.all([
+      apiFetch<Me>("/auth/me", { token }).catch(() => null as Me | null),
+      apiFetch<ProjectMemberRow[]>(`/workspaces/${workspaceId}/projects/${projectId}/members`, { token }).catch(
+        () => [] as ProjectMemberRow[],
+      ),
+    ])
+      .then(([meRes, mem]) => {
+        if (cancelled) return;
+        setMe(meRes);
+        setProjectMembersRaw(mem);
+      })
+      .catch((e: any) => {
+        if (!cancelled) setMembersError(e?.message ?? "成员列表加载失败");
+      })
+      .finally(() => {
+        if (!cancelled) setMembersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, token, workspaceId, projectId]);
+
+  useEffect(() => {
+    if (!open || !workspaceId || !projectId) {
+      if (!open) {
+        setContextWorkspaceName(null);
+        setContextProjectName(null);
+        setContextNamesLoading(false);
+      }
+      return;
+    }
+
+    const cachedW = getCachedWorkspaceName(workspaceId);
+    const cachedP = getCachedProjectName(workspaceId, projectId);
+    if (cachedW) setContextWorkspaceName(cachedW);
+    if (cachedP) setContextProjectName(cachedP);
+    if (cachedW && cachedP) {
+      setContextNamesLoading(false);
+      return;
+    }
+
+    if (!token) return;
+
+    let cancelled = false;
+    setContextNamesLoading(true);
+    Promise.all([
+      cachedW
+        ? Promise.resolve({ name: cachedW })
+        : apiFetch<{ name: string }>(`/workspaces/${workspaceId}`, { token }),
+      cachedP
+        ? Promise.resolve({ name: cachedP })
+        : apiFetch<{ name: string }>(`/workspaces/${workspaceId}/projects/${projectId}`, { token }),
+    ])
+      .then(([w, p]) => {
+        if (cancelled) return;
+        primeWorkspaceNameForBreadcrumb(workspaceId, w.name);
+        primeProjectNameForBreadcrumb(workspaceId, projectId, p.name);
+        setContextWorkspaceName(w.name);
+        setContextProjectName(p.name);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setContextWorkspaceName((prev) => prev ?? cachedW);
+          setContextProjectName((prev) => prev ?? cachedP);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setContextNamesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, token, workspaceId, projectId, breadcrumbNameCacheEpoch]);
 
   useEffect(() => {
     if (!open || variant !== "create") return;
@@ -141,8 +359,16 @@ export function TaskDrawerWithComments({
     setEditPriority("1");
     setEditStartAt("");
     setEditEndAt("");
+    setEditAssigneeUserId("");
+    setEditParticipantUserIds([]);
+    setEditLocation("");
     setEditError(null);
     setItemLoading(false);
+    setAssigneeSearchQuery("");
+    setParticipantSearchQuery("");
+    setParticipantStagingIds([]);
+    setAssigneePanelOpen(false);
+    setParticipantPanelOpen(false);
   }, [open, variant, initialCreateStatus]);
 
   useEffect(() => {
@@ -163,6 +389,15 @@ export function TaskDrawerWithComments({
         setEditPriority(normalizePriority(it.priority));
         setEditStartAt(it.start_at ? toLocalDatetimeInputValue(it.start_at) : "");
         setEditEndAt(it.end_at ? toLocalDatetimeInputValue(it.end_at) : "");
+        const assigneeId = it.assignee?.id ?? it.created_by?.id ?? "";
+        setEditAssigneeUserId(assigneeId);
+        setEditParticipantUserIds((it.participants ?? []).map((p) => p.id));
+        setEditLocation(it.location ?? "");
+        setAssigneeSearchQuery("");
+        setParticipantSearchQuery("");
+        setParticipantStagingIds([]);
+        setAssigneePanelOpen(false);
+        setParticipantPanelOpen(false);
       })
       .catch((e: any) => {
         if (!cancelled) setEditError(e?.message ?? "任务加载失败");
@@ -174,6 +409,17 @@ export function TaskDrawerWithComments({
       cancelled = true;
     };
   }, [open, variant, itemId, workspaceId, projectId, token, syncVersion]);
+
+  useEffect(() => {
+    if (variant !== "create" || !open || editAssigneeUserId || !me?.id) return;
+    setEditAssigneeUserId(me.id);
+  }, [variant, open, me?.id, editAssigneeUserId]);
+
+  useEffect(() => {
+    if (!editAssigneeUserId) return;
+    setEditParticipantUserIds((prev) => prev.filter((id) => id !== editAssigneeUserId));
+    setParticipantStagingIds((prev) => prev.filter((id) => id !== editAssigneeUserId));
+  }, [editAssigneeUserId]);
 
   useEffect(() => {
     if (!effectiveShowComments || !open || !drawerItem || !token) return;
@@ -221,12 +467,80 @@ export function TaskDrawerWithComments({
       setNewCommentBody("");
       setReplyToCommentId(null);
       setExpandedCommentContent({});
+      setAssigneeSearchQuery("");
+      setParticipantSearchQuery("");
+      setParticipantStagingIds([]);
+      setAssigneePanelOpen(false);
+      setParticipantPanelOpen(false);
+      setDeleteConfirmOpen(false);
+      setDeleteError(null);
     }
   }, [open]);
 
   function closeDrawer() {
-    if (editLoading) return;
+    if (editLoading || deleteLoading) return;
     onClose();
+  }
+
+  const canDeleteTask = variant === "edit" && !!drawerItem && !!token;
+
+  async function onConfirmDeleteTask() {
+    if (!token || !drawerItem) return;
+    setDeleteError(null);
+    setDeleteLoading(true);
+    try {
+      await apiFetch<void>(
+        `/workspaces/${workspaceId}/projects/${projectId}/items/${drawerItem.id}`,
+        { method: "DELETE", token },
+      );
+      const deletedId = drawerItem.id;
+      setDeleteConfirmOpen(false);
+      onTaskDeleted?.(deletedId);
+      onClose();
+    } catch (e: any) {
+      setDeleteError(e?.message ?? "删除失败");
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  function pickAssignee(userId: string) {
+    setEditAssigneeUserId(userId);
+    setAssigneeSearchQuery("");
+    setAssigneePanelOpen(false);
+  }
+
+  function clearAssignee() {
+    setEditAssigneeUserId("");
+  }
+
+  function toggleParticipantStaging(userId: string) {
+    setParticipantStagingIds((prev) =>
+      prev.includes(userId) ? prev.filter((x) => x !== userId) : [...prev, userId],
+    );
+  }
+
+  function confirmParticipantStaging() {
+    if (participantStagingIds.length === 0) return;
+    setEditParticipantUserIds((prev) => {
+      const next = new Set(prev);
+      for (const id of participantStagingIds) {
+        if (id && id !== editAssigneeUserId) next.add(id);
+      }
+      return Array.from(next);
+    });
+    setParticipantStagingIds([]);
+    setParticipantSearchQuery("");
+    setParticipantPanelOpen(false);
+  }
+
+  function removeParticipant(userId: string) {
+    setEditParticipantUserIds((prev) => prev.filter((x) => x !== userId));
+    setParticipantStagingIds((prev) => prev.filter((x) => x !== userId));
+  }
+
+  function participantChipLabel(userId: string): string {
+    return memberById.get(userId)?.display_name ?? drawerItem?.participants?.find((p) => p.id === userId)?.display_name ?? userId.slice(0, 8);
   }
 
   async function onSaveTask(e: React.FormEvent) {
@@ -247,9 +561,18 @@ export function TaskDrawerWithComments({
       setEditError("结束时间不能早于开始时间");
       return;
     }
+    if (!editAssigneeUserId.trim()) {
+      setEditError("请选择负责人");
+      return;
+    }
 
     setEditError(null);
     setEditLoading(true);
+    const peoplePayload = {
+      assignee_user_id: editAssigneeUserId.trim(),
+      participant_user_ids: editParticipantUserIds.filter((x) => x && x !== editAssigneeUserId.trim()),
+      location: editLocation.trim() || null,
+    };
     try {
       if (variant === "create") {
         const created = await apiFetch<TaskDrawerItem>(
@@ -264,7 +587,7 @@ export function TaskDrawerWithComments({
               priority: normalizePriority(editPriority),
               start_at: startIso,
               end_at: endIso,
-              details: null,
+              ...peoplePayload,
             }),
           },
         );
@@ -284,8 +607,8 @@ export function TaskDrawerWithComments({
               priority: normalizePriority(editPriority),
               start_at: startIso,
               end_at: endIso,
-              details: null,
               version: drawerItem.version,
+              ...peoplePayload,
             }),
           },
         );
@@ -354,6 +677,15 @@ export function TaskDrawerWithComments({
     ? comments.find((c) => c.id === replyToCommentId)?.author_display_name ?? "该评论"
     : null;
 
+  const headerSubtitle = useMemo(() => {
+    const explicit = titleSubtitle?.trim();
+    if (explicit) return explicit;
+    if (contextWorkspaceName && contextProjectName) {
+      return `${contextWorkspaceName} / ${contextProjectName}`;
+    }
+    return null;
+  }, [titleSubtitle, contextWorkspaceName, contextProjectName]);
+
   function renderCommentNode(c: ItemComment, depth: number) {
     const replies = repliesByParent.get(c.id) ?? [];
     const isLong = c.body.length > COMMENT_BODY_PREVIEW_CHARS;
@@ -380,20 +712,23 @@ export function TaskDrawerWithComments({
           <span className="font-medium text-text-primary">{c.author_display_name || "用户"}</span>
           <span className="hidden sm:inline">·</span>
           <span>{timeStr}</span>
-          <div className="flex items-center gap-2 sm:ml-auto">
-            <span className="text-neutral-muted shrink-0">状态</span>
-            <select
-              className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
-              value={c.completion_status === "done" ? "done" : "pending"}
-              onChange={(e) =>
-                patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
-              }
-              aria-label={depth === 0 ? "评论状态" : "回复状态"}
-            >
-              <option value="pending">未完成</option>
-              <option value="done">已完成</option>
-            </select>
-          </div>
+          {me?.id === c.author_user_id ? (
+            <div className="flex items-center gap-2 sm:ml-auto">
+              <span className="text-neutral-muted shrink-0">状态</span>
+              <select
+                className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
+                value={c.completion_status === "done" ? "done" : "pending"}
+                onChange={(e) =>
+                  patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
+                }
+                aria-label={depth === 0 ? "评论状态" : "回复状态"}
+              >
+                <option value="pending">未完成</option>
+                <option value="done">已完成</option>
+              </select>
+            
+            </div>
+          ) : null}
         </div>
         <div className="mt-2 text-small text-text-primary">
           {isLong && !expanded ? (
@@ -463,6 +798,8 @@ export function TaskDrawerWithComments({
         ? "加载中…"
         : drawerItem?.title ?? "—";
 
+  const creatorLabel = variant === "edit" && drawerItem ? drawerItem.created_by?.display_name ?? "—" : "—";
+
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/30" onClick={closeDrawer} />
@@ -470,19 +807,37 @@ export function TaskDrawerWithComments({
         <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-border-subtle">
           <div className="min-w-0">
             <div className="font-subhead text-subhead text-text-primary truncate">{headerTitle}</div>
-            {titleSubtitle ? (
-              <div className="mt-1 truncate text-caption text-neutral-muted">{titleSubtitle}</div>
-            ) : null}
+            <div className="mt-1 min-h-[1.25rem] truncate text-caption text-neutral-muted">
+              {headerSubtitle ?? (contextNamesLoading ? "加载中…" : "—")}
+            </div>
           </div>
-          <button
-            type="button"
-            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl border border-border-subtle hover:bg-surface-container-lowest disabled:opacity-50"
-            onClick={closeDrawer}
-            disabled={editLoading}
-            title="关闭"
-          >
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-sm">
+            {canDeleteTask ? (
+              <button
+                type="button"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteConfirmOpen(true);
+                }}
+                disabled={editLoading || deleteLoading || itemLoading}
+                title="删除任务"
+                aria-label="删除任务"
+              >
+                <span className="material-symbols-outlined text-[18px] text-red-600">delete</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-subtle hover:bg-surface-container-lowest disabled:opacity-50"
+              onClick={closeDrawer}
+              disabled={editLoading || deleteLoading}
+              title="关闭"
+              aria-label="关闭"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
         </div>
 
         {itemLoading && variant === "edit" && !drawerItem ? (
@@ -529,6 +884,222 @@ export function TaskDrawerWithComments({
                     onChange={(e) => setEditBody(e.target.value)}
                     disabled={editLoading}
                   />
+                </div>
+
+                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
+                  <div className="text-overline text-zinc-500 tracking-wide">人员与地点</div>
+                  {membersLoading ? (
+                    <p className="text-caption text-neutral-muted">加载成员列表…</p>
+                  ) : null}
+                  {membersError ? <p className="text-caption text-error">{membersError}</p> : null}
+
+                  {variant === "edit" && drawerItem ? (
+                    <div className="space-y-1">
+                      <div className="text-caption font-medium text-on-surface-variant">创建人</div>
+                      <div className="text-small text-text-primary">{creatorLabel}</div>
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-assignee-search`}>
+                      负责人
+                    </label>
+                    {editAssigneeUserId ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-bright py-1 pl-3 pr-1 text-small text-text-primary">
+                          <span className="min-w-0 truncate">
+                            {memberById.get(editAssigneeUserId)?.display_name ??
+                              (drawerItem?.assignee?.id === editAssigneeUserId
+                                ? drawerItem.assignee.display_name
+                                : null) ??
+                              (drawerItem?.created_by?.id === editAssigneeUserId
+                                ? drawerItem.created_by.display_name
+                                : null) ??
+                              (me?.id === editAssigneeUserId ? me.display_name || me.email || "我" : null) ??
+                              editAssigneeUserId.slice(0, 8)}
+                          </span>
+                          <button
+                            type="button"
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-muted hover:bg-surface-container-lowest hover:text-text-primary"
+                            onClick={clearAssignee}
+                            disabled={editLoading}
+                            aria-label="移除负责人"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">close</span>
+                          </button>
+                        </span>
+                      </div>
+                    ) : null}
+                    <div className="relative" ref={assigneePickerRef}>
+                      <input
+                        id={`${uid}-assignee-search`}
+                        type="search"
+                        autoComplete="off"
+                        placeholder="搜索姓名或邮箱，从列表中选择负责人…"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={assigneeSearchQuery}
+                        onChange={(e) => {
+                          setAssigneeSearchQuery(e.target.value);
+                          setAssigneePanelOpen(true);
+                        }}
+                        onFocus={() => setAssigneePanelOpen(true)}
+                        disabled={editLoading || memberOptions.length === 0}
+                      />
+                      {assigneePanelOpen && memberOptions.length > 0 ? (
+                        <ul
+                          role="listbox"
+                          className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-border-subtle bg-surface py-1 shadow-lg"
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          {filteredAssigneeCandidates.length === 0 ? (
+                            <li className="px-3 py-2 text-caption text-neutral-muted">无匹配成员</li>
+                          ) : (
+                            filteredAssigneeCandidates.map((m) => (
+                              <li key={m.user_id}>
+                                <button
+                                  type="button"
+                                  role="option"
+                                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-small text-text-primary hover:bg-surface-container-lowest"
+                                  onClick={() => pickAssignee(m.user_id)}
+                                >
+                                  <span className="font-medium">{m.display_name}</span>
+                                  {m.email ? (
+                                    <span className="text-caption text-neutral-muted">{m.email}</span>
+                                  ) : null}
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      ) : null}
+                    </div>
+                    <p className="text-caption text-neutral-muted">
+                      输入关键字实时筛选；点击一行设为负责人。新建时默认本人，可移除后重新选择。
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-on-surface-variant">参与人</div>
+                    {editParticipantUserIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {editParticipantUserIds.map((pid) => (
+                          <span
+                            key={pid}
+                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-bright py-1 pl-3 pr-1 text-small text-text-primary"
+                          >
+                            <span className="min-w-0 truncate">{participantChipLabel(pid)}</span>
+                            <button
+                              type="button"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-muted hover:bg-surface-container-lowest hover:text-text-primary"
+                              onClick={() => removeParticipant(pid)}
+                              disabled={editLoading}
+                              aria-label={`移除参与人 ${participantChipLabel(pid)}`}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">close</span>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-caption text-neutral-muted">尚未添加参与人。</p>
+                    )}
+                    <div className="relative" ref={participantPickerRef}>
+                      <input
+                        id={`${uid}-participant-search`}
+                        type="search"
+                        autoComplete="off"
+                        placeholder="搜索并多选参与人，点「确认添加」加入…"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={participantSearchQuery}
+                        onChange={(e) => {
+                          setParticipantSearchQuery(e.target.value);
+                          setParticipantPanelOpen(true);
+                        }}
+                        onFocus={() => setParticipantPanelOpen(true)}
+                        disabled={editLoading || memberOptions.length === 0}
+                      />
+                      {participantPanelOpen && memberOptions.length > 0 ? (
+                        <div
+                          className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-border-subtle bg-surface shadow-lg"
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          <ul role="listbox" className="max-h-44 overflow-auto py-1">
+                            {filteredParticipantCandidates.length === 0 ? (
+                              <li className="px-3 py-2 text-caption text-neutral-muted">
+                                无匹配成员，或均已添加（不含负责人）。
+                              </li>
+                            ) : (
+                              filteredParticipantCandidates.map((m) => {
+                                const checked = participantStagingIds.includes(m.user_id);
+                                return (
+                                  <li key={m.user_id}>
+                                    <label className="flex cursor-pointer items-start gap-2 px-3 py-2 text-small hover:bg-surface-container-lowest">
+                                      <input
+                                        type="checkbox"
+                                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-subtle text-primary focus:ring-primary/20"
+                                        checked={checked}
+                                        onChange={() => toggleParticipantStaging(m.user_id)}
+                                        disabled={editLoading}
+                                      />
+                                      <span className="min-w-0 flex-1">
+                                        <span className="font-medium text-text-primary">{m.display_name}</span>
+                                        {m.email ? (
+                                          <span className="mt-0.5 block text-caption text-neutral-muted">
+                                            {m.email}
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    </label>
+                                  </li>
+                                );
+                              })
+                            )}
+                          </ul>
+                          <div className="flex items-center justify-end gap-2 border-t border-border-subtle bg-surface-container-lowest/50 px-2 py-2">
+                            <button
+                              type="button"
+                              className="text-caption font-medium text-neutral-muted hover:text-text-primary"
+                              onClick={() => {
+                                setParticipantStagingIds([]);
+                                setParticipantPanelOpen(false);
+                              }}
+                              disabled={editLoading}
+                            >
+                              取消选择
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-lg bg-primary px-3 py-1.5 text-caption font-semibold text-on-primary disabled:opacity-40"
+                              onClick={confirmParticipantStaging}
+                              disabled={editLoading || participantStagingIds.length === 0}
+                            >
+                              确认添加
+                              {participantStagingIds.length > 0 ? `（${participantStagingIds.length}）` : ""}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <p className="text-caption text-neutral-muted">
+                      在下拉里勾选多人后点「确认添加」；已添加人员可点标签上的关闭移除。
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-location`}>
+                      地点
+                    </label>
+                    <input
+                      id={`${uid}-location`}
+                      type="text"
+                      maxLength={500}
+                      placeholder="例如：会议室 A、线上、客户现场…"
+                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                      value={editLocation}
+                      onChange={(e) => setEditLocation(e.target.value)}
+                      disabled={editLoading}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -681,6 +1252,62 @@ export function TaskDrawerWithComments({
           </div>
         ) : null}
       </aside>
+
+      {deleteConfirmOpen && drawerItem ? (
+        <div className="fixed inset-0 z-[60]">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => {
+              if (!deleteLoading) setDeleteConfirmOpen(false);
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm max-h-[calc(100vh-6rem)] overflow-auto">
+              <div className="flex items-center justify-between">
+                <div className="font-semibold font-subhead">删除任务</div>
+                <button
+                  className="text-sm underline disabled:opacity-50"
+                  type="button"
+                  disabled={deleteLoading}
+                  onClick={() => {
+                    if (!deleteLoading) setDeleteConfirmOpen(false);
+                  }}
+                >
+                  关闭
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-xl border border-error-container bg-error-container/10 p-4">
+                  <div className="font-medium text-gray-900">确定要删除任务 “{drawerItem.title}” 吗？</div>
+                  <div className="text-small text-text-secondary mt-2">此操作不可恢复，任务下的评论也会一并删除。</div>
+                </div>
+
+                {deleteError ? <div className="text-small text-error">{deleteError}</div> : null}
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    className="text-sm rounded-xl border border-border-subtle px-4 py-2 disabled:opacity-50"
+                    onClick={() => setDeleteConfirmOpen(false)}
+                    disabled={deleteLoading}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="text-sm rounded-xl bg-red-600 text-white px-4 py-2 hover:bg-red-700 disabled:opacity-50"
+                    onClick={() => void onConfirmDeleteTask()}
+                    disabled={deleteLoading}
+                  >
+                    {deleteLoading ? "删除中…" : "删除"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

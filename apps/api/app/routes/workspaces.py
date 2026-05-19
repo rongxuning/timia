@@ -77,7 +77,7 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
 
     item_status_rows = db.execute(
         select(Item.workspace_id, Item.project_id, Item.status, func.count(Item.id))
-        .where(Item.workspace_id.in_(workspace_ids), Item.status.in_(("todo", "doing", "done")))
+        .where(Item.workspace_id.in_(workspace_ids), Item.status.in_(("todo", "doing", "done", "archived")))
         .group_by(Item.workspace_id, Item.project_id, Item.status)
     ).all()
 
@@ -137,6 +137,7 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
                 todo_count=int(status_map.get("todo", 0)),
                 doing_count=int(status_map.get("doing", 0)),
                 done_count=int(status_map.get("done", 0)),
+                archived_count=int(status_map.get("archived", 0)),
                 owners=owners_by_ws.get(w.id, []),
                 members=members_by_ws.get(w.id, []),
                 my_workspace_role=wm.role,
@@ -275,6 +276,7 @@ def list_recent_discussions(
             id=str(c.id),
             body=c.body,
             created_at=c.created_at,
+            author_user_id=str(c.author_user_id),
             author_display_name=name or "",
             is_reply=c.parent_comment_id is not None,
             completion_status=c.completion_status or "pending",
@@ -297,6 +299,8 @@ def get_workspace_stats(workspace_id: uuid.UUID, db: Session = Depends(get_db), 
             "total_task_count": 0,
             "todo_count": 0,
             "doing_count": 0,
+            "done_count": 0,
+            "archived_count": 0,
             "high_priority_count": 0,
         }
 
@@ -310,6 +314,8 @@ def get_workspace_stats(workspace_id: uuid.UUID, db: Session = Depends(get_db), 
     total_task_count = db.scalar(select(func.count(Item.id)).where(*item_filter)) or 0
     todo_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.status == "todo")) or 0
     doing_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.status == "doing")) or 0
+    done_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.status == "done")) or 0
+    archived_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.status == "archived")) or 0
     high_priority_count = db.scalar(select(func.count(Item.id)).where(*item_filter, Item.priority == "high")) or 0
 
     return {
@@ -317,6 +323,8 @@ def get_workspace_stats(workspace_id: uuid.UUID, db: Session = Depends(get_db), 
         "total_task_count": int(total_task_count),
         "todo_count": int(todo_count),
         "doing_count": int(doing_count),
+        "done_count": int(done_count),
+        "archived_count": int(archived_count),
         "high_priority_count": int(high_priority_count),
     }
 

@@ -8,6 +8,13 @@ export default function DocumentsCodePage() {
         <div className="mt-6 flex flex-wrap gap-md">
           <a
             className="inline-flex items-center gap-2 rounded-xl border border-border-subtle bg-surface px-lg py-md text-body font-medium hover:bg-surface-container-lowest transition-colors"
+            href="/documents/code/api"
+          >
+            <span className="material-symbols-outlined text-[18px]">api</span>
+            后端 API 一览
+          </a>
+          <a
+            className="inline-flex items-center gap-2 rounded-xl border border-border-subtle bg-surface px-lg py-md text-body font-medium hover:bg-surface-container-lowest transition-colors"
             href="/documents/code/database"
           >
             <span className="material-symbols-outlined text-[18px]">account_tree</span>

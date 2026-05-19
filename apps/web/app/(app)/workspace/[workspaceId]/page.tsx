@@ -35,6 +35,8 @@ type WorkspaceStats = {
   total_task_count: number;
   todo_count: number;
   doing_count: number;
+  done_count: number;
+  archived_count: number;
   high_priority_count: number;
 };
 
@@ -42,6 +44,7 @@ type RecentDiscussion = {
   id: string;
   body: string;
   created_at: string;
+  author_user_id: string;
   author_display_name: string;
   is_reply: boolean;
   completion_status?: string;
@@ -135,6 +138,16 @@ export default function WorkspaceHome() {
     const row = members.find((m) => m.user_id === me.id && m.status === "active");
     return row?.role === "owner";
   }, [me, members]);
+
+  const workspaceHealthPercent = useMemo(() => {
+    const total = stats?.total_task_count ?? 0;
+    if (total === 0) return null;
+    const doneArchived =
+      stats?.done_count != null && stats?.archived_count != null
+        ? stats.done_count + stats.archived_count
+        : total - (stats?.todo_count ?? 0) - (stats?.doing_count ?? 0);
+    return Math.round((doneArchived / total) * 100);
+  }, [stats]);
 
   useEffect(() => {
     if (!token) {
@@ -454,9 +467,7 @@ export default function WorkspaceHome() {
             <div className="space-y-3 mt-1.5">
               <div className="flex items-baseline gap-2">
                 <span className="font-headline text-section-heading">
-                  {stats?.total_task_count
-                    ? `${Math.round((((stats.todo_count ?? 0) + (stats.doing_count ?? 0)) / stats.total_task_count) * 100)}%`
-                    : "—"}
+                  {workspaceHealthPercent == null ? "—" : `${workspaceHealthPercent}%`}
                 </span>
               </div>
 
@@ -508,15 +519,7 @@ export default function WorkspaceHome() {
         </section>
 
         <section className="space-y-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="font-subhead text-subhead text-text-primary">进行中的项目</h2>
-            <div className="flex items-center gap-sm">
-              <span className="text-small text-zinc-500">排序：</span>
-              <button className="text-small font-semibold flex items-center gap-1" type="button">
-                最近更新 <span className="material-symbols-outlined text-sm">expand_more</span>
-              </button>
-            </div>
-          </div>
+          <h2 className="font-subhead text-subhead text-text-primary">进行中的项目</h2>
 
           {projects.length === 0 ? (
             <div className="bg-white rounded-xl border border-border-subtle p-lg text-small text-text-secondary">
@@ -644,6 +647,7 @@ export default function WorkspaceHome() {
                 ) : null}
                 {visibleDiscussions.map((row) => {
                   const done = (row.completion_status ?? "pending") === "done";
+                  const isAuthor = !!me?.id && row.author_user_id === me.id;
                   return (
                     <div
                       key={row.id}
@@ -691,39 +695,41 @@ export default function WorkspaceHome() {
                           </div>
                         </div>
                       </button>
-                      <div className="shrink-0 flex flex-col items-end gap-1 pt-1">
-                        <span className="text-[10px] text-neutral-muted">状态</span>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={done}
-                          aria-label={
-                            row.is_reply
-                              ? done
-                                ? "回复标记为未完成"
-                                : "回复标记为已完成"
-                              : done
-                                ? "评论标记为未完成"
-                                : "评论标记为已完成"
-                          }
-                          disabled={discussionsPatchingId === row.id}
-                          className={[
-                            "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border-subtle transition-colors disabled:opacity-50",
-                            done ? "bg-emerald-500" : "bg-zinc-300",
-                          ].join(" ")}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void patchDiscussionCommentCompletion(row, done ? "pending" : "done");
-                          }}
-                        >
-                          <span
+                      {isAuthor ? (
+                        <div className="shrink-0 flex flex-col items-end gap-1 pt-1">
+                          <span className="text-[10px] text-neutral-muted">状态</span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={done}
+                            aria-label={
+                              row.is_reply
+                                ? done
+                                  ? "回复标记为未完成"
+                                  : "回复标记为已完成"
+                                : done
+                                  ? "评论标记为未完成"
+                                  : "评论标记为已完成"
+                            }
+                            disabled={discussionsPatchingId === row.id}
                             className={[
-                              "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform",
-                              done ? "translate-x-5" : "translate-x-1",
+                              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border-subtle transition-colors disabled:opacity-50",
+                              done ? "bg-emerald-500" : "bg-zinc-300",
                             ].join(" ")}
-                          />
-                        </button>
-                      </div>
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void patchDiscussionCommentCompletion(row, done ? "pending" : "done");
+                            }}
+                          >
+                            <span
+                              className={[
+                                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform",
+                                done ? "translate-x-5" : "translate-x-1",
+                              ].join(" ")}
+                            />
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}

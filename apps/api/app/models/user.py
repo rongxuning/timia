@@ -13,7 +13,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), unique=True, index=True, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active/disabled
 
     workspace_memberships = relationship("WorkspaceMember", back_populates="user", cascade="all,delete-orphan")

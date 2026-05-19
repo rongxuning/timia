@@ -62,6 +62,22 @@ export function primeWorkspaceNameForBreadcrumb(workspaceId: string, name: strin
   notifyBreadcrumbNameCache();
 }
 
+export function getCachedWorkspaceName(workspaceId: string): string | null {
+  return workspaceNameCache.get(workspaceId)?.label ?? null;
+}
+
+export function getCachedProjectName(workspaceId: string, projectId: string): string | null {
+  return projectNameCache.get(`${workspaceId}:${projectId}`)?.label ?? null;
+}
+
+export function useBreadcrumbNameCacheEpoch(): number {
+  return useSyncExternalStore(
+    subscribeBreadcrumbNameCache,
+    getBreadcrumbNameCacheEpoch,
+    getBreadcrumbNameCacheEpoch,
+  );
+}
+
 /** 在任意已拿到项目名称的地方调用（与 {@link primeWorkspaceNameForBreadcrumb} 同理）。 */
 export function primeProjectNameForBreadcrumb(workspaceId: string, projectId: string, name: string) {
   const n = name?.trim();
@@ -170,6 +186,7 @@ export function Breadcrumbs({
       code: "代码文档",
       guide: "使用指南",
       database: "数据库结构",
+      api: "后端 API",
       my: "我的",
       schedule: "日程",
       analytics: "数据分析",

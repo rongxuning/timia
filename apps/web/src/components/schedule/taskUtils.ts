@@ -222,10 +222,15 @@ export function buildCalendarWeeks(items: ScheduleTaskItem[], calendarMonth: Dat
   return weeks;
 }
 
+/** 优先级象限仅展示待办与进行中的任务 */
+export function isPriorityQuadrantStatus(status: string): boolean {
+  return status === "todo" || status === "doing";
+}
+
 export function buildItemsByPriority(items: ScheduleTaskItem[]): Record<PriorityKey, ScheduleTaskItem[]> {
   const out: Record<PriorityKey, ScheduleTaskItem[]> = { "1": [], "2": [], "3": [], "4": [] };
   for (const it of items) {
-    if (it.status === "done" || it.status === "archived") continue;
+    if (!isPriorityQuadrantStatus(it.status)) continue;
     out[normalizePriority(it.priority)].push(it);
   }
   for (const k of ["1", "2", "3", "4"] as const) {
