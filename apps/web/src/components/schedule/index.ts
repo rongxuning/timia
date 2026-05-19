@@ -12,6 +12,7 @@ export { useCalendarWeeks, useItemsByPriority } from "./useScheduleDerived";
 export {
   buildCalendarWeeks,
   buildItemsByPriority,
+  countdownBadgeClass,
   countdownTargetForItem,
   formatRemainDHM,
   formatScheduleRange,

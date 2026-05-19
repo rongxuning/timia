@@ -305,6 +305,7 @@ export default function MySchedulePage() {
           onDragLeaveStatusColumn={(s) => setDragOverStatus((cur) => (cur === s ? null : cur))}
           onItemClick={openDrawer}
           onDropStatus={updateTaskStatus}
+          showAssigneeAvatar
         />
       </div>
 

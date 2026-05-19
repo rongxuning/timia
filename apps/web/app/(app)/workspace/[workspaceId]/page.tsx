@@ -126,6 +126,7 @@ export default function WorkspaceHome() {
   const [discussionsShowComments, setDiscussionsShowComments] = useState(true);
   const [discussionsShowReplies, setDiscussionsShowReplies] = useState(true);
   const [discussionsPatchingId, setDiscussionsPatchingId] = useState<string | null>(null);
+  const [discussionsDeletingId, setDiscussionsDeletingId] = useState<string | null>(null);
   const [editWorkspaceOpen, setEditWorkspaceOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -288,6 +289,23 @@ export default function WorkspaceHome() {
       /* 静默失败，抽屉内可再次操作 */
     } finally {
       setDiscussionsPatchingId(null);
+    }
+  }
+
+  async function deleteDiscussionComment(row: RecentDiscussion) {
+    if (!token) return;
+    setDiscussionsDeletingId(row.id);
+    try {
+      await apiFetch(
+        `/workspaces/${workspaceId}/projects/${row.project_id}/items/${row.item_id}/comments/${row.id}`,
+        { method: "DELETE", token },
+      );
+      setRecentDiscussions((prev) => prev.filter((r) => r.id !== row.id));
+      void loadMoreDiscussions(true);
+    } catch {
+      /* 静默失败，抽屉内可再次操作 */
+    } finally {
+      setDiscussionsDeletingId(null);
     }
   }
 
@@ -696,37 +714,56 @@ export default function WorkspaceHome() {
                         </div>
                       </button>
                       {isAuthor ? (
-                        <div className="shrink-0 flex flex-col items-end gap-1 pt-1">
-                          <span className="text-[10px] text-neutral-muted">状态</span>
+                        <div className="shrink-0 flex items-center gap-2 pt-1">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-[10px] text-neutral-muted">状态</span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={done}
+                              aria-label={
+                                row.is_reply
+                                  ? done
+                                    ? "回复标记为未完成"
+                                    : "回复标记为已完成"
+                                  : done
+                                    ? "评论标记为未完成"
+                                    : "评论标记为已完成"
+                              }
+                              disabled={
+                                discussionsPatchingId === row.id || discussionsDeletingId === row.id
+                              }
+                              className={[
+                                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border-subtle transition-colors disabled:opacity-50",
+                                done ? "bg-emerald-500" : "bg-zinc-300",
+                              ].join(" ")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void patchDiscussionCommentCompletion(row, done ? "pending" : "done");
+                              }}
+                            >
+                              <span
+                                className={[
+                                  "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform",
+                                  done ? "translate-x-5" : "translate-x-1",
+                                ].join(" ")}
+                              />
+                            </button>
+                          </div>
                           <button
                             type="button"
-                            role="switch"
-                            aria-checked={done}
-                            aria-label={
-                              row.is_reply
-                                ? done
-                                  ? "回复标记为未完成"
-                                  : "回复标记为已完成"
-                                : done
-                                  ? "评论标记为未完成"
-                                  : "评论标记为已完成"
+                            className="mt-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={
+                              discussionsPatchingId === row.id || discussionsDeletingId === row.id
                             }
-                            disabled={discussionsPatchingId === row.id}
-                            className={[
-                              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-border-subtle transition-colors disabled:opacity-50",
-                              done ? "bg-emerald-500" : "bg-zinc-300",
-                            ].join(" ")}
+                            title={row.is_reply ? "删除回复" : "删除评论"}
+                            aria-label={row.is_reply ? "删除回复" : "删除评论"}
                             onClick={(e) => {
                               e.stopPropagation();
-                              void patchDiscussionCommentCompletion(row, done ? "pending" : "done");
+                              void deleteDiscussionComment(row);
                             }}
                           >
-                            <span
-                              className={[
-                                "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform",
-                                done ? "translate-x-5" : "translate-x-1",
-                              ].join(" ")}
-                            />
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
                           </button>
                         </div>
                       ) : null}

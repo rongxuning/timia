@@ -53,18 +53,16 @@ export function localDayRangeFromItem(it: ScheduleTaskItem): { startKey: string;
   return { startKey: dayKeyLocal(dayStart), endKey: dayKeyLocal(dayEnd) };
 }
 
-export function taskCalendarColors(taskId: string): { bg: string; fg: string; border: string } {
-  let h = 2166136261;
-  for (let i = 0; i < taskId.length; i++) {
-    h ^= taskId.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const hue = Math.abs(h) % 360;
-  return {
-    bg: `hsla(${hue}, 72%, 90%, 0.95)`,
-    fg: `hsla(${hue}, 45%, 22%, 1)`,
-    border: `hsla(${hue}, 58%, 42%, 1)`,
-  };
+/** 与 priorityBadgeClass / PriorityQuadrants 一致的日历任务条配色 */
+const PRIORITY_CALENDAR_COLORS: Record<PriorityKey, { bg: string; fg: string; border: string }> = {
+  "1": { bg: "#dbeafe", fg: "#1d4ed8", border: "#3b82f6" },
+  "2": { bg: "#dcfce7", fg: "#15803d", border: "#22c55e" },
+  "3": { bg: "#fef9c3", fg: "#854d0e", border: "#eab308" },
+  "4": { bg: "#fee2e2", fg: "#b91c1c", border: "#ef4444" },
+};
+
+export function taskCalendarColors(p?: string | null): { bg: string; fg: string; border: string } {
+  return PRIORITY_CALENDAR_COLORS[normalizePriority(p)];
 }
 
 export function normalizePriority(p?: string | null): PriorityKey {
@@ -115,6 +113,19 @@ export function countdownTargetForItem(it: ScheduleTaskItem): Date | null {
     if (!Number.isNaN(d.getTime())) return d;
   }
   return null;
+}
+
+const MS_PER_DAY = 86_400_000;
+const COUNTDOWN_GREEN_MIN_MS = 3 * MS_PER_DAY;
+const COUNTDOWN_BLUE_MIN_MS = 7 * MS_PER_DAY;
+
+/** 优先级象限倒计时徽章：按剩余时间段着色（与任务 priority 无关） */
+export function countdownBadgeClass(targetMs: number, nowMs: number): string {
+  const diff = targetMs - nowMs;
+  if (diff <= 0) return "bg-red-100 text-red-700 ring-1 ring-red-200";
+  if (diff > COUNTDOWN_BLUE_MIN_MS) return "bg-blue-100 text-blue-700 ring-1 ring-blue-200";
+  if (diff > COUNTDOWN_GREEN_MIN_MS) return "bg-green-100 text-green-700 ring-1 ring-green-200";
+  return "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-200";
 }
 
 export function formatRemainDHM(targetMs: number, nowMs: number): { text: string; overdue: boolean } {

@@ -215,6 +215,7 @@ export function TaskDrawerWithComments({
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
   const [expandedCommentContent, setExpandedCommentContent] = useState<Record<string, boolean>>({});
+  const [commentDeletingId, setCommentDeletingId] = useState<string | null>(null);
 
   const extraBriefsForOptions = useMemo(() => {
     const list: TaskUserBrief[] = [];
@@ -665,6 +666,27 @@ export function TaskDrawerWithComments({
     }
   }
 
+  async function deleteComment(commentId: string) {
+    if (!token || !drawerItem) return;
+    setCommentError(null);
+    setCommentDeletingId(commentId);
+    try {
+      await apiFetch(`${itemCommentsPath(workspaceId, projectId, drawerItem.id)}/${commentId}`, {
+        method: "DELETE",
+        token,
+      });
+      if (replyToCommentId === commentId) setReplyToCommentId(null);
+      const list = await apiFetch<ItemComment[]>(itemCommentsPath(workspaceId, projectId, drawerItem.id), {
+        token,
+      });
+      setComments(list);
+    } catch (e: any) {
+      setCommentError(e?.message ?? "删除评论失败");
+    } finally {
+      setCommentDeletingId(null);
+    }
+  }
+
   const repliesByParent = useMemo(() => buildRepliesByParentId(comments), [comments]);
   const rootCommentsSorted = useMemo(
     () =>
@@ -716,8 +738,9 @@ export function TaskDrawerWithComments({
             <div className="flex items-center gap-2 sm:ml-auto">
               <span className="text-neutral-muted shrink-0">状态</span>
               <select
-                className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full"
+                className="text-[12px] rounded-lg border border-border-subtle bg-surface-bright px-2 py-1 text-text-primary min-w-0 max-w-full disabled:opacity-50"
                 value={c.completion_status === "done" ? "done" : "pending"}
+                disabled={commentDeletingId === c.id}
                 onChange={(e) =>
                   patchCommentCompletion(c.id, e.target.value === "done" ? "done" : "pending")
                 }
@@ -726,7 +749,16 @@ export function TaskDrawerWithComments({
                 <option value="pending">未完成</option>
                 <option value="done">已完成</option>
               </select>
-            
+              <button
+                type="button"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={commentDeletingId === c.id}
+                title={depth === 0 ? "删除评论" : "删除回复"}
+                aria-label={depth === 0 ? "删除评论" : "删除回复"}
+                onClick={() => void deleteComment(c.id)}
+              >
+                <span className="material-symbols-outlined text-[16px]">delete</span>
+              </button>
             </div>
           ) : null}
         </div>

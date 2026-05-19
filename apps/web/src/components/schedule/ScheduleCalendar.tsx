@@ -8,9 +8,17 @@ export type ScheduleCalendarProps = {
   onCalendarMonthChange: (d: Date) => void;
   weeks: CalendarWeek[];
   onTaskClick: (it: ScheduleTaskItem) => void;
+  /** 任务条 tooltip 展示工作空间/项目（跨项目视图） */
+  showProjectContext?: boolean;
 };
 
-export function ScheduleCalendar({ calendarMonth, onCalendarMonthChange, weeks, onTaskClick }: ScheduleCalendarProps) {
+export function ScheduleCalendar({
+  calendarMonth,
+  onCalendarMonthChange,
+  weeks,
+  onTaskClick,
+  showProjectContext = true,
+}: ScheduleCalendarProps) {
   const today = new Date();
   const todayKey = dayKeyLocal(today);
 
@@ -110,7 +118,7 @@ export function ScheduleCalendar({ calendarMonth, onCalendarMonthChange, weeks, 
                     }}
                   >
                     {week.segments.map((seg) => {
-                      const c = taskCalendarColors(seg.item.id);
+                      const c = taskCalendarColors(seg.item.priority);
                       const radius =
                         seg.roundLeft && seg.roundRight
                           ? 8
@@ -125,7 +133,11 @@ export function ScheduleCalendar({ calendarMonth, onCalendarMonthChange, weeks, 
                           key={`cal-${seg.item.id}-${wi}-${seg.colStart}-${seg.lane}`}
                           type="button"
                           onClick={() => onTaskClick(seg.item)}
-                          title={`${seg.item.title} · ${seg.item.workspace_name} / ${seg.item.project_name}`}
+                          title={
+                            showProjectContext
+                              ? `${seg.item.title} · ${seg.item.workspace_name} / ${seg.item.project_name}`
+                              : seg.item.title
+                          }
                           className="h-[22px] flex items-center text-left text-[11px] px-1.5 font-medium truncate border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm"
                           style={{
                             gridColumn: `${seg.colStart} / span ${seg.colSpan}`,

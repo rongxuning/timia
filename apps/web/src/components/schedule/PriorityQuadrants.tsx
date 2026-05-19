@@ -2,9 +2,9 @@
 
 import type { PriorityKey, ScheduleTaskItem } from "./types";
 import {
+  countdownBadgeClass,
   countdownTargetForItem,
   formatRemainDHM,
-  priorityBadgeClass,
 } from "./taskUtils";
 
 const QUADRANTS = [
@@ -24,7 +24,16 @@ export type PriorityQuadrantsProps = {
   onDragLeavePriorityZone: (p: PriorityKey) => void;
   onItemClick: (it: ScheduleTaskItem) => void;
   onDropPriority: (itemId: string, priority: PriorityKey) => void;
+  /** 任务卡片展示项目名（跨项目视图） */
+  showProjectContext?: boolean;
 };
+
+function taskTooltip(it: ScheduleTaskItem, cdText: string | null, showProjectContext: boolean) {
+  const parts = [it.title];
+  if (cdText) parts.push(cdText);
+  if (showProjectContext) parts.push(`${it.workspace_name} / ${it.project_name}`);
+  return parts.join(" · ");
+}
 
 export function PriorityQuadrants({
   itemsByPriority,
@@ -36,6 +45,7 @@ export function PriorityQuadrants({
   onDragLeavePriorityZone,
   onItemClick,
   onDropPriority,
+  showProjectContext = true,
 }: PriorityQuadrantsProps) {
   return (
     <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
@@ -84,7 +94,11 @@ export function PriorityQuadrants({
                   ) : (
                     list.slice(0, 6).map((it) => {
                       const target = countdownTargetForItem(it);
-                      const cd = target ? formatRemainDHM(target.getTime(), priorityCountdownNowMs) : null;
+                      const targetMs = target?.getTime();
+                      const cd =
+                        targetMs != null ? formatRemainDHM(targetMs, priorityCountdownNowMs) : null;
+                      const countdownClass =
+                        targetMs != null ? countdownBadgeClass(targetMs, priorityCountdownNowMs) : null;
                       return (
                         <button
                           key={it.id}
@@ -101,28 +115,24 @@ export function PriorityQuadrants({
                             onDragOverPriorityChange(null);
                           }}
                           className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary transition-colors"
-                          title={
-                            cd
-                              ? `${it.title} · ${cd.text} · ${it.workspace_name} / ${it.project_name}`
-                              : `${it.title} · ${it.workspace_name} / ${it.project_name}`
-                          }
+                          title={taskTooltip(it, cd?.text ?? null, showProjectContext)}
                         >
                           <div className="flex items-start justify-between gap-2 min-w-0">
                             <span className="min-w-0 flex-1 truncate font-medium">{it.title}</span>
-                            {cd ? (
+                            {cd && countdownClass ? (
                               <span
                                 className={[
                                   "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
-                                  cd.overdue
-                                    ? "bg-red-100 text-red-700 ring-1 ring-red-200"
-                                    : priorityBadgeClass(it.priority),
+                                  countdownClass,
                                 ].join(" ")}
                               >
                                 {cd.text}
                               </span>
                             ) : null}
                           </div>
-                          <div className="mt-0.5 truncate text-[10px] text-neutral-muted">{it.project_name}</div>
+                          {showProjectContext ? (
+                            <div className="mt-0.5 truncate text-[10px] text-neutral-muted">{it.project_name}</div>
+                          ) : null}
                         </button>
                       );
                     })
