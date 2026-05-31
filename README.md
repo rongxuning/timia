@@ -21,6 +21,12 @@ make api-install
 make api
 ```
 
+If you renamed or moved this repo, delete the stale virtualenv and reinstall:
+
+```bash
+rm -rf apps/api/.venv && make api-install
+```
+
 #### 3) Start Web
 
 ```bash
