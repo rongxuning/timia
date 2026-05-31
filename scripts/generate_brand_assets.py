@@ -221,10 +221,10 @@ def generate(
 
 if __name__ == "__main__":
     repo_root = Path(__file__).resolve().parents[1]
-    env_ref = os.environ.get("TIMIA_REFERENCE_PNG") or os.environ.get("NOMIA_REFERENCE_PNG")
+    env_ref = os.environ.get("TIMIA_REFERENCE_PNG")
     if not env_ref:
         raise SystemExit(
-            "Set TIMIA_REFERENCE_PNG to the source logo PNG path (or legacy NOMIA_REFERENCE_PNG), e.g.\n"
+            "Set TIMIA_REFERENCE_PNG to the source logo PNG path, e.g.\n"
             "  TIMIA_REFERENCE_PNG=/absolute/path/to/jibble-logo.png python scripts/generate_brand_assets.py"
         )
     reference = Path(env_ref)

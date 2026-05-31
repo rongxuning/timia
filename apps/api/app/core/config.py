@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     refresh_token_expires_days: int = 14
     # Exposes GET /dev/db-tables for local documentation UI; keep false in production.
     enable_dev_db_tables: bool = False
+    # Comma-separated browser origins allowed by CORS (e.g. https://app.example.com).
+    cors_origins: str = "http://127.0.0.1:3000,http://localhost:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()

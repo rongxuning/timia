@@ -10,6 +10,7 @@ from app.routes.members import router as members_router
 from app.routes.projects import router as projects_router
 from app.routes.users import router as users_router
 from app.routes.workspaces import router as workspaces_router
+from app.core.config import settings
 from app.routes.dev_db_tables import router as dev_db_tables_router
 
 
@@ -17,10 +18,7 @@ app = FastAPI(title="Timia API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:3000",
-        "http://localhost:3000",
-    ],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
