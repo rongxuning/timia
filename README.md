@@ -27,6 +27,12 @@ If you renamed or moved this repo, delete the stale virtualenv and reinstall:
 rm -rf apps/api/.venv && make api-install
 ```
 
+If `uv sync` times out downloading packages (e.g. `cryptography`), use a PyPI mirror:
+
+```bash
+UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple make api-install
+```
+
 #### 3) Start Web
 
 ```bash

@@ -8,8 +8,10 @@ dev: db
 db:
 	docker compose up -d db
 
+UV_HTTP_TIMEOUT ?= 300
+
 api-install:
-	cd apps/api && uv sync
+	cd apps/api && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
 
 api: api-install
 	cd apps/api && PYTHONPATH=. uv run alembic upgrade head && uv run uvicorn app.main:app --reload --port 8000
