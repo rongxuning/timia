@@ -56,14 +56,24 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       query: null,
       jsonBody: { email: "string (email)", display_name: "string", password: "string (min 8)" },
     },
-    responseJson: { id: "string (uuid)", email: "string", display_name: "string" },
+    responseJson: {
+      id: "string (uuid)",
+      email: "string",
+      display_name: "string",
+      system_role: "user",
+    },
   },
   {
     method: "GET",
     path: "/auth/me",
     name: "当前用户",
     requestJson: { headers: authBearer, query: null, jsonBody: null },
-    responseJson: { id: "string (uuid)", email: "string", display_name: "string" },
+    responseJson: {
+      id: "string (uuid)",
+      email: "string",
+      display_name: "string",
+      system_role: "admin | user",
+    },
   },
 
   {
@@ -662,6 +672,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         email: "string",
         display_name: "string",
         status: "string",
+        system_role: "admin | user",
         workspace_count: "number",
         created_at: "string (iso datetime)",
       },

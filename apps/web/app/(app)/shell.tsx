@@ -8,8 +8,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { clearToken, getToken, loginRedirectReasonWhenUnauthenticated, redirectToLoginPage } from "@/lib/auth";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-
-type MeResponse = { id: string; email: string; display_name: string };
+import {
+  isAdminOnlyPath,
+  isSystemAdmin,
+  type MeWithSystemRole,
+} from "@/lib/system-role";
 
 function NavItem({
   href,
@@ -48,7 +51,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [me, setMe] = useState<MeResponse | null>(null);
+  const [me, setMe] = useState<MeWithSystemRole | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -62,10 +65,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const t = getToken();
     if (!t) return;
-    apiFetch<MeResponse>("/auth/me", { token: t })
+    apiFetch<MeWithSystemRole>("/auth/me", { token: t })
       .then(setMe)
       .catch(() => setMe(null));
   }, [router]);
+
+  const isAdmin = isSystemAdmin(me?.system_role);
+
+  useEffect(() => {
+    if (!me || isAdmin) return;
+    if (isAdminOnlyPath(pathname)) {
+      router.replace("/my/schedule");
+    }
+  }, [me, isAdmin, pathname, router]);
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -117,7 +129,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
               label="工作空间"
               active={pathname === "/workspaces" || pathname.startsWith("/workspace/")}
             />
-            <NavItem href="/member" icon="group" label="成员" active={pathname.startsWith("/member")} />
+            {isAdmin && (
+              <NavItem href="/member" icon="group" label="成员" active={pathname.startsWith("/member")} />
+            )}
             <NavItem
               href="/my/analytics"
               icon="query_stats"
@@ -125,31 +139,33 @@ export default function AppShell({ children }: { children: ReactNode }) {
               active={pathname.startsWith("/my/analytics")}
             />
 
-            <div className="pt-1">
-              <Link
-                href="/documents"
-                className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-all font-medium text-sm select-none"
-              >
-                <span className="material-symbols-outlined text-indigo-600">description</span>
-                文档
-              </Link>
-              <div className="mt-1 space-y-1">
-                <NavItem
-                  href="/documents/code"
-                  icon="code"
-                  label="代码文档"
-                  active={pathname.startsWith("/documents/code")}
-                  inset
-                />
-                <NavItem
-                  href="/documents/guide"
-                  icon="menu_book"
-                  label="使用指南"
-                  active={pathname.startsWith("/documents/guide")}
-                  inset
-                />
+            {isAdmin && (
+              <div className="pt-1">
+                <Link
+                  href="/documents"
+                  className="flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-all font-medium text-sm select-none"
+                >
+                  <span className="material-symbols-outlined text-indigo-600">description</span>
+                  文档
+                </Link>
+                <div className="mt-1 space-y-1">
+                  <NavItem
+                    href="/documents/code"
+                    icon="code"
+                    label="代码文档"
+                    active={pathname.startsWith("/documents/code")}
+                    inset
+                  />
+                  <NavItem
+                    href="/documents/guide"
+                    icon="menu_book"
+                    label="使用指南"
+                    active={pathname.startsWith("/documents/guide")}
+                    inset
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </nav>
         </div>
       </aside>

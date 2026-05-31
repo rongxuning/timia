@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.deps import get_db
-from app.models.user import User
+from app.models.user import SYSTEM_ROLE_USER, User
 from app.schemas.auth import LoginRequest, MeResponse, RegisterRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -47,13 +47,24 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         display_name=display_name,
         password_hash=hash_password(payload.password),
         status="active",
+        system_role=SYSTEM_ROLE_USER,
     )
     db.add(u)
     db.commit()
-    return MeResponse(id=str(u.id), email=u.email, display_name=u.display_name)
+    return MeResponse(
+        id=str(u.id),
+        email=u.email,
+        display_name=u.display_name,
+        system_role=u.system_role,
+    )
 
 
 @router.get("/me", response_model=MeResponse)
 def me(user: User = Depends(get_current_user)):
-    return MeResponse(id=str(user.id), email=user.email, display_name=user.display_name)
+    return MeResponse(
+        id=str(user.id),
+        email=user.email,
+        display_name=user.display_name,
+        system_role=user.system_role,
+    )
 

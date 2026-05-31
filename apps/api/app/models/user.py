@@ -7,6 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models._mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
+SYSTEM_ROLE_ADMIN = "admin"
+SYSTEM_ROLE_USER = "user"
+
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "users"
@@ -15,6 +18,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(120), unique=True, index=True, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active/disabled
+    system_role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=SYSTEM_ROLE_USER
+    )  # admin: 系统管理员; user: 普通账户
 
     workspace_memberships = relationship("WorkspaceMember", back_populates="user", cascade="all,delete-orphan")
 

@@ -8,6 +8,10 @@ import { setToken } from "@/lib/auth";
 
 type LoginResponse = { access_token: string; token_type: string };
 
+/** 本地开发默认管理员（与 apps/api/app/scripts/seed.py 一致） */
+const DEFAULT_LOGIN_EMAIL = "admin@gmail.com";
+const DEFAULT_LOGIN_PASSWORD = "admin1234";
+
 function SpeechBubble({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
@@ -81,8 +85,8 @@ function ShowcaseCard({
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("rongxuning@gmail.com");
-  const [password, setPassword] = useState("11223344");
+  const [email, setEmail] = useState(DEFAULT_LOGIN_EMAIL);
+  const [password, setPassword] = useState(DEFAULT_LOGIN_PASSWORD);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);

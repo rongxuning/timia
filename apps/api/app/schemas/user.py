@@ -8,6 +8,7 @@ class UserOut(BaseModel):
     email: str
     display_name: str
     status: str
+    system_role: str
     workspace_count: int
     created_at: datetime
 

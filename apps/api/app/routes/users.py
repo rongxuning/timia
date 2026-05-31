@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import require_system_admin
 from app.db.deps import get_db
 from app.models.project import Project
 from app.models.user import User
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def list_users(db: Session = Depends(get_db), _: User = Depends(require_system_admin)):
     rows = db.execute(
         select(
             User,
@@ -40,6 +40,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(get_current_user
                 email=u.email,
                 display_name=u.display_name,
                 status=u.status,
+                system_role=u.system_role,
                 workspace_count=int(workspace_count or 0),
                 created_at=u.created_at,
             )
@@ -51,7 +52,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(get_current_user
 def list_user_workspaces(
     user_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_system_admin),
 ):
     member_rows = db.execute(
         select(WorkspaceMember, Workspace)

@@ -10,6 +10,7 @@ type UserRow = {
   email: string;
   display_name: string;
   status: string;
+  system_role: string;
   workspace_count: number;
   created_at?: string | null;
 };
