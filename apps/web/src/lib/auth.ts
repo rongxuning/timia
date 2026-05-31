@@ -1,6 +1,4 @@
 const TOKEN_KEY = "timia_access_token";
-/** 旧版本地存储键；读取时兼容，写入新键后会清除。 */
-const TOKEN_KEY_LEGACY = "nomia_access_token";
 
 /** Set on first 401 with Authorization; cleared on successful login. Coalesces parallel 401 redirects. */
 let sessionExpiredHandled = false;
@@ -30,19 +28,15 @@ export function redirectToLoginPage(opts?: { reason?: "session-expired" | "missi
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return (
-    window.localStorage.getItem(TOKEN_KEY) ?? window.localStorage.getItem(TOKEN_KEY_LEGACY)
-  );
+  return window.localStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token: string) {
   window.localStorage.setItem(TOKEN_KEY, token);
-  window.localStorage.removeItem(TOKEN_KEY_LEGACY);
   resetAuthClientGates();
 }
 
 export function clearToken() {
   window.localStorage.removeItem(TOKEN_KEY);
-  window.localStorage.removeItem(TOKEN_KEY_LEGACY);
 }
 
