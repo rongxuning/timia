@@ -1,5 +1,5 @@
 @config "../tailwind.config.js";
-@import "tailwindcss";
+@import "../node_modules/tailwindcss/index.css";
 
 html,
 body {

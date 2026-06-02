@@ -15,6 +15,12 @@ export type ApiCatalogEntry = {
   responseJson: ApiJsonShape;
 };
 
+export type ApiUsageHit = {
+  /** 相对 apps/web 的路径 */
+  file: string;
+  line: number;
+};
+
 const authBearer = { Authorization: "Bearer <access_token>" };
 
 const workspacePath = { workspace_id: "uuid (path)" };

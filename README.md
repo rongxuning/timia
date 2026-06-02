@@ -41,7 +41,7 @@ make web
 ```
 
 ### Env
-- Copy values from `.env.example` into:
+- Copy values from `.env.local` into:
   - `apps/api/.env`
   - `apps/web/.env.local`
 

@@ -3,14 +3,8 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 
-import type { HttpMethod } from "@/lib/api-catalog";
+import type { ApiUsageHit, HttpMethod } from "@/lib/api-catalog";
 import { API_CATALOG, openApiPathToSegments } from "@/lib/api-catalog";
-
-export type ApiUsageHit = {
-  /** 相对 apps/web 的路径 */
-  file: string;
-  line: number;
-};
 
 function lineNumberAt(content: string, index: number): number {
   let n = 1;

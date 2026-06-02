@@ -6,7 +6,7 @@ dev: db
 	@echo "  make web-install && make web"
 
 db:
-	docker compose up -d db
+	docker compose -f docker-compose.local.yml up -d db
 
 UV_HTTP_TIMEOUT ?= 300
 
@@ -20,5 +20,5 @@ web-install:
 	cd apps/web && npm install
 
 web:
-	cd apps/web && npm run dev -- --port 3000
+	cd apps/web && npm run dev -- --port 3000 --webpack
 

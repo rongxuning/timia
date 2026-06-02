@@ -19,7 +19,7 @@ set -euo pipefail
 # - API docs (Swagger): http://localhost:8000/docs
 #
 # Env:
-# - Copy values from `.env.example` into:
+# - Copy values from `.env.local` into:
 #   - apps/api/.env
 #   - apps/web/.env.local
 #
