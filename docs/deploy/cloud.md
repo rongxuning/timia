@@ -488,6 +488,7 @@ export SKIP_GIT_PULL=1
 | `sha256... 0B / xx MB` 无进度 | 配置 **Docker 镜像加速**，见上文；先 `docker pull node:20-alpine` 测试 |
 | `deploy.sh` 无输出像卡死 | 多为 **web build** 或 **拉基础镜像**；用 `tmux`、`--progress=plain`、见上文 |
 | Actions SSH 失败 | 检查 `SSH_*`、`DEPLOY_PATH`、防火墙 22、密钥是否匹配实例 |
+| Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/deploy.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
 | `build` 很慢或 OOM | 升级内存；或单独 `build api` / `build web` |

@@ -25,6 +25,5 @@ jobs:
               exit 1
             fi
 
-            chmod +x deploy/deploy.sh
             export GIT_REF=main
-            ./deploy/deploy.sh
+            bash deploy/deploy.sh

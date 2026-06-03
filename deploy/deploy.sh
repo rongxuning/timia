@@ -35,20 +35,19 @@ else
   log "Step 1/4: skip git pull (SKIP_GIT_PULL=1)."
 fi
 
-DC="./deploy/dc-prod.sh"
-chmod +x "$DC"
+DC="bash $(dirname "$0")/dc-prod.sh"
 
 export BUILDKIT_PROGRESS=plain
 export COMPOSE_PROGRESS=plain
 
 log "Step 2/4: docker build api (usually a few minutes) ..."
-"$DC" build --progress=plain api
+$DC build --progress=plain api
 
 log "Step 3/4: docker build web — Next.js can take 15–40 min on 2GB RAM; output below is normal ..."
-"$DC" build --progress=plain web
+$DC build --progress=plain web
 
 log "Step 4/4: docker compose up -d ..."
-"$DC" up -d
+$DC up -d
 
 log "Deploy finished. Service status:"
-"$DC" ps
+$DC ps
