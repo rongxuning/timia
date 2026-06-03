@@ -25,10 +25,13 @@ if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
   git pull --ff-only origin "$GIT_REF"
 fi
 
+DC="./deploy/dc-prod.sh"
+chmod +x "$DC"
+
 echo "Building images on server ..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build
+"$DC" build
 
 echo "Starting stack ..."
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
+"$DC" up -d
 
-docker compose -f "$COMPOSE_FILE" ps
+"$DC" ps

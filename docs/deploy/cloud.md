@@ -39,6 +39,7 @@ flowchart LR
 | `docker-compose.prod.yml` | 生产编排 |
 | `deploy/bootstrap.sh` | **首次**初始化：clone 仓库 + 生成 `.env.prod` |
 | `deploy/deploy.sh` | `git pull` → `build` → `up -d` |
+| `deploy/dc-prod.sh` | 带 `.env.prod` 的 compose 命令（`ps` / `logs` / `build` 等） |
 | `deploy/nginx.conf` | `timia.online` HTTPS |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -117,10 +118,23 @@ git clone https://github.com/<你的用户名>/timia.git /opt/timia
 cp /opt/timia/.env.prod.example /opt/timia/.env.prod
 ```
 
-### 4. 配置 `.env.prod`
+### 4. 配置 `.env.prod`（生产只用这一份）
+
+| 环境 | 配置文件 | 位置 |
+|------|----------|------|
+| 本地开发 | `apps/api/.env`、`apps/web/.env.local` | 见 `.env.example` |
+| **生产轻量云** | **`.env.prod`** | **`/opt/timia/.env.prod`**（仓库根目录） |
+
+生产 **不需要** 在 `apps/api/`、`apps/web/` 下创建 `.env`。API 容器通过 compose 的 `env_file: .env.prod` 注入变量。
 
 ```bash
 nano /opt/timia/.env.prod
+```
+
+若文件不存在：
+
+```bash
+cp /opt/timia/.env.prod.example /opt/timia/.env.prod
 ```
 
 必填项：
@@ -145,7 +159,7 @@ Nginx 需要 `/etc/letsencrypt/live/timia.online/`。首次申请前先停 nginx
 
 ```bash
 cd /opt/timia
-docker compose -f docker-compose.prod.yml stop nginx 2>/dev/null || true
+./deploy/dc-prod.sh stop nginx 2>/dev/null || true
 
 sudo apt-get update && sudo apt-get install -y certbot
 sudo certbot certonly --standalone -d timia.online
@@ -208,12 +222,105 @@ curl -fsS https://timia.online/api/health
 
 ## 三、手动部署 / 回滚
 
+### 防止 SSH 断开导致部署中断
+
+`deploy.sh` 会在服务器上执行 `docker compose build`（尤其是 **web/Next.js**），可能耗时 **10～30+ 分钟**。SSH 断开时，前台进程通常会收到 SIGHUP 并被终止。
+
+**推荐：用 `tmux` 或 `screen` 在后台跑**
+
+```bash
+ssh root@<轻量云IP>
+cd /opt/timia
+
+# 方式 1：tmux（推荐）
+tmux new -s timia-deploy
+./deploy/deploy.sh
+# 断开会话：Ctrl+b 然后按 d
+# 重新连上后恢复：tmux attach -t timia-deploy
+```
+
+```bash
+# 方式 2：nohup + 日志文件
+cd /opt/timia
+nohup ./deploy/deploy.sh > /tmp/timia-deploy.log 2>&1 &
+tail -f /tmp/timia-deploy.log
+```
+
+未安装 tmux 时：`apt-get install -y tmux`
+
+### 执行部署
+
 SSH 登录轻量云：
 
 ```bash
 cd /opt/timia
 ./deploy/deploy.sh
 ```
+
+### SSH 断开后如何查看进度
+
+重新 SSH 登录后，在 `/opt/timia` 依次检查：
+
+**1. 部署脚本是否还在跑**
+
+```bash
+pgrep -af "deploy.sh|docker compose"
+```
+
+有输出说明仍在 build/up；没有输出说明已结束（成功或失败）。
+
+**2. 若用了 nohup，看日志**
+
+```bash
+tail -f /tmp/timia-deploy.log
+```
+
+**3. Docker 是否仍在构建**
+
+```bash
+docker ps                    # 运行中的容器
+docker ps -a --last 5      # 最近退出的容器（含 build 中间层）
+docker images | head -20   # 是否已有新构建的 api/web 镜像
+```
+
+**4. Compose 服务状态**
+
+```bash
+cd /opt/timia
+./deploy/dc-prod.sh ps
+```
+
+> 不要省略 `--env-file`：请用 `./deploy/dc-prod.sh`，不要直接 `docker compose -f docker-compose.prod.yml ps`，否则会出现 `POSTGRES_USER variable is not set` 警告且服务起不来。
+
+| 状态 | 含义 |
+|------|------|
+| 四个服务均为 `Up` | 部署很可能已成功 |
+| 无 `api`/`web` 或状态 `Exit` | build 未完成或 `up` 失败 |
+| 仅有 `db` 在跑 | 可能卡在 build 或脚本已退出 |
+
+**5. 查看服务日志（定位失败）**
+
+```bash
+./deploy/dc-prod.sh logs --tail=100 api
+./deploy/dc-prod.sh logs --tail=100 web
+```
+
+**6. 验证是否已上线**
+
+```bash
+curl -fsS https://timia.online/api/health
+```
+
+**7. 若脚本已死、状态不明 — 安全重跑**
+
+```bash
+cd /opt/timia
+tmux new -s timia-deploy
+export SKIP_GIT_PULL=1    # 若代码已是最新可跳过 pull
+./deploy/deploy.sh
+```
+
+> GitHub Actions 触发的部署同样在服务器上执行 `deploy.sh`；可在仓库 **Actions** 页查看该次 workflow 是否成功，不必保持本地 SSH 不断开。
 
 回滚到指定 commit：
 
@@ -231,28 +338,28 @@ export SKIP_GIT_PULL=1
 
 ## 四、运维
 
+生产环境统一用包装脚本（自动加载 `.env.prod`）：
+
 ```bash
 cd /opt/timia
-
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f --tail=200 api
-docker compose -f docker-compose.prod.yml logs -f --tail=200 web
-docker compose -f docker-compose.prod.yml logs -f --tail=200 nginx
-docker compose -f docker-compose.prod.yml logs -f --tail=200 db
+./deploy/dc-prod.sh ps
+./deploy/dc-prod.sh logs -f --tail=200 api
+./deploy/dc-prod.sh logs -f --tail=200 web
+./deploy/dc-prod.sh logs -f --tail=200 nginx
+./deploy/dc-prod.sh logs -f --tail=200 db
 ```
 
 仅重建某一服务：
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod build web
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d web
+./deploy/dc-prod.sh build web
+./deploy/dc-prod.sh up -d web
 ```
 
 数据库备份：
 
 ```bash
-docker compose -f docker-compose.prod.yml exec -T db \
-  pg_dump -U timia timia > "backup_$(date +%F).sql"
+./deploy/dc-prod.sh exec -T db pg_dump -U timia timia > "backup_$(date +%F).sql"
 ```
 
 ---
@@ -270,6 +377,9 @@ docker compose -f docker-compose.prod.yml exec -T db \
 | 迁移失败 | `docker compose logs api`（启动时自动 `alembic upgrade head`） |
 | HTTPS 失败 | 证书路径是否为 `/etc/letsencrypt/live/timia.online/` |
 | 外网无法访问 | 轻量云 **防火墙** 放通 80/443 |
+| SSH 断开不知道进度 | 用 `tmux`/`nohup` 部署；重连后 `pgrep`、`compose ps`、见上文「SSH 断开后如何查看进度」 |
+| `POSTGRES_* variable is not set` | 缺少 `/opt/timia/.env.prod` 或未加 `--env-file`；用 `./deploy/dc-prod.sh`，勿在 `apps/api` 下建 `.env` |
+| `ps` 无任何容器 | 尚未成功执行 `./deploy/deploy.sh`，或 build 失败；`./deploy/dc-prod.sh logs api` 排查 |
 
 ---
 
