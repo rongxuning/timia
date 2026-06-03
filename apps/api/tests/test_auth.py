@@ -16,6 +16,12 @@ def test_requires_auth_for_users_list():
     assert resp.status_code == 401
 
 
+def test_requires_auth_for_assignable_users():
+    client = TestClient(app)
+    resp = client.get("/users/assignable")
+    assert resp.status_code == 401
+
+
 def test_requires_auth_for_user_workspaces():
     client = TestClient(app)
     resp = client.get("/users/00000000-0000-0000-0000-000000000000/workspaces")

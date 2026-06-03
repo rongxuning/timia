@@ -668,6 +668,21 @@ export const API_CATALOG: ApiCatalogEntry[] = [
 
   {
     method: "GET",
+    path: "/users/assignable",
+    name: "可指派用户列表",
+    requestJson: { headers: authBearer, query: null, jsonBody: null },
+    responseJson: {
+      type: "array",
+      items: {
+        id: "string (uuid)",
+        email: "string",
+        display_name: "string",
+        status: "string",
+      },
+    },
+  },
+  {
+    method: "GET",
     path: "/users",
     name: "系统用户列表",
     requestJson: { headers: authBearer, query: null, jsonBody: null },

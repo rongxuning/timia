@@ -51,7 +51,7 @@ export default function MembersPage() {
     if (!token) return;
     const [m, u, meRes] = await Promise.all([
       apiFetch<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`, { token }),
-      apiFetch<SystemUser[]>("/users", { token }).catch(() => [] as SystemUser[]),
+      apiFetch<SystemUser[]>("/users/assignable", { token }),
       apiFetch<Me>("/auth/me", { token }).catch(() => null as any),
     ]);
     setWorkspaceMembers(m.filter((x) => x.status === "active"));

@@ -13,6 +13,15 @@ class UserOut(BaseModel):
     created_at: datetime
 
 
+class UserAssignableOut(BaseModel):
+    """Minimal user fields for workspace/project member pickers (any authenticated user)."""
+
+    id: str
+    email: str
+    display_name: str
+    status: str
+
+
 class WorkspaceBrief(BaseModel):
     id: str
     name: str

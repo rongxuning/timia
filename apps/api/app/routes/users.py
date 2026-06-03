@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_system_admin
+from app.api.deps import get_current_user, require_system_admin
 from app.db.deps import get_db
 from app.models.project import Project
 from app.models.user import User
@@ -12,6 +12,7 @@ from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.user import (
     MembershipBrief,
     ProjectBrief,
+    UserAssignableOut,
     UserOut,
     UserWorkspaceOut,
     WorkspaceBrief,
@@ -46,6 +47,26 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(require_system_a
             )
         )
     return out
+
+
+@router.get("/assignable", response_model=list[UserAssignableOut])
+def list_assignable_users(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Active users for member pickers; any logged-in user (not system admin only)."""
+    users = db.scalars(
+        select(User).where(User.status == "active").order_by(User.display_name.asc(), User.email.asc())
+    ).all()
+    return [
+        UserAssignableOut(
+            id=str(u.id),
+            email=u.email,
+            display_name=u.display_name,
+            status=u.status,
+        )
+        for u in users
+    ]
 
 
 @router.get("/{user_id}/workspaces", response_model=list[UserWorkspaceOut])
