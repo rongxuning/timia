@@ -366,8 +366,56 @@ cd /opt/timia
 
 ## 五、排障
 
+### `deploy.sh` 卡住、长时间无输出
+
+脚本会按顺序执行：**git pull → build api → build web → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**），BuildKit 默认几乎不刷屏。
+
+**先确认卡在哪一步**（另开一个 SSH 窗口）：
+
+```bash
+pgrep -af "deploy.sh|docker|npm|node"
+tail -20 /tmp/timia-deploy.log   # 若用 nohup 部署
+```
+
+| 最后一行日志 | 实际在做什么 |
+|--------------|--------------|
+| `Step 1/4: git` | 拉代码；私有库未配 Deploy Key 可能一直等（新版本会快速失败） |
+| `Step 2/4: docker build api` | 构建 API 镜像 |
+| `Step 3/4: docker build web` | 构建前端（最慢，属正常） |
+| `Step 4/4: docker compose up` | 启动容器 |
+
+**建议**：用 `tmux` 跑部署，并 `git pull` 拿到带分步日志的 `deploy.sh`：
+
+```bash
+cd /opt/timia && git pull
+tmux new -s timia-deploy
+export SKIP_GIT_PULL=1   # 代码已最新时可跳过
+./deploy/deploy.sh
+```
+
+**单独重试某一阶段**：
+
+```bash
+cd /opt/timia
+./deploy/dc-prod.sh build --progress=plain api
+./deploy/dc-prod.sh build --progress=plain web   # 最耗时
+./deploy/dc-prod.sh up -d
+```
+
+**git 阶段卡住**：检查 Deploy Key，`ssh -T git@github.com` 应成功；或临时 `export SKIP_GIT_PULL=1` 跳过。
+
+**内存不足**（build 极慢或进程被 kill）：
+
+```bash
+free -h
+dmesg | tail -20 | grep -i oom
+```
+
+可添加 2GB swap 或升级套餐后再 build。
+
 | 现象 | 处理 |
 |------|------|
+| `deploy.sh` 无输出像卡死 | 多为 **web build**；用 `tmux`、`--progress=plain`、见上文 |
 | Actions SSH 失败 | 检查 `SSH_*`、`DEPLOY_PATH`、防火墙 22、密钥是否匹配实例 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |

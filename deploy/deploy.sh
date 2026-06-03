@@ -9,6 +9,10 @@ ENV_FILE="${ENV_FILE:-.env.prod}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 GIT_REF="${GIT_REF:-main}"
 
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing $ENV_FILE — copy from .env.prod.example and fill secrets." >&2
   exit 1
@@ -19,19 +23,31 @@ if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
     echo "No .git in $ROOT — clone the repository first (see docs/deploy/cloud.md)." >&2
     exit 1
   fi
-  echo "Updating code (origin/${GIT_REF}) ..."
+  log "Step 1/4: git fetch & pull (origin/${GIT_REF}) ..."
+  export GIT_TERMINAL_PROMPT=0
+  export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=30}"
   git fetch origin "$GIT_REF"
   git checkout "$GIT_REF"
   git pull --ff-only origin "$GIT_REF"
+  log "Git update done."
+else
+  log "Step 1/4: skip git pull (SKIP_GIT_PULL=1)."
 fi
 
 DC="./deploy/dc-prod.sh"
 chmod +x "$DC"
 
-echo "Building images on server ..."
-"$DC" build
+export BUILDKIT_PROGRESS=plain
+export COMPOSE_PROGRESS=plain
 
-echo "Starting stack ..."
+log "Step 2/4: docker build api (usually a few minutes) ..."
+"$DC" build --progress=plain api
+
+log "Step 3/4: docker build web — Next.js can take 15–40 min on 2GB RAM; output below is normal ..."
+"$DC" build --progress=plain web
+
+log "Step 4/4: docker compose up -d ..."
 "$DC" up -d
 
+log "Deploy finished. Service status:"
 "$DC" ps
