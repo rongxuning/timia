@@ -5,25 +5,86 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# GitHub → 国内轻量云 SSH 常被 reset（connection reset by peer）。
+# 推荐在服务器启用轮询：sudo bash deploy/install-poll-cron.sh
+# 见 docs/deploy/cloud.md
+
 jobs:
-  deploy:
+  deploy-ssh:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
-      - name: Deploy on Lighthouse (git pull + docker build)
+      - name: Deploy via SSH (attempt 1/3)
+        id: attempt1
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          timeout: 120s
+          command_timeout: 120m
           script_stop: true
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
-
             if [[ ! -f /etc/timia/.env.prod && ! -f .env.prod ]]; then
-              echo "Create /etc/timia/.env.prod before first deploy (run deploy/bootstrap.sh)." >&2
+              echo "Create /etc/timia/.env.prod before first deploy." >&2
               exit 1
             fi
-
             export GIT_REF=main
             bash deploy/deploy.sh
+
+      - name: Deploy via SSH (attempt 2/3)
+        id: attempt2
+        if: steps.attempt1.outcome == 'failure'
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          timeout: 120s
+          command_timeout: 120m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+            export GIT_REF=main
+            bash deploy/deploy.sh
+
+      - name: Deploy via SSH (attempt 3/3)
+        id: attempt3
+        if: steps.attempt2.outcome == 'failure'
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          timeout: 120s
+          command_timeout: 120m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+            export GIT_REF=main
+            bash deploy/deploy.sh
+
+      - name: SSH deploy result
+        if: always()
+        run: |
+          if [[ "${{ steps.attempt1.outcome }}" == "success" ]] \
+            || [[ "${{ steps.attempt2.outcome }}" == "success" ]] \
+            || [[ "${{ steps.attempt3.outcome }}" == "success" ]]; then
+            echo "SSH deploy succeeded."
+            exit 0
+          fi
+          echo "::warning::SSH deploy failed (e.g. connection reset by peer)."
+          echo "Use poll deploy on the server (recommended for Lighthouse):"
+          echo "  cd /opt/timia && git pull && sudo bash deploy/install-poll-cron.sh"
+          echo "Then push to main deploys within ~3 minutes without inbound SSH."
+          exit 1

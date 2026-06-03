@@ -4,7 +4,10 @@
 
 生产环境仅使用 **腾讯云轻量应用服务器（Docker CE 镜像）**：在服务器上 `git pull`，用 **Docker Compose 本地构建** 并启动，**不使用** 容器镜像服务（TCR/CCR）。
 
-GitHub Actions 只通过 **SSH** 触发服务器上的 `deploy/deploy.sh`，不在云端构建或推送镜像。
+自动部署两种方式（二选一或同时用）：
+
+1. **轮询部署（推荐，轻量云）**：服务器每 3 分钟 `git fetch`，`main` 有新提交则执行 `deploy.sh`——**不需要** GitHub 连 SSH 进来。
+2. **GitHub Actions SSH**：push 后由 Actions SSH 执行 `deploy.sh`；从 GitHub 连国内轻量云常被 **`connection reset by peer`** 拒绝，仅作辅助。
 
 ## 架构
 
@@ -42,6 +45,8 @@ flowchart LR
 | `deploy/dc-prod.sh` | 带 `.env.prod` 的 compose 命令（`ps` / `logs` / `build` 等） |
 | `deploy/docker-mirror.sh` | 一次性配置 Docker Hub 镜像加速（国内轻量云） |
 | `deploy/fix-env-git.sh` | 取消仓库内 `.env.prod` 的 git 跟踪，避免 pull 覆盖 |
+| `deploy/poll-deploy.sh` | 检测 `origin/main` 更新并部署 |
+| `deploy/install-poll-cron.sh` | 安装每 3 分钟轮询的 cron（推荐） |
 | `deploy/nginx.conf` | `timia.online` HTTPS |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -204,7 +209,34 @@ export SKIP_GIT_PULL=1   # 代码已在本地，跳过 pull
 curl -fsS https://timia.online/api/health
 ```
 
-### 7. GitHub Actions Secrets
+### 7. 自动部署（推荐：轮询，无需 GitHub SSH）
+
+在轻量云执行一次（push 后约 **3 分钟内**自动 `git pull` + 构建）：
+
+```bash
+cd /opt/timia
+git pull
+sudo bash deploy/install-poll-cron.sh
+```
+
+查看是否在部署：
+
+```bash
+tail -f /var/log/timia-deploy-poll.log
+```
+
+手动触发检查（不等待 cron）：
+
+```bash
+cd /opt/timia
+bash deploy/poll-deploy.sh
+```
+
+**原理**：`deploy/poll-deploy.sh` 比较 `HEAD` 与 `origin/main`，有更新才跑 `deploy.sh`；用文件锁避免重复构建。
+
+启用轮询后，即使 Actions SSH 失败，**推送到 `main` 仍会自动上线**。
+
+### 8. GitHub Actions Secrets（可选 SSH 部署）
 
 仓库 **Settings → Secrets and variables → Actions**：
 
@@ -222,7 +254,10 @@ curl -fsS https://timia.online/api/health
 
 ## 二、日常部署（自动）
 
-推送到 **`main`**，或手动运行 **Actions → Deploy to Lighthouse**。
+推送到 **`main`** 后：
+
+- **已安装轮询**（推荐）：服务器约 3 分钟内自动部署，看 `tail -f /var/log/timia-deploy-poll.log`
+- **仅 Actions SSH**：在 **Actions → Deploy to Lighthouse** 查看是否成功（可能因 SSH 被重置而失败）
 
 服务器上执行流程（`deploy/deploy.sh`）：
 
@@ -487,7 +522,8 @@ export SKIP_GIT_PULL=1
 |------|------|
 | `sha256... 0B / xx MB` 无进度 | 配置 **Docker 镜像加速**，见上文；先 `docker pull node:20-alpine` 测试 |
 | `deploy.sh` 无输出像卡死 | 多为 **web build** 或 **拉基础镜像**；用 `tmux`、`--progress=plain`、见上文 |
-| Actions SSH 失败 | 检查 `SSH_*`、`DEPLOY_PATH`、防火墙 22、密钥是否匹配实例 |
+| Actions `connection reset by peer` | **启用轮询**：`sudo bash deploy/install-poll-cron.sh`（见「一、7」）；或检查防火墙 22 对 `0.0.0.0/0` 放通、Secrets 中 IP/密钥正确、本机 `ssh -i key user@IP` 能否登录 |
+| Actions SSH 失败 | 检查 `SSH_*`、`DEPLOY_PATH`、防火墙 22、密钥；或改用轮询部署 |
 | Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/deploy.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |

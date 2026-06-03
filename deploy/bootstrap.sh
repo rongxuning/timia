@@ -77,7 +77,7 @@ else
   cd "$DEPLOY_PATH"
 fi
 
-chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh deploy/fix-env-git.sh 2>/dev/null || true
+chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh deploy/fix-env-git.sh deploy/poll-deploy.sh 2>/dev/null || true
 
 # Migrate legacy env from repo root (if any)
 if [[ -f "$DEPLOY_PATH/.env.prod" && ! -f "$PROD_ENV" ]]; then
@@ -116,6 +116,9 @@ Next steps:
        export SKIP_GIT_PULL=1
        ./deploy/deploy.sh
 
-  4. GitHub Actions: add Secrets SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, DEPLOY_PATH=$DEPLOY_PATH
+  4. Auto deploy (recommended — no GitHub SSH):
+       sudo bash $DEPLOY_PATH/deploy/install-poll-cron.sh
+
+  5. Optional GitHub Actions SSH: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, DEPLOY_PATH=$DEPLOY_PATH
 
 EOF
