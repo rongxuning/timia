@@ -20,7 +20,7 @@ def list_my_items(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Items the user created or participates in, within accessible workspaces/projects."""
+    """Items the user is assignee or participant of, within accessible workspaces/projects."""
     owned_ws_subq = select(WorkspaceMember.workspace_id).where(
         WorkspaceMember.user_id == user.id,
         WorkspaceMember.status == "active",
@@ -38,7 +38,7 @@ def list_my_items(
     access = or_(Item.workspace_id.in_(owned_ws_subq), pm_exists)
 
     involved = or_(
-        Item.created_by_user_id == user.id,
+        Item.assignee_user_id == user.id,
         Item.participant_user_ids.contains([user.id]),
     )
 

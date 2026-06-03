@@ -741,7 +741,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
   {
     method: "GET",
     path: "/me/items",
-    name: "我的任务（跨空间，创建人或参与人）",
+    name: "我的任务（跨空间，负责人或参与人）",
     requestJson: { headers: authBearer, query: null, jsonBody: null },
     responseJson: {
       type: "array",

@@ -215,7 +215,7 @@ export default function MySchedulePage() {
               <div className="font-subhead text-lg text-text-primary truncate">{me?.display_name ?? "—"}</div>
               <div className="text-small text-text-secondary truncate">{me?.email ?? "—"}</div>
               <div className="text-caption text-neutral-muted">
-                仅展示你创建或参与的任务，跨工作空间聚合
+                仅展示你负责或参与的任务，跨工作空间聚合
               </div>
             </div>
           </section>
