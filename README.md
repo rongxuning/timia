@@ -41,7 +41,11 @@ make web
 ```
 
 ### Env
-- Copy values from `.env.local` into:
+- Copy values from `.env.example` into:
   - `apps/api/.env`
   - `apps/web/.env.local`
+
+### Production deploy (timia.online)
+
+See [docs/deploy/cloud.md](docs/deploy/cloud.md) — Lighthouse (Docker CE): `deploy/bootstrap.sh` then `deploy/deploy.sh` (no TCR).
 

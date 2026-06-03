@@ -1,0 +1,30 @@
+name: Deploy to Lighthouse
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on Lighthouse (git pull + docker build)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            if [[ ! -f .env.prod ]]; then
+              echo "Create .env.prod before first deploy (see .env.prod.example)." >&2
+              exit 1
+            fi
+
+            chmod +x deploy/deploy.sh
+            export GIT_REF=main
+            ./deploy/deploy.sh
