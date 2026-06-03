@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16
     restart: unless-stopped
-    env_file: .env.prod
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc-prod.sh}
     volumes:
       - timia_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,7 +15,7 @@ services:
     build:
       context: ./apps/api
     restart: unless-stopped
-    env_file: .env.prod
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc-prod.sh}
     depends_on:
       db:
         condition: service_healthy

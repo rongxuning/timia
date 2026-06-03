@@ -5,7 +5,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-ENV_FILE="${ENV_FILE:-.env.prod}"
+# shellcheck source=env-path.sh
+source "$(dirname "$0")/env-path.sh"
+
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 GIT_REF="${GIT_REF:-main}"
 
@@ -13,10 +15,9 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Missing $ENV_FILE — copy from .env.prod.example and fill secrets." >&2
-  exit 1
-fi
+ENV_FILE="$(timia_resolve_env_file "$ROOT")"
+export TIMIA_ENV_FILE="$ENV_FILE"
+log "Using env file: $ENV_FILE"
 
 if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
   if [[ ! -d .git ]]; then

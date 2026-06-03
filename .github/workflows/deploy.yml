@@ -20,8 +20,8 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
 
-            if [[ ! -f .env.prod ]]; then
-              echo "Create .env.prod before first deploy (see .env.prod.example)." >&2
+            if [[ ! -f /etc/timia/.env.prod && ! -f .env.prod ]]; then
+              echo "Create /etc/timia/.env.prod before first deploy (run deploy/bootstrap.sh)." >&2
               exit 1
             fi
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # First-time setup on Tencent Lighthouse (Docker CE).
-# Clone repo, scaffold .env.prod, print next steps.
+# Clone repo; production secrets live in /etc/timia/.env.prod (never overwritten by git pull).
 set -euo pipefail
 
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/timia}"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 REPO_URL="${1:-}"
+PROD_ENV="/etc/timia/.env.prod"
 
 usage() {
   cat <<'EOF'
@@ -21,9 +22,7 @@ Environment:
   DEPLOY_PATH    same as deploy-path (default /opt/timia)
   GIT_BRANCH     default main
 
-Examples:
-  ./bootstrap.sh https://github.com/you/timia.git
-  ./bootstrap.sh git@github.com:you/timia.git /opt/timia
+Production secrets: /etc/timia/.env.prod (outside git — git pull will not touch it)
 
 Before running (private repos):
   ssh-keygen -t ed25519 -C "timia-lighthouse" -f ~/.ssh/id_ed25519 -N ""
@@ -57,7 +56,7 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-sudo mkdir -p "$DEPLOY_PATH"
+sudo mkdir -p "$DEPLOY_PATH" /etc/timia
 if [[ "$(id -u)" -ne 0 ]]; then
   sudo chown "$USER:$USER" "$DEPLOY_PATH"
 fi
@@ -78,27 +77,37 @@ else
   cd "$DEPLOY_PATH"
 fi
 
-chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh 2>/dev/null || true
+chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh deploy/fix-env-git.sh 2>/dev/null || true
 
-if [[ ! -f .env.prod ]]; then
-  cp .env.prod.example .env.prod
-  echo "Created .env.prod from .env.prod.example"
-else
-  echo ".env.prod already exists — not overwritten"
+# Migrate legacy env from repo root (if any)
+if [[ -f "$DEPLOY_PATH/.env.prod" && ! -f "$PROD_ENV" ]]; then
+  echo "Moving $DEPLOY_PATH/.env.prod -> $PROD_ENV"
+  sudo mv "$DEPLOY_PATH/.env.prod" "$PROD_ENV"
 fi
+
+if [[ ! -f "$PROD_ENV" ]]; then
+  sudo cp .env.prod.example "$PROD_ENV"
+  echo "Created $PROD_ENV from .env.prod.example"
+else
+  echo "$PROD_ENV already exists — not overwritten"
+fi
+sudo chmod 600 "$PROD_ENV"
+
+# Ensure git never tracks or resets .env.prod inside the repo
+./deploy/fix-env-git.sh
 
 cat <<EOF
 
 Bootstrap done: $DEPLOY_PATH
 
 Next steps:
-  1. Edit secrets:
-       nano $DEPLOY_PATH/.env.prod
+  1. Edit secrets (outside git, safe from git pull):
+       sudo nano $PROD_ENV
      Set POSTGRES_PASSWORD, JWT_SECRET, and matching DATABASE_URL.
 
   2. Issue HTTPS certificate (first time only):
        cd $DEPLOY_PATH
-       docker compose -f docker-compose.prod.yml stop nginx 2>/dev/null || true
+       ./deploy/dc-prod.sh stop nginx 2>/dev/null || true
        apt-get update && apt-get install -y certbot
        certbot certonly --standalone -d timia.online
 

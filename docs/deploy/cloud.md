@@ -41,6 +41,7 @@ flowchart LR
 | `deploy/deploy.sh` | `git pull` → `build` → `up -d` |
 | `deploy/dc-prod.sh` | 带 `.env.prod` 的 compose 命令（`ps` / `logs` / `build` 等） |
 | `deploy/docker-mirror.sh` | 一次性配置 Docker Hub 镜像加速（国内轻量云） |
+| `deploy/fix-env-git.sh` | 取消仓库内 `.env.prod` 的 git 跟踪，避免 pull 覆盖 |
 | `deploy/nginx.conf` | `timia.online` HTTPS |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -116,7 +117,7 @@ cat ~/.ssh/id_ed25519.pub
 2. 若不存在则复制 `.env.prod.example` → `.env.prod`
 3. 打印后续步骤（改密钥、证书、首次 deploy）
 
-已初始化过再次执行时，只会 `git pull` 更新代码，**不会覆盖**已有 `.env.prod`。
+已初始化过再次执行时，只会 `git pull` 更新代码；密钥在 **`/etc/timia/.env.prod`**，不会被覆盖。
 
 **方式 C — 手动 clone**（不用脚本时）
 
@@ -126,24 +127,33 @@ git clone https://github.com/<你的用户名>/timia.git /opt/timia
 cp /opt/timia/.env.prod.example /opt/timia/.env.prod
 ```
 
-### 4. 配置 `.env.prod`（生产只用这一份）
+### 4. 配置生产环境变量（`/etc/timia/.env.prod`）
 
 | 环境 | 配置文件 | 位置 |
 |------|----------|------|
 | 本地开发 | `apps/api/.env`、`apps/web/.env.local` | 见 `.env.example` |
-| **生产轻量云** | **`.env.prod`** | **`/opt/timia/.env.prod`**（仓库根目录） |
+| **生产轻量云** | **`.env.prod`** | **`/etc/timia/.env.prod`**（在 git 仓库外） |
 
-生产 **不需要** 在 `apps/api/`、`apps/web/` 下创建 `.env`。API 容器通过 compose 的 `env_file: .env.prod` 注入变量。
-
-```bash
-nano /opt/timia/.env.prod
-```
-
-若文件不存在：
+**不要把密钥放在 `/opt/timia/.env.prod`**。若该文件曾被 git 跟踪，`git pull` 可能覆盖、删除或还原成模板。应使用仓库外的 `/etc/timia/.env.prod`。
 
 ```bash
-cp /opt/timia/.env.prod.example /opt/timia/.env.prod
+sudo mkdir -p /etc/timia
+sudo cp /opt/timia/.env.prod.example /etc/timia/.env.prod
+sudo nano /etc/timia/.env.prod
+sudo chmod 600 /etc/timia/.env.prod
 ```
+
+若你已有 `/opt/timia/.env.prod`，迁出仓库并修复 git：
+
+```bash
+cd /opt/timia
+git pull
+sudo mv .env.prod /etc/timia/.env.prod
+sudo chmod 600 /etc/timia/.env.prod
+./deploy/fix-env-git.sh
+```
+
+生产 **不需要** 在 `apps/api/`、`apps/web/` 下创建 `.env`。
 
 必填项：
 
@@ -487,7 +497,8 @@ export SKIP_GIT_PULL=1
 | HTTPS 失败 | 证书路径是否为 `/etc/letsencrypt/live/timia.online/` |
 | 外网无法访问 | 轻量云 **防火墙** 放通 80/443 |
 | SSH 断开不知道进度 | 用 `tmux`/`nohup` 部署；重连后 `pgrep`、`compose ps`、见上文「SSH 断开后如何查看进度」 |
-| `POSTGRES_* variable is not set` | 缺少 `/opt/timia/.env.prod` 或未加 `--env-file`；用 `./deploy/dc-prod.sh`，勿在 `apps/api` 下建 `.env` |
+| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc-prod.sh`，勿在 `apps/api` 下建 `.env` |
+| `git pull` 覆盖 `.env.prod` | 密钥改放到 **`/etc/timia/.env.prod`**，运行 `./deploy/fix-env-git.sh` |
 | `ps` 无任何容器 | 尚未成功执行 `./deploy/deploy.sh`，或 build 失败；`./deploy/dc-prod.sh logs api` 排查 |
 
 ---
@@ -505,5 +516,5 @@ export SKIP_GIT_PULL=1
 
 ## 安全说明
 
-- `.env.prod` 仅保存在服务器，勿提交 Git（已加入 `.gitignore`）。
+- 生产密钥保存在 **`/etc/timia/.env.prod`**，勿放在 git 仓库目录内，勿提交 Git。
 - 若曾泄露数据库或 JWT 密钥，请立即轮换并重启 `api`/`db`（改密码需同步 `DATABASE_URL`）。

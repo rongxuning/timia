@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-# Production docker compose wrapper — always loads /opt/timia/.env.prod
+# Production docker compose wrapper — loads env from /etc/timia/.env.prod (outside git).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-ENV_FILE="${ENV_FILE:-.env.prod}"
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+# shellcheck source=env-path.sh
+source "$(dirname "$0")/env-path.sh"
 
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Missing $ROOT/$ENV_FILE" >&2
-  echo "Copy .env.prod.example and fill secrets (production does not use apps/api/.env)." >&2
-  exit 1
-fi
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+ENV_FILE="$(timia_resolve_env_file "$ROOT")"
+export TIMIA_ENV_FILE="$ENV_FILE"
 
 exec docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
