@@ -78,7 +78,7 @@ else
   cd "$DEPLOY_PATH"
 fi
 
-chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh 2>/dev/null || true
+chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh 2>/dev/null || true
 
 if [[ ! -f .env.prod ]]; then
   cp .env.prod.example .env.prod

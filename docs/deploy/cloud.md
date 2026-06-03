@@ -40,6 +40,7 @@ flowchart LR
 | `deploy/bootstrap.sh` | **首次**初始化：clone 仓库 + 生成 `.env.prod` |
 | `deploy/deploy.sh` | `git pull` → `build` → `up -d` |
 | `deploy/dc-prod.sh` | 带 `.env.prod` 的 compose 命令（`ps` / `logs` / `build` 等） |
+| `deploy/docker-mirror.sh` | 一次性配置 Docker Hub 镜像加速（国内轻量云） |
 | `deploy/nginx.conf` | `timia.online` HTTPS |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -68,6 +69,13 @@ flowchart LR
 ```bash
 docker --version
 docker compose version
+```
+
+**国内轻量云建议立刻配置镜像加速**（避免 build 时 `0B / xxMB` 卡住）：
+
+```bash
+sudo /opt/timia/deploy/docker-mirror.sh
+# 若仓库尚未 clone，见下文 bootstrap 后再执行
 ```
 
 ### 2. DNS
@@ -413,9 +421,62 @@ dmesg | tail -20 | grep -i oom
 
 可添加 2GB swap 或升级套餐后再 build。
 
+### 拉取基础镜像 `0B / 25MB` 不动（Docker Hub 很慢）
+
+构建日志里出现类似：
+
+```text
+=> => sha256:dc53ac... 0B / 25.15MB
+```
+
+说明正在从 **Docker Hub** 下载基础镜像层（如 `node:20-alpine`、`python:3.12-slim`），国内轻量云访问 Docker Hub 经常极慢或像卡住。**不是** 你的业务代码问题。
+
+**处理：配置镜像加速（一次性）**
+
+在轻量云 SSH 执行（需 root）：
+
+```bash
+cd /opt/timia
+git pull
+sudo chmod +x deploy/docker-mirror.sh
+sudo ./deploy/docker-mirror.sh
+```
+
+或手动写入 `/etc/docker/daemon.json` 后 `sudo systemctl restart docker`：
+
+```json
+{
+  "registry-mirrors": [
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.m.daocloud.io"
+  ]
+}
+```
+
+**验证能否拉镜像**（应有进度、能完成）：
+
+```bash
+docker pull node:20-alpine
+docker pull python:3.12-slim
+docker pull postgres:16
+docker pull nginx:alpine
+```
+
+通过后再部署：
+
+```bash
+cd /opt/timia
+tmux new -s timia-deploy
+export SKIP_GIT_PULL=1
+./deploy/deploy.sh
+```
+
+若仍卡在 `0B`：检查轻量云 **带宽/流量** 是否用尽，或换时段重试；必要时在控制台重启实例后再 `docker pull`。
+
 | 现象 | 处理 |
 |------|------|
-| `deploy.sh` 无输出像卡死 | 多为 **web build**；用 `tmux`、`--progress=plain`、见上文 |
+| `sha256... 0B / xx MB` 无进度 | 配置 **Docker 镜像加速**，见上文；先 `docker pull node:20-alpine` 测试 |
+| `deploy.sh` 无输出像卡死 | 多为 **web build** 或 **拉基础镜像**；用 `tmux`、`--progress=plain`、见上文 |
 | Actions SSH 失败 | 检查 `SSH_*`、`DEPLOY_PATH`、防火墙 22、密钥是否匹配实例 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
