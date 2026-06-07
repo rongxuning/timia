@@ -47,6 +47,8 @@ flowchart LR
 | `deploy/fix-env-git.sh` | 取消仓库内 `.env.prod` 的 git 跟踪，避免 pull 覆盖 |
 | `deploy/poll-deploy.sh` | 检测 `origin/main` 更新并部署 |
 | `deploy/install-poll-cron.sh` | 安装每 3 分钟轮询的 cron（推荐） |
+| `deploy/quick.sh` | 快更：拉代码 + 重启，不 build |
+| `deploy/git-update.sh` | 快速 `git fetch` + `reset --hard` |
 | `deploy/nginx.conf` | `timia.online` HTTPS |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -253,6 +255,20 @@ bash deploy/poll-deploy.sh
 ---
 
 ## 二、日常部署（自动）
+
+### 部署模式（缩短耗时）
+
+默认 **`smart`**：只拉代码，**仅当 `apps/api` 或 `apps/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
+
+| 命令 | 耗时 | 适用 |
+|------|------|------|
+| `bash deploy/deploy.sh` | 智能最短 | 日常 push 后（默认 smart） |
+| `bash deploy/quick.sh` | 最快（秒级～1 分钟） | 只改了配置/重启，或镜像已是最新 |
+| `DEPLOY_MODE=full bash deploy/deploy.sh` | 最慢（全量 build） | 依赖升级、构建异常、首次部署 |
+| `DEPLOY_MODE=api bash deploy/deploy.sh` | 中等 | 只改了后端 |
+| `DEPLOY_MODE=web bash deploy/deploy.sh` | 慢 | 只改了前端 |
+
+`git fetch + reset` 已替代 `git pull`，一般更快。
 
 推送到 **`main`** 后：
 
@@ -527,7 +543,8 @@ export SKIP_GIT_PULL=1
 | Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/deploy.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
-| `build` 很慢或 OOM | 升级内存；或单独 `build api` / `build web` |
+| `build` 很慢或 OOM | 用 **`smart`** / `quick.sh`；只改 api 用 `DEPLOY_MODE=api`；升级内存 |
+| 每次部署都要 build web | 确认用默认 `smart`；全量才用 `DEPLOY_MODE=full` |
 | CORS 错误 | `.env.prod` 中 `CORS_ORIGINS=https://timia.online` |
 | 前端 API 地址错误 | 修改 `NEXT_PUBLIC_API_BASE_URL` 后必须 **`build web`** 再 `up` |
 | 迁移失败 | `docker compose logs api`（启动时自动 `alembic upgrade head`） |

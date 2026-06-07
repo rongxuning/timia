@@ -40,5 +40,5 @@ if [[ "$LOCAL" == "$REMOTE" ]]; then
 fi
 
 log "New commit on origin/${GIT_REF}: ${LOCAL:0:7} -> ${REMOTE:0:7}, deploying ..."
-bash deploy/deploy.sh >>"$LOG_FILE" 2>&1
+DEPLOY_MODE="${DEPLOY_MODE:-smart}" bash deploy/deploy.sh >>"$LOG_FILE" 2>&1
 log "Deploy finished."

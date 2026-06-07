@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Run on the Lighthouse server: /opt/timia/deploy/deploy.sh
+#
+# DEPLOY_MODE:
+#   smart  — only build api/web when those paths changed (default)
+#   quick  — git update + up -d, no build
+#   full   — always build api + web
+#   api    — build api only
+#   web    — build web only
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,6 +17,7 @@ source "$(dirname "$0")/env-path.sh"
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 GIT_REF="${GIT_REF:-main}"
+DEPLOY_MODE="${DEPLOY_MODE:-smart}"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -18,35 +26,88 @@ log() {
 ENV_FILE="$(timia_resolve_env_file "$ROOT")"
 export TIMIA_ENV_FILE="$ENV_FILE"
 log "Using env file: $ENV_FILE"
+log "Deploy mode: $DEPLOY_MODE"
 
+PREV_HEAD=""
 if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
   if [[ ! -d .git ]]; then
     echo "No .git in $ROOT — clone the repository first (see docs/deploy/cloud.md)." >&2
     exit 1
   fi
-  log "Step 1/4: git fetch & pull (origin/${GIT_REF}) ..."
-  export GIT_TERMINAL_PROMPT=0
-  export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=30}"
-  git fetch origin "$GIT_REF"
-  git checkout "$GIT_REF"
-  git pull --ff-only origin "$GIT_REF"
-  log "Git update done."
+  log "Step 1: git fetch & sync (origin/${GIT_REF}) ..."
+  PREV_HEAD="$(bash "$(dirname "$0")/git-update.sh")"
+  log "Git update done ($(echo "$PREV_HEAD" | cut -c1-7) -> $(git rev-parse --short HEAD))."
 else
-  log "Step 1/4: skip git pull (SKIP_GIT_PULL=1)."
+  log "Step 1: skip git (SKIP_GIT_PULL=1)."
+  PREV_HEAD="$(git rev-parse HEAD)"
 fi
 
 DC="bash $(dirname "$0")/dc-prod.sh"
-
 export BUILDKIT_PROGRESS=plain
 export COMPOSE_PROGRESS=plain
 
-log "Step 2/4: docker build api (usually a few minutes) ..."
-$DC build --progress=plain api
+BUILD_API=0
+BUILD_WEB=0
 
-log "Step 3/4: docker build web — Next.js can take 15–40 min on 2GB RAM; output below is normal ..."
-$DC build --progress=plain web
+case "$DEPLOY_MODE" in
+  full)
+    BUILD_API=1
+    BUILD_WEB=1
+    ;;
+  quick)
+    BUILD_API=0
+    BUILD_WEB=0
+    ;;
+  api)
+    BUILD_API=1
+    ;;
+  web)
+    BUILD_WEB=1
+    ;;
+  smart)
+    CUR_HEAD="$(git rev-parse HEAD)"
+    if [[ "$PREV_HEAD" == "$CUR_HEAD" ]]; then
+      log "Already up to date — nothing to build."
+      $DC up -d
+      $DC ps
+      exit 0
+    fi
+    CHANGED="$(git diff --name-only "$PREV_HEAD" "$CUR_HEAD")"
+    if echo "$CHANGED" | grep -qE '^apps/api/'; then
+      BUILD_API=1
+    fi
+    if echo "$CHANGED" | grep -qE '^apps/web/'; then
+      BUILD_WEB=1
+    fi
+    if echo "$CHANGED" | grep -qE '^(docker-compose\.prod\.yml|deploy/nginx\.conf)'; then
+      BUILD_API=1
+      BUILD_WEB=1
+    fi
+    if [[ "$BUILD_API" -eq 0 && "$BUILD_WEB" -eq 0 ]]; then
+      log "No api/web changes in: $(echo "$CHANGED" | tr '\n' ' ')"
+      log "Skip build — restart containers only."
+    fi
+    ;;
+  *)
+    echo "Unknown DEPLOY_MODE=$DEPLOY_MODE (use smart|quick|full|api|web)" >&2
+    exit 2
+    ;;
+esac
 
-log "Step 4/4: docker compose up -d ..."
+STEP=2
+if [[ "$BUILD_API" -eq 1 ]]; then
+  log "Step ${STEP}: docker build api ..."
+  $DC build --progress=plain api
+  STEP=$((STEP + 1))
+fi
+
+if [[ "$BUILD_WEB" -eq 1 ]]; then
+  log "Step ${STEP}: docker build web (Next.js may take 15–40 min on 2GB RAM) ..."
+  $DC build --progress=plain web
+  STEP=$((STEP + 1))
+fi
+
+log "Step ${STEP}: docker compose up -d ..."
 $DC up -d
 
 log "Deploy finished. Service status:"

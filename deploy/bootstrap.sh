@@ -77,7 +77,7 @@ else
   cd "$DEPLOY_PATH"
 fi
 
-chmod +x deploy/deploy.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh deploy/fix-env-git.sh deploy/poll-deploy.sh 2>/dev/null || true
+chmod +x deploy/deploy.sh deploy/quick.sh deploy/git-update.sh deploy/bootstrap.sh deploy/dc-prod.sh deploy/docker-mirror.sh deploy/fix-env-git.sh deploy/poll-deploy.sh 2>/dev/null || true
 
 # Migrate legacy env from repo root (if any)
 if [[ -f "$DEPLOY_PATH/.env.prod" && ! -f "$PROD_ENV" ]]; then
