@@ -17,5 +17,7 @@ apps/web/.next/
 apps/web/.env.local
 
 .env.prod
+.env.pack
+deploy/dist/
 apps/web/tsconfig.tsbuildinfo
 

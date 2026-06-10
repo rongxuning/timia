@@ -12,6 +12,7 @@ services:
       retries: 5
 
   api:
+    image: timia-api:prod
     build:
       context: ./apps/api
     restart: unless-stopped
@@ -23,6 +24,7 @@ services:
       - "8000"
 
   web:
+    image: timia-web:prod
     build:
       context: ./apps/web
       args:

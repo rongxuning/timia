@@ -47,5 +47,5 @@ make web
 
 ### Production deploy (timia.online)
 
-See [docs/deploy/cloud.md](docs/deploy/cloud.md) — Lighthouse (Docker CE): `deploy/bootstrap.sh` then `deploy/deploy.sh` (no TCR).
+See [docs/deploy/cloud.md](docs/deploy/cloud.md) — Lighthouse deploy; fastest path: `deploy/pack-local.sh` + `deploy/upload-to-server.sh`.
 

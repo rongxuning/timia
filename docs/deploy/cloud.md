@@ -49,6 +49,9 @@ flowchart LR
 | `deploy/install-poll-cron.sh` | 安装每 3 分钟轮询的 cron（推荐） |
 | `deploy/quick.sh` | 快更：拉代码 + 重启，不 build |
 | `deploy/git-update.sh` | 快速 `git fetch` + `reset --hard` |
+| `deploy/pack-local.sh` | 本机构建并打包 `timia-api`/`timia-web` 镜像 |
+| `deploy/upload-to-server.sh` | 本机 scp 上传并在服务器安装 |
+| `deploy/install-images.sh` | 服务器加载镜像包并重启 |
 | `deploy/nginx.conf` | `timia.online` HTTPS |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -269,6 +272,46 @@ bash deploy/poll-deploy.sh
 | `DEPLOY_MODE=web bash deploy/deploy.sh` | 慢 | 只改了前端 |
 
 `git fetch + reset` 已替代 `git pull`，一般更快。
+
+### 本地打包上传到服务器（最快，推荐 Mac/本机构建）
+
+不在轻量云上 `docker build`，在本机打好镜像再上传，服务器 **秒级** 加载并重启。
+
+**本机（项目根目录）**：
+
+```bash
+cp .env.pack.example .env.pack
+bash deploy/pack-local.sh
+# 生成 deploy/dist/timia-images.tar.gz
+
+# 上传到轻量云并安装（需能 ssh 登录）
+export SSH_HOST=<公网IP>
+export SSH_USER=ubuntu
+export DEPLOY_PATH=/opt/timia
+bash deploy/upload-to-server.sh
+```
+
+**Apple Silicon Mac** 必须打 **amd64** 镜像（轻量云多为 x86）：
+
+```bash
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+bash deploy/pack-local.sh
+```
+
+**仅手动上传**（不用 upload 脚本）：
+
+```bash
+scp deploy/dist/timia-images.tar.gz ubuntu@<IP>:/tmp/
+ssh ubuntu@<IP> "cd /opt/timia && bash deploy/install-images.sh /tmp/timia-images.tar.gz"
+```
+
+| 步骤 | 在哪执行 |
+|------|----------|
+| `pack-local.sh` | 本机 |
+| `upload-to-server.sh` / `scp` | 本机 → 服务器 |
+| `install-images.sh` | 服务器（加载镜像 + `up -d --no-build`） |
+
+服务器仍用 `/etc/timia/.env.prod` 跑 `db`/`nginx`；只替换 `api`/`web` 镜像。
 
 推送到 **`main`** 后：
 
