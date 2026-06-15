@@ -3,10 +3,21 @@
 Daily management web app (MVP-1): login, workspaces, members (manual), projects, items, comments, activity log.
 
 ### Monorepo layout
-- `apps/web`: Next.js web
-- `apps/api`: FastAPI API (uv)
+- `codes/web`: Next.js web
+- `codes/api`: FastAPI API (uv)
+- `codes/app`: native client placeholder (iOS, future)
 
 ### Local dev
+
+#### Quick start
+
+```bash
+make local          # Postgres in Docker
+make api-install && make api   # terminal 1
+make web-install && make web   # terminal 2
+make verify         # smoke check API (+ Web if running)
+make codegen        # export OpenAPI → src/types/api/generated.ts (after API changes)
+```
 
 #### 1) Start Postgres
 
@@ -24,7 +35,7 @@ make api
 If you renamed or moved this repo, delete the stale virtualenv and reinstall:
 
 ```bash
-rm -rf apps/api/.venv && make api-install
+rm -rf codes/api/.venv && make api-install
 ```
 
 If `uv sync` times out downloading packages (e.g. `cryptography`), use a PyPI mirror:
@@ -42,8 +53,8 @@ make web
 
 ### Env
 - Copy values from `.env.example` into:
-  - `apps/api/.env`
-  - `apps/web/.env.local`
+  - `codes/api/.env`
+  - `codes/web/.env.local`
 
 ### Production deploy (timia.online)
 

@@ -134,7 +134,7 @@
 
 ### 前端（Next.js app router）
 
-- 新增页面 `apps/web/app/(app)/member/page.tsx`
+- 新增页面 `codes/web/app/(app)/member/page.tsx`
 - 在 `AppShell` 左侧导航新增“分析”分组 + 子项 `Member`
 - 页面交互：
   - 首屏 `apiFetch("/users")`

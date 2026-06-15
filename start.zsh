@@ -7,7 +7,7 @@ set -euo pipefail
 #
 #   make db
 #   make api-install
-#   cd apps/api && PYTHONPATH=. uv run alembic upgrade head
+#   cd codes/api && PYTHONPATH=. uv run alembic upgrade head
 #   make api
 #
 #   make web-install
@@ -20,8 +20,8 @@ set -euo pipefail
 #
 # Env:
 # - Copy values from `.env.local` into:
-#   - apps/api/.env
-#   - apps/web/.env.local
+#   - codes/api/.env
+#   - codes/web/.env.local
 #
 # Notes:
 # - If Alembic fails with "No module named 'app'", run it with `PYTHONPATH=.` as above.
@@ -60,7 +60,7 @@ case "$cmd" in
     make db
     ;;
   migrate)
-    (cd apps/api && PYTHONPATH=. uv run alembic upgrade head)
+    (cd codes/api && PYTHONPATH=. uv run alembic upgrade head)
     ;;
   *)
     echo "Unknown command: $cmd" >&2

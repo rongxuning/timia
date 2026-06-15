@@ -32,7 +32,7 @@ flowchart LR
 
 | 组件 | 说明 |
 |------|------|
-| `api` / `web` | 在轻量云上 `docker compose build`（见 `apps/*/Dockerfile`） |
+| `api` / `web` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
 | `db` | 官方 `postgres:16` 镜像，数据卷持久化 |
 | `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`） |
 
@@ -41,18 +41,15 @@ flowchart LR
 | `.github/workflows/deploy.yml` | push `main` 后 SSH 执行部署 |
 | `docker-compose.prod.yml` | 生产编排 |
 | `deploy/bootstrap.sh` | **首次**初始化：clone 仓库 + 生成 `.env.prod` |
-| `deploy/deploy.sh` | `git pull` → `build` → `up -d` |
-| `deploy/dc-prod.sh` | 带 `.env.prod` 的 compose 命令（`ps` / `logs` / `build` 等） |
+| `deploy/prod/deploy.sh` | `git pull` → `build` → `up -d`（`deploy/deploy.sh` 为兼容入口） |
+| `deploy/prod/dc.sh` | 带 `.env.prod` 的 compose 命令（`deploy/dc-prod.sh` 为兼容入口） |
 | `deploy/docker-mirror.sh` | 一次性配置 Docker Hub 镜像加速（国内轻量云） |
 | `deploy/fix-env-git.sh` | 取消仓库内 `.env.prod` 的 git 跟踪，避免 pull 覆盖 |
 | `deploy/poll-deploy.sh` | 检测 `origin/main` 更新并部署 |
 | `deploy/install-poll-cron.sh` | 安装每 3 分钟轮询的 cron（推荐） |
 | `deploy/quick.sh` | 快更：拉代码 + 重启，不 build |
 | `deploy/git-update.sh` | 快速 `git fetch` + `reset --hard` |
-| `deploy/pack-local.sh` | 本机构建并打包 `timia-api`/`timia-web` 镜像 |
-| `deploy/upload-to-server.sh` | 本机 scp 上传并在服务器安装 |
-| `deploy/install-images.sh` | 服务器加载镜像包并重启 |
-| `deploy/nginx.conf` | `timia.online` HTTPS |
+| `deploy/prod/nginx.conf` | `timia.online` HTTPS（compose 挂载此路径） |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
 ---
@@ -141,7 +138,7 @@ cp /opt/timia/.env.prod.example /opt/timia/.env.prod
 
 | 环境 | 配置文件 | 位置 |
 |------|----------|------|
-| 本地开发 | `apps/api/.env`、`apps/web/.env.local` | 见 `.env.example` |
+| 本地开发 | `codes/api/.env`、`codes/web/.env.local` | 见 `.env.example` |
 | **生产轻量云** | **`.env.prod`** | **`/etc/timia/.env.prod`**（在 git 仓库外） |
 
 **不要把密钥放在 `/opt/timia/.env.prod`**。若该文件曾被 git 跟踪，`git pull` 可能覆盖、删除或还原成模板。应使用仓库外的 `/etc/timia/.env.prod`。
@@ -163,7 +160,7 @@ sudo chmod 600 /etc/timia/.env.prod
 ./deploy/fix-env-git.sh
 ```
 
-生产 **不需要** 在 `apps/api/`、`apps/web/` 下创建 `.env`。
+生产 **不需要** 在 `codes/api/`、`codes/web/` 下创建 `.env`。
 
 必填项：
 
@@ -261,7 +258,7 @@ bash deploy/poll-deploy.sh
 
 ### 部署模式（缩短耗时）
 
-默认 **`smart`**：只拉代码，**仅当 `apps/api` 或 `apps/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
+默认 **`smart`**：只拉代码，**仅当 `codes/api` 或 `codes/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
 
 | 命令 | 耗时 | 适用 |
 |------|------|------|
@@ -272,46 +269,6 @@ bash deploy/poll-deploy.sh
 | `DEPLOY_MODE=web bash deploy/deploy.sh` | 慢 | 只改了前端 |
 
 `git fetch + reset` 已替代 `git pull`，一般更快。
-
-### 本地打包上传到服务器（最快，推荐 Mac/本机构建）
-
-不在轻量云上 `docker build`，在本机打好镜像再上传，服务器 **秒级** 加载并重启。
-
-**本机（项目根目录）**：
-
-```bash
-cp .env.pack.example .env.pack
-bash deploy/pack-local.sh
-# 生成 deploy/dist/timia-images.tar.gz
-
-# 上传到轻量云并安装（需能 ssh 登录）
-export SSH_HOST=<公网IP>
-export SSH_USER=ubuntu
-export DEPLOY_PATH=/opt/timia
-bash deploy/upload-to-server.sh
-```
-
-**Apple Silicon Mac** 必须打 **amd64** 镜像（轻量云多为 x86）：
-
-```bash
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-bash deploy/pack-local.sh
-```
-
-**仅手动上传**（不用 upload 脚本）：
-
-```bash
-scp deploy/dist/timia-images.tar.gz ubuntu@<IP>:/tmp/
-ssh ubuntu@<IP> "cd /opt/timia && bash deploy/install-images.sh /tmp/timia-images.tar.gz"
-```
-
-| 步骤 | 在哪执行 |
-|------|----------|
-| `pack-local.sh` | 本机 |
-| `upload-to-server.sh` / `scp` | 本机 → 服务器 |
-| `install-images.sh` | 服务器（加载镜像 + `up -d --no-build`） |
-
-服务器仍用 `/etc/timia/.env.prod` 跑 `db`/`nginx`；只替换 `api`/`web` 镜像。
 
 推送到 **`main`** 后：
 
@@ -594,7 +551,7 @@ export SKIP_GIT_PULL=1
 | HTTPS 失败 | 证书路径是否为 `/etc/letsencrypt/live/timia.online/` |
 | 外网无法访问 | 轻量云 **防火墙** 放通 80/443 |
 | SSH 断开不知道进度 | 用 `tmux`/`nohup` 部署；重连后 `pgrep`、`compose ps`、见上文「SSH 断开后如何查看进度」 |
-| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc-prod.sh`，勿在 `apps/api` 下建 `.env` |
+| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc-prod.sh`，勿在 `codes/api` 下建 `.env` |
 | `git pull` 覆盖 `.env.prod` | 密钥改放到 **`/etc/timia/.env.prod`**，运行 `./deploy/fix-env-git.sh` |
 | `ps` 无任何容器 | 尚未成功执行 `./deploy/deploy.sh`，或 build 失败；`./deploy/dc-prod.sh logs api` 排查 |
 

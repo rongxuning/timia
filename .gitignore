@@ -5,19 +5,16 @@
 *.py[cod]
 *.pyc
 
-apps/api/.venv/
-apps/api/__pycache__/
-apps/api/.pytest_cache/
-apps/api/.ruff_cache/
-apps/api/.mypy_cache/
-apps/api/.env
+codes/api/.venv/
+codes/api/__pycache__/
+codes/api/.pytest_cache/
+codes/api/.ruff_cache/
+codes/api/.mypy_cache/
+codes/api/.env
 
-apps/web/node_modules/
-apps/web/.next/
-apps/web/.env.local
+codes/web/node_modules/
+codes/web/.next/
+codes/web/.env.local
 
 .env.prod
-.env.pack
-deploy/dist/
-apps/web/tsconfig.tsbuildinfo
-
+codes/web/tsconfig.tsbuildinfo

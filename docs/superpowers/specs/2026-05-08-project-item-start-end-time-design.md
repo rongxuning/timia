@@ -4,7 +4,7 @@ On the Project detail page (`/workspace/[workspaceId]/projects/[projectId]`), ta
 
 ## Scope
 
-- Affects Project detail page task creation + edit drawer UI (`apps/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`).
+- Affects Project detail page task creation + edit drawer UI (`codes/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`).
 - Uses existing backend fields: `start_at`, `end_at` (already in DB/model/schema).
 - **Remove `due_at` from web + API + DB** (fully schedule-driven by `start_at`/`end_at`).
 - Calendar displays tasks **only** based on `start_at` (date part). No fallback to `due_at`.
