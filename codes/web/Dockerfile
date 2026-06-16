@@ -1,20 +1,22 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-ARG NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-
 COPY package.json package-lock.json ./
-RUN npm ci
-
-ARG BUILD_REVISION=local
-RUN echo "web revision: ${BUILD_REVISION}"
+RUN npm config set registry https://registry.npmmirror.com \
+  && npm config set fetch-timeout 600000 \
+  && npm ci --no-fund --no-audit --loglevel=info
 
 COPY . .
-RUN npm run build
 
-FROM node:20-alpine AS runner
+# Build args must sit immediately before `npm run build` so URL/revision changes bust cache.
+ARG NEXT_PUBLIC_API_BASE_URL
+ARG BUILD_REVISION=local
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+RUN echo "web build revision=${BUILD_REVISION} api=${NEXT_PUBLIC_API_BASE_URL}" \
+  && npm run build
+
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
