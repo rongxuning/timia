@@ -1,40 +1,18 @@
 #!/usr/bin/env bash
-# Server deploy & setup.
-#   bash deploy/deploy.sh                         # git sync → smart build → up -d
-#   bash deploy/deploy.sh bootstrap <repo-url>    # first-time Lighthouse setup
-#   bash deploy/deploy.sh poll                    # cron: deploy if origin/main changed
-#   sudo bash deploy/deploy.sh install-cron       # install poll cron (every 3 min)
+# Server-side deploy (run on production host): git sync → smart build → up -d
+#   bash deploy/local.sh                         # default deploy
+#   bash deploy/local.sh bootstrap <repo-url>    # first-time setup
+#   bash deploy/local.sh poll                    # cron: deploy if origin/main changed
+#   sudo bash deploy/local.sh install-cron       # install poll cron (every 3 min)
 #
 # Env: DEPLOY_MODE=smart|quick|full|core-service|web  SKIP_GIT_PULL=1  GIT_REF=main
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=_common.sh
+source "$SCRIPT_DIR/_common.sh"
 cd "$ROOT"
-
-timia_resolve_env_file() {
-  local root="${1:-.}"
-  if [[ -n "${ENV_FILE:-}" ]]; then
-    [[ -f "$ENV_FILE" ]] && { echo "$ENV_FILE"; return 0; }
-    echo "ENV_FILE is set but missing: $ENV_FILE" >&2
-    return 1
-  fi
-  if [[ -f /etc/timia/.env.prod ]]; then
-    echo /etc/timia/.env.prod
-    return 0
-  fi
-  if [[ -f "$root/.env.prod" ]]; then
-    echo "$root/.env.prod"
-    return 0
-  fi
-  echo "No production env file. Run: bash deploy/deploy.sh bootstrap <repo-url>" >&2
-  echo "  or: sudo cp .env.prod.example /etc/timia/.env.prod && nano /etc/timia/.env.prod" >&2
-  return 1
-}
-
-log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
-}
 
 git_sync() {
   local ref="${GIT_REF:-main}"
@@ -49,27 +27,26 @@ git_sync() {
 }
 
 cmd_deploy() {
-  local compose_file="${COMPOSE_FILE:-docker-compose.prod.yml}"
   local git_ref="${GIT_REF:-main}"
   local deploy_mode="${DEPLOY_MODE:-smart}"
   local env_file prev_head dc
 
   env_file="$(timia_resolve_env_file "$ROOT")"
   export TIMIA_ENV_FILE="$env_file"
-  log "Using env file: $env_file"
-  log "Deploy mode: $deploy_mode"
+  timia_log "Using env file: $env_file"
+  timia_log "Deploy mode: $deploy_mode"
 
   prev_head=""
   if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
     if [[ ! -d .git ]]; then
-      echo "No .git in $ROOT — clone first: bash deploy/deploy.sh bootstrap <repo-url>" >&2
+      echo "No .git in $ROOT — clone first: bash deploy/local.sh bootstrap <repo-url>" >&2
       exit 1
     fi
-    log "Step 1: git fetch & sync (origin/${git_ref}) ..."
+    timia_log "Step 1: git fetch & sync (origin/${git_ref}) ..."
     prev_head="$(git_sync)"
-    log "Git update done ($(echo "$prev_head" | cut -c1-7) -> $(git rev-parse --short HEAD))."
+    timia_log "Git update done ($(echo "$prev_head" | cut -c1-7) -> $(git rev-parse --short HEAD))."
   else
-    log "Step 1: skip git (SKIP_GIT_PULL=1)."
+    timia_log "Step 1: skip git (SKIP_GIT_PULL=1)."
     prev_head="$(git rev-parse HEAD)"
   fi
 
@@ -87,7 +64,7 @@ cmd_deploy() {
     smart)
       cur="$(git rev-parse HEAD)"
       if [[ "$prev_head" == "$cur" ]]; then
-        log "Already up to date — nothing to build."
+        timia_log "Already up to date — nothing to build."
         $dc up -d
         $dc ps
         return 0
@@ -107,19 +84,19 @@ cmd_deploy() {
   esac
 
   if [[ "$build_core" -eq 1 ]]; then
-    log "Step ${step}: docker build core-service ..."
+    timia_log "Step ${step}: docker build core-service ..."
     $dc build --progress=plain core-service
     step=$((step + 1))
   fi
   if [[ "$build_web" -eq 1 ]]; then
-    log "Step ${step}: docker build web ..."
+    timia_log "Step ${step}: docker build web ..."
     $dc build --progress=plain web
     step=$((step + 1))
   fi
 
-  log "Step ${step}: docker compose up -d ..."
+  timia_log "Step ${step}: docker compose up -d ..."
   $dc up -d
-  log "Deploy finished. Service status:"
+  timia_log "Deploy finished. Service status:"
   $dc ps
 }
 
@@ -131,7 +108,7 @@ cmd_bootstrap() {
 
   if [[ -z "$repo_url" ]]; then
     cat <<'EOF' >&2
-Usage: bash deploy/deploy.sh bootstrap <git-repo-url> [deploy-path]
+Usage: bash deploy/local.sh bootstrap <git-repo-url> [deploy-path]
   Production secrets: /etc/timia/.env.prod (outside git)
 EOF
     exit 2
@@ -188,8 +165,8 @@ Bootstrap done: $deploy_path
 Next steps:
   1. sudo nano $prod_env
   2. cd $deploy_path && ./deploy/dc.sh stop nginx 2>/dev/null; certbot certonly --standalone -d timia.online
-  3. cd $deploy_path && SKIP_GIT_PULL=1 ./deploy/deploy.sh
-  4. sudo bash $deploy_path/deploy/deploy.sh install-cron
+  3. cd $deploy_path && SKIP_GIT_PULL=1 ./deploy/local.sh
+  4. sudo bash $deploy_path/deploy/local.sh install-cron
 
 EOF
 }
@@ -222,7 +199,7 @@ cmd_poll() {
   [[ "$local_head" == "$remote_head" ]] && exit 0
 
   poll_log "New commit on origin/${git_ref}: ${local_head:0:7} -> ${remote_head:0:7}, deploying ..."
-  DEPLOY_MODE="${DEPLOY_MODE:-smart}" bash "$SCRIPT_DIR/deploy.sh" >>"$log_file" 2>&1
+  DEPLOY_MODE="${DEPLOY_MODE:-smart}" bash "$SCRIPT_DIR/local.sh" >>"$log_file" 2>&1
   poll_log "Deploy finished."
 }
 
@@ -232,13 +209,13 @@ cmd_install_cron() {
 
   [[ "$(id -u)" -eq 0 ]] || { echo "Run as root: sudo $0 install-cron" >&2; exit 1; }
 
-  chmod +x "$SCRIPT_DIR/deploy.sh"
+  chmod +x "$SCRIPT_DIR/local.sh"
 
   cat > "$cron_file" <<EOF
 # Timia: auto-deploy when origin/main changes
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-*/3 * * * * ${deploy_user} cd ${ROOT} && bash deploy/deploy.sh poll
+*/3 * * * * ${deploy_user} cd ${ROOT} && bash deploy/local.sh poll
 EOF
 
   chmod 644 "$cron_file"
@@ -247,7 +224,7 @@ EOF
 
   echo "Installed ${cron_file}"
   echo "Log: tail -f /var/log/timia-deploy-poll.log"
-  echo "Test: cd ${ROOT} && bash deploy/deploy.sh poll"
+  echo "Test: cd ${ROOT} && bash deploy/local.sh poll"
 }
 
 case "${1:-deploy}" in

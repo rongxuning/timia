@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Remote deploy from dev machine: build images locally, upload to server.
-# Usage:
 #   bash deploy/remote.sh          # pack + upload
 #   bash deploy/remote.sh pack     # build images → deploy/dist/timia-images.tar.gz
 #   bash deploy/remote.sh upload   # scp bundle and install on server
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 CMD="${1:-all}"

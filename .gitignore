@@ -17,6 +17,8 @@ codes/web/.next/
 codes/web/.env.local
 
 .env.prod
+.env.pack
+deploy/dist/
 codes/web/tsconfig.tsbuildinfo
 
 .idea/

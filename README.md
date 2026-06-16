@@ -59,5 +59,10 @@ make web
 
 ### Production deploy (timia.online)
 
-See [docs/deploy/cloud.md](docs/deploy/cloud.md) — Lighthouse deploy; fastest path: `bash deploy/remote.sh`.
+See [docs/deploy/cloud.md](docs/deploy/cloud.md).
+
+| Command | Where | Purpose |
+|---------|-------|---------|
+| `bash deploy/local.sh` | production server | git sync → build → up |
+| `bash deploy/remote.sh` | dev machine | build images locally → upload to server |
 
