@@ -1,0 +1,164 @@
+---
+description: Timia 服务端代码规范（codes/core-service）
+alwaysApply: false
+---
+# Timia Core Service 代码规范
+
+## 技术栈与工具
+
+- **Python ≥3.11**，包管理用 **uv**（`uv sync` / `uv run`）
+- **FastAPI** + **Pydantic v2** + **SQLAlchemy 2.0** + **Alembic** + **PostgreSQL**
+- 格式化与 lint：**Ruff**，行宽 **100**
+- API 变更后执行 `make codegen` 同步前端类型
+
+## 分层与目录
+
+```
+app/
+├── routes/          # HTTP 入口，只做鉴权、参数、编排、提交事务
+│   └── views/       # 只读聚合接口（UI 视图模型）
+├── services/        # 业务逻辑、权限、跨实体操作
+│   └── views/       # 视图构建（查询 + 聚合 + 格式化）
+├── schemas/         # Pydantic 请求/响应 DTO
+│   └── views/       # 视图专用响应结构
+├── models/          # SQLAlchemy ORM（无 repository 层）
+├── api/deps.py      # 认证依赖（get_current_user 等）
+├── db/deps.py       # get_db 会话依赖
+└── core/            # config、security
+```
+
+### 何时放哪一层
+
+| 场景 | 位置 |
+|------|------|
+| CRUD、写操作、事务提交 | `routes/` + 必要时抽 `services/` |
+| 多表聚合、仪表盘、页面级只读数据 | `routes/views/` → `services/views/` |
+| 可复用的领域校验、构建响应 | `services/`（参考 `item_api.py`） |
+| 权限检查 | `services/permissions.py`，路由顶部显式调用 |
+| 请求/响应形状 | `schemas/` 或 `schemas/views/` |
+
+**原则**：路由保持薄；重复出现 2 次以上的逻辑抽到 service；view 路由只做 try/except 映射，不写 SQL。
+
+## 命名约定
+
+| 类型 | 规则 | 示例 |
+|------|------|------|
+| 文件/模块 | snake_case，资源复数 | `items.py`, `workspace_dashboard.py` |
+| Schema | `{Entity}Create/Update/Out`；视图 `{Screen}{Part}Out` | `ItemOut`, `WorkspaceDashboardOut` |
+| Model 类 | PascalCase 单数；表名 snake_case 复数 | `Item` → `items` |
+| 路由变量 | `router = APIRouter(prefix=..., tags=[...])` | `tags=["items"]` |
+| 错误码 detail | snake_case 字符串 | `not_found`, `version_conflict` |
+| 角色/状态 | 小写字符串字面量 | `owner`, `member`, `todo`, `active` |
+| 常量 | UPPER_SNAKE | `WORKSPACE_OWNER` |
+
+## 路由模式
+
+```python
+@router.patch("/{item_id}", response_model=ItemOut)
+def update_item(
+    workspace_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: ItemUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_project_content_access(db, workspace_id, project_id, user)
+    # 1. 取实体 + 404
+    # 2. 业务校验（含 payload.model_fields_set 判断 PATCH 字段）
+    # 3. 变更 + log_activity()
+    # 4. db.commit()
+    return build_item_out(db, item)
+```
+
+- 受保护路由必须注入 `user: User = Depends(get_current_user)`
+- 系统级管理用 `require_system_admin`
+- 写操作顺序：`db.add/flush` → `log_activity()` → `db.commit()`
+- PATCH 用 `payload.model_fields_set` 判断字段是否传入
+- 乐观锁：版本不匹配返回 `409`，detail=`version_conflict`
+- 新建资源用 `status_code=201`；响应用 `response_model` 声明
+
+## 权限
+
+- 所有权限函数在 `services/permissions.py`，**直接 raise HTTPException**（403/404），不返回 bool（辅助判断函数除外）
+- 调用顺序：先 `require_*` 权限，再查实体
+- 工作区 owner 可访问其下所有项目；member 需有 active `ProjectMember`
+
+## 错误处理
+
+| 层 | 做法 |
+|----|------|
+| 权限 | `HTTPException` + 语义化 detail |
+| View service | `raise ValueError("workspace_not_found")` 等；路由 catch 后转 HTTPException |
+| 校验失败 | `HTTPException(400, detail="...")` |
+
+**统一约定**（新代码遵循，旧代码逐步对齐）：
+
+- `404`：实体不存在 → `not_found` 或 `{entity}_not_found`
+- `403`：无权限 → `not_a_member` / `insufficient_role`
+- `409`：冲突 → `version_conflict`
+- `400`：参数/业务校验 → 具体 snake_case 码（如 `location_too_long`）
+
+View 路由映射示例：
+
+```python
+try:
+    return build_workspace_dashboard(db, workspace_id, user)
+except ValueError as e:
+    if str(e) == "workspace_not_found":
+        raise HTTPException(status_code=404, detail="not_found") from e
+    raise
+```
+
+## Schema 与校验
+
+- 请求/响应一律 Pydantic `BaseModel`；响应用 `str` 序列化 UUID
+- 结构校验交给 Pydantic；业务规则（成员归属、版本、长度）在 service 或路由中检查
+- 列表默认值用 `Field(default_factory=list)`
+- 新增枚举型字段优先在 schema 层用 `Literal` 或后续抽共享常量，避免魔法字符串散落
+
+## 数据库
+
+- 查询统一 **SQLAlchemy 2.0** 风格：`select()` + `db.scalar` / `db.scalars`；避免 `db.query()`
+- Model 继承 `UUIDPrimaryKeyMixin`、`TimestampMixin`（`models/_mixins.py`）
+- 时间戳用 UTC（`utcnow()`）
+- 结构变更只通过 **Alembic migration**（`app/migrations/versions/`），命名 `00xx_描述.py`
+- 新 migration 保持 revision 链连续；本地 `alembic upgrade head` 验证
+
+## Views API（只读聚合）
+
+- 路径前缀 `/views/...`；tags 按页面域划分（`views-workspace`, `views-schedule` 等）
+- 响应 schema 放 `schemas/views/`；构建逻辑放 `services/views/`
+- 不做写操作；分页用 `Query(ge=..., le=...)`
+
+## 活动日志
+
+- 所有变更类路由在 `commit` 前调用 `log_activity()`，保持与现有路由一致
+
+## 测试
+
+- 框架：**pytest** + `TestClient`；命令：`cd codes/core-service && uv run pytest -q`
+- 纯函数/视图布局逻辑：无 DB 单元测试（参考 `test_schedule_views.py`）
+- 新增 service 函数优先写可单测的纯逻辑；集成测试需 DB fixture 时再补
+- 至少覆盖：鉴权失败 401、核心业务路径、错误码
+
+## 安全与配置
+
+- 密钥与连接串只来自 `core/config.py`（`.env`），禁止硬编码
+- 密码用 `security.py` 的 hash/verify；JWT 用 `create_access_token` / `decode_token`
+- 仅开发环境端点（如 `/dev/db-tables`）必须受 `settings` 开关保护
+
+## OpenAPI 与前端协作
+
+- 路由参数、response_model 保持与 OpenAPI 一致
+- 破坏性变更前检查 `codes/web/src/types/api/generated.ts`
+- 变更 API 后：`make codegen`（或 `uv run python scripts/export_openapi.py`）
+
+## 新增接口检查清单
+
+1. Schema（Create/Update/Out 或 views schema）已定义
+2. 权限函数已在路由顶部调用
+3. 写操作有 `log_activity` + `commit`
+4. 错误码符合上表约定
+5. migration（如涉及表结构）
+6. `uv run ruff check .` 通过
+7. 必要测试 + `make codegen`（若影响 OpenAPI）
