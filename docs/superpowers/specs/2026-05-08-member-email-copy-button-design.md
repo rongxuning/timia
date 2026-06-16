@@ -4,7 +4,7 @@ On `http://localhost:3000/member`, add a copy button next to each user email so 
 
 ## Scope
 
-- Only affects the system-wide Member list page (`apps/web/app/(app)/member/page.tsx`).
+- Only affects the system-wide Member list page (`codes/web/app/(app)/member/page.tsx`).
 - Add a small icon button next to the rendered `({email})`.
 - No toast; feedback is shown via the button’s own icon/title state.
 

@@ -13,24 +13,24 @@
 ## Files to touch
 
 **Modify (web):**
-- `apps/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`
-- `apps/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/items/[itemId]/page.tsx` (types/display)
+- `codes/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`
+- `codes/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/items/[itemId]/page.tsx` (types/display)
 
 **Modify (api):**
-- `apps/api/app/models/item.py`
-- `apps/api/app/schemas/item.py`
-- `apps/api/app/routes/items.py`
-- Add Alembic migration: `apps/api/app/migrations/versions/0003_drop_item_due_at.py` (name may vary, but must drop `items.due_at`)
+- `codes/core-service/app/models/item.py`
+- `codes/core-service/app/schemas/item.py`
+- `codes/core-service/app/routes/items.py`
+- Add Alembic migration: `codes/core-service/app/migrations/versions/0003_drop_item_due_at.py` (name may vary, but must drop `items.due_at`)
 
 **Create (ops/script):**
-- `apps/api/scripts/clear_workspace_items.py` (one-time cleanup utility)
+- `codes/core-service/app/scripts/clear_workspace_items.py` (one-time cleanup utility)
 
 ---
 
 ### Task 1: Add backend migration to drop `due_at`
 
 **Files:**
-- Create: `apps/api/app/migrations/versions/0003_drop_item_due_at.py`
+- Create: `codes/core-service/app/migrations/versions/0003_drop_item_due_at.py`
 
 - [ ] **Step 1: Create alembic migration that drops the column**
 
@@ -64,7 +64,7 @@ def downgrade():
 - [ ] **Step 2: Run api migration locally**
 
 Run (example):
-- `cd apps/api && alembic upgrade head`
+- `cd codes/core-service && alembic upgrade head`
 
 Expected: migration applies without error.
 
@@ -73,9 +73,9 @@ Expected: migration applies without error.
 ### Task 2: Remove `due_at` from backend model + schemas + routes
 
 **Files:**
-- Modify: `apps/api/app/models/item.py`
-- Modify: `apps/api/app/schemas/item.py`
-- Modify: `apps/api/app/routes/items.py`
+- Modify: `codes/core-service/app/models/item.py`
+- Modify: `codes/core-service/app/schemas/item.py`
+- Modify: `codes/core-service/app/routes/items.py`
 
 - [ ] **Step 1: Update SQLAlchemy model**
 
@@ -97,7 +97,7 @@ In `list_items`, `create_item`, `get_item`, `update_item`:
 - [ ] **Step 4: Quick API smoke test**
 
 Run:
-- `cd apps/api && pytest -q` (if tests exist) OR `uvicorn` + create/update item through UI
+- `cd codes/core-service && pytest -q` (if tests exist) OR `uvicorn` + create/update item through UI
 
 Expected: endpoints still return 200/201 and include `start_at/end_at` fields.
 
@@ -106,7 +106,7 @@ Expected: endpoints still return 200/201 and include `start_at/end_at` fields.
 ### Task 3: Add one-time workspace item cleanup script
 
 **Files:**
-- Create: `apps/api/scripts/clear_workspace_items.py`
+- Create: `codes/core-service/app/scripts/clear_workspace_items.py`
 
 - [ ] **Step 1: Implement script**
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: Document how to run**
 
 Run (example):
-- `cd apps/api && python -m apps.api.scripts.clear_workspace_items --workspace-id <uuid>`
+- `cd codes/core-service && PYTHONPATH=. uv run python -m app.scripts.clear_workspace_items --workspace-id <uuid>`
 
 Expected: prints deleted count.
 
@@ -151,7 +151,7 @@ Expected: prints deleted count.
 ### Task 4: Web - make Start/End required and remove Due date UI
 
 **Files:**
-- Modify: `apps/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`
+- Modify: `codes/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`
 
 - [ ] **Step 1: Update Item type**
 
@@ -195,7 +195,7 @@ Implement small helpers in the page file:
 ### Task 5: Web - update task card schedule line
 
 **Files:**
-- Modify: `apps/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`
+- Modify: `codes/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/page.tsx`
 
 - [ ] **Step 1: Render schedule on cards**
 
@@ -211,7 +211,7 @@ Formatting rule:
 ### Task 6: Web - update Item detail page types (optional but consistent)
 
 **Files:**
-- Modify: `apps/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/items/[itemId]/page.tsx`
+- Modify: `codes/web/app/(app)/workspace/[workspaceId]/projects/[projectId]/items/[itemId]/page.tsx`
 
 - [ ] **Step 1: Update `Item` type**
 

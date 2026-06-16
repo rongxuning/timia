@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16
     restart: unless-stopped
-    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc-prod.sh}
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc.sh}
     volumes:
       - timia_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -11,23 +11,38 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
-    image: timia-api:prod
+  core-service:
+    image: timia-core-service:prod
     build:
-      context: ./apps/api
+      context: ./codes/core-service
+      args:
+        BUILD_REVISION: ${CORE_SERVICE_REVISION:-local}
     restart: unless-stopped
-    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc-prod.sh}
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc.sh}
+    environment:
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+      ]
     depends_on:
       db:
         condition: service_healthy
     expose:
       - "8000"
 
+  # notification-service:
+  #   build: { context: ./codes/notification-service }
+  #   expose: ["8001"]
+
   web:
     image: timia-web:prod
     build:
-      context: ./apps/web
+      context: ./codes/web
       args:
+        BUILD_REVISION: ${WEB_REVISION:-local}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
     restart: unless-stopped
     expose:
@@ -43,7 +58,7 @@ services:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - api
+      - core-service
       - web
 
 volumes:

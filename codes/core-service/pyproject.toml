@@ -1,0 +1,33 @@
+[project]
+name = "timia-core-service"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "pydantic>=2.6",
+  "pydantic-settings>=2.2",
+  "email-validator>=2.0",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "psycopg[binary]>=3.1",
+  "python-jose[cryptography]>=3.3",
+  "passlib[bcrypt]>=1.7",
+  "bcrypt<4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "httpx>=0.27",
+  "ruff>=0.5",
+]
+
+[tool.ruff]
+line-length = 100
+
+[[tool.uv.index]]
+name = "tuna"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+

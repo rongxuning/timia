@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 # GitHub → 国内轻量云 SSH 常被 reset（connection reset by peer）。
-# 推荐在服务器启用轮询：sudo bash deploy/install-poll-cron.sh
+# 推荐在服务器启用轮询：sudo bash deploy/local.sh install-cron
 # 见 docs/deploy/cloud.md
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
               exit 1
             fi
             export GIT_REF=main
-            bash deploy/deploy.sh
+            bash deploy/local.sh
 
       - name: Deploy via SSH (attempt 2/3)
         id: attempt2
@@ -53,7 +53,7 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
             export GIT_REF=main
-            bash deploy/deploy.sh
+            bash deploy/local.sh
 
       - name: Deploy via SSH (attempt 3/3)
         id: attempt3
@@ -72,7 +72,7 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
             export GIT_REF=main
-            bash deploy/deploy.sh
+            bash deploy/local.sh
 
       - name: SSH deploy result
         if: always()
@@ -85,6 +85,6 @@ jobs:
           fi
           echo "::warning::SSH deploy failed (e.g. connection reset by peer)."
           echo "Use poll deploy on the server (recommended for Lighthouse):"
-          echo "  cd /opt/timia && git pull && sudo bash deploy/install-poll-cron.sh"
+          echo "  cd /opt/timia && git pull && sudo bash deploy/local.sh install-cron"
           echo "Then push to main deploys within ~3 minutes without inbound SSH."
           exit 1

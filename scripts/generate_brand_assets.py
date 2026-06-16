@@ -229,7 +229,7 @@ if __name__ == "__main__":
         )
     reference = Path(env_ref)
 
-    public_dir = repo_root / "apps/web/public"
+    public_dir = repo_root / "codes/web/public"
     generate(
         reference_png=reference,
         out_wordmark_png=public_dir / "brand/timia-wordmark.png",

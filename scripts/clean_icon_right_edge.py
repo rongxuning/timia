@@ -76,7 +76,7 @@ def center_opaque_content(im: Image.Image) -> Image.Image:
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    icons_dir = root / "apps/web/public/icons"
+    icons_dir = root / "codes/web/public/icons"
     cleaned: list[Image.Image] = []
     for name in ("icon-16.png", "icon-32.png", "icon-48.png"):
         p = icons_dir / name
@@ -86,7 +86,7 @@ def main() -> None:
         cleaned.append(out)
 
     im16, im32, im48 = cleaned
-    fav = root / "apps/web/public/favicon.ico"
+    fav = root / "codes/web/public/favicon.ico"
     # Pillow matches each requested size to an image in [im] + append_images (exact WxH).
     im48.save(
         fav,

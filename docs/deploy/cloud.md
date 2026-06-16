@@ -6,8 +6,8 @@
 
 自动部署两种方式（二选一或同时用）：
 
-1. **轮询部署（推荐，轻量云）**：服务器每 3 分钟 `git fetch`，`main` 有新提交则执行 `deploy.sh`——**不需要** GitHub 连 SSH 进来。
-2. **GitHub Actions SSH**：push 后由 Actions SSH 执行 `deploy.sh`；从 GitHub 连国内轻量云常被 **`connection reset by peer`** 拒绝，仅作辅助。
+1. **轮询部署（推荐，轻量云）**：服务器每 3 分钟 `git fetch`，`main` 有新提交则执行 `local.sh`——**不需要** GitHub 连 SSH 进来。
+2. **GitHub Actions SSH**：push 后由 Actions SSH 执行 `local.sh`；从 GitHub 连国内轻量云常被 **`connection reset by peer`** 拒绝，仅作辅助。
 
 ## 架构
 
@@ -15,7 +15,7 @@
 flowchart LR
   subgraph GitHub
     A[push main]
-    B[SSH 触发 deploy.sh]
+    B[SSH 触发 local.sh]
   end
   subgraph Lighthouse["轻量云 Docker CE"]
     G[git pull]
@@ -32,7 +32,7 @@ flowchart LR
 
 | 组件 | 说明 |
 |------|------|
-| `api` / `web` | 在轻量云上 `docker compose build`（见 `apps/*/Dockerfile`） |
+| `core-service` / `web` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
 | `db` | 官方 `postgres:16` 镜像，数据卷持久化 |
 | `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`） |
 
@@ -40,19 +40,10 @@ flowchart LR
 |------|------|
 | `.github/workflows/deploy.yml` | push `main` 后 SSH 执行部署 |
 | `docker-compose.prod.yml` | 生产编排 |
-| `deploy/bootstrap.sh` | **首次**初始化：clone 仓库 + 生成 `.env.prod` |
-| `deploy/deploy.sh` | `git pull` → `build` → `up -d` |
-| `deploy/dc-prod.sh` | 带 `.env.prod` 的 compose 命令（`ps` / `logs` / `build` 等） |
-| `deploy/docker-mirror.sh` | 一次性配置 Docker Hub 镜像加速（国内轻量云） |
-| `deploy/fix-env-git.sh` | 取消仓库内 `.env.prod` 的 git 跟踪，避免 pull 覆盖 |
-| `deploy/poll-deploy.sh` | 检测 `origin/main` 更新并部署 |
-| `deploy/install-poll-cron.sh` | 安装每 3 分钟轮询的 cron（推荐） |
-| `deploy/quick.sh` | 快更：拉代码 + 重启，不 build |
-| `deploy/git-update.sh` | 快速 `git fetch` + `reset --hard` |
-| `deploy/pack-local.sh` | 本机构建并打包 `timia-api`/`timia-web` 镜像 |
-| `deploy/upload-to-server.sh` | 本机 scp 上传并在服务器安装 |
-| `deploy/install-images.sh` | 服务器加载镜像包并重启 |
-| `deploy/nginx.conf` | `timia.online` HTTPS |
+| `deploy/local.sh` | 服务器部署；子命令 `bootstrap` / `poll` / `install-cron` |
+| `deploy/dc.sh` | 带 `.env.prod` 的 compose 命令 |
+| `deploy/remote.sh` | 本机构建镜像并上传到服务器（`pack` / `upload` / 默认全部） |
+| `deploy/nginx.conf` | `timia.online` HTTPS（compose 挂载此路径） |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
 ---
@@ -82,36 +73,31 @@ docker --version
 docker compose version
 ```
 
-**国内轻量云建议立刻配置镜像加速**（避免 build 时 `0B / xxMB` 卡住）：
-
-```bash
-sudo /opt/timia/deploy/docker-mirror.sh
-# 若仓库尚未 clone，见下文 bootstrap 后再执行
-```
+**国内轻量云建议立刻配置镜像加速**（避免 build 时 `0B / xxMB` 卡住）：见下文「拉取基础镜像不动」一节，手动配置 `/etc/docker/daemon.json`。
 
 ### 2. DNS
 
 `timia.online` **A 记录** → 轻量云公网 IP。
 
-### 3. 首次初始化（`bootstrap.sh`）
+### 3. 首次初始化（`local.sh bootstrap`）
 
-SSH 登录轻量云后，任选一种方式拿到脚本并执行。
+SSH 登录轻量云后，任选一种方式执行。
 
 **方式 A — 从本机上传（私有仓库推荐）**
 
 在本机项目根目录：
 
 ```bash
-scp deploy/bootstrap.sh root@<轻量云IP>:/tmp/bootstrap.sh
-ssh root@<轻量云IP> 'chmod +x /tmp/bootstrap.sh && /tmp/bootstrap.sh git@github.com:<你的用户名>/timia.git /opt/timia'
+scp deploy/local.sh root@<轻量云IP>:/tmp/local.sh
+ssh root@<轻量云IP> 'chmod +x /tmp/local.sh && /tmp/local.sh bootstrap git@github.com:<你的用户名>/timia.git /opt/timia'
 ```
 
-**方式 B — 公开仓库直接下载脚本**
+**方式 B — 公开仓库 clone 后执行**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<你的用户名>/timia/main/deploy/bootstrap.sh -o /tmp/bootstrap.sh
-chmod +x /tmp/bootstrap.sh
-/tmp/bootstrap.sh https://github.com/<你的用户名>/timia.git /opt/timia
+git clone https://github.com/<你的用户名>/timia.git /opt/timia
+cd /opt/timia
+bash deploy/local.sh bootstrap git@github.com:<你的用户名>/timia.git /opt/timia
 ```
 
 **私有仓库**：先在服务器生成 Deploy Key 并加到 GitHub **Settings → Deploy keys**：
@@ -121,7 +107,7 @@ ssh-keygen -t ed25519 -C "timia-lighthouse" -f ~/.ssh/id_ed25519 -N ""
 cat ~/.ssh/id_ed25519.pub
 ```
 
-`bootstrap.sh` 会：
+`local.sh bootstrap` 会：
 
 1. 将仓库 clone 到 `/opt/timia`（默认分支 `main`）
 2. 若不存在则复制 `.env.prod.example` → `.env.prod`
@@ -141,7 +127,7 @@ cp /opt/timia/.env.prod.example /opt/timia/.env.prod
 
 | 环境 | 配置文件 | 位置 |
 |------|----------|------|
-| 本地开发 | `apps/api/.env`、`apps/web/.env.local` | 见 `.env.example` |
+| 本地开发 | `codes/core-service/.env`、`codes/web/.env.local` | 见 `.env.example` |
 | **生产轻量云** | **`.env.prod`** | **`/etc/timia/.env.prod`**（在 git 仓库外） |
 
 **不要把密钥放在 `/opt/timia/.env.prod`**。若该文件曾被 git 跟踪，`git pull` 可能覆盖、删除或还原成模板。应使用仓库外的 `/etc/timia/.env.prod`。
@@ -160,10 +146,9 @@ cd /opt/timia
 git pull
 sudo mv .env.prod /etc/timia/.env.prod
 sudo chmod 600 /etc/timia/.env.prod
-./deploy/fix-env-git.sh
 ```
 
-生产 **不需要** 在 `apps/api/`、`apps/web/` 下创建 `.env`。
+生产 **不需要** 在 `codes/core-service/`、`codes/web/` 下创建 `.env`。
 
 必填项：
 
@@ -173,7 +158,7 @@ sudo chmod 600 /etc/timia/.env.prod
 | `JWT_SECRET` | `openssl rand -hex 32` |
 | `DATABASE_URL` | 密码与上一致，主机必须是 `db` |
 | `CORS_ORIGINS` | `https://timia.online` |
-| `NEXT_PUBLIC_API_BASE_URL` | `https://timia.online/api` |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://timia.online/core-service` |
 
 示例 `DATABASE_URL`：
 
@@ -187,7 +172,7 @@ Nginx 需要 `/etc/letsencrypt/live/timia.online/`。首次申请前先停 nginx
 
 ```bash
 cd /opt/timia
-./deploy/dc-prod.sh stop nginx 2>/dev/null || true
+./deploy/dc.sh stop nginx 2>/dev/null || true
 
 sudo apt-get update && sudo apt-get install -y certbot
 sudo certbot certonly --standalone -d timia.online
@@ -203,15 +188,15 @@ echo "0 3 * * * root certbot renew --quiet && docker compose -f /opt/timia/docke
 
 ```bash
 cd /opt/timia
-chmod +x deploy/deploy.sh
+chmod +x deploy/local.sh
 export SKIP_GIT_PULL=1   # 代码已在本地，跳过 pull
-./deploy/deploy.sh
+./deploy/local.sh
 ```
 
 检查：
 
 ```bash
-curl -fsS https://timia.online/api/health
+curl -fsS https://timia.online/core-service/health
 ```
 
 ### 7. 自动部署（推荐：轮询，无需 GitHub SSH）
@@ -221,7 +206,7 @@ curl -fsS https://timia.online/api/health
 ```bash
 cd /opt/timia
 git pull
-sudo bash deploy/install-poll-cron.sh
+sudo bash deploy/local.sh install-cron
 ```
 
 查看是否在部署：
@@ -234,10 +219,10 @@ tail -f /var/log/timia-deploy-poll.log
 
 ```bash
 cd /opt/timia
-bash deploy/poll-deploy.sh
+bash deploy/local.sh poll
 ```
 
-**原理**：`deploy/poll-deploy.sh` 比较 `HEAD` 与 `origin/main`，有更新才跑 `deploy.sh`；用文件锁避免重复构建。
+**原理**：`local.sh poll` 比较 `HEAD` 与 `origin/main`，有更新才跑部署；用文件锁避免重复构建。
 
 启用轮询后，即使 Actions SSH 失败，**推送到 `main` 仍会自动上线**。
 
@@ -261,64 +246,24 @@ bash deploy/poll-deploy.sh
 
 ### 部署模式（缩短耗时）
 
-默认 **`smart`**：只拉代码，**仅当 `apps/api` 或 `apps/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
+默认 **`smart`**：只拉代码，**仅当 `codes/core-service` 或 `codes/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
 
 | 命令 | 耗时 | 适用 |
 |------|------|------|
-| `bash deploy/deploy.sh` | 智能最短 | 日常 push 后（默认 smart） |
-| `bash deploy/quick.sh` | 最快（秒级～1 分钟） | 只改了配置/重启，或镜像已是最新 |
-| `DEPLOY_MODE=full bash deploy/deploy.sh` | 最慢（全量 build） | 依赖升级、构建异常、首次部署 |
-| `DEPLOY_MODE=api bash deploy/deploy.sh` | 中等 | 只改了后端 |
-| `DEPLOY_MODE=web bash deploy/deploy.sh` | 慢 | 只改了前端 |
+| `bash deploy/local.sh` | 智能最短 | 日常 push 后（默认 smart） |
+| `DEPLOY_MODE=quick bash deploy/local.sh` | 最快（秒级～1 分钟） | 只改了配置/重启，或镜像已是最新 |
+| `DEPLOY_MODE=full bash deploy/local.sh` | 最慢（全量 build） | 依赖升级、构建异常、首次部署 |
+| `DEPLOY_MODE=core-service bash deploy/local.sh` | 中等 | 只改了后端 |
+| `DEPLOY_MODE=web bash deploy/local.sh` | 慢 | 只改了前端 |
 
 `git fetch + reset` 已替代 `git pull`，一般更快。
-
-### 本地打包上传到服务器（最快，推荐 Mac/本机构建）
-
-不在轻量云上 `docker build`，在本机打好镜像再上传，服务器 **秒级** 加载并重启。
-
-**本机（项目根目录）**：
-
-```bash
-cp .env.pack.example .env.pack
-bash deploy/pack-local.sh
-# 生成 deploy/dist/timia-images.tar.gz
-
-# 上传到轻量云并安装（需能 ssh 登录）
-export SSH_HOST=<公网IP>
-export SSH_USER=ubuntu
-export DEPLOY_PATH=/opt/timia
-bash deploy/upload-to-server.sh
-```
-
-**Apple Silicon Mac** 必须打 **amd64** 镜像（轻量云多为 x86）：
-
-```bash
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-bash deploy/pack-local.sh
-```
-
-**仅手动上传**（不用 upload 脚本）：
-
-```bash
-scp deploy/dist/timia-images.tar.gz ubuntu@<IP>:/tmp/
-ssh ubuntu@<IP> "cd /opt/timia && bash deploy/install-images.sh /tmp/timia-images.tar.gz"
-```
-
-| 步骤 | 在哪执行 |
-|------|----------|
-| `pack-local.sh` | 本机 |
-| `upload-to-server.sh` / `scp` | 本机 → 服务器 |
-| `install-images.sh` | 服务器（加载镜像 + `up -d --no-build`） |
-
-服务器仍用 `/etc/timia/.env.prod` 跑 `db`/`nginx`；只替换 `api`/`web` 镜像。
 
 推送到 **`main`** 后：
 
 - **已安装轮询**（推荐）：服务器约 3 分钟内自动部署，看 `tail -f /var/log/timia-deploy-poll.log`
 - **仅 Actions SSH**：在 **Actions → Deploy to Lighthouse** 查看是否成功（可能因 SSH 被重置而失败）
 
-服务器上执行流程（`deploy/deploy.sh`）：
+服务器上执行流程（`deploy/local.sh`）：
 
 1. `git pull origin main`
 2. `docker compose -f docker-compose.prod.yml --env-file .env.prod build`
@@ -327,7 +272,7 @@ ssh ubuntu@<IP> "cd /opt/timia && bash deploy/install-images.sh /tmp/timia-image
 ### 验证
 
 ```bash
-curl -fsS https://timia.online/api/health
+curl -fsS https://timia.online/core-service/health
 ```
 
 ---
@@ -336,7 +281,7 @@ curl -fsS https://timia.online/api/health
 
 ### 防止 SSH 断开导致部署中断
 
-`deploy.sh` 会在服务器上执行 `docker compose build`（尤其是 **web/Next.js**），可能耗时 **10～30+ 分钟**。SSH 断开时，前台进程通常会收到 SIGHUP 并被终止。
+`local.sh` 会在服务器上执行 `docker compose build`（尤其是 **web/Next.js**），可能耗时 **10～30+ 分钟**。SSH 断开时，前台进程通常会收到 SIGHUP 并被终止。
 
 **推荐：用 `tmux` 或 `screen` 在后台跑**
 
@@ -346,7 +291,7 @@ cd /opt/timia
 
 # 方式 1：tmux（推荐）
 tmux new -s timia-deploy
-./deploy/deploy.sh
+./deploy/local.sh
 # 断开会话：Ctrl+b 然后按 d
 # 重新连上后恢复：tmux attach -t timia-deploy
 ```
@@ -354,7 +299,7 @@ tmux new -s timia-deploy
 ```bash
 # 方式 2：nohup + 日志文件
 cd /opt/timia
-nohup ./deploy/deploy.sh > /tmp/timia-deploy.log 2>&1 &
+nohup ./deploy/local.sh > /tmp/timia-deploy.log 2>&1 &
 tail -f /tmp/timia-deploy.log
 ```
 
@@ -366,7 +311,7 @@ SSH 登录轻量云：
 
 ```bash
 cd /opt/timia
-./deploy/deploy.sh
+./deploy/local.sh
 ```
 
 ### SSH 断开后如何查看进度
@@ -376,7 +321,7 @@ cd /opt/timia
 **1. 部署脚本是否还在跑**
 
 ```bash
-pgrep -af "deploy.sh|docker compose"
+pgrep -af "local.sh|docker compose"
 ```
 
 有输出说明仍在 build/up；没有输出说明已结束（成功或失败）。
@@ -392,35 +337,35 @@ tail -f /tmp/timia-deploy.log
 ```bash
 docker ps                    # 运行中的容器
 docker ps -a --last 5      # 最近退出的容器（含 build 中间层）
-docker images | head -20   # 是否已有新构建的 api/web 镜像
+docker images | head -20   # 是否已有新构建的 core-service/web 镜像
 ```
 
 **4. Compose 服务状态**
 
 ```bash
 cd /opt/timia
-./deploy/dc-prod.sh ps
+./deploy/dc.sh ps
 ```
 
-> 不要省略 `--env-file`：请用 `./deploy/dc-prod.sh`，不要直接 `docker compose -f docker-compose.prod.yml ps`，否则会出现 `POSTGRES_USER variable is not set` 警告且服务起不来。
+> 不要省略 `--env-file`：请用 `./deploy/dc.sh`，不要直接 `docker compose -f docker-compose.prod.yml ps`，否则会出现 `POSTGRES_USER variable is not set` 警告且服务起不来。
 
 | 状态 | 含义 |
 |------|------|
 | 四个服务均为 `Up` | 部署很可能已成功 |
-| 无 `api`/`web` 或状态 `Exit` | build 未完成或 `up` 失败 |
+| 无 `core-service`/`web` 或状态 `Exit` | build 未完成或 `up` 失败 |
 | 仅有 `db` 在跑 | 可能卡在 build 或脚本已退出 |
 
 **5. 查看服务日志（定位失败）**
 
 ```bash
-./deploy/dc-prod.sh logs --tail=100 api
-./deploy/dc-prod.sh logs --tail=100 web
+./deploy/dc.sh logs --tail=100 core-service
+./deploy/dc.sh logs --tail=100 web
 ```
 
 **6. 验证是否已上线**
 
 ```bash
-curl -fsS https://timia.online/api/health
+curl -fsS https://timia.online/core-service/health
 ```
 
 **7. 若脚本已死、状态不明 — 安全重跑**
@@ -429,10 +374,10 @@ curl -fsS https://timia.online/api/health
 cd /opt/timia
 tmux new -s timia-deploy
 export SKIP_GIT_PULL=1    # 若代码已是最新可跳过 pull
-./deploy/deploy.sh
+./deploy/local.sh
 ```
 
-> GitHub Actions 触发的部署同样在服务器上执行 `deploy.sh`；可在仓库 **Actions** 页查看该次 workflow 是否成功，不必保持本地 SSH 不断开。
+> GitHub Actions 触发的部署同样在服务器上执行 `local.sh`；可在仓库 **Actions** 页查看该次 workflow 是否成功，不必保持本地 SSH 不断开。
 
 回滚到指定 commit：
 
@@ -441,7 +386,7 @@ cd /opt/timia
 git fetch origin
 git checkout <commit-sha>
 export SKIP_GIT_PULL=1
-./deploy/deploy.sh
+./deploy/local.sh
 ```
 
 确认无误后，如需让 `main` 与此一致，再在 GitHub 上 revert 或合并修复提交。
@@ -454,64 +399,64 @@ export SKIP_GIT_PULL=1
 
 ```bash
 cd /opt/timia
-./deploy/dc-prod.sh ps
-./deploy/dc-prod.sh logs -f --tail=200 api
-./deploy/dc-prod.sh logs -f --tail=200 web
-./deploy/dc-prod.sh logs -f --tail=200 nginx
-./deploy/dc-prod.sh logs -f --tail=200 db
+./deploy/dc.sh ps
+./deploy/dc.sh logs -f --tail=200 core-service
+./deploy/dc.sh logs -f --tail=200 web
+./deploy/dc.sh logs -f --tail=200 nginx
+./deploy/dc.sh logs -f --tail=200 db
 ```
 
 仅重建某一服务：
 
 ```bash
-./deploy/dc-prod.sh build web
-./deploy/dc-prod.sh up -d web
+./deploy/dc.sh build web
+./deploy/dc.sh up -d web
 ```
 
 数据库备份：
 
 ```bash
-./deploy/dc-prod.sh exec -T db pg_dump -U timia timia > "backup_$(date +%F).sql"
+./deploy/dc.sh exec -T db pg_dump -U timia timia > "backup_$(date +%F).sql"
 ```
 
 ---
 
 ## 五、排障
 
-### `deploy.sh` 卡住、长时间无输出
+### `local.sh` 卡住、长时间无输出
 
-脚本会按顺序执行：**git pull → build api → build web → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**），BuildKit 默认几乎不刷屏。
+脚本会按顺序执行：**git pull → build core-service → build web → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**），BuildKit 默认几乎不刷屏。
 
 **先确认卡在哪一步**（另开一个 SSH 窗口）：
 
 ```bash
-pgrep -af "deploy.sh|docker|npm|node"
+pgrep -af "local.sh|docker|npm|node"
 tail -20 /tmp/timia-deploy.log   # 若用 nohup 部署
 ```
 
 | 最后一行日志 | 实际在做什么 |
 |--------------|--------------|
 | `Step 1/4: git` | 拉代码；私有库未配 Deploy Key 可能一直等（新版本会快速失败） |
-| `Step 2/4: docker build api` | 构建 API 镜像 |
+| `Step 2/4: docker build core-service` | 构建 core-service 镜像 |
 | `Step 3/4: docker build web` | 构建前端（最慢，属正常） |
 | `Step 4/4: docker compose up` | 启动容器 |
 
-**建议**：用 `tmux` 跑部署，并 `git pull` 拿到带分步日志的 `deploy.sh`：
+**建议**：用 `tmux` 跑部署，并 `git pull` 拿到带分步日志的 `local.sh`：
 
 ```bash
 cd /opt/timia && git pull
 tmux new -s timia-deploy
 export SKIP_GIT_PULL=1   # 代码已最新时可跳过
-./deploy/deploy.sh
+./deploy/local.sh
 ```
 
 **单独重试某一阶段**：
 
 ```bash
 cd /opt/timia
-./deploy/dc-prod.sh build --progress=plain api
-./deploy/dc-prod.sh build --progress=plain web   # 最耗时
-./deploy/dc-prod.sh up -d
+./deploy/dc.sh build --progress=plain core-service
+./deploy/dc.sh build --progress=plain web   # 最耗时
+./deploy/dc.sh up -d
 ```
 
 **git 阶段卡住**：检查 Deploy Key，`ssh -T git@github.com` 应成功；或临时 `export SKIP_GIT_PULL=1` 跳过。
@@ -537,16 +482,7 @@ dmesg | tail -20 | grep -i oom
 
 **处理：配置镜像加速（一次性）**
 
-在轻量云 SSH 执行（需 root）：
-
-```bash
-cd /opt/timia
-git pull
-sudo chmod +x deploy/docker-mirror.sh
-sudo ./deploy/docker-mirror.sh
-```
-
-或手动写入 `/etc/docker/daemon.json` 后 `sudo systemctl restart docker`：
+在轻量云 SSH 执行（需 root），手动写入 `/etc/docker/daemon.json` 后 `sudo systemctl restart docker`：
 
 ```json
 {
@@ -572,7 +508,7 @@ docker pull nginx:alpine
 cd /opt/timia
 tmux new -s timia-deploy
 export SKIP_GIT_PULL=1
-./deploy/deploy.sh
+./deploy/local.sh
 ```
 
 若仍卡在 `0B`：检查轻量云 **带宽/流量** 是否用尽，或换时段重试；必要时在控制台重启实例后再 `docker pull`。
@@ -580,23 +516,23 @@ export SKIP_GIT_PULL=1
 | 现象 | 处理 |
 |------|------|
 | `sha256... 0B / xx MB` 无进度 | 配置 **Docker 镜像加速**，见上文；先 `docker pull node:20-alpine` 测试 |
-| `deploy.sh` 无输出像卡死 | 多为 **web build** 或 **拉基础镜像**；用 `tmux`、`--progress=plain`、见上文 |
-| Actions `connection reset by peer` | **启用轮询**：`sudo bash deploy/install-poll-cron.sh`（见「一、7」）；或检查防火墙 22 对 `0.0.0.0/0` 放通、Secrets 中 IP/密钥正确、本机 `ssh -i key user@IP` 能否登录 |
+| `local.sh` 无输出像卡死 | 多为 **web build** 或 **拉基础镜像**；用 `tmux`、`--progress=plain`、见上文 |
+| Actions `connection reset by peer` | **启用轮询**：`sudo bash deploy/local.sh install-cron`（见「一、7」）；或检查防火墙 22 对 `0.0.0.0/0` 放通、Secrets 中 IP/密钥正确、本机 `ssh -i key user@IP` 能否登录 |
 | Actions SSH 失败 | 检查 `SSH_*`、`DEPLOY_PATH`、防火墙 22、密钥；或改用轮询部署 |
-| Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/deploy.sh`（已修复）；或把目录属主改为该用户 |
+| Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/local.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
-| `build` 很慢或 OOM | 用 **`smart`** / `quick.sh`；只改 api 用 `DEPLOY_MODE=api`；升级内存 |
+| `build` 很慢或 OOM | 用 **`smart`** / `DEPLOY_MODE=quick`；只改 core-service 用 `DEPLOY_MODE=core-service`；升级内存 |
 | 每次部署都要 build web | 确认用默认 `smart`；全量才用 `DEPLOY_MODE=full` |
 | CORS 错误 | `.env.prod` 中 `CORS_ORIGINS=https://timia.online` |
 | 前端 API 地址错误 | 修改 `NEXT_PUBLIC_API_BASE_URL` 后必须 **`build web`** 再 `up` |
-| 迁移失败 | `docker compose logs api`（启动时自动 `alembic upgrade head`） |
+| 迁移失败 | `docker compose logs core-service`（启动时自动 `alembic upgrade head`） |
 | HTTPS 失败 | 证书路径是否为 `/etc/letsencrypt/live/timia.online/` |
 | 外网无法访问 | 轻量云 **防火墙** 放通 80/443 |
 | SSH 断开不知道进度 | 用 `tmux`/`nohup` 部署；重连后 `pgrep`、`compose ps`、见上文「SSH 断开后如何查看进度」 |
-| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc-prod.sh`，勿在 `apps/api` 下建 `.env` |
-| `git pull` 覆盖 `.env.prod` | 密钥改放到 **`/etc/timia/.env.prod`**，运行 `./deploy/fix-env-git.sh` |
-| `ps` 无任何容器 | 尚未成功执行 `./deploy/deploy.sh`，或 build 失败；`./deploy/dc-prod.sh logs api` 排查 |
+| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc.sh`，勿在 `codes/core-service` 下建 `.env` |
+| `git pull` 覆盖 `.env.prod` | 密钥改放到 **`/etc/timia/.env.prod`**，运行 `bash deploy/local.sh bootstrap` 或手动 `git rm --cached .env.prod` |
+| `ps` 无任何容器 | 尚未成功执行 `./deploy/local.sh`，或 build 失败；`./deploy/dc.sh logs core-service` 排查 |
 
 ---
 
@@ -614,4 +550,4 @@ export SKIP_GIT_PULL=1
 ## 安全说明
 
 - 生产密钥保存在 **`/etc/timia/.env.prod`**，勿放在 git 仓库目录内，勿提交 Git。
-- 若曾泄露数据库或 JWT 密钥，请立即轮换并重启 `api`/`db`（改密码需同步 `DATABASE_URL`）。
+- 若曾泄露数据库或 JWT 密钥，请立即轮换并重启 `core-service`/`db`（改密码需同步 `DATABASE_URL`）。
