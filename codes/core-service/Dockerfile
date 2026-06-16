@@ -10,6 +10,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
+ARG BUILD_REVISION=local
+RUN echo "core-service revision: ${BUILD_REVISION}"
+
 COPY alembic.ini ./
 COPY app ./app
 

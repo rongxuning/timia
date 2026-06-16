@@ -8,6 +8,9 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 COPY package.json package-lock.json ./
 RUN npm ci
 
+ARG BUILD_REVISION=local
+RUN echo "web revision: ${BUILD_REVISION}"
+
 COPY . .
 RUN npm run build
 
