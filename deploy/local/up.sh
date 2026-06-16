@@ -10,7 +10,7 @@ docker compose -f docker-compose.local.yml up -d db
 
 echo ""
 echo "Next (separate terminals):"
-echo "  make api-install && make api"
+echo "  make core-service-install && make core-service"
 echo "  make web-install && make web"
 echo ""
 echo "Verify: make verify"

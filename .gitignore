@@ -5,12 +5,12 @@
 *.py[cod]
 *.pyc
 
-codes/api/.venv/
-codes/api/__pycache__/
-codes/api/.pytest_cache/
-codes/api/.ruff_cache/
-codes/api/.mypy_cache/
-codes/api/.env
+codes/core-service/.venv/
+codes/core-service/__pycache__/
+codes/core-service/.pytest_cache/
+codes/core-service/.ruff_cache/
+codes/core-service/.mypy_cache/
+codes/core-service/.env
 
 codes/web/node_modules/
 codes/web/.next/
@@ -18,3 +18,5 @@ codes/web/.env.local
 
 .env.prod
 codes/web/tsconfig.tsbuildinfo
+
+.idea/

@@ -11,10 +11,9 @@ services:
       timeout: 5s
       retries: 5
 
-  api:
-    image: timia-api:prod
+  core-service:
     build:
-      context: ./codes/api
+      context: ./codes/core-service
     restart: unless-stopped
     env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc-prod.sh}
     depends_on:
@@ -23,8 +22,11 @@ services:
     expose:
       - "8000"
 
+  # notification-service:
+  #   build: { context: ./codes/notification-service }
+  #   expose: ["8001"]
+
   web:
-    image: timia-web:prod
     build:
       context: ./codes/web
       args:
@@ -43,7 +45,7 @@ services:
       - ./deploy/prod/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
-      - api
+      - core-service
       - web
 
 volumes:

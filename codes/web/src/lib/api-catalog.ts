@@ -36,7 +36,7 @@ const commentPath = {
 };
 const userPath = { user_id: "uuid (path)" };
 
-/** 与 codes/api 中 FastAPI 路由对齐；前端「是否使用」由源码扫描 apiFetch 得到 */
+/** 与 codes/core-service 中 FastAPI 路由对齐；前端「是否使用」由源码扫描 apiFetch 得到 */
 export const API_CATALOG: ApiCatalogEntry[] = [
   {
     method: "GET",

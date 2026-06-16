@@ -4,8 +4,9 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 
 ### Monorepo layout
 - `codes/web`: Next.js web
-- `codes/api`: FastAPI API (uv)
+- `codes/core-service`: FastAPI core API (uv) — `make core-service`
 - `codes/app`: native client placeholder (iOS, future)
+- Future backends (e.g. `notification-service`, `finance-service`): each under `codes/<name>/`, own Makefile target, Docker service, and nginx `/<name>/` route
 
 ### Local dev
 
@@ -13,7 +14,7 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 
 ```bash
 make local          # Postgres in Docker
-make api-install && make api   # terminal 1
+make core-service-install && make core-service   # terminal 1
 make web-install && make web   # terminal 2
 make verify         # smoke check API (+ Web if running)
 make codegen        # export OpenAPI → src/types/api/generated.ts (after API changes)
@@ -25,23 +26,23 @@ make codegen        # export OpenAPI → src/types/api/generated.ts (after API c
 make db
 ```
 
-#### 2) Start API
+#### 2) Start core-service
 
 ```bash
-make api-install
-make api
+make core-service-install
+make core-service
 ```
 
 If you renamed or moved this repo, delete the stale virtualenv and reinstall:
 
 ```bash
-rm -rf codes/api/.venv && make api-install
+rm -rf codes/core-service/.venv && make core-service-install
 ```
 
 If `uv sync` times out downloading packages (e.g. `cryptography`), use a PyPI mirror:
 
 ```bash
-UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple make api-install
+UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple make core-service-install
 ```
 
 #### 3) Start Web
@@ -53,7 +54,7 @@ make web
 
 ### Env
 - Copy values from `.env.example` into:
-  - `codes/api/.env`
+  - `codes/core-service/.env`
   - `codes/web/.env.local`
 
 ### Production deploy (timia.online)

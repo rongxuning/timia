@@ -39,13 +39,13 @@ DC="bash $(dirname "$0")/dc.sh"
 export BUILDKIT_PROGRESS=plain
 export COMPOSE_PROGRESS=plain
 
-BUILD_API=0
+BUILD_CORE_SERVICE=0
 BUILD_WEB=0
 
 case "$DEPLOY_MODE" in
-  full) BUILD_API=1; BUILD_WEB=1 ;;
-  quick) BUILD_API=0; BUILD_WEB=0 ;;
-  api) BUILD_API=1 ;;
+  full) BUILD_CORE_SERVICE=1; BUILD_WEB=1 ;;
+  quick) BUILD_CORE_SERVICE=0; BUILD_WEB=0 ;;
+  core-service) BUILD_CORE_SERVICE=1 ;;
   web) BUILD_WEB=1 ;;
   smart)
     CUR_HEAD="$(git rev-parse HEAD)"
@@ -56,23 +56,23 @@ case "$DEPLOY_MODE" in
       exit 0
     fi
     CHANGED="$(git diff --name-only "$PREV_HEAD" "$CUR_HEAD")"
-    echo "$CHANGED" | grep -qE '^codes/api/' && BUILD_API=1 || true
+    echo "$CHANGED" | grep -qE '^codes/core-service/' && BUILD_CORE_SERVICE=1 || true
     echo "$CHANGED" | grep -qE '^codes/web/' && BUILD_WEB=1 || true
     if echo "$CHANGED" | grep -qE '^(docker-compose\.prod\.yml|deploy/prod/nginx\.conf)'; then
-      BUILD_API=1
+      BUILD_CORE_SERVICE=1
       BUILD_WEB=1
     fi
   ;;
   *)
-    echo "Unknown DEPLOY_MODE=$DEPLOY_MODE (use smart|quick|full|api|web)" >&2
+    echo "Unknown DEPLOY_MODE=$DEPLOY_MODE (use smart|quick|full|core-service|web)" >&2
     exit 2
     ;;
 esac
 
 STEP=2
-if [[ "$BUILD_API" -eq 1 ]]; then
-  log "Step ${STEP}: docker build api ..."
-  $DC build --progress=plain api
+if [[ "$BUILD_CORE_SERVICE" -eq 1 ]]; then
+  log "Step ${STEP}: docker build core-service ..."
+  $DC build --progress=plain core-service
   STEP=$((STEP + 1))
 fi
 if [[ "$BUILD_WEB" -eq 1 ]]; then

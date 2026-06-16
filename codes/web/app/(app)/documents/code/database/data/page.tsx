@@ -51,7 +51,7 @@ export default function DatabaseTableDataPage() {
       const err = e as ApiError;
       if (err?.status === 503 && err.message === "dev_db_tables_disabled") {
         setError(
-          "接口未启用：在 codes/api/.env 中设置 ENABLE_DEV_DB_TABLES=true 后重启 API（仅建议在本地开发环境开启）。",
+          "接口未启用：在 codes/core-service/.env 中设置 ENABLE_DEV_DB_TABLES=true 后重启 API（仅建议在本地开发环境开启）。",
         );
       } else {
         setError(err?.message ?? "加载失败");

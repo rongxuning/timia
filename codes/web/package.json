@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "codegen:types": "openapi-typescript ../api/openapi.json -o src/types/api/generated.ts"
+    "codegen:types": "openapi-typescript ../core-service/openapi.json -o src/types/api/generated.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "latest",

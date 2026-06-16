@@ -8,7 +8,7 @@ import { setToken } from "@/lib/auth";
 
 type LoginResponse = { access_token: string; token_type: string };
 
-/** 本地开发默认管理员（与 codes/api/app/scripts/seed.py 一致） */
+/** 本地开发默认管理员（与 codes/core-service/app/scripts/seed.py 一致） */
 const DEFAULT_LOGIN_EMAIL = "admin@gmail.com";
 const DEFAULT_LOGIN_PASSWORD = "admin1234";
 

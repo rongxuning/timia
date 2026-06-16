@@ -32,7 +32,7 @@ flowchart LR
 
 | 组件 | 说明 |
 |------|------|
-| `api` / `web` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
+| `core-service` / `web` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
 | `db` | 官方 `postgres:16` 镜像，数据卷持久化 |
 | `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`） |
 
@@ -138,7 +138,7 @@ cp /opt/timia/.env.prod.example /opt/timia/.env.prod
 
 | 环境 | 配置文件 | 位置 |
 |------|----------|------|
-| 本地开发 | `codes/api/.env`、`codes/web/.env.local` | 见 `.env.example` |
+| 本地开发 | `codes/core-service/.env`、`codes/web/.env.local` | 见 `.env.example` |
 | **生产轻量云** | **`.env.prod`** | **`/etc/timia/.env.prod`**（在 git 仓库外） |
 
 **不要把密钥放在 `/opt/timia/.env.prod`**。若该文件曾被 git 跟踪，`git pull` 可能覆盖、删除或还原成模板。应使用仓库外的 `/etc/timia/.env.prod`。
@@ -160,7 +160,7 @@ sudo chmod 600 /etc/timia/.env.prod
 ./deploy/fix-env-git.sh
 ```
 
-生产 **不需要** 在 `codes/api/`、`codes/web/` 下创建 `.env`。
+生产 **不需要** 在 `codes/core-service/`、`codes/web/` 下创建 `.env`。
 
 必填项：
 
@@ -170,7 +170,7 @@ sudo chmod 600 /etc/timia/.env.prod
 | `JWT_SECRET` | `openssl rand -hex 32` |
 | `DATABASE_URL` | 密码与上一致，主机必须是 `db` |
 | `CORS_ORIGINS` | `https://timia.online` |
-| `NEXT_PUBLIC_API_BASE_URL` | `https://timia.online/api` |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://timia.online/core-service` |
 
 示例 `DATABASE_URL`：
 
@@ -208,7 +208,7 @@ export SKIP_GIT_PULL=1   # 代码已在本地，跳过 pull
 检查：
 
 ```bash
-curl -fsS https://timia.online/api/health
+curl -fsS https://timia.online/core-service/health
 ```
 
 ### 7. 自动部署（推荐：轮询，无需 GitHub SSH）
@@ -258,14 +258,14 @@ bash deploy/poll-deploy.sh
 
 ### 部署模式（缩短耗时）
 
-默认 **`smart`**：只拉代码，**仅当 `codes/api` 或 `codes/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
+默认 **`smart`**：只拉代码，**仅当 `codes/core-service` 或 `codes/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
 
 | 命令 | 耗时 | 适用 |
 |------|------|------|
 | `bash deploy/deploy.sh` | 智能最短 | 日常 push 后（默认 smart） |
 | `bash deploy/quick.sh` | 最快（秒级～1 分钟） | 只改了配置/重启，或镜像已是最新 |
 | `DEPLOY_MODE=full bash deploy/deploy.sh` | 最慢（全量 build） | 依赖升级、构建异常、首次部署 |
-| `DEPLOY_MODE=api bash deploy/deploy.sh` | 中等 | 只改了后端 |
+| `DEPLOY_MODE=core-service bash deploy/deploy.sh` | 中等 | 只改了后端 |
 | `DEPLOY_MODE=web bash deploy/deploy.sh` | 慢 | 只改了前端 |
 
 `git fetch + reset` 已替代 `git pull`，一般更快。
@@ -284,7 +284,7 @@ bash deploy/poll-deploy.sh
 ### 验证
 
 ```bash
-curl -fsS https://timia.online/api/health
+curl -fsS https://timia.online/core-service/health
 ```
 
 ---
@@ -349,7 +349,7 @@ tail -f /tmp/timia-deploy.log
 ```bash
 docker ps                    # 运行中的容器
 docker ps -a --last 5      # 最近退出的容器（含 build 中间层）
-docker images | head -20   # 是否已有新构建的 api/web 镜像
+docker images | head -20   # 是否已有新构建的 core-service/web 镜像
 ```
 
 **4. Compose 服务状态**
@@ -364,20 +364,20 @@ cd /opt/timia
 | 状态 | 含义 |
 |------|------|
 | 四个服务均为 `Up` | 部署很可能已成功 |
-| 无 `api`/`web` 或状态 `Exit` | build 未完成或 `up` 失败 |
+| 无 `core-service`/`web` 或状态 `Exit` | build 未完成或 `up` 失败 |
 | 仅有 `db` 在跑 | 可能卡在 build 或脚本已退出 |
 
 **5. 查看服务日志（定位失败）**
 
 ```bash
-./deploy/dc-prod.sh logs --tail=100 api
+./deploy/dc-prod.sh logs --tail=100 core-service
 ./deploy/dc-prod.sh logs --tail=100 web
 ```
 
 **6. 验证是否已上线**
 
 ```bash
-curl -fsS https://timia.online/api/health
+curl -fsS https://timia.online/core-service/health
 ```
 
 **7. 若脚本已死、状态不明 — 安全重跑**
@@ -412,7 +412,7 @@ export SKIP_GIT_PULL=1
 ```bash
 cd /opt/timia
 ./deploy/dc-prod.sh ps
-./deploy/dc-prod.sh logs -f --tail=200 api
+./deploy/dc-prod.sh logs -f --tail=200 core-service
 ./deploy/dc-prod.sh logs -f --tail=200 web
 ./deploy/dc-prod.sh logs -f --tail=200 nginx
 ./deploy/dc-prod.sh logs -f --tail=200 db
@@ -437,7 +437,7 @@ cd /opt/timia
 
 ### `deploy.sh` 卡住、长时间无输出
 
-脚本会按顺序执行：**git pull → build api → build web → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**），BuildKit 默认几乎不刷屏。
+脚本会按顺序执行：**git pull → build core-service → build web → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**），BuildKit 默认几乎不刷屏。
 
 **先确认卡在哪一步**（另开一个 SSH 窗口）：
 
@@ -449,7 +449,7 @@ tail -20 /tmp/timia-deploy.log   # 若用 nohup 部署
 | 最后一行日志 | 实际在做什么 |
 |--------------|--------------|
 | `Step 1/4: git` | 拉代码；私有库未配 Deploy Key 可能一直等（新版本会快速失败） |
-| `Step 2/4: docker build api` | 构建 API 镜像 |
+| `Step 2/4: docker build core-service` | 构建 core-service 镜像 |
 | `Step 3/4: docker build web` | 构建前端（最慢，属正常） |
 | `Step 4/4: docker compose up` | 启动容器 |
 
@@ -466,7 +466,7 @@ export SKIP_GIT_PULL=1   # 代码已最新时可跳过
 
 ```bash
 cd /opt/timia
-./deploy/dc-prod.sh build --progress=plain api
+./deploy/dc-prod.sh build --progress=plain core-service
 ./deploy/dc-prod.sh build --progress=plain web   # 最耗时
 ./deploy/dc-prod.sh up -d
 ```
@@ -543,17 +543,17 @@ export SKIP_GIT_PULL=1
 | Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/deploy.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
-| `build` 很慢或 OOM | 用 **`smart`** / `quick.sh`；只改 api 用 `DEPLOY_MODE=api`；升级内存 |
+| `build` 很慢或 OOM | 用 **`smart`** / `quick.sh`；只改 core-service 用 `DEPLOY_MODE=core-service`；升级内存 |
 | 每次部署都要 build web | 确认用默认 `smart`；全量才用 `DEPLOY_MODE=full` |
 | CORS 错误 | `.env.prod` 中 `CORS_ORIGINS=https://timia.online` |
 | 前端 API 地址错误 | 修改 `NEXT_PUBLIC_API_BASE_URL` 后必须 **`build web`** 再 `up` |
-| 迁移失败 | `docker compose logs api`（启动时自动 `alembic upgrade head`） |
+| 迁移失败 | `docker compose logs core-service`（启动时自动 `alembic upgrade head`） |
 | HTTPS 失败 | 证书路径是否为 `/etc/letsencrypt/live/timia.online/` |
 | 外网无法访问 | 轻量云 **防火墙** 放通 80/443 |
 | SSH 断开不知道进度 | 用 `tmux`/`nohup` 部署；重连后 `pgrep`、`compose ps`、见上文「SSH 断开后如何查看进度」 |
-| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc-prod.sh`，勿在 `codes/api` 下建 `.env` |
+| `POSTGRES_* variable is not set` | 缺少 `/etc/timia/.env.prod`；用 `./deploy/dc-prod.sh`，勿在 `codes/core-service` 下建 `.env` |
 | `git pull` 覆盖 `.env.prod` | 密钥改放到 **`/etc/timia/.env.prod`**，运行 `./deploy/fix-env-git.sh` |
-| `ps` 无任何容器 | 尚未成功执行 `./deploy/deploy.sh`，或 build 失败；`./deploy/dc-prod.sh logs api` 排查 |
+| `ps` 无任何容器 | 尚未成功执行 `./deploy/deploy.sh`，或 build 失败；`./deploy/dc-prod.sh logs core-service` 排查 |
 
 ---
 
@@ -571,4 +571,4 @@ export SKIP_GIT_PULL=1
 ## 安全说明
 
 - 生产密钥保存在 **`/etc/timia/.env.prod`**，勿放在 git 仓库目录内，勿提交 Git。
-- 若曾泄露数据库或 JWT 密钥，请立即轮换并重启 `api`/`db`（改密码需同步 `DATABASE_URL`）。
+- 若曾泄露数据库或 JWT 密钥，请立即轮换并重启 `core-service`/`db`（改密码需同步 `DATABASE_URL`）。

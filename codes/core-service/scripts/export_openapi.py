@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export OpenAPI schema from FastAPI app to codes/api/openapi.json."""
+"""Export OpenAPI schema from FastAPI app to codes/core-service/openapi.json."""
 
 from __future__ import annotations
 

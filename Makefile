@@ -1,8 +1,8 @@
-.PHONY: dev db api web api-install web-install verify local codegen
+.PHONY: dev db core-service web core-service-install web-install verify local codegen
 
 dev: db
 	@echo "Run in separate terminals:"
-	@echo "  make api-install && make api"
+	@echo "  make core-service-install && make core-service"
 	@echo "  make web-install && make web"
 
 db:
@@ -10,11 +10,15 @@ db:
 
 UV_HTTP_TIMEOUT ?= 300
 
-api-install:
-	cd codes/api && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
+# --- Backend services (codes/<service>/, independent uv + docker + nginx location) ---
 
-api: api-install
-	cd codes/api && PYTHONPATH=. uv run python -m alembic upgrade head && uv run uvicorn app.main:app --reload --port 8000
+core-service-install:
+	cd codes/core-service && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
+
+core-service: core-service-install
+	cd codes/core-service && PYTHONPATH=. uv run python -m alembic upgrade head && uv run python -m uvicorn app.main:app --reload --port 8000
+
+# Future: notification-service-install / notification-service (port 8001), etc.
 
 web-install:
 	cd codes/web && npm install
@@ -29,6 +33,5 @@ verify:
 	bash deploy/verify.sh
 
 codegen:
-	cd codes/api && PYTHONPATH=. uv run python scripts/export_openapi.py
+	cd codes/core-service && PYTHONPATH=. uv run python scripts/export_openapi.py
 	cd codes/web && npm run codegen:types
-
