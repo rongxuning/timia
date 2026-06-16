@@ -59,5 +59,5 @@ make web
 
 ### Production deploy (timia.online)
 
-See [docs/deploy/cloud.md](docs/deploy/cloud.md) — Lighthouse deploy; fastest path: `deploy/pack-local.sh` + `deploy/upload-to-server.sh`.
+See [docs/deploy/cloud.md](docs/deploy/cloud.md) — Lighthouse deploy; fastest path: `bash deploy/remote.sh`.
 

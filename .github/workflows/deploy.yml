@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 # GitHub → 国内轻量云 SSH 常被 reset（connection reset by peer）。
-# 推荐在服务器启用轮询：sudo bash deploy/install-poll-cron.sh
+# 推荐在服务器启用轮询：sudo bash deploy/deploy.sh install-cron
 # 见 docs/deploy/cloud.md
 
 jobs:
@@ -85,6 +85,6 @@ jobs:
           fi
           echo "::warning::SSH deploy failed (e.g. connection reset by peer)."
           echo "Use poll deploy on the server (recommended for Lighthouse):"
-          echo "  cd /opt/timia && git pull && sudo bash deploy/install-poll-cron.sh"
+          echo "  cd /opt/timia && git pull && sudo bash deploy/deploy.sh install-cron"
           echo "Then push to main deploys within ~3 minutes without inbound SSH."
           exit 1
