@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import {
   primeProjectNameForBreadcrumb,
   primeWorkspaceNameForBreadcrumb,
 } from "@/components/Breadcrumbs";
 import { apiFetch } from "@/lib/api";
+import { fetchMyProjects, fetchMyWorkspaces, type ProjectOption, type WorkspaceOption } from "@/lib/api/workspaces";
 import { fetchItemDetail, fetchTaskDrawerContext } from "@/lib/api/task-views";
 
 export type TaskUserBrief = {
@@ -118,6 +120,12 @@ function memberMatchesQuery(m: ProjectMemberRow, q: string): boolean {
   return m.display_name.toLowerCase().includes(s) || m.email.toLowerCase().includes(s);
 }
 
+export type TaskDrawerSaveContext = {
+  item: TaskDrawerItem;
+  workspaceId: string;
+  projectId: string;
+};
+
 type DrawerVariant = "edit" | "create";
 
 type Props = {
@@ -139,9 +147,9 @@ type Props = {
   /** Optional second line under the title (e.g. workspace / project on 我的日程). */
   titleSubtitle?: string | null;
   /** Called after a successful task save so parent lists can refresh. */
-  onTaskSaved?: (item: TaskDrawerItem) => void;
+  onTaskSaved?: (ctx: TaskDrawerSaveContext) => void;
   /** Called after successful create (POST). Drawer will then call `onClose`. */
-  onTaskCreated?: (item: TaskDrawerItem) => void;
+  onTaskCreated?: (ctx: TaskDrawerSaveContext) => void;
   /** Called after successful delete (DELETE). Drawer will then call `onClose`. */
   onTaskDeleted?: (itemId: string) => void;
   /** When this changes while open (e.g. list item `version` after drag), task is refetched. */
@@ -204,6 +212,16 @@ export function TaskDrawerWithComments({
   const [contextWorkspaceName, setContextWorkspaceName] = useState<string | null>(null);
   const [contextProjectName, setContextProjectName] = useState<string | null>(null);
 
+  const [itemWorkspaceId, setItemWorkspaceId] = useState("");
+  const [itemProjectId, setItemProjectId] = useState("");
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
+  const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
+  const [workspacesLoading, setWorkspacesLoading] = useState(false);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [ownershipError, setOwnershipError] = useState<string | null>(null);
+
   const [comments, setComments] = useState<ItemComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -261,7 +279,68 @@ export function TaskDrawerWithComments({
   }, [assigneePanelOpen, participantPanelOpen]);
 
   useEffect(() => {
-    if (!open || !token || !workspaceId || !projectId) {
+    if (!open) return;
+    setItemWorkspaceId(workspaceId);
+    setItemProjectId(projectId);
+    setSelectedWorkspaceId(workspaceId);
+    setSelectedProjectId(projectId);
+    setOwnershipError(null);
+  }, [open, workspaceId, projectId]);
+
+  useEffect(() => {
+    if (!open || !token) return;
+    let cancelled = false;
+    setWorkspacesLoading(true);
+    fetchMyWorkspaces(token)
+      .then((rows) => {
+        if (!cancelled) setWorkspaceOptions(rows);
+      })
+      .catch((e: { message?: string }) => {
+        if (!cancelled) setOwnershipError(e?.message ?? "工作空间列表加载失败");
+      })
+      .finally(() => {
+        if (!cancelled) setWorkspacesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, token]);
+
+  useEffect(() => {
+    if (!open || variant !== "create" || workspaceId) return;
+    if (selectedWorkspaceId || workspaceOptions.length === 0) return;
+    setSelectedWorkspaceId(workspaceOptions[0].id);
+  }, [open, variant, workspaceId, selectedWorkspaceId, workspaceOptions]);
+
+  useEffect(() => {
+    if (!open || !token || !selectedWorkspaceId) {
+      if (!open) setProjectOptions([]);
+      return;
+    }
+    let cancelled = false;
+    setProjectsLoading(true);
+    fetchMyProjects(token, selectedWorkspaceId)
+      .then((rows) => {
+        if (cancelled) return;
+        setProjectOptions(rows);
+        setSelectedProjectId((prev) => {
+          if (prev && rows.some((p) => p.id === prev)) return prev;
+          return rows[0]?.id ?? "";
+        });
+      })
+      .catch((e: { message?: string }) => {
+        if (!cancelled) setOwnershipError(e?.message ?? "项目列表加载失败");
+      })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, token, selectedWorkspaceId]);
+
+  useEffect(() => {
+    if (!open || !token || !selectedWorkspaceId || !selectedProjectId) {
       if (!open) {
         setProjectMembersRaw([]);
         setMembersError(null);
@@ -274,7 +353,7 @@ export function TaskDrawerWithComments({
     let cancelled = false;
     setMembersLoading(true);
     setMembersError(null);
-    fetchTaskDrawerContext(token, workspaceId, projectId)
+    fetchTaskDrawerContext(token, selectedWorkspaceId, selectedProjectId)
       .then((ctx) => {
         if (cancelled) return;
         setMe({ id: ctx.current_user_id, display_name: ctx.current_user_display_name });
@@ -299,7 +378,30 @@ export function TaskDrawerWithComments({
     return () => {
       cancelled = true;
     };
-  }, [open, token, workspaceId, projectId]);
+  }, [open, token, selectedWorkspaceId, selectedProjectId]);
+
+  function handleWorkspaceChange(nextWorkspaceId: string) {
+    if (nextWorkspaceId === selectedWorkspaceId) return;
+    setSelectedWorkspaceId(nextWorkspaceId);
+    setSelectedProjectId("");
+    setEditParticipantUserIds([]);
+    setEditAssigneeUserId("");
+    setOwnershipError(null);
+  }
+
+  function handleProjectChange(nextProjectId: string) {
+    if (nextProjectId === selectedProjectId) return;
+    setSelectedProjectId(nextProjectId);
+    setEditParticipantUserIds([]);
+    setOwnershipError(null);
+  }
+
+  useEffect(() => {
+    if (!editAssigneeUserId || memberOptions.length === 0) return;
+    if (!memberOptions.some((m) => m.user_id === editAssigneeUserId)) {
+      setEditAssigneeUserId(variant === "create" ? (me?.id ?? "") : "");
+    }
+  }, [memberOptions, editAssigneeUserId, variant, me?.id]);
 
   function applyItemToForm(it: TaskDrawerItem) {
     setDrawerItem(it);
@@ -347,17 +449,24 @@ export function TaskDrawerWithComments({
       if (!open) setDrawerItem(null);
       return;
     }
+    const ws = itemWorkspaceId || workspaceId;
+    const pj = itemProjectId || projectId;
+    if (!ws || !pj) return;
     let cancelled = false;
     setItemLoading(true);
     setCommentsLoading(true);
     setEditError(null);
     setCommentError(null);
-    fetchItemDetail(token, workspaceId, projectId, itemId)
+    fetchItemDetail(token, ws, pj, itemId)
       .then((detail) => {
         if (cancelled) return;
-        const { comments: detailComments, ...item } = detail;
+        const { comments: detailComments, workspace_id, project_id, ...item } = detail;
         applyItemToForm(item);
         setComments(detailComments);
+        setItemWorkspaceId(workspace_id);
+        setItemProjectId(project_id);
+        setSelectedWorkspaceId(workspace_id);
+        setSelectedProjectId(project_id);
       })
       .catch((e: { message?: string }) => {
         if (!cancelled) setEditError(e?.message ?? "任务加载失败");
@@ -384,9 +493,9 @@ export function TaskDrawerWithComments({
     setParticipantStagingIds((prev) => prev.filter((id) => id !== editAssigneeUserId));
   }, [editAssigneeUserId]);
 
-  async function refreshComments() {
-    if (!token || !drawerItem) return;
-    const detail = await fetchItemDetail(token, workspaceId, projectId, drawerItem.id);
+  async function refreshComments(wsId = itemWorkspaceId, pjId = itemProjectId) {
+    if (!token || !drawerItem || !wsId || !pjId) return;
+    const detail = await fetchItemDetail(token, wsId, pjId, drawerItem.id);
     setComments(detail.comments);
   }
 
@@ -439,7 +548,7 @@ export function TaskDrawerWithComments({
     setDeleteLoading(true);
     try {
       await apiFetch<void>(
-        `/workspaces/${workspaceId}/projects/${projectId}/items/${drawerItem.id}`,
+        `/workspaces/${itemWorkspaceId}/projects/${itemProjectId}/items/${drawerItem.id}`,
         { method: "DELETE", token },
       );
       const deletedId = drawerItem.id;
@@ -510,6 +619,10 @@ export function TaskDrawerWithComments({
       setEditError("结束时间不能早于开始时间");
       return;
     }
+    if (!selectedWorkspaceId || !selectedProjectId) {
+      setEditError("请选择工作空间与所属项目");
+      return;
+    }
     if (!editAssigneeUserId.trim()) {
       setEditError("请选择负责人");
       return;
@@ -522,10 +635,15 @@ export function TaskDrawerWithComments({
       participant_user_ids: editParticipantUserIds.filter((x) => x && x !== editAssigneeUserId.trim()),
       location: editLocation.trim() || null,
     };
+    const saveCtx = (item: TaskDrawerItem): TaskDrawerSaveContext => ({
+      item,
+      workspaceId: selectedWorkspaceId,
+      projectId: selectedProjectId,
+    });
     try {
       if (variant === "create") {
         const created = await apiFetch<TaskDrawerItem>(
-          `/workspaces/${workspaceId}/projects/${projectId}/items`,
+          `/workspaces/${selectedWorkspaceId}/projects/${selectedProjectId}/items`,
           {
             method: "POST",
             token,
@@ -540,29 +658,41 @@ export function TaskDrawerWithComments({
             }),
           },
         );
-        onTaskCreated?.(created);
+        onTaskCreated?.(saveCtx(created));
         onClose();
       } else {
-        if (!drawerItem) return;
+        if (!drawerItem || !itemWorkspaceId || !itemProjectId) return;
+        const ownershipChanged =
+          selectedWorkspaceId !== itemWorkspaceId || selectedProjectId !== itemProjectId;
+        const patchBody: Record<string, unknown> = {
+          title,
+          body: editBody.trim() || null,
+          status: editStatus,
+          priority: normalizePriority(editPriority),
+          start_at: startIso,
+          end_at: endIso,
+          version: drawerItem.version,
+          ...peoplePayload,
+        };
+        if (ownershipChanged) {
+          patchBody.target_workspace_id = selectedWorkspaceId;
+          patchBody.target_project_id = selectedProjectId;
+        }
         const updated = await apiFetch<TaskDrawerItem>(
-          `/workspaces/${workspaceId}/projects/${projectId}/items/${drawerItem.id}`,
+          `/workspaces/${itemWorkspaceId}/projects/${itemProjectId}/items/${drawerItem.id}`,
           {
             method: "PATCH",
             token,
-            body: JSON.stringify({
-              title,
-              body: editBody.trim() || null,
-              status: editStatus,
-              priority: normalizePriority(editPriority),
-              start_at: startIso,
-              end_at: endIso,
-              version: drawerItem.version,
-              ...peoplePayload,
-            }),
+            body: JSON.stringify(patchBody),
           },
         );
         setDrawerItem(updated);
-        onTaskSaved?.(updated);
+        if (ownershipChanged) {
+          setItemWorkspaceId(selectedWorkspaceId);
+          setItemProjectId(selectedProjectId);
+          await refreshComments(selectedWorkspaceId, selectedProjectId);
+        }
+        onTaskSaved?.(saveCtx(updated));
       }
     } catch (e: any) {
       setEditError(e?.message ?? (variant === "create" ? "创建失败" : "保存失败"));
@@ -581,7 +711,7 @@ export function TaskDrawerWithComments({
     try {
       const payload: { body: string; parent_comment_id?: string } = { body };
       if (replyToCommentId) payload.parent_comment_id = replyToCommentId;
-      await apiFetch<ItemComment>(itemCommentsPath(workspaceId, projectId, drawerItem.id), {
+      await apiFetch<ItemComment>(itemCommentsPath(itemWorkspaceId, itemProjectId, drawerItem.id), {
         method: "POST",
         token,
         body: JSON.stringify(payload),
@@ -601,7 +731,7 @@ export function TaskDrawerWithComments({
     setCommentError(null);
     try {
       const updated = await apiFetch<ItemComment>(
-        `${itemCommentsPath(workspaceId, projectId, drawerItem.id)}/${commentId}`,
+        `${itemCommentsPath(itemWorkspaceId, itemProjectId, drawerItem.id)}/${commentId}`,
         { method: "PATCH", token, body: JSON.stringify({ completion_status }) },
       );
       setComments((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
@@ -615,7 +745,7 @@ export function TaskDrawerWithComments({
     setCommentError(null);
     setCommentDeletingId(commentId);
     try {
-      await apiFetch(`${itemCommentsPath(workspaceId, projectId, drawerItem.id)}/${commentId}`, {
+      await apiFetch(`${itemCommentsPath(itemWorkspaceId, itemProjectId, drawerItem.id)}/${commentId}`, {
         method: "DELETE",
         token,
       });
@@ -761,7 +891,8 @@ export function TaskDrawerWithComments({
 
   if (!open) return null;
   if (variant === "edit" && !itemId) return null;
-  if (variant === "create" && (!workspaceId || !projectId)) return null;
+  if (!open) return null;
+  if (variant === "edit" && !itemId) return null;
 
   const showForm = variant === "create" || !!drawerItem;
   const headerTitle =
@@ -833,6 +964,37 @@ export function TaskDrawerWithComments({
               }
             >
               <form onSubmit={onSaveTask} className="space-y-4">
+                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
+                  <div className="text-overline text-zinc-500 tracking-wide">归属</div>
+                  {ownershipError ? <p className="text-caption text-error">{ownershipError}</p> : null}
+                  <SearchableSelect
+                    label="工作空间"
+                    placeholder="搜索工作空间…"
+                    options={workspaceOptions.map((w) => ({ id: w.id, label: w.name }))}
+                    value={selectedWorkspaceId || null}
+                    onChange={handleWorkspaceChange}
+                    loading={workspacesLoading}
+                    disabled={editLoading || itemLoading}
+                    emptyText="暂无可用工作空间"
+                  />
+                  <SearchableSelect
+                    label="所属项目"
+                    placeholder="搜索所属项目…"
+                    options={projectOptions.map((p) => ({
+                      id: p.id,
+                      label: p.name,
+                      hint: p.description?.trim() || undefined,
+                    }))}
+                    value={selectedProjectId || null}
+                    onChange={handleProjectChange}
+                    loading={projectsLoading}
+                    disabled={editLoading || itemLoading || !selectedWorkspaceId}
+                    emptyText={
+                      selectedWorkspaceId ? "该工作空间下暂无可选项目" : "请先选择工作空间"
+                    }
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-title`}>
                     标题

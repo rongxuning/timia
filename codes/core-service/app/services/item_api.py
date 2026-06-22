@@ -1,13 +1,15 @@
 import uuid
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.models.comment import Comment
 from app.models.item import Item
+from app.models.project import Project
 from app.models.user import User
-from app.schemas.item import ItemOut, UserBrief
-from app.services.permissions import user_can_access_project_content
+from app.schemas.item import ItemOut, ItemUpdate, UserBrief
+from app.services.permissions import require_project_content_access, user_can_access_project_content
 
 
 def dedupe_uuid_preserve_order(ids: list[uuid.UUID]) -> list[uuid.UUID]:
@@ -37,6 +39,51 @@ def parse_participant_ids(raw: list[str]) -> list[uuid.UUID]:
         except Exception:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_participant_user_id")
     return dedupe_uuid_preserve_order(out)
+
+
+def parse_transfer_target(fields_set: set[str], payload: ItemUpdate) -> tuple[uuid.UUID, uuid.UUID] | None:
+    has_ws = "target_workspace_id" in fields_set and payload.target_workspace_id
+    has_pj = "target_project_id" in fields_set and payload.target_project_id
+    if not has_ws and not has_pj:
+        return None
+    if not has_ws or not has_pj:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_transfer_target")
+    try:
+        return uuid.UUID(str(payload.target_workspace_id).strip()), uuid.UUID(str(payload.target_project_id).strip())
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_transfer_target")
+
+
+def apply_item_transfer(
+    db: Session,
+    item: Item,
+    *,
+    source_workspace_id: uuid.UUID,
+    source_project_id: uuid.UUID,
+    target_workspace_id: uuid.UUID,
+    target_project_id: uuid.UUID,
+    user: User,
+) -> bool:
+    if item.workspace_id == target_workspace_id and item.project_id == target_project_id:
+        return False
+
+    require_project_content_access(db, target_workspace_id, target_project_id, user)
+    target_project = db.get(Project, target_project_id)
+    if not target_project or target_project.workspace_id != target_workspace_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project_not_found")
+
+    from_ws = item.workspace_id
+    item.workspace_id = target_workspace_id
+    item.project_id = target_project_id
+
+    if from_ws != target_workspace_id:
+        db.execute(
+            update(Comment)
+            .where(Comment.item_id == item.id)
+            .values(workspace_id=target_workspace_id)
+        )
+
+    return True
 
 
 def validate_item_people(

@@ -4183,6 +4183,14 @@
       },
       "ItemDetailViewOut": {
         "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -4304,6 +4312,8 @@
         },
         "type": "object",
         "required": [
+          "workspace_id",
+          "project_id",
           "id",
           "title",
           "status",
@@ -4559,6 +4569,28 @@
               }
             ],
             "title": "Location"
+          },
+          "target_workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Workspace Id"
+          },
+          "target_project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Project Id"
           }
         },
         "type": "object",

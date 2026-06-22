@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FloatingDraggableButton } from "@/components/FloatingDraggableButton";
 import { PageMain } from "@/components/layout";
 import { ProjectDashboardCards } from "@/components/project/ProjectDashboardCards";
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
-import { TaskDrawerWithComments, type TaskDrawerItem } from "@/components/TaskDrawerWithComments";
+import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
 import { ProjectModal } from "@/components/ProjectModal";
 import { fetchProjectDashboard } from "@/lib/api/project-views";
 import { getToken } from "@/lib/auth";
@@ -29,6 +29,7 @@ export default function ProjectPage() {
   const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
   const [taskDrawerVersion, setTaskDrawerVersion] = useState(0);
   const [editProjectOpen, setEditProjectOpen] = useState(false);
+  const taskLeftCurrentProjectRef = useRef(false);
 
   const scope = useMemo(
     () => ({ scope: "project" as const, workspaceId, projectId }),
@@ -68,17 +69,32 @@ export default function ProjectPage() {
 
   function openDrawer(it: ScheduleTaskItem) {
     setTaskCreateDrawerOpen(false);
+    taskLeftCurrentProjectRef.current = false;
     setTaskDrawerItemId(it.id);
     setTaskDrawerVersion(it.version);
     setTaskDrawerOpen(true);
   }
 
   function closeTaskDrawer() {
+    const shouldRefresh = taskLeftCurrentProjectRef.current;
+    taskLeftCurrentProjectRef.current = false;
     setTaskDrawerOpen(false);
     setTaskDrawerItemId(null);
+    if (shouldRefresh) {
+      bumpSchedule();
+      void reloadDashboard();
+    }
   }
 
-  async function handleTaskDrawerSaved(_updated: TaskDrawerItem) {
+  async function handleTaskDrawerSaved(ctx: TaskDrawerSaveContext) {
+    const leftCurrentProject = ctx.projectId !== projectId || ctx.workspaceId !== workspaceId;
+    taskLeftCurrentProjectRef.current = leftCurrentProject;
+    bumpSchedule();
+    await reloadDashboard();
+  }
+
+  async function handleTaskCreated(ctx: TaskDrawerSaveContext) {
+    if (ctx.projectId !== projectId) return;
     bumpSchedule();
     await reloadDashboard();
   }
@@ -154,10 +170,7 @@ export default function ProjectPage() {
         token={token}
         variant="create"
         initialCreateStatus={createInitialStatus}
-        onTaskCreated={() => {
-          bumpSchedule();
-          void reloadDashboard();
-        }}
+        onTaskCreated={handleTaskCreated}
       />
 
       <FloatingDraggableButton

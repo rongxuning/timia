@@ -35,6 +35,8 @@ class ItemDetailCommentOut(BaseModel):
 
 
 class ItemDetailViewOut(BaseModel):
+    workspace_id: str
+    project_id: str
     id: str
     title: str
     body: str | None = None
