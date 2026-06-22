@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { FloatingDraggableButton } from "@/components/FloatingDraggableButton";
 import { PageMain } from "@/components/layout";
 import { ProjectDashboardCards } from "@/components/project/ProjectDashboardCards";
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
@@ -158,6 +159,14 @@ export default function ProjectPage() {
           void reloadDashboard();
         }}
       />
+
+      <FloatingDraggableButton
+        ariaLabel="新建任务"
+        className="flex h-14 w-14 cursor-grab items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-indigo-100 transition-colors hover:bg-primary-hover active:cursor-grabbing"
+        onClick={() => openTaskCreate("todo")}
+      >
+        <span className="material-symbols-outlined text-2xl">add</span>
+      </FloatingDraggableButton>
     </PageMain>
   );
 }
