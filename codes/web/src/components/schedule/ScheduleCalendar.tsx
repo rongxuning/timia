@@ -1,21 +1,45 @@
 "use client";
 
 import type { CalendarWeekView, ScheduleTaskItem } from "@/types/api/views/schedule";
-import { dayKeyLocal, MONTHS, taskCalendarColors } from "./taskUtils";
+import { TaskStatusIcon } from "./TaskStatusIcon";
+import {
+  CALENDAR_LANE_GAP_PX,
+  CALENDAR_LANE_HEIGHT_PX,
+  dayKeyLocal,
+  formatScheduleDateTime,
+  MONTHS,
+  taskCalendarColors,
+} from "./taskUtils";
 
 export type ScheduleCalendarProps = {
   calendarMonth: Date;
   onCalendarMonthChange: (d: Date) => void;
   weeks: CalendarWeekView[];
   onTaskClick: (it: ScheduleTaskItem) => void;
+  onCompleteTask?: (itemId: string) => void;
+  completingItemId?: string | null;
   showProjectContext?: boolean;
 };
+
+function calendarTaskTooltip(it: ScheduleTaskItem, showProjectContext: boolean) {
+  const parts = [it.title];
+  if (showProjectContext) parts.push(`${it.workspace_name} / ${it.project_name}`);
+  const body = it.body?.trim();
+  if (body) parts.push(body);
+  const start = formatScheduleDateTime(it.start_at);
+  const end = formatScheduleDateTime(it.end_at);
+  if (start) parts.push(`开始 ${start}`);
+  if (end) parts.push(`结束 ${end}`);
+  return parts.join(" · ");
+}
 
 export function ScheduleCalendar({
   calendarMonth,
   onCalendarMonthChange,
   weeks,
   onTaskClick,
+  onCompleteTask,
+  completingItemId = null,
   showProjectContext = true,
 }: ScheduleCalendarProps) {
   const todayKey = dayKeyLocal(new Date());
@@ -81,7 +105,11 @@ export function ScheduleCalendar({
             const rowCount = maxLane < 0 ? 0 : maxLane + 1;
             const minTaskLanes = 3;
             const lanes = Math.max(rowCount, minTaskLanes);
-            const taskAreaMinHeightPx = 4 + 8 + lanes * 22 + Math.max(0, lanes - 1) * 4;
+            const taskAreaMinHeightPx =
+              4 +
+              8 +
+              lanes * CALENDAR_LANE_HEIGHT_PX +
+              Math.max(0, lanes - 1) * CALENDAR_LANE_GAP_PX;
             return (
               <div key={wi} className="border-b border-border-subtle last:border-b-0 flex flex-col min-h-0">
                 <div className="grid grid-cols-7 shrink-0">
@@ -111,7 +139,7 @@ export function ScheduleCalendar({
                   <div
                     className="relative z-[1] grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1"
                     style={{
-                      gridAutoRows: 22,
+                      gridAutoRows: CALENDAR_LANE_HEIGHT_PX,
                       minHeight: taskAreaMinHeightPx,
                     }}
                   >
@@ -126,17 +154,16 @@ export function ScheduleCalendar({
                               ? "0 8px 8px 0"
                               : 0;
                       const showLabel = seg.round_left || seg.col_start === 1;
+                      const bodyText = seg.item.body?.trim() ?? "";
+                      const startLabel = formatScheduleDateTime(seg.item.start_at);
+                      const endLabel = formatScheduleDateTime(seg.item.end_at);
                       return (
                         <button
                           key={`cal-${seg.item.id}-${wi}-${seg.col_start}-${seg.lane}`}
                           type="button"
                           onClick={() => onTaskClick(seg.item)}
-                          title={
-                            showProjectContext
-                              ? `${seg.item.title} · ${seg.item.workspace_name} / ${seg.item.project_name}`
-                              : seg.item.title
-                          }
-                          className="h-[22px] flex items-center text-left text-[11px] px-1.5 font-medium truncate border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm"
+                          title={calendarTaskTooltip(seg.item, showProjectContext)}
+                          className="flex h-full min-h-0 items-start py-1 text-left text-[10px] leading-snug px-1 min-w-0 border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm overflow-hidden"
                           style={{
                             gridColumn: `${seg.col_start} / span ${seg.col_span}`,
                             gridRow: seg.lane + 1,
@@ -148,7 +175,39 @@ export function ScheduleCalendar({
                             borderRadius: radius,
                           }}
                         >
-                          {showLabel ? seg.item.title : "\u00a0"}
+                          {showLabel ? (
+                            <div className="flex min-w-0 flex-1 items-start gap-1">
+                              <TaskStatusIcon
+                                size="compact"
+                                status={seg.item.status}
+                                loading={completingItemId === seg.item.id}
+                                onComplete={
+                                  onCompleteTask ? () => onCompleteTask(seg.item.id) : undefined
+                                }
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[11px] font-medium leading-tight">
+                                  {seg.item.title}
+                                </div>
+                                {showProjectContext ? (
+                                  <div className="mt-0.5 truncate text-neutral-muted/90">
+                                    {seg.item.workspace_name} / {seg.item.project_name}
+                                  </div>
+                                ) : null}
+                                {bodyText ? (
+                                  <div className="mt-0.5 truncate text-neutral-muted/90">{bodyText}</div>
+                                ) : null}
+                                <div className="mt-0.5 truncate tabular-nums text-neutral-muted/90">
+                                  {startLabel ? `开始 ${startLabel}` : "开始 —"}
+                                </div>
+                                <div className="mt-0.5 truncate tabular-nums text-neutral-muted/90">
+                                  {endLabel ? `结束 ${endLabel}` : "结束 —"}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            "\u00a0"
+                          )}
                         </button>
                       );
                     })}

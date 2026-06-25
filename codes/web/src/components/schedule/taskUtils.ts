@@ -42,6 +42,10 @@ export function taskCalendarColors(p?: string | null): { bg: string; fg: string;
   return PRIORITY_CALENDAR_COLORS[normalizePriority(p)];
 }
 
+/** 日历任务条单行高度（px），与 gridAutoRows 一致 */
+export const CALENDAR_LANE_HEIGHT_PX = 88;
+export const CALENDAR_LANE_GAP_PX = 4;
+
 export function normalizePriority(p?: string | null): PriorityKey {
   const v = (p ?? "").trim().toLowerCase();
   if (v === "1" || v === "2" || v === "3" || v === "4") return v;
@@ -61,6 +65,13 @@ export function priorityBadgeClass(p?: string | null) {
 
 function formatMdHm(d: Date) {
   return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+export function formatScheduleDateTime(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return formatMdHm(d);
 }
 
 export function formatScheduleRange(startIso?: string | null, endIso?: string | null) {

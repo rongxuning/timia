@@ -5331,6 +5331,10 @@
             "type": "string",
             "title": "Id"
           },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -5386,6 +5390,7 @@
         "type": "object",
         "required": [
           "id",
+          "workspace_id",
           "name",
           "description",
           "archived",
@@ -5427,6 +5432,17 @@
               }
             ],
             "title": "Archived"
+          },
+          "target_workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Workspace Id"
           }
         },
         "type": "object",

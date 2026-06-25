@@ -13,6 +13,7 @@ from app.models.workspace import WorkspaceMember
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
 from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.services.activity import log_activity
+from app.services.project_api import apply_project_transfer, parse_project_transfer_target
 from app.services.permissions import (
     PROJECT_OWNER,
     accessible_project_ids,
@@ -63,6 +64,7 @@ def _project_out(
     creator = creators.get(p.created_by_user_id) if p.created_by_user_id else None
     return ProjectOut(
         id=str(p.id),
+        workspace_id=str(p.workspace_id),
         name=p.name,
         description=p.description,
         archived=p.archived,
@@ -397,6 +399,10 @@ def update_project(
     p = db.get(Project, project_id)
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+
+    fields_set = getattr(payload, "model_fields_set", getattr(payload, "__fields_set__", set()))
+    transfer_target = parse_project_transfer_target(fields_set, payload)
+
     before = {"name": p.name, "description": p.description, "archived": p.archived}
     if payload.name is not None:
         p.name = payload.name
@@ -405,6 +411,17 @@ def update_project(
     if payload.archived is not None:
         p.archived = payload.archived
     after = {"name": p.name, "description": p.description, "archived": p.archived}
+
+    transfer_result: dict[str, int | bool] = {"transferred": False}
+    if transfer_target:
+        transfer_result = apply_project_transfer(
+            db,
+            p,
+            source_workspace_id=workspace_id,
+            target_workspace_id=transfer_target,
+            user=user,
+        )
+
     log_activity(
         db,
         workspace_id=workspace_id,
@@ -414,6 +431,32 @@ def update_project(
         action="update",
         metadata={"before": before, "after": after},
     )
+    if transfer_result.get("transferred"):
+        transfer_meta = {
+            "from": {"workspace_id": str(workspace_id), "project_id": str(project_id)},
+            "to": {"workspace_id": str(transfer_target), "project_id": str(project_id)},
+            "member_count": transfer_result.get("member_count", 0),
+            "item_count": transfer_result.get("item_count", 0),
+        }
+        log_activity(
+            db,
+            workspace_id=workspace_id,
+            actor_user_id=user.id,
+            entity_type="project",
+            entity_id=p.id,
+            action="transfer",
+            metadata=transfer_meta,
+        )
+        log_activity(
+            db,
+            workspace_id=transfer_target,
+            actor_user_id=user.id,
+            entity_type="project",
+            entity_id=p.id,
+            action="transfer",
+            metadata=transfer_meta,
+        )
+
     db.commit()
     creator_ids = {p.created_by_user_id} if p.created_by_user_id else set()
     creators = {}
@@ -422,7 +465,7 @@ def update_project(
     return _project_out(
         p,
         creators=creators,
-        can_manage=user_can_manage_project(db, workspace_id, project_id, user),
+        can_manage=user_can_manage_project(db, p.workspace_id, project_id, user),
     )
 
 

@@ -1276,6 +1276,8 @@ export interface components {
         ProjectOut: {
             /** Id */
             id: string;
+            /** Workspace Id */
+            workspace_id: string;
             /** Name */
             name: string;
             /** Description */
@@ -1305,6 +1307,8 @@ export interface components {
             description?: string | null;
             /** Archived */
             archived?: boolean | null;
+            /** Target Workspace Id */
+            target_workspace_id?: string | null;
         };
         /**
          * RecentDiscussionOut

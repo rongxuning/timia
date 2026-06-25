@@ -11,10 +11,12 @@ class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     archived: bool | None = None
+    target_workspace_id: str | None = None
 
 
 class ProjectOut(BaseModel):
     id: str
+    workspace_id: str
     name: str
     description: str | None
     archived: bool
