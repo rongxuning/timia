@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
 import { ProjectList, RecentDiscussions, WorkspaceDashboardCards } from "@/components/workspace";
@@ -18,8 +18,9 @@ export default function WorkspaceHome() {
   const router = useRouter();
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId;
-  const token = useMemo(() => getToken(), []);
 
+  const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [dashboard, setDashboard] = useState<WorkspaceDashboardView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
@@ -38,23 +39,27 @@ export default function WorkspaceHome() {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
 
   const reloadDashboard = useCallback(async () => {
-    if (!token) return;
-    const data = await fetchWorkspaceDashboard(token, workspaceId);
+    const t = getToken();
+    if (!t) return;
+    const data = await fetchWorkspaceDashboard(t, workspaceId);
     setDashboard(data);
     primeWorkspaceNameForBreadcrumb(data.workspace_id, data.name);
     for (const p of data.active_projects) {
       primeProjectNameForBreadcrumb(workspaceId, p.id, p.name);
     }
-  }, [token, workspaceId]);
+  }, [workspaceId]);
 
   useEffect(() => {
-    if (!token) {
+    const t = getToken();
+    setToken(t);
+    setAuthReady(true);
+    if (!t) {
       router.push("/login");
       return;
     }
     setError(null);
     reloadDashboard().catch((e: { message?: string }) => setError(e?.message ?? "加载失败"));
-  }, [router, token, reloadDashboard]);
+  }, [router, reloadDashboard]);
 
   function openEditWorkspaceModal() {
     if (!dashboard?.can_edit_workspace) return;
@@ -113,6 +118,17 @@ export default function WorkspaceHome() {
     setTaskDrawerItemId(row.item_id);
     setTaskDrawerHighlightId(row.id);
     setTaskDrawerOpen(true);
+  }
+
+  if (!authReady) {
+    return (
+      <PageMain>
+        <div className="space-y-2xl">
+          <WorkspaceDashboardCards dashboard={null} workspaceId={workspaceId} />
+          <ProjectList workspaceId={workspaceId} projects={[]} canCreateProject={false} />
+        </div>
+      </PageMain>
+    );
   }
 
   if (!token) return null;
