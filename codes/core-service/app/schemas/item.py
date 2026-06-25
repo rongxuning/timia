@@ -33,6 +33,8 @@ class ItemUpdate(BaseModel):
     assignee_user_id: str | None = None
     participant_user_ids: list[str] | None = None
     location: str | None = None
+    target_workspace_id: str | None = None
+    target_project_id: str | None = None
 
 
 class ItemOut(BaseModel):

@@ -33,6 +33,8 @@ export type ItemDetailComment = {
 };
 
 export type ItemDetailView = {
+  workspace_id: string;
+  project_id: string;
   id: string;
   title: string;
   body?: string | null;

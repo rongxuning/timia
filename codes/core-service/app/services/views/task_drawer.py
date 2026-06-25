@@ -104,4 +104,9 @@ def build_item_detail_view(
             )
         )
 
-    return ItemDetailViewOut(**base.model_dump(), comments=comments)
+    return ItemDetailViewOut(
+        workspace_id=str(item.workspace_id),
+        project_id=str(item.project_id),
+        **base.model_dump(),
+        comments=comments,
+    )

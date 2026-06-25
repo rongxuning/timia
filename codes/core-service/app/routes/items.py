@@ -12,9 +12,11 @@ from app.models.user import User
 from app.schemas.item import ItemCreate, ItemOut, ItemUpdate
 from app.services.activity import log_activity
 from app.services.item_api import (
+    apply_item_transfer,
     build_item_out,
     parse_assignee_id,
     parse_participant_ids,
+    parse_transfer_target,
     validate_item_people,
 )
 from app.services.permissions import require_project_content_access
@@ -133,6 +135,9 @@ def update_item(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="version_conflict")
 
     fields_set = getattr(payload, "model_fields_set", getattr(payload, "__fields_set__", set()))
+    transfer_target = parse_transfer_target(fields_set, payload)
+    people_workspace_id = transfer_target[0] if transfer_target else workspace_id
+    people_project_id = transfer_target[1] if transfer_target else project_id
 
     next_assignee = i.assignee_user_id
     if "assignee_user_id" in fields_set:
@@ -148,7 +153,7 @@ def update_item(
         if "participant_user_ids" in fields_set and payload.participant_user_ids is not None
         else list(i.participant_user_ids or [])
     )
-    validate_item_people(db, workspace_id, project_id, next_assignee, next_participants)
+    validate_item_people(db, people_workspace_id, people_project_id, next_assignee, next_participants)
 
     before = {
         "title": i.title,
@@ -162,6 +167,8 @@ def update_item(
         "assignee_user_id": str(i.assignee_user_id) if i.assignee_user_id else None,
         "participant_user_ids": [str(x) for x in (i.participant_user_ids or [])],
         "location": i.location,
+        "workspace_id": str(i.workspace_id),
+        "project_id": str(i.project_id),
     }
 
     if payload.title is not None:
@@ -196,6 +203,18 @@ def update_item(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_too_long")
         i.location = loc
 
+    transferred = False
+    if transfer_target:
+        transferred = apply_item_transfer(
+            db,
+            i,
+            source_workspace_id=workspace_id,
+            source_project_id=project_id,
+            target_workspace_id=transfer_target[0],
+            target_project_id=transfer_target[1],
+            user=user,
+        )
+
     i.version += 1
 
     after = {
@@ -210,17 +229,38 @@ def update_item(
         "assignee_user_id": str(i.assignee_user_id) if i.assignee_user_id else None,
         "participant_user_ids": [str(x) for x in (i.participant_user_ids or [])],
         "location": i.location,
+        "workspace_id": str(i.workspace_id),
+        "project_id": str(i.project_id),
     }
 
-    log_activity(
-        db,
-        workspace_id=workspace_id,
-        actor_user_id=user.id,
-        entity_type="item",
-        entity_id=i.id,
-        action="update",
-        metadata={"before": before, "after": after, "project_id": str(project_id)},
-    )
+    if transferred:
+        log_activity(
+            db,
+            workspace_id=workspace_id,
+            actor_user_id=user.id,
+            entity_type="item",
+            entity_id=i.id,
+            action="transfer",
+            metadata={
+                "before": before,
+                "after": after,
+                "from": {"workspace_id": str(workspace_id), "project_id": str(project_id)},
+                "to": {
+                    "workspace_id": str(transfer_target[0]),
+                    "project_id": str(transfer_target[1]),
+                },
+            },
+        )
+    else:
+        log_activity(
+            db,
+            workspace_id=workspace_id,
+            actor_user_id=user.id,
+            entity_type="item",
+            entity_id=i.id,
+            action="update",
+            metadata={"before": before, "after": after, "project_id": str(project_id)},
+        )
     db.commit()
     return build_item_out(db, i)
 

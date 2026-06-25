@@ -899,6 +899,10 @@ export interface components {
         };
         /** ItemDetailViewOut */
         ItemDetailViewOut: {
+            /** Workspace Id */
+            workspace_id: string;
+            /** Project Id */
+            project_id: string;
             /** Id */
             id: string;
             /** Title */
@@ -977,6 +981,10 @@ export interface components {
             participant_user_ids?: string[] | null;
             /** Location */
             location?: string | null;
+            /** Target Workspace Id */
+            target_workspace_id?: string | null;
+            /** Target Project Id */
+            target_project_id?: string | null;
         };
         /** LoginRequest */
         LoginRequest: {

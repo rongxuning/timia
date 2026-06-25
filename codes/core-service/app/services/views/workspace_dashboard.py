@@ -110,7 +110,7 @@ def build_workspace_dashboard(db: Session, workspace_id: uuid.UUID, user: User) 
             members_preview=participants[:3],
         ),
         stats=stats,
-        active_projects=projects[:4],
+        active_projects=projects,
         total_active_projects=total_active,
     )
 
