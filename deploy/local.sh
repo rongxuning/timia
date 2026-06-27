@@ -22,8 +22,7 @@ git_sync() {
   prev="$(git rev-parse HEAD)"
   echo "$prev"
   git fetch origin "$ref"
-  git checkout "$ref"
-  git reset --hard "origin/${ref}"
+  git checkout -fB "$ref" "origin/${ref}"
 }
 
 cmd_deploy() {

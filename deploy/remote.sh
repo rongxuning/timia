@@ -235,8 +235,7 @@ upload() {
     cd ${DEPLOY_PATH}
     if [[ ${skip_git_sync} -ne 1 ]]; then
       git fetch origin ${git_ref}
-      git checkout ${git_ref}
-      git reset --hard origin/${git_ref}
+      git checkout -fB ${git_ref} origin/${git_ref}
     fi
     if [[ ! -f deploy/dc.sh ]]; then
       echo 'deploy/dc.sh missing — run upload without SKIP_GIT_SYNC or sync ${git_ref} on server' >&2
