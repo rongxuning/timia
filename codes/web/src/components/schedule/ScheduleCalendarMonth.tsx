@@ -15,7 +15,7 @@ export function ScheduleCalendarMonth({
   onTaskClick,
   onCompleteTask,
   completingItemId,
-  showProjectContext,
+  showProjectContext = true,
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
 
