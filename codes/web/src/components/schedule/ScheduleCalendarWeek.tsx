@@ -17,7 +17,7 @@ export function ScheduleCalendarWeek({
   onTaskClick,
   onCompleteTask,
   completingItemId,
-  showProjectContext,
+  showProjectContext = true,
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
   const maxLane = week.segments.reduce((m, s) => Math.max(m, s.lane), -1);
