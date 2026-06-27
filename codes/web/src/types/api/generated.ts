@@ -736,6 +736,15 @@ export interface components {
             /** Display Name */
             display_name: string;
         };
+        /** CalendarDayDetailOut */
+        CalendarDayDetailOut: {
+            /** Key */
+            key: string;
+            /** Weekday */
+            weekday: number;
+            /** Items */
+            items: components["schemas"]["ScheduleTaskItemOut"][];
+        };
         /** CalendarDayOut */
         CalendarDayOut: {
             /** Key */
@@ -1276,6 +1285,8 @@ export interface components {
         ProjectOut: {
             /** Id */
             id: string;
+            /** Workspace Id */
+            workspace_id: string;
             /** Name */
             name: string;
             /** Description */
@@ -1305,6 +1316,8 @@ export interface components {
             description?: string | null;
             /** Archived */
             archived?: boolean | null;
+            /** Target Workspace Id */
+            target_workspace_id?: string | null;
         };
         /**
          * RecentDiscussionOut
@@ -1351,10 +1364,18 @@ export interface components {
         };
         /** ScheduleCalendarViewOut */
         ScheduleCalendarViewOut: {
+            /**
+             * View
+             * @enum {string}
+             */
+            view: "month" | "week" | "day";
+            /** Anchor */
+            anchor: string;
             /** Month */
-            month: string;
+            month?: string | null;
             /** Weeks */
-            weeks: components["schemas"]["CalendarWeekOut"][];
+            weeks?: components["schemas"]["CalendarWeekOut"][];
+            day?: components["schemas"]["CalendarDayDetailOut"] | null;
         };
         /** ScheduleDashboardOut */
         ScheduleDashboardOut: {
@@ -3102,6 +3123,8 @@ export interface operations {
                 scope?: string;
                 workspace_id?: string | null;
                 project_id?: string | null;
+                view?: string;
+                anchor?: string | null;
                 month?: string | null;
             };
             header?: {

@@ -1,11 +1,16 @@
 import { apiFetch } from "@/lib/api";
 import type {
+  CalendarViewMode,
   MyScheduleDashboardView,
   ScheduleCalendarView,
   SchedulePriorityView,
   ScheduleScopeParams,
   ScheduleSwimlaneView,
 } from "@/types/api/views/schedule";
+
+function formatDateAnchor(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function scopeQuery(params: ScheduleScopeParams): string {
   const q = new URLSearchParams({ scope: params.scope });
@@ -19,10 +24,12 @@ function scopeQuery(params: ScheduleScopeParams): string {
 export function fetchScheduleCalendar(
   token: string,
   params: ScheduleScopeParams,
-  month: string,
+  options: { view: CalendarViewMode; anchor: Date },
 ): Promise<ScheduleCalendarView> {
-  const q = `${scopeQuery(params)}&month=${encodeURIComponent(month)}`;
-  return apiFetch<ScheduleCalendarView>(`/views/schedule/calendar?${q}`, { token });
+  const q = new URLSearchParams(scopeQuery(params));
+  q.set("view", options.view);
+  q.set("anchor", formatDateAnchor(options.anchor));
+  return apiFetch<ScheduleCalendarView>(`/views/schedule/calendar?${q.toString()}`, { token });
 }
 
 export function fetchScheduleSwimlane(token: string, params: ScheduleScopeParams): Promise<ScheduleSwimlaneView> {

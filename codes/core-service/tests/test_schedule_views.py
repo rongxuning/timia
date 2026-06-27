@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from app.schemas.views.schedule import ScheduleTaskItemOut
-from app.services.views.schedule_items import _count_dashboard
+from app.services.views.schedule_items import _count_dashboard, parse_anchor
 from app.services.views.schedule_layout import build_calendar_view, build_priority_view, build_swimlane_view
 
 
@@ -43,11 +43,33 @@ def test_build_priority_only_active_statuses():
     assert sum(len(v) for v in view.quadrants.values()) == 1
 
 
-def test_build_calendar_has_weeks():
-    view = build_calendar_view([_item()], 2026, 6)
+def test_build_calendar_month_has_weeks():
+    anchor = parse_anchor("2026-06-15")
+    view = build_calendar_view([_item()], view="month", anchor=anchor)
+    assert view.view == "month"
     assert view.month == "2026-06"
+    assert view.anchor == "2026-06-15"
     assert len(view.weeks) == 5
     assert any(w.segments for w in view.weeks)
+    assert view.day is None
+
+
+def test_build_calendar_week_single_week():
+    anchor = parse_anchor("2026-06-12")
+    view = build_calendar_view([_item()], view="week", anchor=anchor)
+    assert view.view == "week"
+    assert len(view.weeks) == 1
+    assert len(view.weeks[0].days) == 7
+    assert view.weeks[0].days[0].key == "2026-06-07"
+
+
+def test_build_calendar_day_includes_spanning_task():
+    anchor = parse_anchor("2026-06-11")
+    view = build_calendar_view([_item()], view="day", anchor=anchor)
+    assert view.view == "day"
+    assert view.day is not None
+    assert view.day.key == "2026-06-11"
+    assert len(view.day.items) == 1
 
 
 def test_count_dashboard_health():

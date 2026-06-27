@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useScheduleViews } from "@/hooks/useScheduleViews";
-import type { PriorityKey, ScheduleScopeParams, ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
+import type {
+  PriorityKey,
+  ScheduleCalendarView,
+  ScheduleScopeParams,
+  ScheduleTaskItem,
+  StatusKey,
+} from "@/types/api/views/schedule";
 import { PriorityQuadrants } from "./PriorityQuadrants";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { SwimlaneKanban } from "./SwimlaneKanban";
@@ -22,6 +28,7 @@ export type ScheduleBoardProps = {
 function findTaskItem(
   swimlane: ReturnType<typeof useScheduleViews>["swimlane"],
   priority: ReturnType<typeof useScheduleViews>["priority"],
+  calendar: ScheduleCalendarView | null,
   itemId: string,
 ): ScheduleTaskItem | null {
   if (swimlane) {
@@ -34,6 +41,17 @@ function findTaskItem(
     for (const list of Object.values(priority.quadrants)) {
       const hit = list.find((x) => x.id === itemId);
       if (hit) return hit;
+    }
+  }
+  if (calendar) {
+    if (calendar.day) {
+      const hit = calendar.day.items.find((x) => x.id === itemId);
+      if (hit) return hit;
+    }
+    for (const week of calendar.weeks) {
+      for (const seg of week.segments) {
+        if (seg.item.id === itemId) return seg.item;
+      }
     }
   }
   return null;
@@ -49,8 +67,10 @@ export function ScheduleBoard({
   refreshNonce = 0,
 }: ScheduleBoardProps) {
   const {
-    calendarMonth,
-    setCalendarMonth,
+    calendarMode,
+    setCalendarMode,
+    calendarAnchor,
+    setCalendarAnchor,
     calendar,
     swimlane,
     priority,
@@ -70,6 +90,7 @@ export function ScheduleBoard({
   const [dragOverPriority, setDragOverPriority] = useState<PriorityKey | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<StatusKey | null>(null);
   const [priorityCountdownNowMs, setPriorityCountdownNowMs] = useState(() => Date.now());
+  const [completingItemId, setCompletingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     const id = window.setInterval(() => setPriorityCountdownNowMs(Date.now()), 60_000);
@@ -98,14 +119,12 @@ export function ScheduleBoard({
     [swimlane],
   );
 
-  const weeks = calendar?.weeks ?? [];
-
   function patchPath(it: ScheduleTaskItem) {
     return `/workspaces/${it.workspace_id}/projects/${it.project_id}/items/${it.id}`;
   }
 
   async function updateTaskPriority(itemId: string, newPriority: PriorityKey) {
-    const current = findTaskItem(swimlane, priority, itemId);
+    const current = findTaskItem(swimlane, priority, calendar, itemId);
     if (!current) return;
     try {
       await apiFetch(patchPath(current), {
@@ -120,8 +139,20 @@ export function ScheduleBoard({
     }
   }
 
+  async function completeTask(itemId: string) {
+    const current = findTaskItem(swimlane, priority, calendar, itemId);
+    if (!current) return;
+    if (current.status === "done" || current.status === "archived") return;
+    setCompletingItemId(itemId);
+    try {
+      await updateTaskStatus(itemId, "done");
+    } finally {
+      setCompletingItemId(null);
+    }
+  }
+
   async function updateTaskStatus(itemId: string, newStatus: StatusKey) {
-    const current = findTaskItem(swimlane, priority, itemId);
+    const current = findTaskItem(swimlane, priority, calendar, itemId);
     if (!current) return;
     if ((current.status as StatusKey) === newStatus) return;
     try {
@@ -159,14 +190,20 @@ export function ScheduleBoard({
         onDragLeavePriorityZone={(p) => setDragOverPriority((cur) => (cur === p ? null : cur))}
         onItemClick={onItemClick}
         onDropPriority={updateTaskPriority}
+        onCompleteTask={completeTask}
+        completingItemId={completingItemId}
         showProjectContext={showProjectContext}
       />
 
       <ScheduleCalendar
-        calendarMonth={calendarMonth}
-        onCalendarMonthChange={setCalendarMonth}
-        weeks={weeks}
+        calendarMode={calendarMode}
+        onCalendarModeChange={setCalendarMode}
+        calendarAnchor={calendarAnchor}
+        onCalendarAnchorChange={setCalendarAnchor}
+        calendar={calendar}
         onTaskClick={onItemClick}
+        onCompleteTask={completeTask}
+        completingItemId={completingItemId}
         showProjectContext={showProjectContext}
       />
 

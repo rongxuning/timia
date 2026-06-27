@@ -42,6 +42,10 @@ export function taskCalendarColors(p?: string | null): { bg: string; fg: string;
   return PRIORITY_CALENDAR_COLORS[normalizePriority(p)];
 }
 
+/** 日历任务条单行高度（px），与 gridAutoRows 一致 */
+export const CALENDAR_LANE_HEIGHT_PX = 64;
+export const CALENDAR_LANE_GAP_PX = 4;
+
 export function normalizePriority(p?: string | null): PriorityKey {
   const v = (p ?? "").trim().toLowerCase();
   if (v === "1" || v === "2" || v === "3" || v === "4") return v;
@@ -61,6 +65,36 @@ export function priorityBadgeClass(p?: string | null) {
 
 function formatMdHm(d: Date) {
   return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function formatHm(d: Date) {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function formatMdHmDash(d: Date) {
+  return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${formatHm(d)}`;
+}
+
+/** 日历任务卡片：同一天 hh:mm-hh:mm，跨天 mm-dd hh:mm-mm-dd hh:mm */
+export function formatScheduleTimeRange(startIso?: string | null, endIso?: string | null): string | null {
+  if (!startIso) return null;
+  const s = new Date(startIso);
+  if (Number.isNaN(s.getTime())) return null;
+  const e = endIso ? new Date(endIso) : s;
+  if (Number.isNaN(e.getTime())) return formatHm(s);
+
+  const sameDay =
+    s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
+
+  if (sameDay) return `${formatHm(s)}-${formatHm(e)}`;
+  return `${formatMdHmDash(s)}-${formatMdHmDash(e)}`;
+}
+
+export function formatScheduleDateTime(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return formatMdHm(d);
 }
 
 export function formatScheduleRange(startIso?: string | null, endIso?: string | null) {

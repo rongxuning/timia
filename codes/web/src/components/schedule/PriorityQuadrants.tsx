@@ -1,6 +1,7 @@
 "use client";
 
 import type { PriorityKey, ScheduleTaskItem } from "@/types/api/views/schedule";
+import { TaskStatusIcon } from "./TaskStatusIcon";
 import {
   countdownBadgeClass,
   countdownTargetForItem,
@@ -24,6 +25,8 @@ export type PriorityQuadrantsProps = {
   onDragLeavePriorityZone: (p: PriorityKey) => void;
   onItemClick: (it: ScheduleTaskItem) => void;
   onDropPriority: (itemId: string, priority: PriorityKey) => void;
+  onCompleteTask?: (itemId: string) => void;
+  completingItemId?: string | null;
   /** 任务卡片展示项目名（跨项目视图） */
   showProjectContext?: boolean;
 };
@@ -32,6 +35,8 @@ function taskTooltip(it: ScheduleTaskItem, cdText: string | null, showProjectCon
   const parts = [it.title];
   if (cdText) parts.push(cdText);
   if (showProjectContext) parts.push(`${it.workspace_name} / ${it.project_name}`);
+  const body = it.body?.trim();
+  if (body) parts.push(body);
   return parts.join(" · ");
 }
 
@@ -45,6 +50,8 @@ export function PriorityQuadrants({
   onDragLeavePriorityZone,
   onItemClick,
   onDropPriority,
+  onCompleteTask,
+  completingItemId = null,
   showProjectContext = true,
 }: PriorityQuadrantsProps) {
   return (
@@ -99,6 +106,7 @@ export function PriorityQuadrants({
                         targetMs != null ? formatRemainDHM(targetMs, priorityCountdownNowMs) : null;
                       const countdownClass =
                         targetMs != null ? countdownBadgeClass(targetMs, priorityCountdownNowMs) : null;
+                      const bodyText = it.body?.trim() ?? "";
                       return (
                         <button
                           key={it.id}
@@ -117,22 +125,40 @@ export function PriorityQuadrants({
                           className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary transition-colors"
                           title={taskTooltip(it, cd?.text ?? null, showProjectContext)}
                         >
-                          <div className="flex items-start justify-between gap-2 min-w-0">
-                            <span className="min-w-0 flex-1 truncate font-medium">{it.title}</span>
-                            {cd && countdownClass ? (
-                              <span
-                                className={[
-                                  "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
-                                  countdownClass,
-                                ].join(" ")}
-                              >
-                                {cd.text}
-                              </span>
-                            ) : null}
+                          <div className="flex items-start gap-1.5 min-w-0">
+                            <TaskStatusIcon
+                              status={it.status}
+                              loading={completingItemId === it.id}
+                              onComplete={
+                                onCompleteTask ? () => onCompleteTask(it.id) : undefined
+                              }
+                            />
+                            <div className="min-w-0 flex-1 flex flex-col gap-px leading-none">
+                              <div className="flex items-start justify-between gap-2 min-w-0">
+                                <span className="min-w-0 flex-1 truncate font-medium leading-tight">{it.title}</span>
+                                {cd && countdownClass ? (
+                                  <span
+                                    className={[
+                                      "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
+                                      countdownClass,
+                                    ].join(" ")}
+                                  >
+                                    {cd.text}
+                                  </span>
+                                ) : null}
+                              </div>
+                              {showProjectContext ? (
+                                <div className="truncate text-[10px] leading-tight text-neutral-muted">
+                                  {it.workspace_name} / {it.project_name}
+                                </div>
+                              ) : null}
+                              {bodyText ? (
+                                <div className="line-clamp-2 text-[10px] leading-tight text-neutral-muted">
+                                  {bodyText}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                          {showProjectContext ? (
-                            <div className="mt-0.5 truncate text-[10px] text-neutral-muted">{it.project_name}</div>
-                          ) : null}
                         </button>
                       );
                     })

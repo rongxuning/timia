@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { startOfDay } from "@/components/schedule/calendarNav";
 import {
   fetchMyScheduleDashboard,
   fetchScheduleCalendar,
@@ -8,16 +9,13 @@ import {
   fetchScheduleSwimlane,
 } from "@/lib/api/schedule-views";
 import type {
+  CalendarViewMode,
   MyScheduleDashboardView,
   ScheduleCalendarView,
   SchedulePriorityView,
   ScheduleScopeParams,
   ScheduleSwimlaneView,
 } from "@/types/api/views/schedule";
-
-function formatMonth(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 export type UseScheduleViewsOptions = {
   token: string | null;
@@ -27,10 +25,8 @@ export type UseScheduleViewsOptions = {
 };
 
 export function useScheduleViews({ token, scope, withDashboard = false }: UseScheduleViewsOptions) {
-  const [calendarMonth, setCalendarMonth] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-  });
+  const [calendarMode, setCalendarMode] = useState<CalendarViewMode>("month");
+  const [calendarAnchor, setCalendarAnchor] = useState(() => startOfDay(new Date()));
 
   const [dashboard, setDashboard] = useState<MyScheduleDashboardView | null>(null);
   const [calendar, setCalendar] = useState<ScheduleCalendarView | null>(null);
@@ -39,7 +35,10 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const monthKey = useMemo(() => formatMonth(calendarMonth), [calendarMonth]);
+  const calendarQueryKey = useMemo(
+    () => `${calendarMode}:${calendarAnchor.toISOString()}`,
+    [calendarMode, calendarAnchor],
+  );
   const scopeKey = useMemo(
     () => `${scope.scope}:${scope.workspaceId ?? ""}:${scope.projectId ?? ""}`,
     [scope.scope, scope.workspaceId, scope.projectId],
@@ -49,7 +48,7 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
     if (!token) return;
     setError(null);
     const tasks: Promise<void>[] = [
-      fetchScheduleCalendar(token, scope, monthKey).then(setCalendar),
+      fetchScheduleCalendar(token, scope, { view: calendarMode, anchor: calendarAnchor }).then(setCalendar),
       fetchScheduleSwimlane(token, scope).then(setSwimlane),
       fetchSchedulePriority(token, scope).then(setPriority),
     ];
@@ -57,13 +56,13 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
       tasks.push(fetchMyScheduleDashboard(token).then(setDashboard));
     }
     await Promise.all(tasks);
-  }, [token, scope, monthKey, withDashboard]);
+  }, [token, scope, calendarMode, calendarAnchor, withDashboard]);
 
   const reloadCalendar = useCallback(async () => {
     if (!token) return;
-    const data = await fetchScheduleCalendar(token, scope, monthKey);
+    const data = await fetchScheduleCalendar(token, scope, { view: calendarMode, anchor: calendarAnchor });
     setCalendar(data);
-  }, [token, scope, monthKey]);
+  }, [token, scope, calendarMode, calendarAnchor]);
 
   useEffect(() => {
     if (!token) return;
@@ -80,12 +79,13 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
     return () => {
       cancelled = true;
     };
-  }, [token, scopeKey, monthKey, withDashboard, reloadAll]);
+  }, [token, scopeKey, calendarQueryKey, withDashboard, reloadAll]);
 
   return {
-    calendarMonth,
-    setCalendarMonth,
-    monthKey,
+    calendarMode,
+    setCalendarMode,
+    calendarAnchor,
+    setCalendarAnchor,
     dashboard,
     calendar,
     swimlane,

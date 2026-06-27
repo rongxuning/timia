@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
@@ -154,3 +154,14 @@ def parse_month(month: str) -> tuple[int, int]:
 def month_default() -> str:
     now = datetime.now()
     return f"{now.year:04d}-{now.month:02d}"
+
+
+def anchor_default() -> str:
+    return date.today().isoformat()
+
+
+def parse_anchor(anchor: str) -> date:
+    try:
+        return date.fromisoformat(anchor.strip())
+    except ValueError as e:
+        raise ValueError("anchor must be YYYY-MM-DD") from e

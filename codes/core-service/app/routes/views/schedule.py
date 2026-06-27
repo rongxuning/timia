@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -14,9 +15,10 @@ from app.schemas.views.schedule import (
 )
 from app.services.views.schedule_items import (
     ScheduleScope,
+    anchor_default,
     build_my_schedule_dashboard,
     list_schedule_items,
-    month_default,
+    parse_anchor,
     parse_month,
 )
 from app.services.views.schedule_layout import (
@@ -50,18 +52,34 @@ def schedule_calendar_view(
     scope: str = Query("me", pattern="^(me|project)$"),
     workspace_id: uuid.UUID | None = None,
     project_id: uuid.UUID | None = None,
+    view: str = Query("month", pattern="^(month|week|day)$"),
+    anchor: str | None = None,
     month: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     resolved = _resolve_scope(scope, workspace_id, project_id)
     items = list_schedule_items(db, user, resolved)
-    month_str = month or month_default()
-    try:
-        year, mon = parse_month(month_str)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
-    return build_calendar_view(items, year, mon)
+
+    anchor_date = None
+    if anchor:
+        try:
+            anchor_date = parse_anchor(anchor)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    elif month:
+        try:
+            year, mon = parse_month(month)
+            anchor_date = date(year, mon, 1)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+    else:
+        try:
+            anchor_date = parse_anchor(anchor_default())
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    return build_calendar_view(items, view=view, anchor=anchor_date)
 
 
 @router.get("/swimlane", response_model=ScheduleSwimlaneViewOut)

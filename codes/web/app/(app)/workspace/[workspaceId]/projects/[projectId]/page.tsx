@@ -8,7 +8,7 @@ import { ProjectDashboardCards } from "@/components/project/ProjectDashboardCard
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
-import { ProjectModal } from "@/components/ProjectModal";
+import { ProjectModal, type ProjectModalSuccessMeta } from "@/components/ProjectModal";
 import { fetchProjectDashboard } from "@/lib/api/project-views";
 import { getToken } from "@/lib/auth";
 import type { ProjectDashboardView } from "@/types/api/views/project";
@@ -142,7 +142,16 @@ export default function ProjectPage() {
         projectId={projectId}
         initialName={dashboard?.name ?? ""}
         initialDescription={dashboard?.description}
-        onSuccess={() => {
+        onSuccess={(project, meta?: ProjectModalSuccessMeta) => {
+          setEditProjectOpen(false);
+          if (meta?.workspaceChanged && project.workspace_id !== workspaceId) {
+            if (meta.workspaceName) {
+              primeWorkspaceNameForBreadcrumb(project.workspace_id, meta.workspaceName);
+            }
+            primeProjectNameForBreadcrumb(project.workspace_id, project.id, project.name);
+            router.replace(`/workspace/${project.workspace_id}/projects/${project.id}`);
+            return;
+          }
           void reloadDashboard();
         }}
       />
