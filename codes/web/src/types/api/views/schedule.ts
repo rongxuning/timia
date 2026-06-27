@@ -46,10 +46,21 @@ export type CalendarWeekView = {
   segments: CalendarSegmentView[];
 };
 
-export type ScheduleCalendarView = {
-  month: string;
-  weeks: CalendarWeekView[];
+export type CalendarDayDetailView = {
+  key: string;
+  weekday: number;
+  items: ScheduleTaskItem[];
 };
+
+export type ScheduleCalendarView = {
+  view: "month" | "week" | "day";
+  anchor: string;
+  month: string | null;
+  weeks: CalendarWeekView[];
+  day: CalendarDayDetailView | null;
+};
+
+export type CalendarViewMode = "day" | "week" | "month";
 
 export type ScheduleSwimlaneView = {
   columns: Record<StatusKey, ScheduleTaskItem[]>;

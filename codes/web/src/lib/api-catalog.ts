@@ -52,10 +52,17 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "日程日历视图",
     requestJson: {
       headers: authBearer,
-      query: { scope: "me | project", workspace_id: "uuid?", project_id: "uuid?", month: "YYYY-MM?" },
+      query: {
+        scope: "me | project",
+        workspace_id: "uuid?",
+        project_id: "uuid?",
+        view: "month | week | day",
+        anchor: "YYYY-MM-DD?",
+        month: "YYYY-MM?",
+      },
       jsonBody: null,
     },
-    responseJson: { month: "YYYY-MM", weeks: "CalendarWeek[]" },
+    responseJson: { view: "month", anchor: "YYYY-MM-DD", month: "YYYY-MM?", weeks: [], day: null },
   },
   {
     method: "GET",

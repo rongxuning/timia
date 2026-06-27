@@ -2585,6 +2585,33 @@
             }
           },
           {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(month|week|day)$",
+              "default": "month",
+              "title": "View"
+            }
+          },
+          {
+            "name": "anchor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Anchor"
+            }
+          },
+          {
             "name": "month",
             "in": "query",
             "required": false,
@@ -3728,6 +3755,32 @@
           "display_name"
         ],
         "title": "AssignableUserOut"
+      },
+      "CalendarDayDetailOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "weekday": {
+            "type": "integer",
+            "title": "Weekday"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTaskItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "weekday",
+          "items"
+        ],
+        "title": "CalendarDayDetailOut"
       },
       "CalendarDayOut": {
         "properties": {
@@ -5539,8 +5592,28 @@
       },
       "ScheduleCalendarViewOut": {
         "properties": {
-          "month": {
+          "view": {
             "type": "string",
+            "enum": [
+              "month",
+              "week",
+              "day"
+            ],
+            "title": "View"
+          },
+          "anchor": {
+            "type": "string",
+            "title": "Anchor"
+          },
+          "month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Month"
           },
           "weeks": {
@@ -5549,12 +5622,22 @@
             },
             "type": "array",
             "title": "Weeks"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalendarDayDetailOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
-          "month",
-          "weeks"
+          "view",
+          "anchor"
         ],
         "title": "ScheduleCalendarViewOut"
       },

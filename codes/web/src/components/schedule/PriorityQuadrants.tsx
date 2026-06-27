@@ -133,9 +133,9 @@ export function PriorityQuadrants({
                                 onCompleteTask ? () => onCompleteTask(it.id) : undefined
                               }
                             />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 flex flex-col gap-px leading-none">
                               <div className="flex items-start justify-between gap-2 min-w-0">
-                                <span className="min-w-0 flex-1 truncate font-medium">{it.title}</span>
+                                <span className="min-w-0 flex-1 truncate font-medium leading-tight">{it.title}</span>
                                 {cd && countdownClass ? (
                                   <span
                                     className={[
@@ -148,12 +148,12 @@ export function PriorityQuadrants({
                                 ) : null}
                               </div>
                               {showProjectContext ? (
-                                <div className="mt-0.5 truncate text-[10px] text-neutral-muted">
+                                <div className="truncate text-[10px] leading-tight text-neutral-muted">
                                   {it.workspace_name} / {it.project_name}
                                 </div>
                               ) : null}
                               {bodyText ? (
-                                <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-neutral-muted">
+                                <div className="line-clamp-2 text-[10px] leading-tight text-neutral-muted">
                                   {bodyText}
                                 </div>
                               ) : null}

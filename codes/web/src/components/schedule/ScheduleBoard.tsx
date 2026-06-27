@@ -44,6 +44,10 @@ function findTaskItem(
     }
   }
   if (calendar) {
+    if (calendar.day) {
+      const hit = calendar.day.items.find((x) => x.id === itemId);
+      if (hit) return hit;
+    }
     for (const week of calendar.weeks) {
       for (const seg of week.segments) {
         if (seg.item.id === itemId) return seg.item;
@@ -63,8 +67,10 @@ export function ScheduleBoard({
   refreshNonce = 0,
 }: ScheduleBoardProps) {
   const {
-    calendarMonth,
-    setCalendarMonth,
+    calendarMode,
+    setCalendarMode,
+    calendarAnchor,
+    setCalendarAnchor,
     calendar,
     swimlane,
     priority,
@@ -112,8 +118,6 @@ export function ScheduleBoard({
       },
     [swimlane],
   );
-
-  const weeks = calendar?.weeks ?? [];
 
   function patchPath(it: ScheduleTaskItem) {
     return `/workspaces/${it.workspace_id}/projects/${it.project_id}/items/${it.id}`;
@@ -192,9 +196,11 @@ export function ScheduleBoard({
       />
 
       <ScheduleCalendar
-        calendarMonth={calendarMonth}
-        onCalendarMonthChange={setCalendarMonth}
-        weeks={weeks}
+        calendarMode={calendarMode}
+        onCalendarModeChange={setCalendarMode}
+        calendarAnchor={calendarAnchor}
+        onCalendarAnchorChange={setCalendarAnchor}
+        calendar={calendar}
         onTaskClick={onItemClick}
         onCompleteTask={completeTask}
         completingItemId={completingItemId}

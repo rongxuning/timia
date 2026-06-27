@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -45,9 +46,18 @@ class CalendarWeekOut(BaseModel):
     segments: list[CalendarSegmentOut]
 
 
+class CalendarDayDetailOut(BaseModel):
+    key: str
+    weekday: int
+    items: list[ScheduleTaskItemOut]
+
+
 class ScheduleCalendarViewOut(BaseModel):
-    month: str
-    weeks: list[CalendarWeekOut]
+    view: Literal["month", "week", "day"]
+    anchor: str
+    month: str | None = None
+    weeks: list[CalendarWeekOut] = Field(default_factory=list)
+    day: CalendarDayDetailOut | None = None
 
 
 class ScheduleSwimlaneViewOut(BaseModel):
