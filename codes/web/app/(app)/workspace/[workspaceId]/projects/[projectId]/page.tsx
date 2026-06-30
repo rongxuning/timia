@@ -13,6 +13,7 @@ import { fetchProjectDashboard } from "@/lib/api/project-views";
 import { getToken } from "@/lib/auth";
 import type { ProjectDashboardView } from "@/types/api/views/project";
 import type { ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
+import { localDatetimeRangeFromDateKey } from "@/components/schedule/taskUtils";
 
 export default function ProjectPage() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [scheduleRefreshNonce, setScheduleRefreshNonce] = useState(0);
   const [createInitialStatus, setCreateInitialStatus] = useState<StatusKey>("todo");
+  const [createInitialStartAt, setCreateInitialStartAt] = useState("");
+  const [createInitialEndAt, setCreateInitialEndAt] = useState("");
   const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
@@ -60,11 +63,23 @@ export default function ProjectPage() {
     reloadDashboard().catch(() => undefined);
   }, [scheduleRefreshNonce, token, reloadDashboard]);
 
-  function openTaskCreate(status: StatusKey = "todo") {
+  function openTaskCreate(status: StatusKey = "todo", dateKey?: string, hour?: number) {
     setTaskDrawerOpen(false);
     setTaskDrawerItemId(null);
     setCreateInitialStatus(status);
+    if (dateKey) {
+      const range = localDatetimeRangeFromDateKey(dateKey, hour);
+      setCreateInitialStartAt(range.start);
+      setCreateInitialEndAt(range.end);
+    } else {
+      setCreateInitialStartAt("");
+      setCreateInitialEndAt("");
+    }
     setTaskCreateDrawerOpen(true);
+  }
+
+  function openTaskCreateOnDate(dateKey: string, hour?: number) {
+    openTaskCreate("todo", dateKey, hour);
   }
 
   function openDrawer(it: ScheduleTaskItem) {
@@ -130,6 +145,7 @@ export default function ProjectPage() {
           refreshNonce={scheduleRefreshNonce}
           onItemClick={openDrawer}
           onCreateInColumn={openTaskCreate}
+          onCreateOnDate={openTaskCreateOnDate}
         />
       </div>
 
@@ -179,6 +195,8 @@ export default function ProjectPage() {
         token={token}
         variant="create"
         initialCreateStatus={createInitialStatus}
+        initialCreateStartAt={createInitialStartAt}
+        initialCreateEndAt={createInitialEndAt}
         onTaskCreated={handleTaskCreated}
       />
 

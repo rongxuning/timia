@@ -8,6 +8,7 @@ import {
   calendarTodayLabel,
   shiftCalendarAnchor,
   startOfDay,
+  parseDateAnchor,
   type CalendarViewMode,
 } from "./calendarNav";
 import { ScheduleCalendarDay } from "./ScheduleCalendarDay";
@@ -24,6 +25,7 @@ export type ScheduleCalendarProps = {
   onCompleteTask?: (itemId: string) => void;
   completingItemId?: string | null;
   showProjectContext?: boolean;
+  onDateBlankClick?: (dateKey: string, hour?: number) => void;
 };
 
 export function ScheduleCalendar({
@@ -36,12 +38,20 @@ export function ScheduleCalendar({
   onCompleteTask,
   completingItemId = null,
   showProjectContext = true,
+  onDateBlankClick,
 }: ScheduleCalendarProps) {
+  function openDayView(dateKey: string) {
+    onCalendarAnchorChange(parseDateAnchor(dateKey));
+    onCalendarModeChange("day");
+  }
+
   const bodyProps = {
     onTaskClick,
     onCompleteTask,
     completingItemId,
     showProjectContext,
+    onDateBlankClick,
+    onDateHeaderClick: openDayView,
   };
 
   return (

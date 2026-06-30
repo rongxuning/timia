@@ -18,6 +18,8 @@ type SearchableSelectProps = {
   disabled?: boolean;
   emptyText?: string;
   noMatchText?: string;
+  /** 已选项展示在标题同一行；默认在标题下方 */
+  selectionInline?: boolean;
 };
 
 export function SearchableSelect({
@@ -30,6 +32,7 @@ export function SearchableSelect({
   disabled = false,
   emptyText = "暂无可选项",
   noMatchText = "无匹配项",
+  selectionInline = false,
 }: SearchableSelectProps) {
   const uid = useId().replace(/:/g, "");
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -60,18 +63,29 @@ export function SearchableSelect({
     setPanelOpen(false);
   }
 
+  const selectedChip = selected ? (
+    <span className="inline-flex max-w-full min-w-0 items-center rounded-full border border-border-subtle bg-surface-bright px-3 py-1 text-small text-text-primary">
+      <span className="min-w-0 truncate">{selected.label}</span>
+    </span>
+  ) : null;
+
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-search`}>
-        {label}
-      </label>
-      {selected ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex max-w-full items-center rounded-full border border-border-subtle bg-surface-bright px-3 py-1 text-small text-text-primary">
-            <span className="min-w-0 truncate">{selected.label}</span>
-          </span>
+      {selectionInline ? (
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <label className="shrink-0 text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-search`}>
+            {label}
+          </label>
+          {selectedChip}
         </div>
-      ) : null}
+      ) : (
+        <>
+          <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-search`}>
+            {label}
+          </label>
+          {selectedChip ? <div className="flex flex-wrap items-center gap-2">{selectedChip}</div> : null}
+        </>
+      )}
       <div className="relative" ref={pickerRef}>
         <input
           id={`${uid}-search`}

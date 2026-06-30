@@ -1,6 +1,7 @@
 "use client";
 
 import type { CalendarWeekView } from "@/types/api/views/schedule";
+import { CalendarDateBlankColumns } from "./CalendarDateBlankColumns";
 import { CalendarTaskBar } from "./CalendarTaskBar";
 import { dayKeyLocal } from "./taskUtils";
 import type { ScheduleCalendarBodyProps } from "./ScheduleCalendar.types";
@@ -16,6 +17,8 @@ export function ScheduleCalendarMonth({
   onCompleteTask,
   completingItemId,
   showProjectContext = true,
+  onDateBlankClick,
+  onDateHeaderClick,
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
 
@@ -25,7 +28,7 @@ export function ScheduleCalendarMonth({
         const maxLane = week.segments.reduce((m, s) => Math.max(m, s.lane), -1);
         const rowCount = maxLane < 0 ? 0 : maxLane + 1;
         const minTaskLanes = 3;
-        const lanes = Math.max(rowCount, minTaskLanes);
+        const lanes = Math.max(rowCount + 1, minTaskLanes);
         const taskAreaMinHeightPx =
           4 + 8 + lanes * CALENDAR_LANE_HEIGHT_PX + Math.max(0, lanes - 1) * CALENDAR_LANE_GAP_PX;
         return (
@@ -42,7 +45,10 @@ export function ScheduleCalendarMonth({
                       in_month ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted opacity-60",
                       isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "",
                       "last:border-r-0",
+                      onDateHeaderClick ? "cursor-pointer hover:bg-primary/5 transition-colors" : "",
                     ].join(" ")}
+                    onClick={onDateHeaderClick ? () => onDateHeaderClick(key) : undefined}
+                    title={onDateHeaderClick ? "查看日视图" : undefined}
                   >
                     <span className={in_month ? "font-small font-medium text-text-primary" : "font-small"}>
                       {day}
@@ -53,7 +59,7 @@ export function ScheduleCalendarMonth({
             </div>
             <div className="relative border-t border-border-subtle/70 bg-surface">
               <div
-                className="relative z-[1] grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1"
+                className="relative z-[1] grid grid-cols-7 gap-x-0 gap-y-1 px-0 pb-2 pt-1 pointer-events-none"
                 style={{
                   gridAutoRows: CALENDAR_LANE_HEIGHT_PX,
                   minHeight: taskAreaMinHeightPx,
@@ -62,6 +68,7 @@ export function ScheduleCalendarMonth({
                 {week.segments.map((seg) => (
                   <div
                     key={`cal-${seg.item.id}-${wi}-${seg.col_start}-${seg.lane}`}
+                    className="pointer-events-auto"
                     style={{
                       gridColumn: `${seg.col_start} / span ${seg.col_span}`,
                       gridRow: seg.lane + 1,
@@ -80,18 +87,10 @@ export function ScheduleCalendarMonth({
                   </div>
                 ))}
               </div>
-              <div className="pointer-events-none absolute inset-0 z-0 grid grid-cols-7" aria-hidden>
-                {[0, 1, 2, 3, 4, 5, 6].map((col) => (
-                  <div
-                    key={col}
-                    className={[
-                      "border-r border-border-subtle",
-                      col === 0 ? "border-l border-border-subtle" : "",
-                      col === 6 ? "border-r-0" : "",
-                    ].join(" ")}
-                  />
-                ))}
-              </div>
+              <CalendarDateBlankColumns
+                dateKeys={week.days.map((d) => d.key)}
+                onDateBlankClick={onDateBlankClick}
+              />
             </div>
           </div>
         );
