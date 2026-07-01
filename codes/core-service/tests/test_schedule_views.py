@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from app.schemas.views.schedule import ScheduleTaskItemOut
-from app.services.views.schedule_items import _count_dashboard, parse_anchor
+from app.services.views.schedule_items import _count_dashboard, _count_quick_view, parse_anchor
 from app.services.views.schedule_layout import build_calendar_view, build_priority_view, build_swimlane_view
 
 
@@ -75,3 +75,37 @@ def test_build_calendar_day_includes_spanning_task():
 def test_count_dashboard_health():
     stats = _count_dashboard([_item(status="done"), _item(id="i2", status="todo")])
     assert stats["health_percent"] == 50
+
+
+def test_count_quick_view_today_overdue_and_week():
+    today = parse_anchor("2026-06-11")
+    now = datetime(2026, 6, 11, 12, 0, tzinfo=timezone.utc)
+
+    today_todo = _item(
+        id="today",
+        status="todo",
+        start_at=datetime(2026, 6, 11, 9, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 6, 11, 18, 0, tzinfo=timezone.utc),
+    )
+    overdue = _item(
+        id="overdue",
+        status="doing",
+        start_at=datetime(2026, 6, 9, 9, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 6, 10, 18, 0, tzinfo=timezone.utc),
+    )
+    due_week = _item(
+        id="week",
+        status="todo",
+        start_at=datetime(2026, 6, 13, 9, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 6, 13, 18, 0, tzinfo=timezone.utc),
+    )
+    done = _item(id="done", status="done")
+
+    stats = _count_quick_view(
+        [today_todo, overdue, due_week, done],
+        today=today,
+        now=now,
+    )
+    assert stats["today_todo_count"] == 1
+    assert stats["overdue_count"] == 1
+    assert stats["due_this_week_count"] == 2

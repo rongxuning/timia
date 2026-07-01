@@ -84,6 +84,9 @@ export type MyScheduleDashboardView = ScheduleDashboardStats & {
   email: string;
   workspace_count: number;
   project_count: number;
+  today_todo_count: number;
+  overdue_count: number;
+  due_this_week_count: number;
 };
 
 export type ScheduleScope = "me" | "project";

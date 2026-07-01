@@ -1,6 +1,7 @@
 "use client";
 
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
+import { AssigneeAvatar } from "./AssigneeAvatar";
 import { calendarTaskTooltip } from "./CalendarTaskBar";
 import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
 import type { DayTimelineBlock } from "./calendarDayLayout";
@@ -15,6 +16,7 @@ type Props = {
   onCompleteTask?: (itemId: string) => void;
   completingItemId?: string | null;
   showProjectContext?: boolean;
+  showAssigneeAvatar?: boolean;
   onDateBlankClick?: (dateKey: string, hour?: number) => void;
   compact?: boolean;
   bordered?: boolean;
@@ -30,6 +32,7 @@ export function CalendarTimelineColumn({
   onCompleteTask,
   completingItemId = null,
   showProjectContext = true,
+  showAssigneeAvatar = false,
   onDateBlankClick,
   compact = false,
   bordered = false,
@@ -145,6 +148,9 @@ export function CalendarTimelineColumn({
                 titleClassName={titleClassName}
                 metaClassName={metaClassName}
               />
+              {showAssigneeAvatar && block.item.assignee ? (
+                <AssigneeAvatar displayName={block.item.assignee.display_name} size="compact" />
+              ) : null}
             </div>
           </button>
         );

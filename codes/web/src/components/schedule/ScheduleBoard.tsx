@@ -195,6 +195,7 @@ export function ScheduleBoard({
         onCompleteTask={completeTask}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
+        showAssigneeAvatar={showAssigneeAvatar}
       />
 
       <ScheduleCalendar
@@ -207,6 +208,7 @@ export function ScheduleBoard({
         onCompleteTask={completeTask}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
+        showAssigneeAvatar={showAssigneeAvatar}
         onDateBlankClick={onCreateOnDate}
       />
 

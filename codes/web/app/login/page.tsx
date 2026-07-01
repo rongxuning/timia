@@ -288,16 +288,10 @@ export default function LoginPage() {
       </section>
 
       <footer className="fixed bottom-lg z-20 flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
-        <span>© 2026 Timia</span>
+        <span>Copyright © 2026 Timia</span>
         <div className="flex flex-wrap justify-center gap-lg">
           <a className="transition-colors hover:text-text-secondary" href="#">
             隐私
-          </a>
-          <a className="transition-colors hover:text-text-secondary" href="#">
-            条款
-          </a>
-          <a className="transition-colors hover:text-text-secondary" href="#">
-            安全
           </a>
         </div>
       </footer>

@@ -5,6 +5,8 @@ export type ScheduleCalendarBodyProps = {
   onCompleteTask?: (itemId: string) => void;
   completingItemId?: string | null;
   showProjectContext?: boolean;
+  /** 任务卡片状态勾选右侧展示负责人头像 */
+  showAssigneeAvatar?: boolean;
   /** 点击日期空白区域时触发（dateKey 为 YYYY-MM-DD；日视图可带 hour） */
   onDateBlankClick?: (dateKey: string, hour?: number) => void;
   /** 点击日期数字格时跳转到对应日视图 */

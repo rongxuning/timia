@@ -16,6 +16,7 @@ export function ScheduleCalendarDay({
   onCompleteTask,
   completingItemId,
   showProjectContext = true,
+  showAssigneeAvatar = false,
   onDateBlankClick,
 }: Props) {
   const blocks = layoutDayTimeline(day.items, day.key);
@@ -32,6 +33,7 @@ export function ScheduleCalendarDay({
           onCompleteTask={onCompleteTask}
           completingItemId={completingItemId}
           showProjectContext={showProjectContext}
+          showAssigneeAvatar={showAssigneeAvatar}
           onDateBlankClick={onDateBlankClick}
           compact
           laneLayout="grid-slot"

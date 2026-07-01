@@ -1,6 +1,7 @@
 "use client";
 
 import type { PriorityKey, ScheduleTaskItem } from "@/types/api/views/schedule";
+import { AssigneeAvatar } from "./AssigneeAvatar";
 import { TaskStatusIcon } from "./TaskStatusIcon";
 import {
   countdownBadgeClass,
@@ -29,6 +30,8 @@ export type PriorityQuadrantsProps = {
   completingItemId?: string | null;
   /** 任务卡片展示项目名（跨项目视图） */
   showProjectContext?: boolean;
+  /** 任务卡片状态勾选右侧展示负责人头像 */
+  showAssigneeAvatar?: boolean;
 };
 
 function taskTooltip(it: ScheduleTaskItem, cdText: string | null, showProjectContext: boolean) {
@@ -53,13 +56,14 @@ export function PriorityQuadrants({
   onCompleteTask,
   completingItemId = null,
   showProjectContext = true,
+  showAssigneeAvatar = false,
 }: PriorityQuadrantsProps) {
   return (
     <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
       <div className="p-lg flex items-center justify-between gap-lg">
-        <div>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <div className="text-sm font-semibold text-primary">优先级象限</div>
-          <p className="mt-0.5 text-caption text-neutral-muted">仅展示待办与进行中的任务</p>
+          <span className="text-caption text-neutral-muted">仅展示待办与进行中的任务</span>
         </div>
       </div>
 
@@ -136,28 +140,33 @@ export function PriorityQuadrants({
                             <div className="min-w-0 flex-1 flex flex-col gap-px leading-none">
                               <div className="flex items-start justify-between gap-2 min-w-0">
                                 <span className="min-w-0 flex-1 truncate font-medium leading-tight">{it.title}</span>
-                                {cd && countdownClass ? (
-                                  <span
-                                    className={[
-                                      "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
-                                      countdownClass,
-                                    ].join(" ")}
-                                  >
-                                    {cd.text}
-                                  </span>
-                                ) : null}
-                              </div>
-                              {showProjectContext ? (
-                                <div className="truncate text-[10px] leading-tight text-neutral-muted">
-                                  {it.workspace_name} / {it.project_name}
+                                <div className="flex shrink-0 items-center gap-1.5 min-w-0">
+                                  {showProjectContext ? (
+                                    <span className="max-w-[120px] truncate text-[10px] leading-tight text-neutral-muted">
+                                      {it.workspace_name} / {it.project_name}
+                                    </span>
+                                  ) : null}
+                                  {cd && countdownClass ? (
+                                    <span
+                                      className={[
+                                        "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
+                                        countdownClass,
+                                      ].join(" ")}
+                                    >
+                                      {cd.text}
+                                    </span>
+                                  ) : null}
                                 </div>
-                              ) : null}
+                              </div>
                               {bodyText ? (
                                 <div className="line-clamp-2 text-[10px] leading-tight text-neutral-muted">
                                   {bodyText}
                                 </div>
                               ) : null}
                             </div>
+                            {showAssigneeAvatar && it.assignee ? (
+                              <AssigneeAvatar displayName={it.assignee.display_name} />
+                            ) : null}
                           </div>
                         </button>
                       );

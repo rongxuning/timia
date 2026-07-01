@@ -978,7 +978,9 @@ export function TaskDrawerWithComments({
             >
               <form onSubmit={onSaveTask} className="space-y-4">
                 <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
-                  <div className="text-overline text-zinc-500 tracking-wide">任务简介</div>
+                  {variant !== "create" ? (
+                    <div className="text-overline text-zinc-500 tracking-wide">任务简介</div>
+                  ) : null}
                   {ownershipError ? <p className="text-caption text-error">{ownershipError}</p> : null}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <SearchableSelect
@@ -1232,7 +1234,9 @@ export function TaskDrawerWithComments({
                 </div>
 
                 <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
-                  <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
+                  {variant !== "create" ? (
+                    <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
+                  ) : null}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-status`}>

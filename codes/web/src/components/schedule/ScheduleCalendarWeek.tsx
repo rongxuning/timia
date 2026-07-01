@@ -19,6 +19,7 @@ export function ScheduleCalendarWeek({
   onCompleteTask,
   completingItemId,
   showProjectContext = true,
+  showAssigneeAvatar = false,
   onDateBlankClick,
   onDateHeaderClick,
 }: Props) {
@@ -78,6 +79,7 @@ export function ScheduleCalendarWeek({
                 onCompleteTask={onCompleteTask}
                 completingItemId={completingItemId}
                 showProjectContext={showProjectContext}
+                showAssigneeAvatar={showAssigneeAvatar}
                 onDateBlankClick={onDateBlankClick}
                 compact
                 bordered

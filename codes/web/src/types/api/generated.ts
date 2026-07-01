@@ -1168,6 +1168,12 @@ export interface components {
             workspace_count: number;
             /** Project Count */
             project_count: number;
+            /** Today Todo Count */
+            today_todo_count: number;
+            /** Overdue Count */
+            overdue_count: number;
+            /** Due This Week Count */
+            due_this_week_count: number;
         };
         /** ProjectBrief */
         ProjectBrief: {

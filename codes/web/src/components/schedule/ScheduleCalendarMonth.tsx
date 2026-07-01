@@ -17,6 +17,7 @@ export function ScheduleCalendarMonth({
   onCompleteTask,
   completingItemId,
   showProjectContext = true,
+  showAssigneeAvatar = false,
   onDateBlankClick,
   onDateHeaderClick,
 }: Props) {
@@ -80,6 +81,7 @@ export function ScheduleCalendarMonth({
                       roundLeft={seg.round_left}
                       roundRight={seg.round_right}
                       showProjectContext={showProjectContext}
+                      showAssigneeAvatar={showAssigneeAvatar}
                       completingItemId={completingItemId}
                       onTaskClick={onTaskClick}
                       onCompleteTask={onCompleteTask}
