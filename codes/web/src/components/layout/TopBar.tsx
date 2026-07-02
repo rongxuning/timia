@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { TimiaLogo } from "@/components/TimiaLogo";
 import { clearToken } from "@/lib/auth";
 
 export type TopBarProps = {
@@ -23,14 +23,7 @@ export function TopBar({ userInitial, userMenuOpen, onUserMenuOpenChange }: TopB
         <div className="flex min-w-0 items-center gap-3">
           <Link href="/my/schedule" className="flex items-center gap-2 md:hidden">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-              <Image
-                src="/icons/icon-32.png"
-                alt="Timia"
-                width={20}
-                height={20}
-                className="block h-5 w-5 shrink-0"
-                priority
-              />
+              <TimiaLogo size={20} className="block shrink-0" />
             </div>
             <span className="font-display text-lg font-bold leading-none tracking-tight text-gray-900">Timia</span>
           </Link>

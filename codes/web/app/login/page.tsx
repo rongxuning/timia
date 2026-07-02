@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { TimiaLogo } from "@/components/TimiaLogo";
 import { apiFetch } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
@@ -206,10 +207,8 @@ export default function LoginPage() {
       <section className="relative z-10 order-1 flex w-full flex-1 flex-col items-center justify-center px-container-padding py-5xl md:order-none md:w-1/2 md:min-h-screen md:py-8xl">
         <div className="w-full max-w-[440px]">
           <div className="mb-8xl flex flex-col items-center">
-            <div className="mb-lg flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-subtle bg-white shadow-sm">
-                <img alt="Timia 图标" src="/icons/icon-48.png" className="h-6.5 w-6.5 object-contain" />
-              </div>
+            <div className="mb-lg flex items-center gap-2.5">
+              <TimiaLogo size={32} className="shrink-0" />
               <span className="font-headline text-subhead tracking-tight text-on-surface">Timia</span>
             </div>
             <p className="mt-sm text-center font-body text-text-secondary">全天候管理你的日程</p>

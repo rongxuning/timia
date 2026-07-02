@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { TimiaLogo } from "@/components/TimiaLogo";
 import { apiFetch } from "@/lib/api";
 
 type RegisterResponse = { id: string; email: string; display_name: string };
@@ -69,10 +70,8 @@ export default function RegisterPage() {
 
       <div className="relative z-10 w-full max-w-[440px]">
         <div className="mb-2xl flex flex-col items-center">
-          <div className="mb-md flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-subtle bg-white shadow-sm">
-              <img alt="Timia 图标" src="/icons/icon-48.png" className="h-6.5 w-6.5 object-contain" />
-            </div>
+          <div className="mb-md flex items-center gap-2.5">
+            <TimiaLogo size={32} className="shrink-0" />
             <span className="font-headline text-subhead tracking-tight text-on-surface">Timia</span>
           </div>
           <h1 className="font-display text-section-heading text-center text-on-surface">创建账号</h1>

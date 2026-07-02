@@ -42,7 +42,7 @@ export function CalendarTimelineColumn({
   const isGridSlot = laneLayout === "grid-slot";
   const gridColWidthPct = 100 / 7;
 
-  function handleTimelineBlankClick(e: React.MouseEvent<HTMLDivElement>) {
+  function handleTimelineBlankClick(e: React.MouseEvent<HTMLElement>) {
     if (!onDateBlankClick) return;
     if ((e.target as HTMLElement).closest("button")) return;
     const rect = e.currentTarget.getBoundingClientRect();
