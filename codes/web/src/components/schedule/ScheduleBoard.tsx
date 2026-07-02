@@ -21,6 +21,7 @@ export type ScheduleBoardProps = {
   showAssigneeAvatar?: boolean;
   onItemClick: (it: ScheduleTaskItem) => void;
   onCreateInColumn?: (status: StatusKey) => void;
+  onCreateOnDate?: (dateKey: string, hour?: number) => void;
   /** 变更后递增以触发视图刷新（如任务创建/编辑） */
   refreshNonce?: number;
 };
@@ -64,6 +65,7 @@ export function ScheduleBoard({
   showAssigneeAvatar = false,
   onItemClick,
   onCreateInColumn,
+  onCreateOnDate,
   refreshNonce = 0,
 }: ScheduleBoardProps) {
   const {
@@ -193,6 +195,7 @@ export function ScheduleBoard({
         onCompleteTask={completeTask}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
+        showAssigneeAvatar={showAssigneeAvatar}
       />
 
       <ScheduleCalendar
@@ -205,6 +208,8 @@ export function ScheduleBoard({
         onCompleteTask={completeTask}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
+        showAssigneeAvatar={showAssigneeAvatar}
+        onDateBlankClick={onCreateOnDate}
       />
 
       <SwimlaneKanban

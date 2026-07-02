@@ -1,6 +1,7 @@
 "use client";
 
 import type { ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
+import { AssigneeAvatar } from "./AssigneeAvatar";
 import { formatScheduleRange, normalizePriority, priorityBadgeClass, STATUSES } from "./taskUtils";
 
 export type SwimlaneKanbanProps = {
@@ -19,17 +20,6 @@ export type SwimlaneKanbanProps = {
   /** 卡片展示项目名与「打开项目」链接（跨项目视图） */
   showProjectContext?: boolean;
 };
-
-function AssigneeAvatar({ displayName }: { displayName: string }) {
-  return (
-    <div
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white bg-surface-container text-[10px] font-bold text-on-surface-variant"
-      title={displayName}
-    >
-      {(displayName.trim().slice(0, 1) || "?").toUpperCase()}
-    </div>
-  );
-}
 
 export function SwimlaneKanban({
   byStatus,
@@ -144,7 +134,7 @@ export function SwimlaneKanban({
                   <div className="mt-4 flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       {showAssigneeAvatar && it.assignee ? (
-                        <AssigneeAvatar displayName={it.assignee.display_name} />
+                        <AssigneeAvatar displayName={it.assignee.display_name} size="large" />
                       ) : null}
                       {showProjectContext ? (
                         <a

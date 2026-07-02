@@ -7,6 +7,15 @@ export type ScheduleDashboardCardsProps = {
   profileHint?: string;
 };
 
+function StatPair({ label, value, accent }: { label: string; value: number; accent?: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-caption text-neutral-muted">{label}</span>
+      <span className={`font-bold text-lg tabular-nums ${accent ?? "text-text-primary"}`}>{value}</span>
+    </div>
+  );
+}
+
 export function ScheduleDashboardCards({ dashboard, profileHint }: ScheduleDashboardCardsProps) {
   if (!dashboard) {
     return (
@@ -32,27 +41,7 @@ export function ScheduleDashboardCards({ dashboard, profileHint }: ScheduleDashb
         </div>
       </section>
 
-      <section className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
-        <span className="text-sm font-semibold text-primary">覆盖范围</span>
-        <div className="flex w-full min-w-0 flex-col items-start gap-2 text-left">
-          <div className="flex items-baseline gap-2">
-            <span className="font-headline text-section-heading">{dashboard.workspace_count}</span>
-            <span className="text-text-secondary text-caption">个工作空间</span>
-          </div>
-          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-caption text-neutral-muted">项目数</span>
-              <span className="font-bold text-text-primary tabular-nums">{dashboard.project_count}</span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-caption text-neutral-muted">任务总数</span>
-              <span className="font-bold text-text-primary tabular-nums">{dashboard.task_total}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="flex h-44 flex-col items-start justify-start gap-lg rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+      <section className="flex h-44 flex-col items-start justify-start gap-3 rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
         <span className="text-sm font-semibold text-primary">健康度</span>
         <div className="flex w-full min-w-0 flex-col items-start gap-2 text-left">
           <div className="flex items-baseline gap-2">
@@ -78,8 +67,32 @@ export function ScheduleDashboardCards({ dashboard, profileHint }: ScheduleDashb
               <span className="font-bold text-lg text-text-primary tabular-nums">{dashboard.archived_count}</span>
             </div>
           </div>
+          <div className="mt-auto flex w-full flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-border-subtle/70 pt-2">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-caption text-neutral-muted">工作空间</span>
+              <span className="font-bold text-text-primary tabular-nums">{dashboard.workspace_count}</span>
+            </div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-caption text-neutral-muted">项目</span>
+              <span className="font-bold text-text-primary tabular-nums">{dashboard.project_count}</span>
+            </div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-caption text-neutral-muted">任务总数</span>
+              <span className="font-bold text-text-primary tabular-nums">{dashboard.task_total}</span>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="flex h-44 flex-col items-start justify-start gap-3 rounded-xl border border-border-subtle bg-white p-lg hover:shadow-lg transition-all">
+        <span className="text-sm font-semibold text-primary">快速查看</span>
+        <div className="grid w-full grid-cols-2 gap-x-4 gap-y-3">
+          <StatPair label="今日待办" value={dashboard.today_todo_count ?? 0} />
+          <StatPair label="逾期任务" value={dashboard.overdue_count ?? 0} accent="text-red-600" />
+          <StatPair label="进行中" value={dashboard.doing_count ?? 0} accent="text-indigo-600" />
+          <StatPair label="本周到期" value={dashboard.due_this_week_count ?? 0} accent="text-amber-700" />
+        </div>
+      </section>
     </div>
   );
 }

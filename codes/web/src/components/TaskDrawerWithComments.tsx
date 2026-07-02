@@ -52,6 +52,14 @@ type ProjectMemberRow = {
 
 const COMMENT_BODY_PREVIEW_CHARS = 200;
 
+const TASK_MEMBER_CHIP_CLASS =
+  "inline-flex h-6 max-w-full min-w-0 shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface-bright pl-2 pr-0.5 text-caption leading-none text-text-primary";
+const TASK_MEMBER_CHIP_REMOVE_CLASS =
+  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-neutral-muted hover:bg-surface-container-lowest hover:text-text-primary";
+const TASK_MEMBER_FIELD_HEAD_CLASS = "flex h-6 items-center gap-2 min-w-0";
+const TASK_MEMBER_CHIPS_ROW_CLASS =
+  "flex h-6 min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:thin]";
+
 function buildRepliesByParentId(flat: ItemComment[]) {
   const m = new Map<string, ItemComment[]>();
   for (const c of flat) {
@@ -156,6 +164,9 @@ type Props = {
   syncVersion?: number;
   /** 新建任务时表单的初始状态（例如看板列「添加」） */
   initialCreateStatus?: string;
+  /** 新建任务时预填的开始/结束时间（datetime-local 格式） */
+  initialCreateStartAt?: string;
+  initialCreateEndAt?: string;
 };
 
 export function TaskDrawerWithComments({
@@ -174,6 +185,8 @@ export function TaskDrawerWithComments({
   onTaskDeleted,
   syncVersion = 0,
   initialCreateStatus,
+  initialCreateStartAt,
+  initialCreateEndAt,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const effectiveShowComments = showCommentsProp ?? (variant !== "create");
@@ -429,8 +442,8 @@ export function TaskDrawerWithComments({
     setEditBody("");
     setEditStatus(initialCreateStatus ?? "todo");
     setEditPriority("1");
-    setEditStartAt("");
-    setEditEndAt("");
+    setEditStartAt(initialCreateStartAt ?? "");
+    setEditEndAt(initialCreateEndAt ?? "");
     setEditAssigneeUserId("");
     setEditParticipantUserIds([]);
     setEditLocation("");
@@ -442,7 +455,7 @@ export function TaskDrawerWithComments({
     setParticipantStagingIds([]);
     setAssigneePanelOpen(false);
     setParticipantPanelOpen(false);
-  }, [open, variant, initialCreateStatus]);
+  }, [open, variant, initialCreateStatus, initialCreateStartAt, initialCreateEndAt]);
 
   useEffect(() => {
     if (!open || variant !== "edit" || !itemId || !token) {
@@ -965,68 +978,252 @@ export function TaskDrawerWithComments({
             >
               <form onSubmit={onSaveTask} className="space-y-4">
                 <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
-                  <div className="text-overline text-zinc-500 tracking-wide">归属</div>
+                  {variant !== "create" ? (
+                    <div className="text-overline text-zinc-500 tracking-wide">任务简介</div>
+                  ) : null}
                   {ownershipError ? <p className="text-caption text-error">{ownershipError}</p> : null}
-                  <SearchableSelect
-                    label="工作空间"
-                    placeholder="搜索工作空间…"
-                    options={workspaceOptions.map((w) => ({ id: w.id, label: w.name }))}
-                    value={selectedWorkspaceId || null}
-                    onChange={handleWorkspaceChange}
-                    loading={workspacesLoading}
-                    disabled={editLoading || itemLoading}
-                    emptyText="暂无可用工作空间"
-                  />
-                  <SearchableSelect
-                    label="所属项目"
-                    placeholder="搜索所属项目…"
-                    options={projectOptions.map((p) => ({
-                      id: p.id,
-                      label: p.name,
-                      hint: p.description?.trim() || undefined,
-                    }))}
-                    value={selectedProjectId || null}
-                    onChange={handleProjectChange}
-                    loading={projectsLoading}
-                    disabled={editLoading || itemLoading || !selectedWorkspaceId}
-                    emptyText={
-                      selectedWorkspaceId ? "该工作空间下暂无可选项目" : "请先选择工作空间"
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-title`}>
-                    标题
-                  </label>
-                  <input
-                    id={`${uid}-title`}
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    disabled={editLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-body`}>
-                    描述
-                  </label>
-                  <textarea
-                    id={`${uid}-body`}
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none min-h-[120px] resize-none"
-                    value={editBody}
-                    onChange={(e) => setEditBody(e.target.value)}
-                    disabled={editLoading}
-                  />
-                </div>
-
-                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
-                  <div className="text-overline text-zinc-500 tracking-wide">人员与地点</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <SearchableSelect
+                      label="工作空间"
+                      placeholder="搜索工作空间…"
+                      options={workspaceOptions.map((w) => ({ id: w.id, label: w.name }))}
+                      value={selectedWorkspaceId || null}
+                      onChange={handleWorkspaceChange}
+                      loading={workspacesLoading}
+                      disabled={editLoading || itemLoading}
+                      emptyText="暂无可用工作空间"
+                      selectionInline
+                    />
+                    <SearchableSelect
+                      label="所属项目"
+                      placeholder="搜索所属项目…"
+                      options={projectOptions.map((p) => ({
+                        id: p.id,
+                        label: p.name,
+                        hint: p.description?.trim() || undefined,
+                      }))}
+                      value={selectedProjectId || null}
+                      onChange={handleProjectChange}
+                      loading={projectsLoading}
+                      disabled={editLoading || itemLoading || !selectedWorkspaceId}
+                      emptyText={
+                        selectedWorkspaceId ? "该工作空间下暂无可选项目" : "请先选择工作空间"
+                      }
+                      selectionInline
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-title`}>
+                      标题
+                    </label>
+                    <input
+                      id={`${uid}-title`}
+                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-body`}>
+                      描述
+                    </label>
+                    <textarea
+                      id={`${uid}-body`}
+                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none min-h-[120px] resize-none"
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      disabled={editLoading}
+                    />
+                  </div>
                   {membersLoading ? (
                     <p className="text-caption text-neutral-muted">加载成员列表…</p>
                   ) : null}
                   {membersError ? <p className="text-caption text-error">{membersError}</p> : null}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2 min-w-0">
+                      <div className={TASK_MEMBER_FIELD_HEAD_CLASS}>
+                        <label
+                          className="shrink-0 text-sm font-medium leading-none text-on-surface-variant"
+                          htmlFor={`${uid}-assignee-search`}
+                        >
+                          负责人
+                        </label>
+                        {editAssigneeUserId ? (
+                          <span className={TASK_MEMBER_CHIP_CLASS}>
+                            <span className="min-w-0 truncate">
+                              {memberById.get(editAssigneeUserId)?.display_name ??
+                                (drawerItem?.assignee?.id === editAssigneeUserId
+                                  ? drawerItem.assignee.display_name
+                                  : null) ??
+                                (drawerItem?.created_by?.id === editAssigneeUserId
+                                  ? drawerItem.created_by.display_name
+                                  : null) ??
+                                (me?.id === editAssigneeUserId ? me.display_name || me.email || "我" : null) ??
+                                editAssigneeUserId.slice(0, 8)}
+                            </span>
+                            <button
+                              type="button"
+                              className={TASK_MEMBER_CHIP_REMOVE_CLASS}
+                              onClick={clearAssignee}
+                              disabled={editLoading}
+                              aria-label="移除负责人"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">close</span>
+                            </button>
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="relative" ref={assigneePickerRef}>
+                        <input
+                          id={`${uid}-assignee-search`}
+                          type="search"
+                          autoComplete="off"
+                          placeholder="搜索姓名或邮箱，从列表中选择负责人…"
+                          className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                          value={assigneeSearchQuery}
+                          onChange={(e) => {
+                            setAssigneeSearchQuery(e.target.value);
+                            setAssigneePanelOpen(true);
+                          }}
+                          onFocus={() => setAssigneePanelOpen(true)}
+                          disabled={editLoading || memberOptions.length === 0}
+                        />
+                        {assigneePanelOpen && memberOptions.length > 0 ? (
+                          <ul
+                            role="listbox"
+                            className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-border-subtle bg-surface py-1 shadow-lg"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            {filteredAssigneeCandidates.length === 0 ? (
+                              <li className="px-3 py-2 text-caption text-neutral-muted">无匹配成员</li>
+                            ) : (
+                              filteredAssigneeCandidates.map((m) => (
+                                <li key={m.user_id}>
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-small text-text-primary hover:bg-surface-container-lowest"
+                                    onClick={() => pickAssignee(m.user_id)}
+                                  >
+                                    <span className="font-medium">{m.display_name}</span>
+                                    {m.email ? (
+                                      <span className="text-caption text-neutral-muted">{m.email}</span>
+                                    ) : null}
+                                  </button>
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        ) : null}
+                      </div>
+                      <p className="text-caption text-neutral-muted">
+                        输入关键字实时筛选；点击一行设为负责人。新建时默认本人，可移除后重新选择。
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 min-w-0">
+                      <div className={TASK_MEMBER_FIELD_HEAD_CLASS}>
+                        <div className="shrink-0 text-sm font-medium leading-none text-on-surface-variant">参与人</div>
+                        <div className={TASK_MEMBER_CHIPS_ROW_CLASS}>
+                          {editParticipantUserIds.map((pid) => (
+                            <span key={pid} className={TASK_MEMBER_CHIP_CLASS}>
+                              <span className="min-w-0 truncate">{participantChipLabel(pid)}</span>
+                              <button
+                                type="button"
+                                className={TASK_MEMBER_CHIP_REMOVE_CLASS}
+                                onClick={() => removeParticipant(pid)}
+                                disabled={editLoading}
+                                aria-label={`移除参与人 ${participantChipLabel(pid)}`}
+                              >
+                                <span className="material-symbols-outlined text-[13px]">close</span>
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="relative" ref={participantPickerRef}>
+                        <input
+                          id={`${uid}-participant-search`}
+                          type="search"
+                          autoComplete="off"
+                          placeholder="搜索并多选参与人，点「确认添加」加入…"
+                          className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                          value={participantSearchQuery}
+                          onChange={(e) => {
+                            setParticipantSearchQuery(e.target.value);
+                            setParticipantPanelOpen(true);
+                          }}
+                          onFocus={() => setParticipantPanelOpen(true)}
+                          disabled={editLoading || memberOptions.length === 0}
+                        />
+                        {participantPanelOpen && memberOptions.length > 0 ? (
+                          <div
+                            className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-border-subtle bg-surface shadow-lg"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
+                            <ul role="listbox" className="max-h-44 overflow-auto py-1">
+                              {filteredParticipantCandidates.length === 0 ? (
+                                <li className="px-3 py-2 text-caption text-neutral-muted">
+                                  无匹配成员，或均已添加（不含负责人）。
+                                </li>
+                              ) : (
+                                filteredParticipantCandidates.map((m) => {
+                                  const checked = participantStagingIds.includes(m.user_id);
+                                  return (
+                                    <li key={m.user_id}>
+                                      <label className="flex cursor-pointer items-start gap-2 px-3 py-2 text-small hover:bg-surface-container-lowest">
+                                        <input
+                                          type="checkbox"
+                                          className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-subtle text-primary focus:ring-primary/20"
+                                          checked={checked}
+                                          onChange={() => toggleParticipantStaging(m.user_id)}
+                                          disabled={editLoading}
+                                        />
+                                        <span className="min-w-0 flex-1">
+                                          <span className="font-medium text-text-primary">{m.display_name}</span>
+                                          {m.email ? (
+                                            <span className="mt-0.5 block text-caption text-neutral-muted">
+                                              {m.email}
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      </label>
+                                    </li>
+                                  );
+                                })
+                              )}
+                            </ul>
+                            <div className="flex items-center justify-end gap-2 border-t border-border-subtle bg-surface-container-lowest/50 px-2 py-2">
+                              <button
+                                type="button"
+                                className="text-caption font-medium text-neutral-muted hover:text-text-primary"
+                                onClick={() => {
+                                  setParticipantStagingIds([]);
+                                  setParticipantPanelOpen(false);
+                                }}
+                                disabled={editLoading}
+                              >
+                                取消选择
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-lg bg-primary px-3 py-1.5 text-caption font-semibold text-on-primary disabled:opacity-40"
+                                onClick={confirmParticipantStaging}
+                                disabled={editLoading || participantStagingIds.length === 0}
+                              >
+                                确认添加
+                                {participantStagingIds.length > 0 ? `（${participantStagingIds.length}）` : ""}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                      <p className="text-caption text-neutral-muted">
+                        在下拉里勾选多人后点「确认添加」；已添加人员可点标签上的关闭移除。
+                      </p>
+                    </div>
+                  </div>
 
                   {variant === "edit" && drawerItem ? (
                     <div className="space-y-1">
@@ -1034,192 +1231,78 @@ export function TaskDrawerWithComments({
                       <div className="text-small text-text-primary">{creatorLabel}</div>
                     </div>
                   ) : null}
+                </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-assignee-search`}>
-                      负责人
-                    </label>
-                    {editAssigneeUserId ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-bright py-1 pl-3 pr-1 text-small text-text-primary">
-                          <span className="min-w-0 truncate">
-                            {memberById.get(editAssigneeUserId)?.display_name ??
-                              (drawerItem?.assignee?.id === editAssigneeUserId
-                                ? drawerItem.assignee.display_name
-                                : null) ??
-                              (drawerItem?.created_by?.id === editAssigneeUserId
-                                ? drawerItem.created_by.display_name
-                                : null) ??
-                              (me?.id === editAssigneeUserId ? me.display_name || me.email || "我" : null) ??
-                              editAssigneeUserId.slice(0, 8)}
-                          </span>
-                          <button
-                            type="button"
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-muted hover:bg-surface-container-lowest hover:text-text-primary"
-                            onClick={clearAssignee}
-                            disabled={editLoading}
-                            aria-label="移除负责人"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">close</span>
-                          </button>
-                        </span>
-                      </div>
-                    ) : null}
-                    <div className="relative" ref={assigneePickerRef}>
-                      <input
-                        id={`${uid}-assignee-search`}
-                        type="search"
-                        autoComplete="off"
-                        placeholder="搜索姓名或邮箱，从列表中选择负责人…"
+                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
+                  {variant !== "create" ? (
+                    <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
+                  ) : null}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-status`}>
+                        状态
+                      </label>
+                      <select
+                        id={`${uid}-status`}
                         className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={assigneeSearchQuery}
-                        onChange={(e) => {
-                          setAssigneeSearchQuery(e.target.value);
-                          setAssigneePanelOpen(true);
-                        }}
-                        onFocus={() => setAssigneePanelOpen(true)}
-                        disabled={editLoading || memberOptions.length === 0}
-                      />
-                      {assigneePanelOpen && memberOptions.length > 0 ? (
-                        <ul
-                          role="listbox"
-                          className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-border-subtle bg-surface py-1 shadow-lg"
-                          onMouseDown={(e) => e.preventDefault()}
-                        >
-                          {filteredAssigneeCandidates.length === 0 ? (
-                            <li className="px-3 py-2 text-caption text-neutral-muted">无匹配成员</li>
-                          ) : (
-                            filteredAssigneeCandidates.map((m) => (
-                              <li key={m.user_id}>
-                                <button
-                                  type="button"
-                                  role="option"
-                                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-small text-text-primary hover:bg-surface-container-lowest"
-                                  onClick={() => pickAssignee(m.user_id)}
-                                >
-                                  <span className="font-medium">{m.display_name}</span>
-                                  {m.email ? (
-                                    <span className="text-caption text-neutral-muted">{m.email}</span>
-                                  ) : null}
-                                </button>
-                              </li>
-                            ))
-                          )}
-                        </ul>
-                      ) : null}
+                        value={editStatus}
+                        onChange={(e) => setEditStatus(e.target.value)}
+                        disabled={editLoading}
+                      >
+                        <option value="todo">待办（todo）</option>
+                        <option value="doing">进行中（doing）</option>
+                        <option value="done">已完成（done）</option>
+                        <option value="archived">已归档（archived）</option>
+                      </select>
                     </div>
-                    <p className="text-caption text-neutral-muted">
-                      输入关键字实时筛选；点击一行设为负责人。新建时默认本人，可移除后重新选择。
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-on-surface-variant">参与人</div>
-                    {editParticipantUserIds.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {editParticipantUserIds.map((pid) => (
-                          <span
-                            key={pid}
-                            className="inline-flex max-w-full items-center gap-1 rounded-full border border-border-subtle bg-surface-bright py-1 pl-3 pr-1 text-small text-text-primary"
-                          >
-                            <span className="min-w-0 truncate">{participantChipLabel(pid)}</span>
-                            <button
-                              type="button"
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-muted hover:bg-surface-container-lowest hover:text-text-primary"
-                              onClick={() => removeParticipant(pid)}
-                              disabled={editLoading}
-                              aria-label={`移除参与人 ${participantChipLabel(pid)}`}
-                            >
-                              <span className="material-symbols-outlined text-[16px]">close</span>
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-caption text-neutral-muted">尚未添加参与人。</p>
-                    )}
-                    <div className="relative" ref={participantPickerRef}>
-                      <input
-                        id={`${uid}-participant-search`}
-                        type="search"
-                        autoComplete="off"
-                        placeholder="搜索并多选参与人，点「确认添加」加入…"
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-pri`}>
+                        优先级
+                      </label>
+                      <select
+                        id={`${uid}-pri`}
                         className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={participantSearchQuery}
-                        onChange={(e) => {
-                          setParticipantSearchQuery(e.target.value);
-                          setParticipantPanelOpen(true);
-                        }}
-                        onFocus={() => setParticipantPanelOpen(true)}
-                        disabled={editLoading || memberOptions.length === 0}
-                      />
-                      {participantPanelOpen && memberOptions.length > 0 ? (
-                        <div
-                          className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-border-subtle bg-surface shadow-lg"
-                          onMouseDown={(e) => e.preventDefault()}
-                        >
-                          <ul role="listbox" className="max-h-44 overflow-auto py-1">
-                            {filteredParticipantCandidates.length === 0 ? (
-                              <li className="px-3 py-2 text-caption text-neutral-muted">
-                                无匹配成员，或均已添加（不含负责人）。
-                              </li>
-                            ) : (
-                              filteredParticipantCandidates.map((m) => {
-                                const checked = participantStagingIds.includes(m.user_id);
-                                return (
-                                  <li key={m.user_id}>
-                                    <label className="flex cursor-pointer items-start gap-2 px-3 py-2 text-small hover:bg-surface-container-lowest">
-                                      <input
-                                        type="checkbox"
-                                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-border-subtle text-primary focus:ring-primary/20"
-                                        checked={checked}
-                                        onChange={() => toggleParticipantStaging(m.user_id)}
-                                        disabled={editLoading}
-                                      />
-                                      <span className="min-w-0 flex-1">
-                                        <span className="font-medium text-text-primary">{m.display_name}</span>
-                                        {m.email ? (
-                                          <span className="mt-0.5 block text-caption text-neutral-muted">
-                                            {m.email}
-                                          </span>
-                                        ) : null}
-                                      </span>
-                                    </label>
-                                  </li>
-                                );
-                              })
-                            )}
-                          </ul>
-                          <div className="flex items-center justify-end gap-2 border-t border-border-subtle bg-surface-container-lowest/50 px-2 py-2">
-                            <button
-                              type="button"
-                              className="text-caption font-medium text-neutral-muted hover:text-text-primary"
-                              onClick={() => {
-                                setParticipantStagingIds([]);
-                                setParticipantPanelOpen(false);
-                              }}
-                              disabled={editLoading}
-                            >
-                              取消选择
-                            </button>
-                            <button
-                              type="button"
-                              className="rounded-lg bg-primary px-3 py-1.5 text-caption font-semibold text-on-primary disabled:opacity-40"
-                              onClick={confirmParticipantStaging}
-                              disabled={editLoading || participantStagingIds.length === 0}
-                            >
-                              确认添加
-                              {participantStagingIds.length > 0 ? `（${participantStagingIds.length}）` : ""}
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
+                        value={editPriority}
+                        onChange={(e) => setEditPriority(e.target.value)}
+                        disabled={editLoading}
+                      >
+                        <option value="1">1（低）</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4（高）</option>
+                      </select>
                     </div>
-                    <p className="text-caption text-neutral-muted">
-                      在下拉里勾选多人后点「确认添加」；已添加人员可点标签上的关闭移除。
-                    </p>
                   </div>
-
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-start`}>
+                        开始时间
+                      </label>
+                      <input
+                        id={`${uid}-start`}
+                        type="datetime-local"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={editStartAt}
+                        onChange={(e) => setEditStartAt(e.target.value)}
+                        disabled={editLoading}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-end`}>
+                        结束时间
+                      </label>
+                      <input
+                        id={`${uid}-end`}
+                        type="datetime-local"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={editEndAt}
+                        onChange={(e) => setEditEndAt(e.target.value)}
+                        disabled={editLoading}
+                        required
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-location`}>
                       地点
@@ -1233,74 +1316,6 @@ export function TaskDrawerWithComments({
                       value={editLocation}
                       onChange={(e) => setEditLocation(e.target.value)}
                       disabled={editLoading}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-status`}>
-                      状态
-                    </label>
-                    <select
-                      id={`${uid}-status`}
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value)}
-                      disabled={editLoading}
-                    >
-                      <option value="todo">待办（todo）</option>
-                      <option value="doing">进行中（doing）</option>
-                      <option value="done">已完成（done）</option>
-                      <option value="archived">已归档（archived）</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-pri`}>
-                      优先级
-                    </label>
-                    <select
-                      id={`${uid}-pri`}
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editPriority}
-                      onChange={(e) => setEditPriority(e.target.value)}
-                      disabled={editLoading}
-                    >
-                      <option value="1">1（低）</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4（高）</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-start`}>
-                      开始时间
-                    </label>
-                    <input
-                      id={`${uid}-start`}
-                      type="datetime-local"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editStartAt}
-                      onChange={(e) => setEditStartAt(e.target.value)}
-                      disabled={editLoading}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-end`}>
-                      结束时间
-                    </label>
-                    <input
-                      id={`${uid}-end`}
-                      type="datetime-local"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editEndAt}
-                      onChange={(e) => setEditEndAt(e.target.value)}
-                      disabled={editLoading}
-                      required
                     />
                   </div>
                 </div>

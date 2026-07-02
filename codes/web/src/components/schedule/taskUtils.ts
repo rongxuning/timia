@@ -114,6 +114,43 @@ export function toLocalDatetimeInputValue(iso: string) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+/** 日历空白处新建任务：默认 9:00–10:00；日视图可传 hour 为起点（1 小时时长） */
+export function localDatetimeRangeFromDateKey(
+  dateKey: string,
+  hour?: number,
+): { start: string; end: string } {
+  const parts = dateKey.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) {
+    const now = new Date();
+    const startH = hour ?? 9;
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startH, 0, 0, 0);
+    const end =
+      hour !== undefined && startH >= 23
+        ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 0, 0)
+        : new Date(start.getTime() + 60 * 60 * 1000);
+    return {
+      start: toLocalDatetimeInputValue(start.toISOString()),
+      end: toLocalDatetimeInputValue(end.toISOString()),
+    };
+  }
+  const [y, m, d] = parts;
+  const startH = hour ?? 9;
+  const start = new Date(y, m - 1, d, startH, 0, 0, 0);
+  let end: Date;
+  if (hour !== undefined) {
+    end =
+      startH >= 23
+        ? new Date(y, m - 1, d, 23, 59, 0, 0)
+        : new Date(y, m - 1, d, startH + 1, 0, 0, 0);
+  } else {
+    end = new Date(y, m - 1, d, 10, 0, 0, 0);
+  }
+  return {
+    start: toLocalDatetimeInputValue(start.toISOString()),
+    end: toLocalDatetimeInputValue(end.toISOString()),
+  };
+}
+
 export function countdownTargetForItem(it: ScheduleTaskItem): Date | null {
   if (it.end_at) {
     const d = new Date(it.end_at);

@@ -82,3 +82,6 @@ class MyScheduleDashboardOut(ScheduleDashboardOut):
     email: str
     workspace_count: int
     project_count: int
+    today_todo_count: int
+    overdue_count: int
+    due_this_week_count: int

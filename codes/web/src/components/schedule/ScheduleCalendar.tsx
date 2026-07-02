@@ -8,6 +8,7 @@ import {
   calendarTodayLabel,
   shiftCalendarAnchor,
   startOfDay,
+  parseDateAnchor,
   type CalendarViewMode,
 } from "./calendarNav";
 import { ScheduleCalendarDay } from "./ScheduleCalendarDay";
@@ -24,6 +25,8 @@ export type ScheduleCalendarProps = {
   onCompleteTask?: (itemId: string) => void;
   completingItemId?: string | null;
   showProjectContext?: boolean;
+  showAssigneeAvatar?: boolean;
+  onDateBlankClick?: (dateKey: string, hour?: number) => void;
 };
 
 export function ScheduleCalendar({
@@ -36,24 +39,32 @@ export function ScheduleCalendar({
   onCompleteTask,
   completingItemId = null,
   showProjectContext = true,
+  showAssigneeAvatar = false,
+  onDateBlankClick,
 }: ScheduleCalendarProps) {
+  function openDayView(dateKey: string) {
+    onCalendarAnchorChange(parseDateAnchor(dateKey));
+    onCalendarModeChange("day");
+  }
+
   const bodyProps = {
     onTaskClick,
     onCompleteTask,
     completingItemId,
     showProjectContext,
+    showAssigneeAvatar,
+    onDateBlankClick,
+    onDateHeaderClick: openDayView,
   };
 
   return (
     <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
-      <div className="p-lg flex flex-col gap-lg sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <div className="text-sm font-semibold text-primary">日历</div>
-          <div className="font-subhead text-lg text-text-primary">
-            {calendarTitle(calendarAnchor, calendarMode)}
-          </div>
+      <div className="p-lg flex flex-col gap-lg sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-2">
+        <div className="text-sm font-semibold text-primary">日历</div>
+        <div className="font-subhead text-lg text-text-primary text-center">
+          {calendarTitle(calendarAnchor, calendarMode)}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-self-end">
           <div className="inline-flex rounded-xl border border-border-subtle p-0.5 bg-surface-container-lowest/50">
             {CALENDAR_VIEW_MODES.map((m) => (
               <button

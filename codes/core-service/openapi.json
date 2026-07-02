@@ -5037,6 +5037,18 @@
           "project_count": {
             "type": "integer",
             "title": "Project Count"
+          },
+          "today_todo_count": {
+            "type": "integer",
+            "title": "Today Todo Count"
+          },
+          "overdue_count": {
+            "type": "integer",
+            "title": "Overdue Count"
+          },
+          "due_this_week_count": {
+            "type": "integer",
+            "title": "Due This Week Count"
           }
         },
         "type": "object",
@@ -5050,7 +5062,10 @@
           "display_name",
           "email",
           "workspace_count",
-          "project_count"
+          "project_count",
+          "today_todo_count",
+          "overdue_count",
+          "due_this_week_count"
         ],
         "title": "MyScheduleDashboardOut"
       },

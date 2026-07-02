@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { TimiaLogo } from "@/components/TimiaLogo";
 import { NavItem } from "./NavItem";
 
 export type SideNavProps = {
@@ -15,17 +16,8 @@ export function SideNav({ isAdmin }: SideNavProps) {
     <aside className="hidden h-full w-48 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-white md:flex">
       <div className="flex h-14 items-center justify-center px-4">
         <Link href="/my/schedule" className="inline-flex items-center gap-2.5">
-          <div className="box-border flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm">
-            <img
-              src="/icons/icon-48.png"
-              alt=""
-              width={20}
-              height={20}
-              className="block h-5 w-5 object-contain"
-              decoding="async"
-            />
-          </div>
-          <span className="block h-7 font-display text-2xl font-bold leading-7 tracking-tight text-gray-900">
+          <TimiaLogo size={28} className="shrink-0" />
+          <span className="font-display text-2xl font-bold leading-none tracking-tight text-gray-900">
             Timia
           </span>
         </Link>

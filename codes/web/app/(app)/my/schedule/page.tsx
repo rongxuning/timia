@@ -10,6 +10,7 @@ import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components
 import { fetchMyScheduleDashboard } from "@/lib/api/schedule-views";
 import { getToken } from "@/lib/auth";
 import type { MyScheduleDashboardView, ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
+import { localDatetimeRangeFromDateKey } from "@/components/schedule/taskUtils";
 
 export default function MySchedulePage() {
   const router = useRouter();
@@ -40,17 +41,31 @@ export default function MySchedulePage() {
   const [taskDrawerSubtitle, setTaskDrawerSubtitle] = useState<string | null>(null);
   const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
   const [createInitialStatus, setCreateInitialStatus] = useState<StatusKey>("todo");
+  const [createInitialStartAt, setCreateInitialStartAt] = useState("");
+  const [createInitialEndAt, setCreateInitialEndAt] = useState("");
 
   if (!authReady || !token) return null;
 
-  function openTaskCreate(status: StatusKey = "todo") {
+  function openTaskCreate(status: StatusKey = "todo", dateKey?: string, hour?: number) {
     setTaskDrawerOpen(false);
     setTaskDrawerItemId(null);
     setTaskDrawerWorkspaceId("");
     setTaskDrawerProjectId("");
     setTaskDrawerSubtitle(null);
     setCreateInitialStatus(status);
+    if (dateKey) {
+      const range = localDatetimeRangeFromDateKey(dateKey, hour);
+      setCreateInitialStartAt(range.start);
+      setCreateInitialEndAt(range.end);
+    } else {
+      setCreateInitialStartAt("");
+      setCreateInitialEndAt("");
+    }
     setTaskCreateDrawerOpen(true);
+  }
+
+  function openTaskCreateOnDate(dateKey: string, hour?: number) {
+    openTaskCreate("todo", dateKey, hour);
   }
 
   function openDrawer(it: ScheduleTaskItem) {
@@ -98,6 +113,7 @@ export default function MySchedulePage() {
         showAssigneeAvatar
         refreshNonce={scheduleRefreshNonce}
         onItemClick={openDrawer}
+        onCreateOnDate={openTaskCreateOnDate}
       />
 
       <TaskDrawerWithComments
@@ -124,6 +140,8 @@ export default function MySchedulePage() {
         token={token}
         variant="create"
         initialCreateStatus={createInitialStatus}
+        initialCreateStartAt={createInitialStartAt}
+        initialCreateEndAt={createInitialEndAt}
         onTaskCreated={handleTaskCreated}
       />
 

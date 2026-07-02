@@ -1,6 +1,7 @@
 "use client";
 
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
+import { AssigneeAvatar } from "./AssigneeAvatar";
 import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
 import { TaskStatusIcon } from "./TaskStatusIcon";
 import { formatScheduleTimeRange, taskCalendarColors } from "./taskUtils";
@@ -21,6 +22,7 @@ type CalendarTaskBarProps = {
   roundLeft: boolean;
   roundRight: boolean;
   showProjectContext: boolean;
+  showAssigneeAvatar?: boolean;
   completingItemId?: string | null;
   onTaskClick: (it: ScheduleTaskItem) => void;
   onCompleteTask?: (itemId: string) => void;
@@ -33,6 +35,7 @@ export function CalendarTaskBar({
   roundLeft,
   roundRight,
   showProjectContext,
+  showAssigneeAvatar = false,
   completingItemId = null,
   onTaskClick,
   onCompleteTask,
@@ -71,6 +74,9 @@ export function CalendarTaskBar({
             titleClassName={compact ? "text-[10px]" : "text-[11px]"}
             metaClassName="text-[10px]"
           />
+          {showAssigneeAvatar && item.assignee ? (
+            <AssigneeAvatar displayName={item.assignee.display_name} size="compact" />
+          ) : null}
         </div>
       ) : (
         "\u00a0"

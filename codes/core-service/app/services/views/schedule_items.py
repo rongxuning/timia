@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.schedule import ScheduleTaskItemOut
 from app.services.item_api import build_item_out
 from app.services.permissions import WORKSPACE_OWNER, require_project_content_access
+from app.services.views.schedule_layout import _item_covers_day, _sunday_week_start
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,58 @@ def _count_dashboard(items: list[ScheduleTaskItemOut]) -> dict:
     }
 
 
+ACTIVE_STATUSES = frozenset({"todo", "doing"})
+
+
+def _deadline_at(it: ScheduleTaskItemOut) -> datetime | None:
+    if it.end_at:
+        return it.end_at
+    if it.start_at:
+        return it.start_at
+    return None
+
+
+def _count_quick_view(
+    items: list[ScheduleTaskItemOut],
+    *,
+    today: date | None = None,
+    now: datetime | None = None,
+) -> dict:
+    today = today or date.today()
+    now = now or datetime.now(timezone.utc)
+    week_start = _sunday_week_start(today)
+    week_end = week_start + timedelta(days=6)
+
+    today_todo = 0
+    overdue = 0
+    due_this_week = 0
+
+    for it in items:
+        status = it.status
+        if status not in ACTIVE_STATUSES:
+            continue
+
+        if status == "todo" and _item_covers_day(it, today):
+            today_todo += 1
+
+        deadline = _deadline_at(it)
+        if deadline is None:
+            continue
+
+        if deadline < now:
+            overdue += 1
+        else:
+            deadline_date = deadline.date()
+            if week_start <= deadline_date <= week_end:
+                due_this_week += 1
+
+    return {
+        "today_todo_count": today_todo,
+        "overdue_count": overdue,
+        "due_this_week_count": due_this_week,
+    }
+
+
 def build_my_schedule_dashboard(db: Session, user: User, items: list[ScheduleTaskItemOut]) -> dict:
     workspace_ids: set[str] = set()
     project_keys: set[str] = set()
@@ -130,8 +183,10 @@ def build_my_schedule_dashboard(db: Session, user: User, items: list[ScheduleTas
         project_keys.add(f"{it.workspace_id}:{it.project_id}")
 
     base = _count_dashboard(items)
+    quick = _count_quick_view(items)
     return {
         **base,
+        **quick,
         "display_name": user.display_name,
         "email": user.email,
         "workspace_count": len(workspace_ids),
