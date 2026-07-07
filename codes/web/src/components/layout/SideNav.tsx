@@ -41,7 +41,7 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
 
   return (
     <aside
-      className={`hidden h-full shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white transition-[width] duration-200 md:flex ${
+      className={`hidden h-full shrink-0 flex-col border-r border-gray-200 bg-white transition-[width] duration-200 md:flex ${
         collapsed ? "w-16" : SIDEBAR_EXPANDED_WIDTH_CLASS
       }`}
     >
@@ -145,8 +145,8 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
           {userMenuOpen && (
             <div
               role="menu"
-              className={`absolute bottom-full z-50 mb-2 w-32 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm ${
-                collapsed ? "left-1/2 -translate-x-1/2" : "left-0"
+              className={`absolute z-50 w-32 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm ${
+                collapsed ? "bottom-0 left-full ml-2" : "bottom-full left-0 mb-2"
               }`}
             >
               <button

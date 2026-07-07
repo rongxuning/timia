@@ -87,7 +87,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [userMenuOpen]);
 
   return (
-    <div className="flex h-screen min-h-0 overflow-hidden">
+    <div className="flex h-screen min-h-0">
       <SideNav userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
