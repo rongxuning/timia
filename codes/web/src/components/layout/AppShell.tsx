@@ -3,8 +3,15 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
-import { getToken, loginRedirectReasonWhenUnauthenticated, redirectToLoginPage } from "@/lib/auth";
+import { apiFetch, type ApiError } from "@/lib/api";
+import {
+  getMeClientSnapshot,
+  getToken,
+  loginRedirectReasonWhenUnauthenticated,
+  publishMe,
+  redirectToLoginPage,
+} from "@/lib/auth";
+import { useCurrentMe } from "@/lib/use-current-me";
 import { isAdminOnlyPath, isSystemAdmin, type MeWithSystemRole } from "@/lib/system-role";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
@@ -13,11 +20,35 @@ export type AppShellProps = {
   children: ReactNode;
 };
 
+let inflightMeFetch: Promise<void> | null = null;
+
+function refreshMeIfNeeded() {
+  if (getMeClientSnapshot()) return Promise.resolve();
+  if (inflightMeFetch) return inflightMeFetch;
+
+  const t = getToken();
+  if (!t) return Promise.resolve();
+
+  inflightMeFetch = apiFetch<MeWithSystemRole>("/auth/me", { token: t })
+    .then((data) => {
+      publishMe(data);
+    })
+    .catch((err: ApiError) => {
+      if (err?.status === 401) {
+        publishMe(null);
+      }
+    })
+    .finally(() => {
+      inflightMeFetch = null;
+    });
+
+  return inflightMeFetch;
+}
+
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-
-  const [me, setMe] = useState<MeWithSystemRole | null>(null);
+  const me = useCurrentMe();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -27,12 +58,8 @@ export function AppShell({ children }: AppShellProps) {
   }, [pathname]);
 
   useEffect(() => {
-    const t = getToken();
-    if (!t) return;
-    apiFetch<MeWithSystemRole>("/auth/me", { token: t })
-      .then(setMe)
-      .catch(() => setMe(null));
-  }, [router]);
+    void refreshMeIfNeeded();
+  }, []);
 
   const isAdmin = isSystemAdmin(me?.system_role);
 
@@ -48,28 +75,22 @@ export function AppShell({ children }: AppShellProps) {
     function onMouseDown(e: MouseEvent) {
       const target = e.target as Node | null;
       if (!target) return;
-      const menu = document.getElementById("timia-user-menu-root");
-      if (menu && !menu.contains(target)) {
-        setUserMenuOpen(false);
+      const sideMenu = document.getElementById("timia-user-menu-side");
+      const topMenu = document.getElementById("timia-user-menu-top");
+      if ((sideMenu && sideMenu.contains(target)) || (topMenu && topMenu.contains(target))) {
+        return;
       }
+      setUserMenuOpen(false);
     }
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [userMenuOpen]);
 
-  const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
-
   return (
     <div className="flex h-screen min-h-0 overflow-hidden">
-      <SideNav isAdmin={isAdmin} />
+      <SideNav userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div id="timia-user-menu-root">
-          <TopBar
-            userInitial={userInitial}
-            userMenuOpen={userMenuOpen}
-            onUserMenuOpenChange={setUserMenuOpen}
-          />
-        </div>
+        <TopBar userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
