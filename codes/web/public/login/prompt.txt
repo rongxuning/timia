@@ -1,0 +1,62 @@
+In the iconic minimalist line art style of Yu Nagaba but with selective flat color fills, an extremely large and lively scene featuring 200 Japanese characters randomly scattered across the entire frame in a chaotic, organic, non-grid arrangement, representing 50 different occupations with 4 action variants each, all occupations are thoroughly intermixed and not grouped together, every character has a unique random position with varied heights and depths, some standing higher on platforms or steps, some lower in the foreground, some crouching, some jumping, some leaning sideways, some turned at diagonal angles, some slightly in front, some slightly behind, no two characters share the same horizontal or vertical line, no straight rows, no ordered arrangement, no grid formation, creating a natural messy crowd composition like a busy festival or street market, with people randomly scattered like confetti, some overlapping slightly but each clearly distinguishable,
+
+a rich background environment is added throughout the scene: characters near the edges of the frame are surrounded by consistent environmental elements including storefronts, street lamps, trees, potted plants, park benches, signboards, fences, building corners, and market stalls, creating a framed border of background context; characters in the interior of the frame randomly receive background elements such as individual trees, lamp posts, small carts, bicycles, mailboxes, trash cans, flower beds, or decorative banners, some characters have background objects behind them while others have only the plain off-white background, creating a varied and natural depth effect,
+
+all 200 characters have randomly assigned skin tones among Caucasian white, East Asian yellow, and African black, distributed evenly across the crowd,
+
+each occupation features authentic color-coded uniforms, clothing, and tools:
+
+1. Firefighter: red helmet and jacket, yellow reflective stripes, silver axe
+2. Chef: white toque blanche and apron, black pants, silver frying pan
+3. Doctor: white coat, blue scrubs, silver stethoscope, white mask
+4. Nurse: white uniform, light blue cap, pink accents, silver syringe
+5. Construction Worker: yellow helmet, orange safety vest, blue work pants, silver drill
+6. Teacher: brown blazer, cream shirt, red pen, green chalkboard pointer
+7. Police Officer: navy blue uniform, silver badge, black cap, silver whistle
+8. Painter: blue beret, white smock with colorful paint splatters, colorful palette
+9. Delivery Worker: brown uniform, black cap, orange package, handheld scanner
+10. Astronaut: white spacesuit with red and blue accents, silver helmet with gold visor
+11. Musician: black leather jacket, red guitar, silver drum kit, white keyboard
+12. Farmer: straw hat, blue overalls, green rubber boots, brown wooden hoe
+13. Fisherman: yellow raincoat, brown rubber boots, blue fishing net, silver fish
+14. Barista: black apron, brown apron underneath, white coffee cup, silver espresso machine
+15. Baker: white apron, brown baker's cap, golden brown bread loaf, silver baking tray
+16. Dentist: light blue medical gown, white surgical mask, silver dental mirror and drill
+17. Veterinarian: green scrubs, white coat, brown dog, orange cat, silver stethoscope
+18. Architect: black turtleneck, gray vest, white blueprint with blue lines, silver compass
+19. Pilot: navy blue uniform with gold stripes, white cap, black aviator sunglasses
+20. Flight Attendant: red uniform dress, white scarf, gold wings pin, service tray
+21. Journalist: khaki vest, white notebook, black pen, silver professional camera
+22. Photographer: black vest, dark jeans, silver camera with black lens, camera bag
+23. Librarian: forest green cardigan sweater, round glasses, brown books, shushing finger
+24. Gardener: green apron, straw hat, brown gardening gloves, colorful flowers in pot
+25. Scientist: white lab coat, clear safety goggles, blue liquid in test tube, silver microscope
+26. Judge: black robe, white collar, wooden gavel, silver-gray hair
+27. Lawyer: charcoal gray suit, red tie, brown briefcase, gold wristwatch
+28. Accountant: dark gray suit, green visor, black calculator, leather ledger book
+29. Bank Teller: navy blazer, white shirt, name tag on chest, counting cash in hands
+30. Barber: striped apron (red-white-blue), scissors, comb, straight razor
+31. Beautician: pink smock, hair dryer in hand, makeup brush, nail polish bottle
+32. Butcher: white apron, blue disposable gloves, red meat cleaver, hanging sausages
+33. Carpenter: brown apron, yellow hard hat, silver hammer, wooden plank under arm
+34. Electrician: blue work uniform, yellow hard hat, wire spool, pliers in hand
+35. Plumber: gray coveralls, red tool belt, silver wrench, pipe segment on shoulder
+36. Welder: dark green jacket, welding mask with dark visor flipped up, welding torch, metal sparks
+37. Crane Operator: yellow hard hat, orange safety vest, control levers, looking upward
+38. Truck Driver: red plaid shirt, blue jeans, truck steering wheel, baseball cap
+39. Bus Driver: navy uniform with epaulets, cap, bus steering wheel, ticket punch
+40. Train Conductor: navy uniform with gold trim, conductor hat with gold badge, pocket watch, whistle
+41. Sailor: white uniform with blue trim, sailor hat with black ribbon, blue necktie, binoculars
+42. Submariner: navy jumpsuit, submarine periscope in hand, diving badge on chest
+43. Diver: black wetsuit, diving mask on forehead, oxygen tank on back, flippers in hand
+44. Lifeguard: red swimsuit with white cross, yellow rescue buoy, whistle around neck, white cap
+45. Ski Instructor: colorful striped ski jacket, ski goggles on helmet, skis and poles
+46. Surf Instructor: board shorts, surfboard under arm, rash guard, flip-flops
+47. Yoga Instructor: purple leggings, white tank top, yoga mat rolled under arm, meditating hand pose
+48. Fire Chief: white fire helmet with gold badge, yellow jacket with reflective stripes, silver radio
+49. Pastry Chef: white tall chef hat, pink apron with pocket, gold piping bag, colorful macarons
+50. Martial Arts Instructor: white dogi uniform, black belt tied at waist, wooden training sword
+
+all characters are scattered with random chaotic placement, some turned left, some turned right, some facing forward, some facing backward, some in mid-action jumping or reaching, some standing still, some leaning or bending, dense organic composition with characters filling the entire canvas from edge to edge, no large empty areas, extreme wide shot capturing all 200 characters and their surrounding background environment in one single frame, wide-angle view like a bustling city street scene with depth and layering,
+
+art style: bold black ink outlines, slightly broken and imperfect hand-drawn linework characteristic of Yu Nagaba, selective flat color fills only on clothing, tools, accessories, skin tones, and background elements, no gradients, no shading, no 3D rendering, flat 2D illustration with limited flat color palette, cute and minimalist aesthetic, colors are flat and solid without blending, off-white background with scattered environmental objects and architectural elements, densely populated scene with natural messy layout --ar 16:9 --style raw --v 6.0

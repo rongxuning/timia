@@ -276,7 +276,7 @@ export function Breadcrumbs({
 
   return (
     <nav aria-label="面包屑导航" className={className}>
-      <ol className="flex items-center gap-1 text-sm text-gray-500 min-w-0">
+      <ol className="flex items-center gap-1 text-xs leading-none text-gray-500 min-w-0">
         {crumbs.map((c, idx) => {
           const isLast = idx === crumbs.length - 1;
           return (

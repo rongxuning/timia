@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TimiaLogo } from "@/components/TimiaLogo";
 import { apiFetch } from "@/lib/api";
 
 type RegisterResponse = { id: string; email: string; display_name: string };
@@ -69,16 +68,8 @@ export default function RegisterPage() {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-surface-container-low/50 via-transparent to-primary-container/5" />
 
       <div className="relative z-10 w-full max-w-[440px]">
-        <div className="mb-2xl flex flex-col items-center">
-          <div className="mb-md flex items-center gap-2.5">
-            <TimiaLogo size={32} className="shrink-0" />
-            <span className="font-headline text-subhead tracking-tight text-on-surface">Timia</span>
-          </div>
-          <h1 className="font-display text-section-heading text-center text-on-surface">创建账号</h1>
-          <p className="mt-xs text-center font-body text-text-secondary">加入工作空间，开始协作</p>
-        </div>
-
         <div className="rounded-xl border border-border-subtle bg-surface p-3xl shadow-sm transition-shadow duration-300 hover:shadow-md">
+          <h1 className="mb-xl font-display text-section-heading text-center text-on-surface">创建账号</h1>
           <form onSubmit={onSubmit} className="space-y-xl">
             <div className="space-y-xs">
               <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="email">
@@ -179,17 +170,11 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <footer className="fixed bottom-lg z-20 flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
-        <span>© 2026 Timia</span>
+      <footer className="absolute bottom-lg flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
+        <span>Copyright © 2026 Timia</span>
         <div className="flex flex-wrap justify-center gap-lg">
           <a className="transition-colors hover:text-text-secondary" href="#">
             隐私
-          </a>
-          <a className="transition-colors hover:text-text-secondary" href="#">
-            条款
-          </a>
-          <a className="transition-colors hover:text-text-secondary" href="#">
-            安全
           </a>
         </div>
       </footer>
