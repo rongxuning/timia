@@ -60,7 +60,7 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-surface bg-[url('/login/background_4k.png')] bg-cover bg-center bg-no-repeat px-container-padding">
       <div className="relative z-10 w-full max-w-[440px]">
-        <div className="rounded-xl border-2 border-black bg-surface p-xl shadow-sm">
+        <div className="rounded-xl border-4 border-black bg-surface p-xl shadow-sm">
           <div className="mb-xl flex flex-col items-center">
             <span className="font-headline text-[40px] font-semibold leading-tight tracking-tight text-on-surface">Timia</span>
             <p className="mt-xs whitespace-nowrap text-center font-body text-caption text-text-secondary">
