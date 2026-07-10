@@ -58,9 +58,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-surface px-container-padding">
-      <div className="w-full max-w-[440px]">
-        <div className="rounded-xl border border-border-subtle bg-surface p-xl shadow-sm">
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-surface bg-[url('/login/background_4k.png')] bg-cover bg-center bg-no-repeat px-container-padding">
+      <div className="relative z-10 w-full max-w-[440px]">
+        <div className="rounded-xl border-2 border-black bg-surface p-xl shadow-sm">
           <div className="mb-xl flex flex-col items-center">
             <span className="font-headline text-[40px] font-semibold leading-tight tracking-tight text-on-surface">Timia</span>
             <p className="mt-xs whitespace-nowrap text-center font-body text-caption text-text-secondary">
@@ -69,44 +69,46 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-lg">
-            <div className="space-y-xs">
-              <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="email">
-                邮箱
+            <div className="group relative">
+              <input
+                id="email"
+                className="peer w-full rounded-xl border border-border-subtle bg-surface-bright px-md pb-sm pt-6 pr-10 text-body outline-none transition-all placeholder:text-transparent focus:border-primary focus:ring-4 focus:ring-primary/10"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                placeholder="Email"
+                type="email"
+              />
+              <label
+                htmlFor="email"
+                className="pointer-events-none absolute left-md top-1/2 -translate-y-1/2 font-body text-body text-outline-variant transition-all duration-200 peer-focus:top-3 peer-focus:translate-y-0 peer-focus:text-caption peer-focus:text-on-surface-variant peer-[:not(:placeholder-shown)]:top-3 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-caption peer-[:not(:placeholder-shown)]:text-on-surface-variant"
+              >
+                Email
               </label>
-              <div className="group relative">
-                <input
-                  id="email"
-                  className="w-full rounded-xl border border-border-subtle bg-surface-bright px-md py-sm text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                  placeholder="name@company.com"
-                  type="email"
-                />
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
-                  mail
-                </span>
-              </div>
+              <span className="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
+                mail
+              </span>
             </div>
 
-            <div className="space-y-xs">
-              <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="password">
-                密码
+            <div className="group relative">
+              <input
+                id="password"
+                className="peer w-full rounded-xl border border-border-subtle bg-surface-bright px-md pb-sm pt-6 pr-10 text-body outline-none transition-all placeholder:text-transparent focus:border-primary focus:ring-4 focus:ring-primary/10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+                placeholder="Password"
+              />
+              <label
+                htmlFor="password"
+                className="pointer-events-none absolute left-md top-1/2 -translate-y-1/2 font-body text-body text-outline-variant transition-all duration-200 peer-focus:top-3 peer-focus:translate-y-0 peer-focus:text-caption peer-focus:text-on-surface-variant peer-[:not(:placeholder-shown)]:top-3 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-caption peer-[:not(:placeholder-shown)]:text-on-surface-variant"
+              >
+                Password
               </label>
-              <div className="group relative">
-                <input
-                  id="password"
-                  className="w-full rounded-xl border border-border-subtle bg-surface-bright px-md py-sm text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                />
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
-                  lock
-                </span>
-              </div>
+              <span className="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
+                lock
+              </span>
             </div>
 
             {sessionNotice && (
@@ -138,7 +140,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <footer className="absolute bottom-lg flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
+      <footer className="absolute bottom-lg z-10 flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
         <span>Copyright © 2026 Timia</span>
         <div className="flex flex-wrap justify-center gap-lg">
           <a className="transition-colors hover:text-text-secondary" href="#">
