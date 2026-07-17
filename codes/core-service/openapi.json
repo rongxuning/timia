@@ -4269,6 +4269,18 @@
             ],
             "title": "End At"
           },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
           "details": {
             "anyOf": [
               {
@@ -4461,6 +4473,18 @@
             ],
             "title": "End At"
           },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
           "details": {
             "anyOf": [
               {
@@ -4598,6 +4622,18 @@
             ],
             "title": "End At"
           },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
           "details": {
             "anyOf": [
               {
@@ -4661,6 +4697,7 @@
           "priority",
           "start_at",
           "end_at",
+          "completed_at",
           "details",
           "version"
         ],
@@ -4751,6 +4788,18 @@
               }
             ],
             "title": "End At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
           },
           "details": {
             "anyOf": [
@@ -6038,6 +6087,18 @@
               }
             ],
             "title": "End At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
           },
           "details": {
             "anyOf": [

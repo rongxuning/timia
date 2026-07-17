@@ -15,6 +15,7 @@ class ScheduleTaskItemOut(BaseModel):
     priority: str | None = None
     start_at: datetime | None = None
     end_at: datetime | None = None
+    completed_at: datetime | None = None
     details: str | None = None
     version: int
     created_by: UserBrief | None = None

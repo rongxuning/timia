@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -10,6 +11,27 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.item import ItemOut, ItemUpdate, UserBrief
 from app.services.permissions import require_project_content_access, user_can_access_project_content
+
+
+def resolve_item_completed_at(
+    *,
+    current_status: str | None,
+    current_completed_at: datetime | None,
+    next_status: str,
+    requested_completed_at: datetime | None = None,
+    completed_at_was_set: bool = False,
+    now: datetime | None = None,
+) -> datetime | None:
+    """Keep completion time consistent with task status for every update entry point."""
+    if next_status != "done":
+        return None
+
+    timestamp = now or datetime.now(timezone.utc)
+    if current_status != "done":
+        return requested_completed_at or timestamp
+    if completed_at_was_set:
+        return requested_completed_at or timestamp
+    return current_completed_at or timestamp
 
 
 def dedupe_uuid_preserve_order(ids: list[uuid.UUID]) -> list[uuid.UUID]:
@@ -144,6 +166,7 @@ def build_item_out(db: Session, i: Item) -> ItemOut:
         priority=i.priority,
         start_at=i.start_at,
         end_at=i.end_at,
+        completed_at=i.completed_at,
         details=i.details,
         version=i.version,
         created_by=b(i.created_by_user_id),

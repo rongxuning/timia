@@ -38,7 +38,6 @@ export default function MySchedulePage() {
   const [taskDrawerProjectId, setTaskDrawerProjectId] = useState("");
   const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
   const [taskDrawerVersion, setTaskDrawerVersion] = useState(0);
-  const [taskDrawerSubtitle, setTaskDrawerSubtitle] = useState<string | null>(null);
   const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
   const [createInitialStatus, setCreateInitialStatus] = useState<StatusKey>("todo");
   const [createInitialStartAt, setCreateInitialStartAt] = useState("");
@@ -51,7 +50,6 @@ export default function MySchedulePage() {
     setTaskDrawerItemId(null);
     setTaskDrawerWorkspaceId("");
     setTaskDrawerProjectId("");
-    setTaskDrawerSubtitle(null);
     setCreateInitialStatus(status);
     if (dateKey) {
       const range = localDatetimeRangeFromDateKey(dateKey, hour);
@@ -74,7 +72,6 @@ export default function MySchedulePage() {
     setTaskDrawerProjectId(it.project_id);
     setTaskDrawerItemId(it.id);
     setTaskDrawerVersion(it.version);
-    setTaskDrawerSubtitle(`${it.workspace_name} / ${it.project_name}`);
     setTaskDrawerOpen(true);
   }
 
@@ -83,7 +80,6 @@ export default function MySchedulePage() {
     setTaskDrawerItemId(null);
     setTaskDrawerWorkspaceId("");
     setTaskDrawerProjectId("");
-    setTaskDrawerSubtitle(null);
   }
 
   async function handleTaskCreated(_ctx: TaskDrawerSaveContext) {
@@ -129,7 +125,6 @@ export default function MySchedulePage() {
         itemId={taskDrawerItemId}
         highlightCommentId={null}
         token={token}
-        titleSubtitle={taskDrawerSubtitle}
         syncVersion={taskDrawerVersion}
         onTaskSaved={handleTaskDrawerSaved}
         onTaskDeleted={handleTaskDrawerDeleted}

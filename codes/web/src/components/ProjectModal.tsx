@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { LabelColorPicker } from "@/components/LabelColorPicker";
 import { apiFetch } from "@/lib/api";
 import { fetchWorkspaceCards } from "@/lib/api/workspace-views";
 import type { WorkspaceOption } from "@/lib/api/workspaces";
@@ -223,48 +224,7 @@ export function ProjectModal({
               </div>
             ) : null}
             {mode === "edit" ? (
-              <fieldset className="space-y-3">
-                <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
-                  {[
-                    "#FFFFFF",
-                    "#F3F0FF",
-                    "#EEF2FF",
-                    "#EFF6FF",
-                    "#ECFEFF",
-                    "#ECFDF5",
-                    "#FFFBEB",
-                    "#FFF1F2",
-                    "#FDF2F8",
-                    "#F4F4F5",
-                  ].map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
-                        color.toUpperCase() === option
-                          ? "border-primary ring-2 ring-primary/25"
-                          : "border-border-subtle"
-                      }`}
-                      style={{ backgroundColor: option }}
-                      aria-label={`选择颜色 ${option}`}
-                      title={option === "#FFFFFF" ? "白色（默认）" : option}
-                      onClick={() => setColor(option)}
-                      disabled={loading}
-                    />
-                  ))}
-                  <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
-                    自定义
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value.toUpperCase())}
-                      className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
-                      disabled={loading}
-                    />
-                  </label>
-                </div>
-              </fieldset>
+              <LabelColorPicker value={color} onChange={setColor} disabled={loading} />
             ) : null}
             <div className="space-y-2">
               <label className="text-sm font-medium text-on-surface-variant" htmlFor="projectModalName">

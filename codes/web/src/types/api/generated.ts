@@ -910,6 +910,8 @@ export interface components {
             start_at?: string | null;
             /** End At */
             end_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
             /** Details */
             details?: string | null;
             /** Assignee User Id */
@@ -970,6 +972,8 @@ export interface components {
             start_at?: string | null;
             /** End At */
             end_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
             /** Details */
             details?: string | null;
             /** Version */
@@ -1004,6 +1008,8 @@ export interface components {
             start_at: string | null;
             /** End At */
             end_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
             /** Details */
             details: string | null;
             /** Version */
@@ -1033,6 +1039,8 @@ export interface components {
             start_at?: string | null;
             /** End At */
             end_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
             /** Details */
             details?: string | null;
             /** Assignee User Id */
@@ -1513,6 +1521,8 @@ export interface components {
             start_at?: string | null;
             /** End At */
             end_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
             /** Details */
             details?: string | null;
             /** Version */

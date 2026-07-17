@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageMain } from "@/components/layout";
+import { LabelColorPicker } from "@/components/LabelColorPicker";
 import { WorkspaceCardGrid } from "@/components/workspace";
 import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { fetchWorkspaceCards, updateWorkspaceFavorite } from "@/lib/api/workspace-views";
@@ -12,19 +13,6 @@ import { useRouter } from "next/navigation";
 import type { WorkspaceCardView } from "@/types/api/views/workspace";
 
 type Workspace = { id: string; name: string; description?: string | null; color: string };
-
-const WORKSPACE_COLOR_PALETTE = [
-  "#FFFFFF",
-  "#F3F0FF",
-  "#EEF2FF",
-  "#EFF6FF",
-  "#ECFEFF",
-  "#ECFDF5",
-  "#FFFBEB",
-  "#FFF1F2",
-  "#FDF2F8",
-  "#F4F4F5",
-];
 
 export default function WorkspacesPage() {
   const router = useRouter();
@@ -256,37 +244,11 @@ export default function WorkspacesPage() {
                   placeholder="描述（可选）"
                   disabled={createLoading}
                 />
-                <fieldset className="space-y-3">
-                  <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
-                    {WORKSPACE_COLOR_PALETTE.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
-                          createColor.toUpperCase() === color
-                            ? "border-primary ring-2 ring-primary/25"
-                            : "border-border-subtle"
-                        }`}
-                        style={{ backgroundColor: color }}
-                        aria-label={`选择颜色 ${color}`}
-                        title={color === "#FFFFFF" ? "白色（默认）" : color}
-                        onClick={() => setCreateColor(color)}
-                        disabled={createLoading}
-                      />
-                    ))}
-                    <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
-                      自定义
-                      <input
-                        type="color"
-                        value={createColor}
-                        onChange={(e) => setCreateColor(e.target.value.toUpperCase())}
-                        className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
-                        disabled={createLoading}
-                      />
-                    </label>
-                  </div>
-                </fieldset>
+                <LabelColorPicker
+                  value={createColor}
+                  onChange={setCreateColor}
+                  disabled={createLoading}
+                />
                 {createError && <div className="text-small text-error">{createError}</div>}
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setCreateOpen(false)} disabled={createLoading}>
@@ -343,37 +305,11 @@ export default function WorkspacesPage() {
                   placeholder="描述（可选）"
                   disabled={editLoading}
                 />
-                <fieldset className="space-y-3">
-                  <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
-                    {WORKSPACE_COLOR_PALETTE.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
-                          editColor.toUpperCase() === color
-                            ? "border-primary ring-2 ring-primary/25"
-                            : "border-border-subtle"
-                        }`}
-                        style={{ backgroundColor: color }}
-                        aria-label={`选择颜色 ${color}`}
-                        title={color === "#FFFFFF" ? "白色（默认）" : color}
-                        onClick={() => setEditColor(color)}
-                        disabled={editLoading}
-                      />
-                    ))}
-                    <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
-                      自定义
-                      <input
-                        type="color"
-                        value={editColor}
-                        onChange={(e) => setEditColor(e.target.value.toUpperCase())}
-                        className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
-                        disabled={editLoading}
-                      />
-                    </label>
-                  </div>
-                </fieldset>
+                <LabelColorPicker
+                  value={editColor}
+                  onChange={setEditColor}
+                  disabled={editLoading}
+                />
                 {editError && <div className="text-small text-error">{editError}</div>}
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setEditOpen(false)} disabled={editLoading}>
