@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from app.services.item_api import (
     parse_assignee_id,
     parse_participant_ids,
     parse_transfer_target,
+    resolve_item_completed_at,
     validate_item_people,
 )
 from app.services.permissions import require_project_content_access
@@ -69,6 +71,15 @@ def create_item(
     if loc and len(loc) > 500:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_too_long")
 
+    completed_at = resolve_item_completed_at(
+        current_status=None,
+        current_completed_at=None,
+        next_status=payload.status,
+        requested_completed_at=payload.completed_at,
+        completed_at_was_set="completed_at" in payload.model_fields_set,
+        now=datetime.now(timezone.utc),
+    )
+
     i = Item(
         workspace_id=workspace_id,
         project_id=project_id,
@@ -79,6 +90,7 @@ def create_item(
         priority=(payload.priority or "1"),
         start_at=payload.start_at,
         end_at=payload.end_at,
+        completed_at=completed_at,
         details=payload.details,
         created_by_user_id=user.id,
         assignee_user_id=assignee_id,
@@ -164,6 +176,7 @@ def update_item(
         "priority": i.priority,
         "start_at": i.start_at.isoformat() if i.start_at else None,
         "end_at": i.end_at.isoformat() if i.end_at else None,
+        "completed_at": i.completed_at.isoformat() if i.completed_at else None,
         "details": i.details,
         "version": i.version,
         "assignee_user_id": str(i.assignee_user_id) if i.assignee_user_id else None,
@@ -179,8 +192,15 @@ def update_item(
         i.body = payload.body
     if payload.color is not None:
         i.color = payload.color.upper()
-    if payload.status is not None:
-        i.status = payload.status
+    next_status = payload.status if payload.status is not None else i.status
+    i.completed_at = resolve_item_completed_at(
+        current_status=i.status,
+        current_completed_at=i.completed_at,
+        next_status=next_status,
+        requested_completed_at=payload.completed_at,
+        completed_at_was_set="completed_at" in fields_set,
+    )
+    i.status = next_status
     if payload.priority is not None:
         i.priority = payload.priority
     if "start_at" in fields_set:
@@ -229,6 +249,7 @@ def update_item(
         "priority": i.priority,
         "start_at": i.start_at.isoformat() if i.start_at else None,
         "end_at": i.end_at.isoformat() if i.end_at else None,
+        "completed_at": i.completed_at.isoformat() if i.completed_at else None,
         "details": i.details,
         "version": i.version,
         "assignee_user_id": str(i.assignee_user_id) if i.assignee_user_id else None,

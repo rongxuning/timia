@@ -23,6 +23,7 @@ class Item(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     priority: Mapped[str | None] = mapped_column(String(10), nullable=True)  # low/medium/high
     start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     details: Mapped[str | None] = mapped_column(String(10000), nullable=True)
 
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(

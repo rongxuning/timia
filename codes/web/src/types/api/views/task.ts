@@ -43,6 +43,7 @@ export type ItemDetailView = {
   priority?: string | null;
   start_at?: string | null;
   end_at?: string | null;
+  completed_at?: string | null;
   details?: string | null;
   version: number;
   created_by?: TaskUserBrief | null;

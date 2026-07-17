@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { SearchableSelect } from "@/components/SearchableSelect";
+import { SystemSelect, type SystemSelectOption } from "@/components/SystemSelect";
+import { LabelColorPicker } from "@/components/LabelColorPicker";
 import {
   primeProjectNameForBreadcrumb,
   primeWorkspaceNameForBreadcrumb,
@@ -24,6 +25,7 @@ export type TaskDrawerItem = {
   priority?: string | null;
   start_at?: string | null;
   end_at?: string | null;
+  completed_at?: string | null;
   details?: string | null;
   version: number;
   created_by?: TaskUserBrief | null;
@@ -54,17 +56,18 @@ type ProjectMemberRow = {
 const COMMENT_BODY_PREVIEW_CHARS = 200;
 const DRAWER_TRANSITION_MS = 600;
 
-const TASK_COLOR_PALETTE = [
-  "#FFFFFF",
-  "#F3F0FF",
-  "#EEF2FF",
-  "#EFF6FF",
-  "#ECFEFF",
-  "#ECFDF5",
-  "#FFFBEB",
-  "#FFF1F2",
-  "#FDF2F8",
-  "#F4F4F5",
+const TASK_STATUS_OPTIONS: SystemSelectOption[] = [
+  { value: "todo", label: "待办", hint: "任务尚未开始", accentClass: "bg-zinc-300" },
+  { value: "doing", label: "进行中", hint: "任务正在处理", accentClass: "bg-indigo-600" },
+  { value: "done", label: "已完成", hint: "任务已经完成", accentClass: "bg-success" },
+  { value: "archived", label: "已归档", hint: "任务不再活跃", accentClass: "bg-zinc-500" },
+];
+
+const TASK_PRIORITY_OPTIONS: SystemSelectOption[] = [
+  { value: "1", label: "P1 · 低", hint: "低优先级", accentClass: "bg-blue-500" },
+  { value: "2", label: "P2", hint: "一般优先级", accentClass: "bg-green-500" },
+  { value: "3", label: "P3", hint: "较高优先级", accentClass: "bg-yellow-500" },
+  { value: "4", label: "P4 · 高", hint: "最高优先级", accentClass: "bg-red-500" },
 ];
 
 const TASK_MEMBER_CHIP_CLASS =
@@ -167,8 +170,6 @@ type Props = {
    * 也可显式传入以覆盖。
    */
   showComments?: boolean;
-  /** Optional second line under the title (e.g. workspace / project on 我的日程). */
-  titleSubtitle?: string | null;
   /** Called after a successful task save so parent lists can refresh. */
   onTaskSaved?: (ctx: TaskDrawerSaveContext) => void;
   /** Called after successful create (POST). Drawer will then call `onClose`. */
@@ -194,7 +195,6 @@ export function TaskDrawerWithComments({
   token,
   variant = "edit",
   showComments: showCommentsProp,
-  titleSubtitle = null,
   onTaskSaved,
   onTaskCreated,
   onTaskDeleted,
@@ -217,6 +217,7 @@ export function TaskDrawerWithComments({
   const [editPriority, setEditPriority] = useState<string>("");
   const [editStartAt, setEditStartAt] = useState("");
   const [editEndAt, setEditEndAt] = useState("");
+  const [editCompletedAt, setEditCompletedAt] = useState("");
   const [editAssigneeUserId, setEditAssigneeUserId] = useState("");
   const [editParticipantUserIds, setEditParticipantUserIds] = useState<string[]>([]);
   const [editLocation, setEditLocation] = useState("");
@@ -261,9 +262,6 @@ export function TaskDrawerWithComments({
   const [projectMembersRaw, setProjectMembersRaw] = useState<ProjectMemberRow[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
-
-  const [contextWorkspaceName, setContextWorkspaceName] = useState<string | null>(null);
-  const [contextProjectName, setContextProjectName] = useState<string | null>(null);
 
   const [itemWorkspaceId, setItemWorkspaceId] = useState("");
   const [itemProjectId, setItemProjectId] = useState("");
@@ -398,8 +396,6 @@ export function TaskDrawerWithComments({
         setProjectMembersRaw([]);
         setMembersError(null);
         setMe(null);
-        setContextWorkspaceName(null);
-        setContextProjectName(null);
       }
       return;
     }
@@ -419,8 +415,6 @@ export function TaskDrawerWithComments({
         );
         primeWorkspaceNameForBreadcrumb(ctx.workspace_id, ctx.workspace_name);
         primeProjectNameForBreadcrumb(ctx.workspace_id, ctx.project_id, ctx.project_name);
-        setContextWorkspaceName(ctx.workspace_name);
-        setContextProjectName(ctx.project_name);
       })
       .catch((e: { message?: string }) => {
         if (!cancelled) setMembersError(e?.message ?? "上下文加载失败");
@@ -465,6 +459,13 @@ export function TaskDrawerWithComments({
     setEditPriority(normalizePriority(it.priority));
     setEditStartAt(it.start_at ? toLocalDatetimeInputValue(it.start_at) : "");
     setEditEndAt(it.end_at ? toLocalDatetimeInputValue(it.end_at) : "");
+    setEditCompletedAt(
+      it.completed_at
+        ? toLocalDatetimeInputValue(it.completed_at)
+        : it.status === "done"
+          ? toLocalDatetimeInputValue(new Date().toISOString())
+          : "",
+    );
     const assigneeId = it.assignee?.id ?? it.created_by?.id ?? "";
     setEditAssigneeUserId(assigneeId);
     setEditParticipantUserIds((it.participants ?? []).map((p) => p.id));
@@ -486,6 +487,9 @@ export function TaskDrawerWithComments({
     setEditPriority("1");
     setEditStartAt(initialCreateStartAt ?? "");
     setEditEndAt(initialCreateEndAt ?? "");
+    setEditCompletedAt(
+      initialCreateStatus === "done" ? toLocalDatetimeInputValue(new Date().toISOString()) : "",
+    );
     setEditAssigneeUserId("");
     setEditParticipantUserIds([]);
     setEditLocation("");
@@ -656,6 +660,17 @@ export function TaskDrawerWithComments({
     return memberById.get(userId)?.display_name ?? drawerItem?.participants?.find((p) => p.id === userId)?.display_name ?? userId.slice(0, 8);
   }
 
+  function handleStatusChange(nextStatus: string) {
+    if (nextStatus === "done") {
+      if (editStatus !== "done" || !editCompletedAt) {
+        setEditCompletedAt(toLocalDatetimeInputValue(new Date().toISOString()));
+      }
+    } else {
+      setEditCompletedAt("");
+    }
+    setEditStatus(nextStatus);
+  }
+
   async function onSaveTask(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
@@ -674,6 +689,12 @@ export function TaskDrawerWithComments({
       setEditError("结束时间不能早于开始时间");
       return;
     }
+    if (editStatus === "done" && !editCompletedAt) {
+      setEditError("已完成任务必须填写完成时间");
+      return;
+    }
+    const completedIso =
+      editStatus === "done" ? new Date(editCompletedAt).toISOString() : null;
     if (!selectedWorkspaceId || !selectedProjectId) {
       setEditError("请选择工作空间与所属项目");
       return;
@@ -710,6 +731,7 @@ export function TaskDrawerWithComments({
               priority: normalizePriority(editPriority),
               start_at: startIso,
               end_at: endIso,
+              completed_at: completedIso,
               ...peoplePayload,
             }),
           },
@@ -728,6 +750,7 @@ export function TaskDrawerWithComments({
           priority: normalizePriority(editPriority),
           start_at: startIso,
           end_at: endIso,
+          completed_at: completedIso,
           version: drawerItem.version,
           ...peoplePayload,
         };
@@ -827,15 +850,6 @@ export function TaskDrawerWithComments({
   const replyTargetLabel = replyToCommentId
     ? comments.find((c) => c.id === replyToCommentId)?.author_display_name ?? "该评论"
     : null;
-
-  const headerSubtitle = useMemo(() => {
-    const explicit = titleSubtitle?.trim();
-    if (explicit) return explicit;
-    if (contextWorkspaceName && contextProjectName) {
-      return `${contextWorkspaceName} / ${contextProjectName}`;
-    }
-    return null;
-  }, [titleSubtitle, contextWorkspaceName, contextProjectName]);
 
   function renderCommentNode(c: ItemComment, depth: number) {
     const replies = repliesByParent.get(c.id) ?? [];
@@ -951,13 +965,6 @@ export function TaskDrawerWithComments({
   if (open && variant === "edit" && !itemId) return null;
 
   const showForm = variant === "create" || !!drawerItem;
-  const headerTitle =
-    variant === "create"
-      ? "新建任务"
-      : itemLoading
-        ? "加载中…"
-        : drawerItem?.title ?? "—";
-
   const creatorLabel = variant === "edit" && drawerItem ? drawerItem.created_by?.display_name ?? "—" : "—";
 
   return (
@@ -971,42 +978,6 @@ export function TaskDrawerWithComments({
           drawerVisible ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-border-subtle">
-          <div className="min-w-0">
-            <div className="font-subhead text-subhead text-text-primary truncate">{headerTitle}</div>
-            <div className="mt-1 min-h-[1.25rem] truncate text-caption text-neutral-muted">
-              {headerSubtitle ?? (membersLoading ? "加载中…" : "—")}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-sm">
-            {canDeleteTask ? (
-              <button
-                type="button"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50/40 text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => {
-                  setDeleteError(null);
-                  setDeleteConfirmOpen(true);
-                }}
-                disabled={editLoading || deleteLoading || itemLoading}
-                title="删除任务"
-                aria-label="删除任务"
-              >
-                <span className="material-symbols-outlined text-[18px] text-red-600">delete</span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-subtle hover:bg-surface-container-lowest disabled:opacity-50"
-              onClick={closeDrawer}
-              disabled={editLoading || deleteLoading}
-              title="关闭"
-              aria-label="关闭"
-            >
-              <span className="material-symbols-outlined text-[18px]">close</span>
-            </button>
-          </div>
-        </div>
-
         {itemLoading && variant === "edit" && !drawerItem ? (
           <div className="p-6 text-caption text-neutral-muted">加载任务中…</div>
         ) : editError && variant === "edit" && !drawerItem ? (
@@ -1033,22 +1004,26 @@ export function TaskDrawerWithComments({
                   ) : null}
                   {ownershipError ? <p className="text-caption text-error">{ownershipError}</p> : null}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <SearchableSelect
+                    <SystemSelect
                       label="工作空间"
-                      placeholder="搜索工作空间…"
-                      options={workspaceOptions.map((w) => ({ id: w.id, label: w.name }))}
+                      placeholder="请选择工作空间"
+                      searchable
+                      searchPlaceholder="搜索工作空间…"
+                      options={workspaceOptions.map((w) => ({ value: w.id, label: w.name }))}
                       value={selectedWorkspaceId || null}
                       onChange={handleWorkspaceChange}
                       loading={workspacesLoading}
                       disabled={editLoading || itemLoading}
                       emptyText="暂无可用工作空间"
-                      selectionInline
+                      showAccent={false}
                     />
-                    <SearchableSelect
+                    <SystemSelect
                       label="所属项目"
-                      placeholder="搜索所属项目…"
+                      placeholder="请选择所属项目"
+                      searchable
+                      searchPlaceholder="搜索所属项目…"
                       options={projectOptions.map((p) => ({
-                        id: p.id,
+                        value: p.id,
                         label: p.name,
                         hint: p.description?.trim() || undefined,
                       }))}
@@ -1059,7 +1034,7 @@ export function TaskDrawerWithComments({
                       emptyText={
                         selectedWorkspaceId ? "该工作空间下暂无可选项目" : "请先选择工作空间"
                       }
-                      selectionInline
+                      showAccent={false}
                     />
                   </div>
                   <div className="space-y-2">
@@ -1167,9 +1142,6 @@ export function TaskDrawerWithComments({
                           </ul>
                         ) : null}
                       </div>
-                      <p className="text-caption text-neutral-muted">
-                        输入关键字实时筛选；点击一行设为负责人。新建时默认本人，可移除后重新选择。
-                      </p>
                     </div>
 
                     <div className="space-y-2 min-w-0">
@@ -1269,9 +1241,6 @@ export function TaskDrawerWithComments({
                           </div>
                         ) : null}
                       </div>
-                      <p className="text-caption text-neutral-muted">
-                        在下拉里勾选多人后点「确认添加」；已添加人员可点标签上的关闭移除。
-                      </p>
                     </div>
                   </div>
 
@@ -1287,72 +1256,26 @@ export function TaskDrawerWithComments({
                   {variant !== "create" ? (
                     <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
                   ) : null}
-                  <fieldset className="space-y-3">
-                    <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
-                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
-                      {TASK_COLOR_PALETTE.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
-                            editColor.toUpperCase() === color
-                              ? "border-primary ring-2 ring-primary/25"
-                              : "border-border-subtle"
-                          }`}
-                          style={{ backgroundColor: color }}
-                          aria-label={`选择颜色 ${color}`}
-                          title={color === "#FFFFFF" ? "白色（默认）" : color}
-                          onClick={() => setEditColor(color)}
-                          disabled={editLoading}
-                        />
-                      ))}
-                      <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
-                        自定义
-                        <input
-                          type="color"
-                          value={editColor}
-                          onChange={(e) => setEditColor(e.target.value.toUpperCase())}
-                          className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
-                          disabled={editLoading}
-                        />
-                      </label>
-                    </div>
-                  </fieldset>
+                  <LabelColorPicker
+                    value={editColor}
+                    onChange={setEditColor}
+                    disabled={editLoading}
+                  />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-status`}>
-                        状态
-                      </label>
-                      <select
-                        id={`${uid}-status`}
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editStatus}
-                        onChange={(e) => setEditStatus(e.target.value)}
-                        disabled={editLoading}
-                      >
-                        <option value="todo">待办（todo）</option>
-                        <option value="doing">进行中（doing）</option>
-                        <option value="done">已完成（done）</option>
-                        <option value="archived">已归档（archived）</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-pri`}>
-                        优先级
-                      </label>
-                      <select
-                        id={`${uid}-pri`}
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editPriority}
-                        onChange={(e) => setEditPriority(e.target.value)}
-                        disabled={editLoading}
-                      >
-                        <option value="1">1（低）</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4（高）</option>
-                      </select>
-                    </div>
+                    <SystemSelect
+                      label="状态"
+                      value={editStatus}
+                      options={TASK_STATUS_OPTIONS}
+                      onChange={handleStatusChange}
+                      disabled={editLoading}
+                    />
+                    <SystemSelect
+                      label="优先级"
+                      value={editPriority}
+                      options={TASK_PRIORITY_OPTIONS}
+                      onChange={setEditPriority}
+                      disabled={editLoading}
+                    />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
@@ -1384,6 +1307,25 @@ export function TaskDrawerWithComments({
                       />
                     </div>
                   </div>
+                  {editStatus === "done" ? (
+                    <div className="space-y-2">
+                      <label
+                        className="text-sm font-medium text-on-surface-variant"
+                        htmlFor={`${uid}-completed`}
+                      >
+                        完成时间
+                      </label>
+                      <input
+                        id={`${uid}-completed`}
+                        type="datetime-local"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={editCompletedAt}
+                        onChange={(e) => setEditCompletedAt(e.target.value)}
+                        disabled={editLoading}
+                        required
+                      />
+                    </div>
+                  ) : null}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-location`}>
                       地点
@@ -1412,6 +1354,19 @@ export function TaskDrawerWithComments({
                   >
                     取消
                   </button>
+                  {canDeleteTask ? (
+                    <button
+                      type="button"
+                      className="rounded-xl border border-red-200 bg-red-50/40 px-4 py-2 text-sm text-red-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteConfirmOpen(true);
+                      }}
+                      disabled={editLoading || deleteLoading || itemLoading}
+                    >
+                      删除
+                    </button>
+                  ) : null}
                   <button
                     type="submit"
                     className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 disabled:opacity-50"

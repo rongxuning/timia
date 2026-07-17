@@ -60,11 +60,11 @@ export function ProjectList({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="min-w-0">
-                        <h3 className="min-w-0 truncate font-subhead text-base text-text-primary transition-colors group-hover:text-primary">
+                        <h3 className="min-w-0 truncate font-subhead text-base font-bold text-black transition-colors group-hover:text-primary">
                           {p.name}
                         </h3>
                       </div>
-                      <p className="line-clamp-2 break-words text-caption text-text-secondary">{p.description || "暂无描述。"}</p>
+                      <p className="line-clamp-2 break-words text-caption text-black">{p.description || "暂无描述。"}</p>
                     </div>
                   </div>
                 </div>
@@ -72,7 +72,7 @@ export function ProjectList({
                 <div className="space-y-3 border-t border-border-subtle bg-white p-3">
                   <div className="space-y-2">
                     <div className="flex justify-between text-caption">
-                      <span className="text-zinc-500">项目进度</span>
+                      <span className="text-black">项目进度</span>
                       <span className="font-bold text-primary">
                         {p.done_archived}/{total}（{p.progress_percent}%）
                       </span>

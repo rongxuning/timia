@@ -16,6 +16,7 @@ class ItemCreate(BaseModel):
     priority: str = "1"
     start_at: datetime | None = None
     end_at: datetime | None = None
+    completed_at: datetime | None = None
     details: str | None = None
     assignee_user_id: str | None = None
     participant_user_ids: list[str] = Field(default_factory=list)
@@ -31,6 +32,7 @@ class ItemUpdate(BaseModel):
     priority: str | None = None
     start_at: datetime | None = None
     end_at: datetime | None = None
+    completed_at: datetime | None = None
     details: str | None = None
     assignee_user_id: str | None = None
     participant_user_ids: list[str] | None = None
@@ -48,6 +50,7 @@ class ItemOut(BaseModel):
     priority: str | None
     start_at: datetime | None
     end_at: datetime | None
+    completed_at: datetime | None
     details: str | None
     version: int
     created_by: UserBrief | None = None

@@ -68,14 +68,14 @@ export function WorkspaceCardGrid({
               style={{ backgroundColor: w.color || "#FFFFFF" }}
             >
               <div className="min-w-0">
-                <h2 className="truncate font-subhead text-lg text-gray-900" title={w.name}>{w.name}</h2>
-                <p className="mt-1 line-clamp-2 break-words text-caption text-text-secondary">
+                <h2 className="truncate font-subhead text-lg font-bold text-black" title={w.name}>{w.name}</h2>
+                <p className="mt-1 line-clamp-2 break-words text-caption text-black">
                   {w.description || "供团队与项目使用的协作空间。"}
                 </p>
               </div>
               <div className="flex w-[146px] min-w-0 flex-col items-start gap-2 text-left">
                 <div className="flex min-h-7 items-center gap-2">
-                  <span className="w-8 shrink-0 text-[9px] leading-4 text-gray-400">负责人</span>
+                  <span className="w-8 shrink-0 text-[9px] leading-4 text-black">负责人</span>
                   <div className="flex min-h-7 items-center -space-x-2">
                   {owners.slice(0, 2).map((m) => (
                     <AvatarCircle
@@ -92,7 +92,7 @@ export function WorkspaceCardGrid({
                   </div>
                 </div>
                 <div className="flex min-h-7 items-center gap-2">
-                  <span className="w-8 shrink-0 text-[9px] leading-4 text-gray-400">成员</span>
+                  <span className="w-8 shrink-0 text-[9px] leading-4 text-black">成员</span>
                   <div className="flex min-h-7 items-center -space-x-2">
                   {members.slice(0, 2).map((m) => (
                     <AvatarCircle
@@ -109,8 +109,8 @@ export function WorkspaceCardGrid({
                   </div>
                 </div>
                 <div className="flex min-h-7 items-center gap-2">
-                  <span className="w-8 shrink-0 text-[9px] leading-4 text-gray-400">项目</span>
-                  <span className="text-[10px] font-semibold text-primary">{w.project_count} 个</span>
+                  <span className="w-8 shrink-0 text-[9px] leading-4 text-black">项目</span>
+                  <span className="text-[10px] font-semibold text-black">{w.project_count} 个</span>
                 </div>
               </div>
             </div>
@@ -203,8 +203,8 @@ export function WorkspaceCardGrid({
         <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
           <span className="material-symbols-outlined text-[26px]">add</span>
         </div>
-        <h3 className="font-subhead text-base text-gray-900">新建工作空间</h3>
-        <p className="mt-1 max-w-[200px] text-caption text-text-secondary">为下一个重要项目创建新的协作空间。</p>
+        <h3 className="font-subhead text-base font-bold text-black">新建工作空间</h3>
+        <p className="mt-1 max-w-[200px] text-caption text-black">为下一个重要项目创建新的协作空间。</p>
       </button>
     </div>
   );
