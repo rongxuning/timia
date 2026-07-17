@@ -6,6 +6,7 @@ import {
   calendarNavStepLabel,
   calendarTitle,
   calendarTodayLabel,
+  formatDateAnchor,
   shiftCalendarAnchor,
   startOfDay,
   parseDateAnchor,
@@ -56,15 +57,17 @@ export function ScheduleCalendar({
     onDateBlankClick,
     onDateHeaderClick: openDayView,
   };
+  const displayedMode = calendar?.view ?? calendarMode;
+  const calendarPending =
+    !calendar || calendar.view !== calendarMode || calendar.anchor !== formatDateAnchor(calendarAnchor);
 
   return (
     <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
-      <div className="p-lg flex flex-col gap-lg sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:gap-2">
-        <div className="text-sm font-semibold text-primary">日历</div>
-        <div className="font-subhead text-lg text-text-primary text-center">
+      <div className="flex flex-col gap-3 p-lg sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-lg font-bold text-text-primary">
           {calendarTitle(calendarAnchor, calendarMode)}
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-self-end">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <div className="inline-flex rounded-xl border border-border-subtle p-0.5 bg-surface-container-lowest/50">
             {CALENDAR_VIEW_MODES.map((m) => (
               <button
@@ -110,15 +113,18 @@ export function ScheduleCalendar({
         </div>
       </div>
 
-      <div className="bg-surface">
-        {calendarMode === "month" ? (
+      <div
+        className={`relative bg-surface transition-opacity duration-150 ${calendarPending ? "opacity-70" : "opacity-100"}`}
+        aria-busy={calendarPending}
+      >
+        {displayedMode === "month" ? (
           <>
-            <div className="grid grid-cols-7 border-t border-border-subtle bg-surface-container-lowest">
+            <div className="grid grid-cols-7 border-t border-border-subtle bg-violet-50/80">
               {["日", "一", "二", "三", "四", "五", "六"].map((d, di) => (
                 <div
                   key={d}
                   className={[
-                    "p-lg text-center font-overline text-neutral-muted border-r border-b border-border-subtle",
+                    "border-r border-b border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted",
                     di === 0 ? "border-l border-border-subtle" : "",
                     "last:border-r-0",
                   ].join(" ")}
@@ -130,16 +136,16 @@ export function ScheduleCalendar({
             <ScheduleCalendarMonth weeks={calendar?.weeks ?? []} {...bodyProps} />
           </>
         ) : null}
-        {calendarMode === "week" && calendar?.weeks[0] ? (
+        {displayedMode === "week" && calendar?.weeks[0] ? (
           <ScheduleCalendarWeek week={calendar.weeks[0]} {...bodyProps} />
         ) : null}
-        {calendarMode === "week" && !calendar?.weeks[0] ? (
+        {displayedMode === "week" && !calendar?.weeks[0] ? (
           <div className="p-lg text-caption text-neutral-muted border-t border-border-subtle">加载中…</div>
         ) : null}
-        {calendarMode === "day" && calendar?.day ? (
+        {displayedMode === "day" && calendar?.day ? (
           <ScheduleCalendarDay day={calendar.day} {...bodyProps} />
         ) : null}
-        {calendarMode === "day" && !calendar?.day ? (
+        {displayedMode === "day" && !calendar?.day ? (
           <div className="p-lg text-caption text-neutral-muted border-t border-border-subtle">加载中…</div>
         ) : null}
       </div>

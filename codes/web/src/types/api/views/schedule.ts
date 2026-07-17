@@ -7,6 +7,7 @@ export type ScheduleTaskItem = {
   id: string;
   title: string;
   body?: string | null;
+  color: string;
   status: "todo" | "doing" | "done" | "archived" | string;
   priority?: string | null;
   start_at?: string | null;

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { CalendarWeekView } from "@/types/api/views/schedule";
 import { CalendarTimelineColumn } from "./CalendarTimelineColumn";
 import { CalendarTimelineHourLabels } from "./CalendarTimelineHourLabels";
+import { lunarDateLabel } from "./calendarNav";
 import { layoutDayTimeline } from "./calendarDayLayout";
 import { weekItemsByDayKey } from "./calendarWeekLayout";
 import { dayKeyLocal } from "./taskUtils";
@@ -28,13 +29,13 @@ export function ScheduleCalendarWeek({
 
   return (
     <div className="border-b border-border-subtle flex flex-col min-h-0">
-      <div className="flex shrink-0 border-t border-border-subtle bg-surface-container-lowest">
+      <div className="flex shrink-0 border-t border-border-subtle bg-violet-50/80">
         <div className="w-14 shrink-0 border-r border-border-subtle" aria-hidden />
         <div className="grid min-w-0 flex-1 grid-cols-7">
           {["日", "一", "二", "三", "四", "五", "六"].map((label) => (
             <div
               key={label}
-              className="border-r border-border-subtle p-lg text-center font-overline text-neutral-muted last:border-r-0"
+              className="border-r border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted last:border-r-0"
             >
               {label}
             </div>
@@ -50,7 +51,7 @@ export function ScheduleCalendarWeek({
               <div
                 key={key}
                 className={[
-                  "border-r border-border-subtle p-2 min-h-[44px]",
+                  "min-h-7 border-r border-border-subtle px-1.5 py-1",
                   isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "bg-surface",
                   "last:border-r-0",
                   onDateHeaderClick ? "cursor-pointer hover:bg-primary/5 transition-colors" : "",
@@ -58,7 +59,12 @@ export function ScheduleCalendarWeek({
                 onClick={onDateHeaderClick ? () => onDateHeaderClick(key) : undefined}
                 title={onDateHeaderClick ? "查看日视图" : undefined}
               >
-                <span className="font-small font-medium text-text-primary">{day}</span>
+                <div className="flex min-w-0 items-center justify-between gap-1">
+                  <span className="truncate text-[10px] leading-4 text-neutral-muted">
+                    {lunarDateLabel(key)}
+                  </span>
+                  <span className="text-[11px] font-medium leading-4 text-text-primary">{day}</span>
+                </div>
               </div>
             );
           })}

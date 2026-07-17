@@ -19,6 +19,8 @@ export type SwimlaneKanbanProps = {
   showAssigneeAvatar?: boolean;
   /** 卡片展示项目名与「打开项目」链接（跨项目视图） */
   showProjectContext?: boolean;
+  hideHeader?: boolean;
+  violetStatusHeader?: boolean;
 };
 
 export function SwimlaneKanban({
@@ -33,14 +35,22 @@ export function SwimlaneKanban({
   onCreateInColumn,
   showAssigneeAvatar = false,
   showProjectContext = true,
+  hideHeader = false,
+  violetStatusHeader = false,
 }: SwimlaneKanbanProps) {
   return (
     <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
-      <div className="border-b border-border-subtle p-lg">
-        <div className="text-sm font-semibold text-primary">泳道图</div>
-      </div>
+      {!hideHeader && (
+        <div className="border-b border-border-subtle p-lg">
+          <div className="text-sm font-semibold text-primary">泳道图</div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 border-b border-border-subtle bg-zinc-50/50 md:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={`grid grid-cols-1 border-b border-border-subtle md:grid-cols-2 xl:grid-cols-4 ${
+          violetStatusHeader ? "bg-violet-50/80" : "bg-zinc-50/50"
+        }`}
+      >
         {STATUSES.map((s) => (
           <div
             key={s.key}

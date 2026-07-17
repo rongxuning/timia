@@ -40,6 +40,7 @@ class ItemDetailViewOut(BaseModel):
     id: str
     title: str
     body: str | None = None
+    color: str = "#FFFFFF"
     status: str
     priority: str | None = None
     start_at: datetime | None = None

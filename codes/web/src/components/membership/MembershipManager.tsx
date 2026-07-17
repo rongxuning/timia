@@ -159,8 +159,8 @@ export function MembershipManager({
   }
 
   return (
-    <main className="px-lg py-lg">
-      <div className="max-w-container-max mx-auto space-y-lg">
+    <main className="px-3 py-lg">
+      <div className="w-full space-y-lg">
         <section className="flex flex-col md:flex-row md:items-end justify-between gap-lg">
           <div className="space-y-sm">
             <div className="flex items-center gap-2">

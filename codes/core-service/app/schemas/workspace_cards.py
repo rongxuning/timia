@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -13,6 +15,8 @@ class WorkspaceCardOut(BaseModel):
     id: str
     name: str
     description: str | None = None
+    color: str = "#FFFFFF"
+    created_at: datetime
     project_count: int
     # Tasks (items) across all projects in the workspace, by status.
     todo_count: int = 0
@@ -22,4 +26,4 @@ class WorkspaceCardOut(BaseModel):
     owners: list[WorkspaceCardUser]
     members: list[WorkspaceCardUser]
     my_workspace_role: str = "member"
-
+    is_favorite: bool = False

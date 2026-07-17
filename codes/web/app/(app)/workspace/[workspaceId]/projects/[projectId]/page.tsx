@@ -121,32 +121,36 @@ export default function ProjectPage() {
   }
 
   return (
-    <PageMain>
-      <div className="space-y-2xl">
-        {error && (
-          <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
-            {error}
-          </div>
-        )}
+    <PageMain className="!px-3" fullWidth>
+      {error && (
+        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+          {error}
+        </div>
+      )}
 
-        <ProjectDashboardCards
-          dashboard={dashboard}
-          workspaceId={workspaceId}
-          projectId={projectId}
-          onEditProject={dashboard?.can_manage ? () => setEditProjectOpen(true) : undefined}
-          onCreateTask={() => openTaskCreate("todo")}
-        />
+      <div className="grid items-start gap-lg lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside id="project-detail-status-panel" className="self-start lg:sticky lg:top-lg">
+          <ProjectDashboardCards
+            dashboard={dashboard}
+            workspaceId={workspaceId}
+            projectId={projectId}
+            onEditProject={dashboard?.can_manage ? () => setEditProjectOpen(true) : undefined}
+          />
+        </aside>
 
-        <ScheduleBoard
-          token={token!}
-          scope={scope}
-          showProjectContext={false}
-          showAssigneeAvatar
-          refreshNonce={scheduleRefreshNonce}
-          onItemClick={openDrawer}
-          onCreateInColumn={openTaskCreate}
-          onCreateOnDate={openTaskCreateOnDate}
-        />
+        <div className="min-w-0">
+          <ScheduleBoard
+            token={token!}
+            scope={scope}
+            showProjectContext={false}
+            showAssigneeAvatar
+            refreshNonce={scheduleRefreshNonce}
+            onItemClick={openDrawer}
+            onCreateInColumn={openTaskCreate}
+            onCreateOnDate={openTaskCreateOnDate}
+            simplifiedSectionHeaders
+          />
+        </div>
       </div>
 
       <ProjectModal
@@ -158,6 +162,7 @@ export default function ProjectPage() {
         projectId={projectId}
         initialName={dashboard?.name ?? ""}
         initialDescription={dashboard?.description}
+        initialColor={dashboard?.color ?? "#FFFFFF"}
         onSuccess={(project, meta?: ProjectModalSuccessMeta) => {
           setEditProjectOpen(false);
           if (meta?.workspaceChanged && project.workspace_id !== workspaceId) {
@@ -202,6 +207,7 @@ export default function ProjectPage() {
 
       <FloatingDraggableButton
         ariaLabel="新建任务"
+        initialAnchorId="project-detail-status-panel"
         className="flex h-14 w-14 cursor-grab items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-indigo-100 transition-colors hover:bg-primary-hover active:cursor-grabbing"
         onClick={() => openTaskCreate("todo")}
       >

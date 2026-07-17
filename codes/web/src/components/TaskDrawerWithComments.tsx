@@ -19,6 +19,7 @@ export type TaskDrawerItem = {
   id: string;
   title: string;
   body?: string | null;
+  color: string;
   status: string;
   priority?: string | null;
   start_at?: string | null;
@@ -51,6 +52,19 @@ type ProjectMemberRow = {
 };
 
 const COMMENT_BODY_PREVIEW_CHARS = 200;
+
+const TASK_COLOR_PALETTE = [
+  "#FFFFFF",
+  "#F3F0FF",
+  "#EEF2FF",
+  "#EFF6FF",
+  "#ECFEFF",
+  "#ECFDF5",
+  "#FFFBEB",
+  "#FFF1F2",
+  "#FDF2F8",
+  "#F4F4F5",
+];
 
 const TASK_MEMBER_CHIP_CLASS =
   "inline-flex h-6 max-w-full min-w-0 shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface-bright pl-2 pr-0.5 text-caption leading-none text-text-primary";
@@ -195,6 +209,7 @@ export function TaskDrawerWithComments({
   const [itemLoading, setItemLoading] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [editColor, setEditColor] = useState("#FFFFFF");
   const [editStatus, setEditStatus] = useState<string>("todo");
   const [editPriority, setEditPriority] = useState<string>("");
   const [editStartAt, setEditStartAt] = useState("");
@@ -420,6 +435,7 @@ export function TaskDrawerWithComments({
     setDrawerItem(it);
     setEditTitle(it.title ?? "");
     setEditBody(it.body ?? "");
+    setEditColor(it.color || "#FFFFFF");
     setEditStatus((it.status as string) ?? "todo");
     setEditPriority(normalizePriority(it.priority));
     setEditStartAt(it.start_at ? toLocalDatetimeInputValue(it.start_at) : "");
@@ -440,6 +456,7 @@ export function TaskDrawerWithComments({
     setDrawerItem(null);
     setEditTitle("");
     setEditBody("");
+    setEditColor("#FFFFFF");
     setEditStatus(initialCreateStatus ?? "todo");
     setEditPriority("1");
     setEditStartAt(initialCreateStartAt ?? "");
@@ -663,6 +680,7 @@ export function TaskDrawerWithComments({
             body: JSON.stringify({
               title,
               body: editBody.trim() || null,
+              color: editColor,
               status: editStatus,
               priority: normalizePriority(editPriority),
               start_at: startIso,
@@ -1236,6 +1254,39 @@ export function TaskDrawerWithComments({
                 <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
                   {variant !== "create" ? (
                     <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
+                  ) : null}
+                  {variant === "create" ? (
+                    <fieldset className="space-y-3">
+                      <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
+                      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
+                        {TASK_COLOR_PALETTE.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
+                              editColor.toUpperCase() === color
+                                ? "border-primary ring-2 ring-primary/25"
+                                : "border-border-subtle"
+                            }`}
+                            style={{ backgroundColor: color }}
+                            aria-label={`选择颜色 ${color}`}
+                            title={color === "#FFFFFF" ? "白色（默认）" : color}
+                            onClick={() => setEditColor(color)}
+                            disabled={editLoading}
+                          />
+                        ))}
+                        <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
+                          自定义
+                          <input
+                            type="color"
+                            value={editColor}
+                            onChange={(e) => setEditColor(e.target.value.toUpperCase())}
+                            className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
+                            disabled={editLoading}
+                          />
+                        </label>
+                      </div>
+                    </fieldset>
                   ) : null}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">

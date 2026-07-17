@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.deps import get_db
-from app.models import ActivityLog, Comment, Item, Project, ProjectMember, User, Workspace, WorkspaceMember
+from app.models import ActivityLog, Comment, Item, Project, ProjectFavorite, ProjectMember, User, Workspace, WorkspaceMember
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 
@@ -56,6 +56,7 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("workspace_members", WorkspaceMember),
     ("projects", Project),
     ("project_members", ProjectMember),
+    ("project_favorites", ProjectFavorite),
     ("items", Item),
     ("comments", Comment),
     ("activity_log", ActivityLog),

@@ -17,11 +17,13 @@ class Project(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#FFFFFF")
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     workspace = relationship("Workspace", back_populates="projects")
     items = relationship("Item", back_populates="project", cascade="all,delete-orphan")
     members = relationship("ProjectMember", back_populates="project", cascade="all,delete-orphan")
+    favorites = relationship("ProjectFavorite", back_populates="project", cascade="all,delete-orphan")
 
 
 class ProjectMember(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -37,3 +39,13 @@ class ProjectMember(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     project = relationship("Project", back_populates="members")
 
+
+class ProjectFavorite(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "project_favorites"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_favorite"),)
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    project = relationship("Project", back_populates="favorites")

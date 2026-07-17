@@ -24,6 +24,9 @@ export type ScheduleBoardProps = {
   onCreateOnDate?: (dateKey: string, hour?: number) => void;
   /** 变更后递增以触发视图刷新（如任务创建/编辑） */
   refreshNonce?: number;
+  /** 我的日程使用日历优先的纵向展示顺序。 */
+  calendarFirst?: boolean;
+  simplifiedSectionHeaders?: boolean;
 };
 
 function findTaskItem(
@@ -67,6 +70,8 @@ export function ScheduleBoard({
   onCreateInColumn,
   onCreateOnDate,
   refreshNonce = 0,
+  calendarFirst = false,
+  simplifiedSectionHeaders = false,
 }: ScheduleBoardProps) {
   const {
     calendarMode,
@@ -174,15 +179,8 @@ export function ScheduleBoard({
     return <div className="text-small text-text-secondary py-xl text-center">加载中…</div>;
   }
 
-  return (
-    <>
-      {error && (
-        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
-          {error}
-        </div>
-      )}
-
-      <PriorityQuadrants
+  const priorityView = (
+    <PriorityQuadrants
         itemsByPriority={itemsByPriority}
         priorityCountdownNowMs={priorityCountdownNowMs}
         dragOverPriority={dragOverPriority}
@@ -196,9 +194,12 @@ export function ScheduleBoard({
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}
-      />
+        hideHeader={simplifiedSectionHeaders}
+    />
+  );
 
-      <ScheduleCalendar
+  const calendarView = (
+    <ScheduleCalendar
         calendarMode={calendarMode}
         onCalendarModeChange={setCalendarMode}
         calendarAnchor={calendarAnchor}
@@ -210,7 +211,28 @@ export function ScheduleBoard({
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}
         onDateBlankClick={onCreateOnDate}
-      />
+    />
+  );
+
+  return (
+    <>
+      {error && (
+        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+          {error}
+        </div>
+      )}
+
+      {calendarFirst ? (
+        <>
+          {calendarView}
+          {priorityView}
+        </>
+      ) : (
+        <>
+          {priorityView}
+          {calendarView}
+        </>
+      )}
 
       <SwimlaneKanban
         byStatus={byStatus}
@@ -224,6 +246,8 @@ export function ScheduleBoard({
         onCreateInColumn={onCreateInColumn}
         showAssigneeAvatar={showAssigneeAvatar}
         showProjectContext={showProjectContext}
+        hideHeader={simplifiedSectionHeaders}
+        violetStatusHeader={simplifiedSectionHeaders}
       />
     </>
   );

@@ -11,6 +11,7 @@ class UserBrief(BaseModel):
 class ItemCreate(BaseModel):
     title: str
     body: str | None = None
+    color: str = Field(default="#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     status: str = "todo"
     priority: str = "1"
     start_at: datetime | None = None
@@ -25,6 +26,7 @@ class ItemUpdate(BaseModel):
     version: int
     title: str | None = None
     body: str | None = None
+    color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
     status: str | None = None
     priority: str | None = None
     start_at: datetime | None = None
@@ -41,6 +43,7 @@ class ItemOut(BaseModel):
     id: str
     title: str
     body: str | None
+    color: str = "#FFFFFF"
     status: str
     priority: str | None
     start_at: datetime | None

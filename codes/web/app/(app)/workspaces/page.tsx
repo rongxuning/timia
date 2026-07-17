@@ -4,13 +4,27 @@ import { useEffect, useState } from "react";
 import { PageMain } from "@/components/layout";
 import { WorkspaceCardGrid } from "@/components/workspace";
 import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
-import { fetchWorkspaceCards } from "@/lib/api/workspace-views";
+import { fetchWorkspaceCards, updateWorkspaceFavorite } from "@/lib/api/workspace-views";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { favoriteCardsFirst } from "@/lib/cardSort";
 import { useRouter } from "next/navigation";
 import type { WorkspaceCardView } from "@/types/api/views/workspace";
 
-type Workspace = { id: string; name: string; description?: string | null };
+type Workspace = { id: string; name: string; description?: string | null; color: string };
+
+const WORKSPACE_COLOR_PALETTE = [
+  "#FFFFFF",
+  "#F3F0FF",
+  "#EEF2FF",
+  "#EFF6FF",
+  "#ECFEFF",
+  "#ECFDF5",
+  "#FFFBEB",
+  "#FFF1F2",
+  "#FDF2F8",
+  "#F4F4F5",
+];
 
 export default function WorkspacesPage() {
   const router = useRouter();
@@ -19,12 +33,21 @@ export default function WorkspacesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
+  const [createColor, setCreateColor] = useState("#FFFFFF");
   const [createError, setCreateError] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceCardView | null>(null);
+  const [favoritingId, setFavoritingId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<WorkspaceCardView | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editColor, setEditColor] = useState("#FFFFFF");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   async function reloadCards() {
     const token = getToken();
@@ -67,12 +90,13 @@ export default function WorkspacesPage() {
       await apiFetch<Workspace>("/workspaces", {
         method: "POST",
         token,
-        body: JSON.stringify({ name, description: description || null }),
+        body: JSON.stringify({ name, description: description || null, color: createColor }),
       });
       await reloadCards();
       setCreateOpen(false);
       setCreateName("");
       setCreateDescription("");
+      setCreateColor("#FFFFFF");
     } catch (err: unknown) {
       const msg = err && typeof err === "object" && "message" in err ? String((err as { message: string }).message) : "创建失败";
       setCreateError(msg);
@@ -102,8 +126,75 @@ export default function WorkspacesPage() {
     }
   }
 
+  async function onToggleFavorite(workspace: WorkspaceCardView) {
+    const token = getToken();
+    if (!token || favoritingId) return;
+    const next = !workspace.is_favorite;
+    setFavoritingId(workspace.id);
+    setError(null);
+    setItems((prev) =>
+      favoriteCardsFirst(prev.map((w) => (w.id === workspace.id ? { ...w, is_favorite: next } : w))),
+    );
+    try {
+      await updateWorkspaceFavorite(token, workspace.id, next);
+    } catch (e: unknown) {
+      setItems((prev) =>
+        favoriteCardsFirst(prev.map((w) => (w.id === workspace.id ? { ...w, is_favorite: !next } : w))),
+      );
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "收藏操作失败";
+      setError(msg);
+    } finally {
+      setFavoritingId(null);
+    }
+  }
+
+  function openEditWorkspace(workspace: WorkspaceCardView) {
+    setEditTarget(workspace);
+    setEditName(workspace.name);
+    setEditDescription(workspace.description ?? "");
+    setEditColor(workspace.color || "#FFFFFF");
+    setEditError(null);
+    setEditOpen(true);
+  }
+
+  async function onSaveWorkspace(e: React.FormEvent) {
+    e.preventDefault();
+    const token = getToken();
+    if (!token || !editTarget) return;
+    const name = editName.trim();
+    const description = editDescription.trim();
+    if (!name) {
+      setEditError("请输入工作空间名称");
+      return;
+    }
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const updated = await apiFetch<Workspace>(`/workspaces/${editTarget.id}`, {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ name, description: description || null, color: editColor }),
+      });
+      setItems((prev) =>
+        prev.map((w) =>
+          w.id === editTarget.id
+            ? { ...w, name: updated.name, description: updated.description, color: updated.color }
+            : w,
+        ),
+      );
+      primeWorkspaceNameForBreadcrumb(updated.id, updated.name);
+      setEditOpen(false);
+      setEditTarget(null);
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as { message: string }).message) : "保存失败";
+      setEditError(msg);
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
   return (
-    <PageMain className="min-h-screen">
+    <PageMain className="!px-3" fullWidth>
       <button
         className="fixed bottom-6 right-6 z-40 flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm active:translate-y-px"
         type="button"
@@ -130,6 +221,7 @@ export default function WorkspacesPage() {
       <WorkspaceCardGrid
         cards={items}
         deletingId={deletingId}
+        favoritingId={favoritingId}
         onCreateClick={() => {
           setCreateError(null);
           setCreateOpen(true);
@@ -139,6 +231,8 @@ export default function WorkspacesPage() {
           setDeleteTarget(w);
           setDeleteOpen(true);
         }}
+        onFavoriteClick={onToggleFavorite}
+        onEditClick={openEditWorkspace}
       />
 
       {createOpen && (
@@ -162,6 +256,37 @@ export default function WorkspacesPage() {
                   placeholder="描述（可选）"
                   disabled={createLoading}
                 />
+                <fieldset className="space-y-3">
+                  <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
+                    {WORKSPACE_COLOR_PALETTE.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
+                          createColor.toUpperCase() === color
+                            ? "border-primary ring-2 ring-primary/25"
+                            : "border-border-subtle"
+                        }`}
+                        style={{ backgroundColor: color }}
+                        aria-label={`选择颜色 ${color}`}
+                        title={color === "#FFFFFF" ? "白色（默认）" : color}
+                        onClick={() => setCreateColor(color)}
+                        disabled={createLoading}
+                      />
+                    ))}
+                    <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
+                      自定义
+                      <input
+                        type="color"
+                        value={createColor}
+                        onChange={(e) => setCreateColor(e.target.value.toUpperCase())}
+                        className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
+                        disabled={createLoading}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
                 {createError && <div className="text-small text-error">{createError}</div>}
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setCreateOpen(false)} disabled={createLoading}>
@@ -192,6 +317,73 @@ export default function WorkspacesPage() {
                   {deletingId === deleteTarget.id ? "删除中…" : "删除"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editOpen && editTarget && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !editLoading && setEditOpen(false)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+            <div className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm">
+              <div className="font-semibold font-subhead">编辑工作空间</div>
+              <form onSubmit={onSaveWorkspace} className="space-y-4">
+                <input
+                  className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="工作空间名称"
+                  disabled={editLoading}
+                />
+                <textarea
+                  className="min-h-[96px] w-full resize-none rounded-xl border border-border-subtle bg-surface-bright px-lg py-md"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="描述（可选）"
+                  disabled={editLoading}
+                />
+                <fieldset className="space-y-3">
+                  <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
+                    {WORKSPACE_COLOR_PALETTE.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
+                          editColor.toUpperCase() === color
+                            ? "border-primary ring-2 ring-primary/25"
+                            : "border-border-subtle"
+                        }`}
+                        style={{ backgroundColor: color }}
+                        aria-label={`选择颜色 ${color}`}
+                        title={color === "#FFFFFF" ? "白色（默认）" : color}
+                        onClick={() => setEditColor(color)}
+                        disabled={editLoading}
+                      />
+                    ))}
+                    <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
+                      自定义
+                      <input
+                        type="color"
+                        value={editColor}
+                        onChange={(e) => setEditColor(e.target.value.toUpperCase())}
+                        className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
+                        disabled={editLoading}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                {editError && <div className="text-small text-error">{editError}</div>}
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setEditOpen(false)} disabled={editLoading}>
+                    取消
+                  </button>
+                  <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-on-primary" disabled={editLoading}>
+                    {editLoading ? "保存中…" : "保存"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, type ApiError } from "@/lib/api";
 import {
@@ -50,6 +50,14 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const me = useCurrentMe();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const scrollContainer = contentScrollRef.current;
+    if (!scrollContainer) return;
+    scrollContainer.scrollTop = 0;
+    scrollContainer.scrollLeft = 0;
+  }, [pathname]);
 
   useEffect(() => {
     if (!getToken()) {
@@ -91,7 +99,9 @@ export function AppShell({ children }: AppShellProps) {
       <SideNav userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   );

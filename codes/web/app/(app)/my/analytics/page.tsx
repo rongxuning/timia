@@ -29,7 +29,7 @@ export default function MyAnalyticsPage() {
   }, [router, token]);
 
   return (
-    <PageMain>
+    <PageMain className="!px-3" fullWidth>
       <div className="space-y-lg">
         <div>
           <h1 className="font-subhead text-subhead text-text-primary">数据分析</h1>

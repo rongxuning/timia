@@ -26,6 +26,7 @@ class ProjectDashboardOut(BaseModel):
     project_id: str
     name: str
     description: str | None = None
+    color: str = "#FFFFFF"
     archived: bool
     can_manage: bool
     created_at: datetime | None = None

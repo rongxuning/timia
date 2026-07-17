@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +13,7 @@ class Workspace(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#FFFFFF")
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     members = relationship("WorkspaceMember", back_populates="workspace", cascade="all,delete-orphan")
@@ -27,7 +28,7 @@ class WorkspaceMember(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")  # owner | member
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active/removed
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     workspace = relationship("Workspace", back_populates="members")
     user = relationship("User", back_populates="workspace_memberships")
-

@@ -7,9 +7,10 @@ import { ProjectList, RecentDiscussions, WorkspaceDashboardCards } from "@/compo
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments } from "@/components/TaskDrawerWithComments";
 import { ProjectModal } from "@/components/ProjectModal";
-import { fetchWorkspaceDashboard } from "@/lib/api/workspace-views";
+import { fetchWorkspaceDashboard, updateProjectFavorite } from "@/lib/api/workspace-views";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { favoriteCardsFirst } from "@/lib/cardSort";
 import type { DiscussionViewItem, WorkspaceDashboardView, WorkspaceProjectCard } from "@/types/api/views/workspace";
 
 type WorkspacePatch = { id: string; name: string; description?: string | null };
@@ -37,6 +38,8 @@ export default function WorkspaceHome() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [editProjectTarget, setEditProjectTarget] = useState<WorkspaceProjectCard | null>(null);
+  const [favoritingProjectId, setFavoritingProjectId] = useState<string | null>(null);
 
   const reloadDashboard = useCallback(async () => {
     const t = getToken();
@@ -113,6 +116,44 @@ export default function WorkspaceHome() {
     }
   }
 
+  async function onToggleProjectFavorite(project: WorkspaceProjectCard) {
+    if (!token || favoritingProjectId) return;
+    const next = !project.is_favorite;
+    setFavoritingProjectId(project.id);
+    setDashboard((current) =>
+      current
+        ? {
+            ...current,
+            active_projects: favoriteCardsFirst(
+              current.active_projects.map((p) =>
+                p.id === project.id ? { ...p, is_favorite: next } : p,
+              ),
+            ),
+          }
+        : current,
+    );
+    try {
+      await updateProjectFavorite(token, workspaceId, project.id, next);
+    } catch (e: unknown) {
+      setDashboard((current) =>
+        current
+          ? {
+              ...current,
+              active_projects: favoriteCardsFirst(
+                current.active_projects.map((p) =>
+                  p.id === project.id ? { ...p, is_favorite: !next } : p,
+                ),
+              ),
+            }
+          : current,
+      );
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "收藏操作失败";
+      setError(msg);
+    } finally {
+      setFavoritingProjectId(null);
+    }
+  }
+
   function openTaskFromDiscussion(row: DiscussionViewItem) {
     setTaskDrawerProjectId(row.project_id);
     setTaskDrawerItemId(row.item_id);
@@ -122,10 +163,14 @@ export default function WorkspaceHome() {
 
   if (!authReady) {
     return (
-      <PageMain>
-        <div className="space-y-2xl">
-          <WorkspaceDashboardCards dashboard={null} workspaceId={workspaceId} />
-          <ProjectList workspaceId={workspaceId} projects={[]} canCreateProject={false} />
+      <PageMain className="!px-3" fullWidth>
+        <div className="grid items-start gap-lg lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="self-start lg:sticky lg:top-lg">
+            <WorkspaceDashboardCards dashboard={null} workspaceId={workspaceId} />
+          </aside>
+          <div className="min-w-0">
+            <ProjectList workspaceId={workspaceId} projects={[]} canCreateProject={false} />
+          </div>
         </div>
       </PageMain>
     );
@@ -134,34 +179,41 @@ export default function WorkspaceHome() {
   if (!token) return null;
 
   return (
-    <PageMain>
-      <div className="space-y-2xl">
-        {error && (
-          <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
-            {error}
-          </div>
-        )}
+    <PageMain className="!px-3" fullWidth>
+      {error && (
+        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+          {error}
+        </div>
+      )}
 
-        <WorkspaceDashboardCards
-          dashboard={dashboard}
-          workspaceId={workspaceId}
-          onEditWorkspace={openEditWorkspaceModal}
-          onCreateProject={() => setCreateProjectOpen(true)}
-        />
+      <div className="grid items-start gap-lg lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside id="workspace-status-panel" className="self-start lg:sticky lg:top-lg">
+          <WorkspaceDashboardCards
+            dashboard={dashboard}
+            workspaceId={workspaceId}
+            onEditWorkspace={openEditWorkspaceModal}
+            onCreateProject={() => setCreateProjectOpen(true)}
+          />
+        </aside>
 
-        <ProjectList
-          workspaceId={workspaceId}
-          projects={dashboard?.active_projects ?? []}
-          canCreateProject={dashboard?.can_edit_workspace ?? false}
-          deletingProjectId={deletingProjectId}
-          onDeleteProject={(p) => {
-            setDeleteProjectError(null);
-            setDeleteProjectTarget(p);
-            setDeleteProjectOpen(true);
-          }}
-        />
+        <div className="min-w-0 space-y-2xl">
+          <ProjectList
+            workspaceId={workspaceId}
+            projects={dashboard?.active_projects ?? []}
+            canCreateProject={dashboard?.can_edit_workspace ?? false}
+            deletingProjectId={deletingProjectId}
+            favoritingProjectId={favoritingProjectId}
+            onFavoriteProject={onToggleProjectFavorite}
+            onEditProject={setEditProjectTarget}
+            onDeleteProject={(p) => {
+              setDeleteProjectError(null);
+              setDeleteProjectTarget(p);
+              setDeleteProjectOpen(true);
+            }}
+          />
 
-        <RecentDiscussions token={token} workspaceId={workspaceId} onOpenTask={openTaskFromDiscussion} />
+          <RecentDiscussions token={token} workspaceId={workspaceId} onOpenTask={openTaskFromDiscussion} />
+        </div>
       </div>
 
       <ProjectModal
@@ -171,6 +223,22 @@ export default function WorkspaceHome() {
         token={token}
         mode="create"
         onSuccess={() => void reloadDashboard()}
+      />
+
+      <ProjectModal
+        open={!!editProjectTarget}
+        onClose={() => setEditProjectTarget(null)}
+        workspaceId={workspaceId}
+        token={token}
+        mode="edit"
+        projectId={editProjectTarget?.id}
+        initialName={editProjectTarget?.name ?? ""}
+        initialDescription={editProjectTarget?.description}
+        initialColor={editProjectTarget?.color ?? "#FFFFFF"}
+        onSuccess={() => {
+          setEditProjectTarget(null);
+          void reloadDashboard();
+        }}
       />
 
       {editWorkspaceOpen && (

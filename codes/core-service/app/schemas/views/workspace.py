@@ -32,6 +32,9 @@ class WorkspaceProjectCardOut(BaseModel):
     id: str
     name: str
     description: str | None = None
+    color: str = "#FFFFFF"
+    created_at: datetime
+    is_favorite: bool = False
     can_manage: bool
     todo_doing: int
     done_archived: int
@@ -42,6 +45,7 @@ class WorkspaceDashboardOut(BaseModel):
     workspace_id: str
     name: str
     description: str | None = None
+    color: str = "#FFFFFF"
     created_at: datetime | None = None
     created_by_display_name: str | None = None
     can_edit_workspace: bool

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models.comment import Comment
 from app.models.item import Item
-from app.models.project import Project
+from app.models.project import Project, ProjectFavorite
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.workspace import (
@@ -98,6 +98,7 @@ def build_workspace_dashboard(db: Session, workspace_id: uuid.UUID, user: User) 
         workspace_id=str(w.id),
         name=w.name,
         description=w.description,
+        color=w.color,
         created_at=w.created_at,
         created_by_display_name=creator_name,
         can_edit_workspace=can_edit,
@@ -181,6 +182,22 @@ def _active_projects_with_progress(
         return [], 0
 
     project_ids = [p.id for p in rows]
+    favorite_project_ids = set(
+        db.scalars(
+            select(ProjectFavorite.project_id).where(
+                ProjectFavorite.project_id.in_(project_ids),
+                ProjectFavorite.user_id == user.id,
+            )
+        ).all()
+    )
+    rows.sort(
+        key=lambda project: (
+            project.id in favorite_project_ids,
+            project.created_at,
+            str(project.id),
+        ),
+        reverse=True,
+    )
     progress_rows = db.execute(
         select(Item.project_id, Item.status, func.count(Item.id))
         .where(Item.workspace_id == workspace_id, Item.project_id.in_(project_ids))
@@ -210,6 +227,9 @@ def _active_projects_with_progress(
                 id=str(p.id),
                 name=p.name,
                 description=p.description,
+                color=p.color,
+                created_at=p.created_at,
+                is_favorite=p.id in favorite_project_ids,
                 can_manage=can_manage,
                 todo_doing=td,
                 done_archived=da,

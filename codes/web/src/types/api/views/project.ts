@@ -28,6 +28,7 @@ export type ProjectDashboardView = {
   project_id: string;
   name: string;
   description?: string | null;
+  color: string;
   archived: boolean;
   can_manage: boolean;
   created_at?: string | null;

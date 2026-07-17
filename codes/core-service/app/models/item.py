@@ -17,6 +17,7 @@ class Item(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str | None] = mapped_column(String(10000), nullable=True)
+    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#FFFFFF")
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="todo")  # todo/doing/done/archived
     priority: Mapped[str | None] = mapped_column(String(10), nullable=True)  # low/medium/high
@@ -41,4 +42,3 @@ class Item(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     project = relationship("Project", back_populates="items")
     comments = relationship("Comment", back_populates="item", cascade="all,delete-orphan")
-

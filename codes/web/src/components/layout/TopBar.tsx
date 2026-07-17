@@ -27,7 +27,7 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
             </div>
             <span className="font-display text-sm font-bold leading-none tracking-tight text-gray-900">Timia</span>
           </Link>
-          <Breadcrumbs className="hidden min-w-0 sm:block md:pl-container-padding" />
+          <Breadcrumbs className="hidden min-w-0 sm:block" />
         </div>
 
         <div id="timia-user-menu-top" className="relative md:hidden">

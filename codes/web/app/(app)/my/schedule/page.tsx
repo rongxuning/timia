@@ -100,21 +100,26 @@ export default function MySchedulePage() {
   }
 
   return (
-    <PageMain>
-      <ScheduleDashboardCards
-        dashboard={dashboard}
-        profileHint="仅展示你负责或参与的任务，跨工作空间聚合"
-      />
+    <PageMain className="!px-3" fullWidth>
+      <div className="grid items-start gap-lg lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside id="my-schedule-status-panel" className="self-start lg:sticky lg:top-lg">
+          <ScheduleDashboardCards dashboard={dashboard} />
+        </aside>
 
-      <ScheduleBoard
-        token={token}
-        scope={scope}
-        showProjectContext
-        showAssigneeAvatar
-        refreshNonce={scheduleRefreshNonce}
-        onItemClick={openDrawer}
-        onCreateOnDate={openTaskCreateOnDate}
-      />
+        <div className="min-w-0">
+          <ScheduleBoard
+            token={token}
+            scope={scope}
+            showProjectContext
+            showAssigneeAvatar
+            refreshNonce={scheduleRefreshNonce}
+            onItemClick={openDrawer}
+            onCreateOnDate={openTaskCreateOnDate}
+            calendarFirst
+            simplifiedSectionHeaders
+          />
+        </div>
+      </div>
 
       <TaskDrawerWithComments
         open={taskDrawerOpen && !!taskDrawerWorkspaceId && !!taskDrawerProjectId && !!taskDrawerItemId}
@@ -147,6 +152,7 @@ export default function MySchedulePage() {
 
       <FloatingDraggableButton
         ariaLabel="新建任务"
+        initialAnchorId="my-schedule-status-panel"
         className="flex h-14 w-14 cursor-grab items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-indigo-100 transition-colors hover:bg-primary-hover active:cursor-grabbing"
         onClick={() => openTaskCreate("todo")}
       >

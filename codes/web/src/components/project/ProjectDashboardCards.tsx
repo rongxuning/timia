@@ -1,9 +1,9 @@
+import Link from "next/link";
 import type { ProjectDashboardView } from "@/types/api/views/project";
 
 type ProjectDashboardCardsProps = {
   dashboard: ProjectDashboardView | null;
   onEditProject?: () => void;
-  onCreateTask?: () => void;
   workspaceId: string;
   projectId: string;
 };
@@ -11,19 +11,18 @@ type ProjectDashboardCardsProps = {
 export function ProjectDashboardCards({
   dashboard,
   onEditProject,
-  onCreateTask,
   workspaceId,
   projectId,
 }: ProjectDashboardCardsProps) {
   const canManage = dashboard?.can_manage ?? false;
 
   return (
-    <section className="grid grid-cols-1 gap-lg md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_2fr_2fr] items-stretch">
+    <section className="space-y-lg">
       <div
         className={
           canManage
-            ? "flex min-h-44 cursor-pointer flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
-            : "flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg"
+            ? "flex cursor-pointer flex-col gap-4 rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+            : "flex flex-col gap-4 rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg"
         }
         role={canManage ? "button" : undefined}
         tabIndex={canManage ? 0 : undefined}
@@ -49,9 +48,13 @@ export function ProjectDashboardCards({
         </div>
       </div>
 
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+      <Link
+        href={`/workspace/${workspaceId}/projects/${projectId}/members`}
+        className="flex flex-col gap-4 rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+        aria-label="进入项目成员管理并添加成员"
+      >
         <span className="text-sm font-semibold text-primary">成员</span>
-        <div className="space-y-2 mt-1.5">
+        <div className="space-y-2">
           <div className="flex items-baseline gap-2">
             <span className="font-headline text-section-heading">{dashboard?.members.total ?? "—"}</span>
             <span className="text-text-secondary text-caption">总计</span>
@@ -87,17 +90,17 @@ export function ProjectDashboardCards({
             </div>
           </div>
         </div>
-      </div>
+      </Link>
 
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+      <div className="flex flex-col gap-4 rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
         <span className="text-sm font-semibold text-primary">项目健康度</span>
-        <div className="space-y-3 mt-1.5">
+        <div className="space-y-3">
           <div className="flex items-baseline gap-2">
             <span className="font-headline text-section-heading">
               {dashboard?.stats.health_percent == null ? "—" : `${dashboard.stats.health_percent}%`}
             </span>
           </div>
-          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div className="flex items-baseline gap-2 whitespace-nowrap">
               <span className="text-caption text-neutral-muted">待办</span>
               <span className="font-bold text-lg text-text-primary tabular-nums">{dashboard?.stats.todo_count ?? "—"}</span>
@@ -117,27 +120,6 @@ export function ProjectDashboardCards({
               </span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
-        <span className="text-sm font-semibold text-primary">项目设置</span>
-        <div className="grid grid-cols-1 gap-sm">
-          <a
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 px-lg py-sm text-sm font-medium text-text-primary transition-all hover:bg-zinc-50"
-            href={`/workspace/${workspaceId}/projects/${projectId}/members`}
-          >
-            <span className="material-symbols-outlined text-lg">person_add</span>
-            添加成员
-          </a>
-          <button
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-lg py-sm text-sm font-semibold text-on-primary shadow-lg shadow-indigo-100 transition-all hover:bg-primary-hover hover:-translate-y-0.5"
-            type="button"
-            onClick={onCreateTask}
-          >
-            <span className="material-symbols-outlined text-lg">add</span>
-            新建任务
-          </button>
         </div>
       </div>
     </section>

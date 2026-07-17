@@ -7,10 +7,16 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.item import Item
-from app.models.project import Project, ProjectMember
+from app.models.project import Project, ProjectFavorite, ProjectMember
 from app.models.user import User
 from app.models.workspace import WorkspaceMember
-from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectFavoriteOut,
+    ProjectFavoriteUpdate,
+    ProjectOut,
+    ProjectUpdate,
+)
 from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.services.activity import log_activity
 from app.services.project_api import apply_project_transfer, parse_project_transfer_target
@@ -67,6 +73,7 @@ def _project_out(
         workspace_id=str(p.workspace_id),
         name=p.name,
         description=p.description,
+        color=p.color,
         archived=p.archived,
         created_at=p.created_at,
         created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
@@ -150,6 +157,7 @@ def create_project(
         created_by_user_id=user.id,
         name=payload.name,
         description=payload.description,
+        color=payload.color.upper(),
         archived=False,
     )
     db.add(p)
@@ -387,6 +395,36 @@ def remove_project_member(
     return None
 
 
+@router.patch("/{project_id}/favorite", response_model=ProjectFavoriteOut)
+def update_project_favorite(
+    workspace_id: uuid.UUID,
+    project_id: uuid.UUID,
+    payload: ProjectFavoriteUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    require_project_content_access(db, workspace_id, project_id, user)
+    favorite = db.scalar(
+        select(ProjectFavorite).where(
+            ProjectFavorite.workspace_id == workspace_id,
+            ProjectFavorite.project_id == project_id,
+            ProjectFavorite.user_id == user.id,
+        )
+    )
+    if payload.is_favorite and not favorite:
+        db.add(
+            ProjectFavorite(
+                workspace_id=workspace_id,
+                project_id=project_id,
+                user_id=user.id,
+            )
+        )
+    elif not payload.is_favorite and favorite:
+        db.delete(favorite)
+    db.commit()
+    return ProjectFavoriteOut(project_id=str(project_id), is_favorite=payload.is_favorite)
+
+
 @router.patch("/{project_id}", response_model=ProjectOut)
 def update_project(
     workspace_id: uuid.UUID,
@@ -403,14 +441,16 @@ def update_project(
     fields_set = getattr(payload, "model_fields_set", getattr(payload, "__fields_set__", set()))
     transfer_target = parse_project_transfer_target(fields_set, payload)
 
-    before = {"name": p.name, "description": p.description, "archived": p.archived}
+    before = {"name": p.name, "description": p.description, "color": p.color, "archived": p.archived}
     if payload.name is not None:
         p.name = payload.name
     if payload.description is not None:
         p.description = payload.description
     if payload.archived is not None:
         p.archived = payload.archived
-    after = {"name": p.name, "description": p.description, "archived": p.archived}
+    if payload.color is not None:
+        p.color = payload.color.upper()
+    after = {"name": p.name, "description": p.description, "color": p.color, "archived": p.archived}
 
     transfer_result: dict[str, int | bool] = {"transferred": False}
     if transfer_target:
