@@ -2,7 +2,14 @@
 
 import type { ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
 import { AssigneeAvatar } from "./AssigneeAvatar";
-import { formatScheduleRange, normalizePriority, priorityBadgeClass, STATUSES } from "./taskUtils";
+import {
+  formatScheduleRange,
+  normalizePriority,
+  priorityBadgeClass,
+  STATUSES,
+  taskCalendarColors,
+  taskLabelStripeColor,
+} from "./taskUtils";
 
 export type SwimlaneKanbanProps = {
   byStatus: Record<StatusKey, ScheduleTaskItem[]>;
@@ -117,6 +124,10 @@ export function SwimlaneKanban({
                     onDragOverStatusChange(null);
                   }}
                   className="block w-full cursor-pointer rounded-xl border border-border-subtle bg-white p-lg text-left transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  style={{
+                    borderLeftColor: taskLabelStripeColor(it.color, taskCalendarColors(it.priority).border),
+                    borderLeftWidth: 4,
+                  }}
                 >
                   <div
                     className={

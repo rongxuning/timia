@@ -7,6 +7,8 @@ import {
   countdownBadgeClass,
   countdownTargetForItem,
   formatRemainDHM,
+  taskCalendarColors,
+  taskLabelStripeColor,
 } from "./taskUtils";
 
 const QUADRANTS = [
@@ -131,6 +133,13 @@ export function PriorityQuadrants({
                             onDragOverPriorityChange(null);
                           }}
                           className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary transition-colors"
+                          style={{
+                            borderLeftColor: taskLabelStripeColor(
+                              it.color,
+                              taskCalendarColors(it.priority).border,
+                            ),
+                            borderLeftWidth: 4,
+                          }}
                           title={taskTooltip(it, cd?.text ?? null, showProjectContext)}
                         >
                           <div className="flex items-start gap-1.5 min-w-0">
