@@ -76,6 +76,7 @@ def build_project_dashboard(db: Session, workspace_id: uuid.UUID, project_id: uu
         project_id=str(p.id),
         name=p.name,
         description=p.description,
+        color=p.color,
         archived=p.archived,
         can_manage=user_can_manage_project(db, workspace_id, project_id, user),
         created_at=p.created_at,

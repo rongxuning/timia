@@ -74,6 +74,7 @@ def create_item(
         project_id=project_id,
         title=payload.title,
         body=payload.body,
+        color=payload.color.upper(),
         status=payload.status,
         priority=(payload.priority or "1"),
         start_at=payload.start_at,
@@ -158,6 +159,7 @@ def update_item(
     before = {
         "title": i.title,
         "body": i.body,
+        "color": i.color,
         "status": i.status,
         "priority": i.priority,
         "start_at": i.start_at.isoformat() if i.start_at else None,
@@ -175,6 +177,8 @@ def update_item(
         i.title = payload.title
     if payload.body is not None:
         i.body = payload.body
+    if payload.color is not None:
+        i.color = payload.color.upper()
     if payload.status is not None:
         i.status = payload.status
     if payload.priority is not None:
@@ -220,6 +224,7 @@ def update_item(
     after = {
         "title": i.title,
         "body": i.body,
+        "color": i.color,
         "status": i.status,
         "priority": i.priority,
         "start_at": i.start_at.isoformat() if i.start_at else None,

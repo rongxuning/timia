@@ -38,6 +38,7 @@ export type ItemDetailView = {
   id: string;
   title: string;
   body?: string | null;
+  color: string;
   status: string;
   priority?: string | null;
   start_at?: string | null;

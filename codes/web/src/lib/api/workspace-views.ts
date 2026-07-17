@@ -33,6 +33,31 @@ export function fetchWorkspaceCards(token: string): Promise<WorkspaceCardView[]>
   return apiFetch<WorkspaceCardView[]>("/workspaces/cards", { token });
 }
 
+export function updateWorkspaceFavorite(
+  token: string,
+  workspaceId: string,
+  isFavorite: boolean,
+): Promise<{ workspace_id: string; is_favorite: boolean }> {
+  return apiFetch(`/workspaces/${workspaceId}/favorite`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+}
+
+export function updateProjectFavorite(
+  token: string,
+  workspaceId: string,
+  projectId: string,
+  isFavorite: boolean,
+): Promise<{ project_id: string; is_favorite: boolean }> {
+  return apiFetch(`/workspaces/${workspaceId}/projects/${projectId}/favorite`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+}
+
 export function fetchWorkspaceActivity(token: string, workspaceId: string): Promise<WorkspaceActivityView> {
   return apiFetch<WorkspaceActivityView>(`/views/workspace/${workspaceId}/activity`, { token });
 }

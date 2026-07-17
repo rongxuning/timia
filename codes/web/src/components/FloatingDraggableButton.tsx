@@ -11,6 +11,8 @@ type FloatingDraggableButtonProps = {
   className?: string;
   initialBottom?: number;
   initialRight?: number;
+  initialAnchorId?: string;
+  initialAnchorGap?: number;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -24,8 +26,11 @@ export function FloatingDraggableButton({
   className = "",
   initialBottom = 24,
   initialRight = 24,
+  initialAnchorId,
+  initialAnchorGap = 16,
 }: FloatingDraggableButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const hasBeenDraggedRef = useRef(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -40,18 +45,49 @@ export function FloatingDraggableButton({
     const el = buttonRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const anchor = initialAnchorId ? document.getElementById(initialAnchorId) : null;
+    if (anchor) {
+      const anchorRect = anchor.getBoundingClientRect();
+      setPosition({
+        left: clamp(anchorRect.left, 0, Math.max(0, window.innerWidth - rect.width)),
+        top: clamp(anchorRect.bottom + initialAnchorGap, 0, Math.max(0, window.innerHeight - rect.height)),
+      });
+      return;
+    }
     setPosition({
       left: window.innerWidth - initialRight - rect.width,
       top: window.innerHeight - initialBottom - rect.height,
     });
-  }, [initialBottom, initialRight]);
+  }, [initialAnchorGap, initialAnchorId, initialBottom, initialRight]);
 
   useEffect(() => {
     syncInitialPosition();
   }, [syncInitialPosition]);
 
   useEffect(() => {
+    if (!initialAnchorId) return;
+    const anchor = document.getElementById(initialAnchorId);
+    if (!anchor) return;
+
+    function syncWhileAnchored() {
+      if (!hasBeenDraggedRef.current) syncInitialPosition();
+    }
+
+    const observer = new ResizeObserver(syncWhileAnchored);
+    observer.observe(anchor);
+    document.addEventListener("scroll", syncWhileAnchored, true);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("scroll", syncWhileAnchored, true);
+    };
+  }, [initialAnchorId, syncInitialPosition]);
+
+  useEffect(() => {
     function keepInViewport() {
+      if (initialAnchorId && !hasBeenDraggedRef.current) {
+        syncInitialPosition();
+        return;
+      }
       const el = buttonRef.current;
       if (!el) return;
       setPosition((prev) => {
@@ -66,7 +102,7 @@ export function FloatingDraggableButton({
 
     window.addEventListener("resize", keepInViewport);
     return () => window.removeEventListener("resize", keepInViewport);
-  }, []);
+  }, [initialAnchorId, syncInitialPosition]);
 
   function handlePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
     const el = event.currentTarget;
@@ -96,6 +132,7 @@ export function FloatingDraggableButton({
     const dy = event.clientY - drag.startY;
     if (Math.abs(dx) > DRAG_THRESHOLD_PX || Math.abs(dy) > DRAG_THRESHOLD_PX) {
       drag.moved = true;
+      hasBeenDraggedRef.current = true;
     }
 
     const el = buttonRef.current;

@@ -49,9 +49,9 @@ export function WorkspaceDashboardCards({
 }: WorkspaceDashboardCardsProps) {
   if (!dashboard) {
     return (
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] items-stretch gap-lg">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="min-h-44 rounded-xl border border-border-subtle bg-white p-lg animate-pulse" />
+      <section className="flex flex-col gap-sm">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="min-h-36 animate-pulse rounded-xl border border-border-subtle bg-white p-4" />
         ))}
       </section>
     );
@@ -62,12 +62,12 @@ export function WorkspaceDashboardCards({
   const memberOverflow = Math.max(0, members.member_count - members.members_preview.length);
 
   return (
-    <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_2.5fr_1.5fr_2fr_2fr] items-stretch gap-lg">
+    <section className="flex flex-col gap-sm">
       <div
         className={
           canEdit
-            ? "flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
-            : "flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg"
+            ? "flex min-h-36 cursor-pointer flex-col rounded-xl border border-border-subtle bg-white p-4 transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+            : "flex min-h-36 flex-col rounded-xl border border-border-subtle bg-white p-4 transition-all hover:shadow-lg"
         }
         role={canEdit ? "button" : undefined}
         tabIndex={canEdit ? 0 : undefined}
@@ -85,9 +85,9 @@ export function WorkspaceDashboardCards({
         }
       >
         <span className="text-sm font-semibold text-primary">工作空间</span>
-        <div className="space-y-1">
-          <div className="font-subhead text-lg text-text-primary truncate">{dashboard.name}</div>
-          <div className="text-small text-text-secondary truncate">{dashboard.description || "暂无描述。"}</div>
+        <div className="mt-4 space-y-1">
+          <div className="truncate font-subhead text-lg text-text-primary">{dashboard.name}</div>
+          <div className="line-clamp-2 break-words text-small text-text-secondary">{dashboard.description || "暂无描述。"}</div>
           <div className="text-caption text-neutral-muted">
             创建于 {dashboard.created_at ? formatYmdHm(dashboard.created_at) : "—"}
           </div>
@@ -96,9 +96,15 @@ export function WorkspaceDashboardCards({
         </div>
       </div>
 
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
-        <span className="text-sm font-semibold text-primary">成员</span>
-        <div className="space-y-2 mt-1.5">
+      <Link
+        href={`/workspace/${workspaceId}/members`}
+        className="flex min-h-40 flex-col rounded-xl border border-border-subtle bg-white p-4 transition-all hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-primary">成员</span>
+          <span className="material-symbols-outlined text-lg text-primary">{canEdit ? "person_add" : "group"}</span>
+        </div>
+        <div className="mt-3 space-y-2">
           <div className="flex items-baseline gap-2">
             <span className="font-headline text-section-heading">{members.total}</span>
             <span className="text-text-secondary text-caption">总计</span>
@@ -112,19 +118,11 @@ export function WorkspaceDashboardCards({
             <MemberAvatars members={members.members_preview} overflow={memberOverflow} />
           </div>
         </div>
-      </div>
+      </Link>
 
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
-        <span className="text-sm font-semibold text-primary">项目数量</span>
-        <div className="flex items-baseline gap-2">
-          <span className="font-headline text-section-heading">{stats.project_count}</span>
-          <span className="text-text-secondary text-caption">个项目</span>
-        </div>
-      </div>
-
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
+      <div className="flex min-h-40 flex-col rounded-xl border border-border-subtle bg-white p-4 transition-all hover:shadow-lg">
         <span className="text-sm font-semibold text-primary">项目健康度</span>
-        <div className="space-y-3 mt-1.5">
+        <div className="mt-3 space-y-3">
           <div className="flex items-baseline gap-2">
             <span className="font-headline text-section-heading">
               {stats.health_percent == null ? "—" : `${stats.health_percent}%`}
@@ -147,32 +145,16 @@ export function WorkspaceDashboardCards({
         </div>
       </div>
 
-      <div className="flex min-h-44 flex-col justify-between rounded-xl border border-border-subtle bg-white p-lg transition-all hover:shadow-lg">
-        <span className="text-sm font-semibold text-primary">工作空间设置</span>
-        <div className="grid grid-cols-1 gap-sm">
-          <Link
-            className="w-full px-lg py-sm rounded-xl border border-zinc-200 text-sm font-medium text-text-primary hover:bg-zinc-50 transition-all flex items-center justify-center gap-2"
-            href={`/workspace/${workspaceId}/members`}
-          >
-            <span className="material-symbols-outlined text-lg">{canEdit ? "person_add" : "group"}</span>
-            {canEdit ? "成员管理" : "查看成员"}
-          </Link>
-          {canEdit ? (
-            <button
-              type="button"
-              className="w-full px-lg py-sm rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-hover shadow-indigo-100 shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-              onClick={onCreateProject}
-            >
-              <span className="material-symbols-outlined text-lg">add</span>
-              新建项目
-            </button>
-          ) : (
-            <p className="text-caption text-neutral-muted px-1 py-2 text-center">
-              仅空间负责人可新建项目；你可访问被加入的项目与任务。
-            </p>
-          )}
-        </div>
-      </div>
+      {canEdit && (
+        <button
+          type="button"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5 hover:bg-primary-hover"
+          onClick={onCreateProject}
+        >
+          <span className="material-symbols-outlined text-lg">add</span>
+          新建项目
+        </button>
+      )}
     </section>
   );
 }

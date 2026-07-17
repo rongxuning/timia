@@ -27,6 +27,9 @@ export type WorkspaceProjectCard = {
   id: string;
   name: string;
   description?: string | null;
+  color: string;
+  created_at: string;
+  is_favorite: boolean;
   can_manage: boolean;
   todo_doing: number;
   done_archived: number;
@@ -37,6 +40,7 @@ export type WorkspaceDashboardView = {
   workspace_id: string;
   name: string;
   description?: string | null;
+  color: string;
   created_at?: string | null;
   created_by_display_name?: string | null;
   can_edit_workspace: boolean;
@@ -73,6 +77,8 @@ export type WorkspaceCardView = {
   id: string;
   name: string;
   description?: string | null;
+  color: string;
+  created_at: string;
   project_count: number;
   todo_count: number;
   doing_count: number;
@@ -81,4 +87,5 @@ export type WorkspaceCardView = {
   owners: Array<{ id: string; email: string; display_name: string; role: string; status: string }>;
   members: Array<{ id: string; email: string; display_name: string; role: string; status: string }>;
   my_workspace_role: string;
+  is_favorite: boolean;
 };

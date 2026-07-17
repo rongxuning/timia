@@ -139,6 +139,7 @@ def build_item_out(db: Session, i: Item) -> ItemOut:
         id=str(i.id),
         title=i.title,
         body=i.body,
+        color=i.color,
         status=i.status,
         priority=i.priority,
         start_at=i.start_at,

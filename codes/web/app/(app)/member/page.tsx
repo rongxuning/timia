@@ -105,8 +105,8 @@ export default function MemberPage() {
   }
 
   return (
-    <main className="px-lg py-lg">
-      <div className="max-w-container-max mx-auto">
+    <main className="px-3 py-lg">
+      <div className="w-full">
         <UserDirectorySummary
           loading={loading}
           userTotal={directory?.user_total ?? 0}

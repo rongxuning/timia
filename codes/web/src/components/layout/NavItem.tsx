@@ -7,25 +7,19 @@ export type NavItemProps = {
   icon: string;
   label: string;
   active: boolean;
-  inset?: boolean;
-  collapsed?: boolean;
   hidden?: boolean;
 };
 
-export function NavItem({ href, icon, label, active, inset, collapsed, hidden }: NavItemProps) {
-  const layoutClass = collapsed
-    ? "justify-center px-2"
-    : `gap-3 ${inset ? "pl-10 pr-3" : "px-3"}`;
-
+export function NavItem({ href, icon, label, active, hidden }: NavItemProps) {
   return (
     <Link
       className={
         active
-          ? `flex items-center ${layoutClass} py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors font-medium text-sm${hidden ? " hidden" : ""}`
-          : `flex items-center ${layoutClass} py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors font-medium text-sm${hidden ? " hidden" : ""}`
+          ? `group relative flex items-center justify-center rounded-md bg-indigo-50 px-2 py-2 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-50${hidden ? " hidden" : ""}`
+          : `group relative flex items-center justify-center rounded-md px-2 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100${hidden ? " hidden" : ""}`
       }
       href={href}
-      title={collapsed ? label : undefined}
+      aria-label={label}
     >
       <span
         className="material-symbols-outlined flex h-6 w-6 shrink-0 items-center justify-center text-indigo-600"
@@ -33,7 +27,12 @@ export function NavItem({ href, icon, label, active, inset, collapsed, hidden }:
       >
         {icon}
       </span>
-      {!collapsed && label}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+      >
+        {label}
+      </span>
     </Link>
   );
 }

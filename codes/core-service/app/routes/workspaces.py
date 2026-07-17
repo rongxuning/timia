@@ -9,11 +9,18 @@ from app.db.deps import get_db
 from app.models.activity import ActivityLog
 from app.models.comment import Comment
 from app.models.item import Item
-from app.models.project import Project, ProjectMember
+from app.models.project import Project
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace_cards import WorkspaceCardOut, WorkspaceCardUser
-from app.schemas.workspace import RecentDiscussionOut, WorkspaceCreate, WorkspaceOut, WorkspaceUpdate
+from app.schemas.workspace import (
+    RecentDiscussionOut,
+    WorkspaceCreate,
+    WorkspaceFavoriteOut,
+    WorkspaceFavoriteUpdate,
+    WorkspaceOut,
+    WorkspaceUpdate,
+)
 from app.services.activity import log_activity
 from app.services.permissions import (
     WORKSPACE_OWNER,
@@ -31,9 +38,9 @@ def list_workspaces(db: Session = Depends(get_db), user: User = Depends(get_curr
         select(Workspace)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
         .where(WorkspaceMember.user_id == user.id, WorkspaceMember.status == "active")
-        .order_by(Workspace.created_at.desc())
+        .order_by(WorkspaceMember.is_favorite.desc(), Workspace.created_at.desc())
     ).all()
-    return [WorkspaceOut(id=str(w.id), name=w.name, description=w.description) for w in rows]
+    return [WorkspaceOut(id=str(w.id), name=w.name, description=w.description, color=w.color) for w in rows]
 
 
 @router.get("/cards", response_model=list[WorkspaceCardOut])
@@ -42,7 +49,7 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
         select(Workspace)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
         .where(WorkspaceMember.user_id == user.id, WorkspaceMember.status == "active")
-        .order_by(Workspace.created_at.desc())
+        .order_by(WorkspaceMember.is_favorite.desc(), Workspace.created_at.desc())
     ).all()
     if not workspaces:
         return []
@@ -133,6 +140,8 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
                 id=str(w.id),
                 name=w.name,
                 description=w.description,
+                color=w.color,
+                created_at=w.created_at,
                 project_count=int(pc),
                 todo_count=int(status_map.get("todo", 0)),
                 doing_count=int(status_map.get("doing", 0)),
@@ -141,6 +150,7 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
                 owners=owners_by_ws.get(w.id, []),
                 members=members_by_ws.get(w.id, []),
                 my_workspace_role=wm.role,
+                is_favorite=wm.is_favorite,
             )
         )
     return out
@@ -148,7 +158,12 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
 
 @router.post("", response_model=WorkspaceOut, status_code=status.HTTP_201_CREATED)
 def create_workspace(payload: WorkspaceCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    w = Workspace(name=payload.name, description=payload.description, created_by_user_id=user.id)
+    w = Workspace(
+        name=payload.name,
+        description=payload.description,
+        color=payload.color.upper(),
+        created_by_user_id=user.id,
+    )
     db.add(w)
     db.flush()
 
@@ -168,6 +183,7 @@ def create_workspace(payload: WorkspaceCreate, db: Session = Depends(get_db), us
         id=str(w.id),
         name=w.name,
         description=w.description,
+        color=w.color,
         created_at=w.created_at,
         created_by_user_id=str(w.created_by_user_id),
         created_by_display_name=user.display_name,
@@ -187,10 +203,24 @@ def get_workspace(workspace_id: uuid.UUID, db: Session = Depends(get_db), user: 
         id=str(w.id),
         name=w.name,
         description=w.description,
+        color=w.color,
         created_at=w.created_at,
         created_by_user_id=str(w.created_by_user_id),
         created_by_display_name=creator.display_name if creator else None,
     )
+
+
+@router.patch("/{workspace_id}/favorite", response_model=WorkspaceFavoriteOut)
+def update_workspace_favorite(
+    workspace_id: uuid.UUID,
+    payload: WorkspaceFavoriteUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    membership = require_workspace_member(db, workspace_id, user)
+    membership.is_favorite = payload.is_favorite
+    db.commit()
+    return WorkspaceFavoriteOut(workspace_id=str(workspace_id), is_favorite=membership.is_favorite)
 
 
 @router.patch("/{workspace_id}", response_model=WorkspaceOut)
@@ -202,14 +232,14 @@ def update_workspace(
 ):
     require_workspace_owner(db, workspace_id, user)
 
-    if payload.name is None and payload.description is None:
+    if payload.name is None and payload.description is None and payload.color is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_update")
 
     w = db.get(Workspace, workspace_id)
     if not w:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
 
-    before = {"name": w.name, "description": w.description}
+    before = {"name": w.name, "description": w.description, "color": w.color}
     if payload.name is not None:
         name = payload.name.strip()
         if not name:
@@ -218,7 +248,9 @@ def update_workspace(
     if payload.description is not None:
         desc = payload.description.strip()
         w.description = desc or None
-    after = {"name": w.name, "description": w.description}
+    if payload.color is not None:
+        w.color = payload.color.upper()
+    after = {"name": w.name, "description": w.description, "color": w.color}
     log_activity(
         db,
         workspace_id=w.id,
@@ -235,6 +267,7 @@ def update_workspace(
         id=str(w.id),
         name=w.name,
         description=w.description,
+        color=w.color,
         created_at=w.created_at,
         created_by_user_id=str(w.created_by_user_id),
         created_by_display_name=creator.display_name if creator else None,
@@ -343,4 +376,3 @@ def delete_workspace(workspace_id: uuid.UUID, db: Session = Depends(get_db), use
     db.delete(w)
     db.commit()
     return None
-

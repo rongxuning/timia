@@ -3,6 +3,7 @@
 import type { CalendarWeekView } from "@/types/api/views/schedule";
 import { CalendarDateBlankColumns } from "./CalendarDateBlankColumns";
 import { CalendarTaskBar } from "./CalendarTaskBar";
+import { lunarDateLabel } from "./calendarNav";
 import { dayKeyLocal } from "./taskUtils";
 import type { ScheduleCalendarBodyProps } from "./ScheduleCalendar.types";
 import { CALENDAR_LANE_GAP_PX, CALENDAR_LANE_HEIGHT_PX } from "./taskUtils";
@@ -41,7 +42,7 @@ export function ScheduleCalendarMonth({
                   <div
                     key={key}
                     className={[
-                      "border-r border-b border-border-subtle p-2 min-h-[44px]",
+                      "min-h-7 border-r border-b border-border-subtle px-1.5 py-1",
                       di === 0 ? "border-l border-border-subtle" : "",
                       in_month ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted opacity-60",
                       isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "",
@@ -51,9 +52,14 @@ export function ScheduleCalendarMonth({
                     onClick={onDateHeaderClick ? () => onDateHeaderClick(key) : undefined}
                     title={onDateHeaderClick ? "查看日视图" : undefined}
                   >
-                    <span className={in_month ? "font-small font-medium text-text-primary" : "font-small"}>
-                      {day}
-                    </span>
+                    <div className="flex min-w-0 items-center justify-between gap-1">
+                      <span className="truncate text-[10px] leading-4 text-neutral-muted">
+                        {lunarDateLabel(key)}
+                      </span>
+                      <span className={in_month ? "text-[11px] font-medium leading-4 text-text-primary" : "text-[11px] leading-4"}>
+                        {day}
+                      </span>
+                    </div>
                   </div>
                 );
               })}

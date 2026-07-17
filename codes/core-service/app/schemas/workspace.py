@@ -8,17 +8,29 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 class WorkspaceCreate(BaseModel):
     name: str
     description: str | None = None
+    color: str = Field(default="#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
 
 
 class WorkspaceUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
+    color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
+
+
+class WorkspaceFavoriteUpdate(BaseModel):
+    is_favorite: bool
+
+
+class WorkspaceFavoriteOut(BaseModel):
+    workspace_id: str
+    is_favorite: bool
 
 
 class WorkspaceOut(BaseModel):
     id: str
     name: str
     description: str | None = None
+    color: str = "#FFFFFF"
     created_at: datetime | None = None
     created_by_user_id: str | None = None
     created_by_display_name: str | None = None
@@ -68,4 +80,3 @@ class RecentDiscussionOut(BaseModel):
     project_name: str
     item_id: str
     item_title: str
-

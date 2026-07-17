@@ -32,6 +32,7 @@ export type PriorityQuadrantsProps = {
   showProjectContext?: boolean;
   /** 任务卡片状态勾选右侧展示负责人头像 */
   showAssigneeAvatar?: boolean;
+  hideHeader?: boolean;
 };
 
 function taskTooltip(it: ScheduleTaskItem, cdText: string | null, showProjectContext: boolean) {
@@ -57,17 +58,20 @@ export function PriorityQuadrants({
   completingItemId = null,
   showProjectContext = true,
   showAssigneeAvatar = false,
+  hideHeader = false,
 }: PriorityQuadrantsProps) {
   return (
     <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
-      <div className="p-lg flex items-center justify-between gap-lg">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <div className="text-sm font-semibold text-primary">优先级象限</div>
-          <span className="text-caption text-neutral-muted">仅展示待办与进行中的任务</span>
+      {!hideHeader && (
+        <div className="p-lg flex items-center justify-between gap-lg">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="text-sm font-semibold text-primary">优先级象限</div>
+            <span className="text-caption text-neutral-muted">仅展示待办与进行中的任务</span>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="p-lg pt-0">
+      <div className={hideHeader ? "p-lg" : "p-lg pt-0"}>
         <div className="grid grid-cols-1 gap-lg md:grid-cols-2">
           {QUADRANTS.map((q) => {
             const list = itemsByPriority[q.p];

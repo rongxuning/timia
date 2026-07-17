@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { startOfDay } from "@/components/schedule/calendarNav";
 import {
   fetchMyScheduleDashboard,
@@ -34,6 +34,7 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
   const [priority, setPriority] = useState<SchedulePriorityView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const calendarRequestIdRef = useRef(0);
 
   const calendarQueryKey = useMemo(
     () => `${calendarMode}:${calendarAnchor.toISOString()}`,
@@ -47,8 +48,11 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
   const reloadAll = useCallback(async () => {
     if (!token) return;
     setError(null);
+    const calendarRequestId = ++calendarRequestIdRef.current;
     const tasks: Promise<void>[] = [
-      fetchScheduleCalendar(token, scope, { view: calendarMode, anchor: calendarAnchor }).then(setCalendar),
+      fetchScheduleCalendar(token, scope, { view: calendarMode, anchor: calendarAnchor }).then((data) => {
+        if (calendarRequestId === calendarRequestIdRef.current) setCalendar(data);
+      }),
       fetchScheduleSwimlane(token, scope).then(setSwimlane),
       fetchSchedulePriority(token, scope).then(setPriority),
     ];
@@ -60,8 +64,9 @@ export function useScheduleViews({ token, scope, withDashboard = false }: UseSch
 
   const reloadCalendar = useCallback(async () => {
     if (!token) return;
+    const calendarRequestId = ++calendarRequestIdRef.current;
     const data = await fetchScheduleCalendar(token, scope, { view: calendarMode, anchor: calendarAnchor });
-    setCalendar(data);
+    if (calendarRequestId === calendarRequestIdRef.current) setCalendar(data);
   }, [token, scope, calendarMode, calendarAnchor]);
 
   useEffect(() => {

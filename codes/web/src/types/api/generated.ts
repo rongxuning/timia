@@ -109,6 +109,23 @@ export interface paths {
         patch: operations["update_workspace_workspaces__workspace_id__patch"];
         trace?: never;
     };
+    "/workspaces/{workspace_id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Workspace Favorite */
+        patch: operations["update_workspace_favorite_workspaces__workspace_id__favorite_patch"];
+        trace?: never;
+    };
     "/workspaces/{workspace_id}/recent-discussions": {
         parameters: {
             query?: never;
@@ -326,6 +343,23 @@ export interface paths {
         head?: never;
         /** Update Project Member Role */
         patch: operations["update_project_member_role_workspaces__workspace_id__projects__project_id__members__user_id__patch"];
+        trace?: never;
+    };
+    "/workspaces/{workspace_id}/projects/{project_id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Project Favorite */
+        patch: operations["update_project_favorite_workspaces__workspace_id__projects__project_id__favorite_patch"];
         trace?: never;
     };
     "/workspaces/{workspace_id}/projects/{project_id}/items": {
@@ -858,6 +892,11 @@ export interface components {
             /** Body */
             body?: string | null;
             /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
+            /**
              * Status
              * @default todo
              */
@@ -918,6 +957,11 @@ export interface components {
             title: string;
             /** Body */
             body?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Status */
             status: string;
             /** Priority */
@@ -947,6 +991,11 @@ export interface components {
             title: string;
             /** Body */
             body: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Status */
             status: string;
             /** Priority */
@@ -974,6 +1023,8 @@ export interface components {
             title?: string | null;
             /** Body */
             body?: string | null;
+            /** Color */
+            color?: string | null;
             /** Status */
             status?: string | null;
             /** Priority */
@@ -1192,6 +1243,11 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
         };
         /** ProjectDashboardOut */
         ProjectDashboardOut: {
@@ -1205,6 +1261,11 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Archived */
             archived: boolean;
             /** Can Manage */
@@ -1217,6 +1278,18 @@ export interface components {
             created_by_display_name?: string | null;
             members: components["schemas"]["ProjectMembersSummaryOut"];
             stats: components["schemas"]["ScheduleDashboardOut"];
+        };
+        /** ProjectFavoriteOut */
+        ProjectFavoriteOut: {
+            /** Project Id */
+            project_id: string;
+            /** Is Favorite */
+            is_favorite: boolean;
+        };
+        /** ProjectFavoriteUpdate */
+        ProjectFavoriteUpdate: {
+            /** Is Favorite */
+            is_favorite: boolean;
         };
         /** ProjectMemberAdd */
         ProjectMemberAdd: {
@@ -1297,6 +1370,11 @@ export interface components {
             name: string;
             /** Description */
             description: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Archived */
             archived: boolean;
             /**
@@ -1324,6 +1402,8 @@ export interface components {
             archived?: boolean | null;
             /** Target Workspace Id */
             target_workspace_id?: string | null;
+            /** Color */
+            color?: string | null;
         };
         /**
          * RecentDiscussionOut
@@ -1420,6 +1500,11 @@ export interface components {
             title: string;
             /** Body */
             body?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Status */
             status: string;
             /** Priority */
@@ -1641,6 +1726,16 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /** Project Count */
             project_count: number;
             /**
@@ -1672,6 +1767,11 @@ export interface components {
              * @default member
              */
             my_workspace_role: string;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
         };
         /** WorkspaceCardUser */
         WorkspaceCardUser: {
@@ -1692,6 +1792,11 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
         };
         /** WorkspaceDashboardOut */
         WorkspaceDashboardOut: {
@@ -1701,6 +1806,11 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Created At */
             created_at?: string | null;
             /** Created By Display Name */
@@ -1722,6 +1832,18 @@ export interface components {
             items: components["schemas"]["DiscussionViewItemOut"][];
             /** Has More */
             has_more: boolean;
+        };
+        /** WorkspaceFavoriteOut */
+        WorkspaceFavoriteOut: {
+            /** Workspace Id */
+            workspace_id: string;
+            /** Is Favorite */
+            is_favorite: boolean;
+        };
+        /** WorkspaceFavoriteUpdate */
+        WorkspaceFavoriteUpdate: {
+            /** Is Favorite */
+            is_favorite: boolean;
         };
         /** WorkspaceMembersPageOut */
         WorkspaceMembersPageOut: {
@@ -1763,6 +1885,11 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
             /** Created At */
             created_at?: string | null;
             /** Created By User Id */
@@ -1778,6 +1905,21 @@ export interface components {
             name: string;
             /** Description */
             description?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
             /** Can Manage */
             can_manage: boolean;
             /** Todo Doing */
@@ -1812,6 +1954,8 @@ export interface components {
             name?: string | null;
             /** Description */
             description?: string | null;
+            /** Color */
+            color?: string | null;
         };
     };
     responses: never;
@@ -2104,6 +2248,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_workspace_favorite_workspaces__workspace_id__favorite_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceFavoriteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceFavoriteOut"];
                 };
             };
             /** @description Validation Error */
@@ -2759,6 +2940,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectMemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_favorite_workspaces__workspace_id__projects__project_id__favorite_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectFavoriteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectFavoriteOut"];
                 };
             };
             /** @description Validation Error */
