@@ -42,6 +42,18 @@ export function taskCalendarColors(p?: string | null): { bg: string; fg: string;
   return PRIORITY_CALENDAR_COLORS[normalizePriority(p)];
 }
 
+/**
+ * 任务自定义颜色用于卡片左侧标签色条。
+ * 白色是任务的默认值，直接显示会在白色卡片上消失，因此回退到当前视图的优先级边框色。
+ */
+export function taskLabelStripeColor(color: string | null | undefined, fallback: string): string {
+  const normalized = color?.trim().toUpperCase();
+  if (!normalized || normalized === "#FFFFFF" || !/^#[0-9A-F]{6}$/.test(normalized)) {
+    return fallback;
+  }
+  return normalized;
+}
+
 /** 日历任务条单行高度（px），与 gridAutoRows 一致 */
 export const CALENDAR_LANE_HEIGHT_PX = 64;
 export const CALENDAR_LANE_GAP_PX = 4;

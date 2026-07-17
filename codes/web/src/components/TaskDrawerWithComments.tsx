@@ -52,6 +52,7 @@ type ProjectMemberRow = {
 };
 
 const COMMENT_BODY_PREVIEW_CHARS = 200;
+const DRAWER_TRANSITION_MS = 600;
 
 const TASK_COLOR_PALETTE = [
   "#FFFFFF",
@@ -204,6 +205,8 @@ export function TaskDrawerWithComments({
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const effectiveShowComments = showCommentsProp ?? (variant !== "create");
+  const [drawerMounted, setDrawerMounted] = useState(open);
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   const [drawerItem, setDrawerItem] = useState<TaskDrawerItem | null>(null);
   const [itemLoading, setItemLoading] = useState(false);
@@ -231,6 +234,28 @@ export function TaskDrawerWithComments({
 
   const assigneePickerRef = useRef<HTMLDivElement | null>(null);
   const participantPickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let firstFrame: number | undefined;
+    let secondFrame: number | undefined;
+    let unmountTimer: number | undefined;
+
+    if (open) {
+      setDrawerMounted(true);
+      firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => setDrawerVisible(true));
+      });
+    } else {
+      setDrawerVisible(false);
+      unmountTimer = window.setTimeout(() => setDrawerMounted(false), DRAWER_TRANSITION_MS);
+    }
+
+    return () => {
+      if (firstFrame !== undefined) window.cancelAnimationFrame(firstFrame);
+      if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame);
+      if (unmountTimer !== undefined) window.clearTimeout(unmountTimer);
+    };
+  }, [open]);
 
   const [me, setMe] = useState<Me | null>(null);
   const [projectMembersRaw, setProjectMembersRaw] = useState<ProjectMemberRow[]>([]);
@@ -342,7 +367,7 @@ export function TaskDrawerWithComments({
 
   useEffect(() => {
     if (!open || !token || !selectedWorkspaceId) {
-      if (!open) setProjectOptions([]);
+      if (!drawerMounted) setProjectOptions([]);
       return;
     }
     let cancelled = false;
@@ -365,11 +390,11 @@ export function TaskDrawerWithComments({
     return () => {
       cancelled = true;
     };
-  }, [open, token, selectedWorkspaceId]);
+  }, [open, drawerMounted, token, selectedWorkspaceId]);
 
   useEffect(() => {
     if (!open || !token || !selectedWorkspaceId || !selectedProjectId) {
-      if (!open) {
+      if (!drawerMounted) {
         setProjectMembersRaw([]);
         setMembersError(null);
         setMe(null);
@@ -406,7 +431,7 @@ export function TaskDrawerWithComments({
     return () => {
       cancelled = true;
     };
-  }, [open, token, selectedWorkspaceId, selectedProjectId]);
+  }, [open, drawerMounted, token, selectedWorkspaceId, selectedProjectId]);
 
   function handleWorkspaceChange(nextWorkspaceId: string) {
     if (nextWorkspaceId === selectedWorkspaceId) return;
@@ -476,7 +501,7 @@ export function TaskDrawerWithComments({
 
   useEffect(() => {
     if (!open || variant !== "edit" || !itemId || !token) {
-      if (!open) setDrawerItem(null);
+      if (!drawerMounted) setDrawerItem(null);
       return;
     }
     const ws = itemWorkspaceId || workspaceId;
@@ -510,7 +535,7 @@ export function TaskDrawerWithComments({
     return () => {
       cancelled = true;
     };
-  }, [open, variant, itemId, workspaceId, projectId, token, syncVersion]);
+  }, [open, drawerMounted, variant, itemId, workspaceId, projectId, token, syncVersion]);
 
   useEffect(() => {
     if (variant !== "create" || !open || editAssigneeUserId || !me?.id) return;
@@ -549,7 +574,7 @@ export function TaskDrawerWithComments({
   }, [open, highlightCommentId, commentsLoading, comments, effectiveShowComments]);
 
   useEffect(() => {
-    if (!open) {
+    if (!drawerMounted) {
       setComments([]);
       setCommentError(null);
       setNewCommentBody("");
@@ -563,7 +588,7 @@ export function TaskDrawerWithComments({
       setDeleteConfirmOpen(false);
       setDeleteError(null);
     }
-  }, [open]);
+  }, [drawerMounted]);
 
   function closeDrawer() {
     if (editLoading || deleteLoading) return;
@@ -698,6 +723,7 @@ export function TaskDrawerWithComments({
         const patchBody: Record<string, unknown> = {
           title,
           body: editBody.trim() || null,
+          color: editColor,
           status: editStatus,
           priority: normalizePriority(editPriority),
           start_at: startIso,
@@ -724,6 +750,7 @@ export function TaskDrawerWithComments({
           await refreshComments(selectedWorkspaceId, selectedProjectId);
         }
         onTaskSaved?.(saveCtx(updated));
+        onClose();
       }
     } catch (e: any) {
       setEditError(e?.message ?? (variant === "create" ? "创建失败" : "保存失败"));
@@ -920,10 +947,8 @@ export function TaskDrawerWithComments({
     );
   }
 
-  if (!open) return null;
-  if (variant === "edit" && !itemId) return null;
-  if (!open) return null;
-  if (variant === "edit" && !itemId) return null;
+  if (!drawerMounted) return null;
+  if (open && variant === "edit" && !itemId) return null;
 
   const showForm = variant === "create" || !!drawerItem;
   const headerTitle =
@@ -937,8 +962,15 @@ export function TaskDrawerWithComments({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/30" onClick={closeDrawer} />
-      <aside className="absolute inset-y-0 right-0 w-[min(1120px,100vw)] bg-surface border-l border-border-subtle shadow-xl flex flex-col overflow-hidden">
+      <div
+        className={`absolute inset-0 bg-black/30 ${drawerVisible ? "" : "pointer-events-none"}`}
+        onClick={closeDrawer}
+      />
+      <aside
+        className={`absolute inset-y-0 right-0 flex w-[min(1120px,100vw)] transform-gpu flex-col overflow-hidden border-l border-border-subtle bg-surface shadow-xl transition-transform duration-[600ms] ease-out motion-reduce:transition-none ${
+          drawerVisible ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="shrink-0 flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-border-subtle">
           <div className="min-w-0">
             <div className="font-subhead text-subhead text-text-primary truncate">{headerTitle}</div>
@@ -1255,39 +1287,37 @@ export function TaskDrawerWithComments({
                   {variant !== "create" ? (
                     <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
                   ) : null}
-                  {variant === "create" ? (
-                    <fieldset className="space-y-3">
-                      <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
-                      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
-                        {TASK_COLOR_PALETTE.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
-                              editColor.toUpperCase() === color
-                                ? "border-primary ring-2 ring-primary/25"
-                                : "border-border-subtle"
-                            }`}
-                            style={{ backgroundColor: color }}
-                            aria-label={`选择颜色 ${color}`}
-                            title={color === "#FFFFFF" ? "白色（默认）" : color}
-                            onClick={() => setEditColor(color)}
-                            disabled={editLoading}
-                          />
-                        ))}
-                        <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
-                          自定义
-                          <input
-                            type="color"
-                            value={editColor}
-                            onChange={(e) => setEditColor(e.target.value.toUpperCase())}
-                            className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
-                            disabled={editLoading}
-                          />
-                        </label>
-                      </div>
-                    </fieldset>
-                  ) : null}
+                  <fieldset className="space-y-3">
+                    <legend className="text-sm font-medium text-on-surface-variant">标签颜色</legend>
+                    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright p-3">
+                      {TASK_COLOR_PALETTE.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`h-9 w-9 rounded-lg border shadow-sm transition-transform hover:scale-105 ${
+                            editColor.toUpperCase() === color
+                              ? "border-primary ring-2 ring-primary/25"
+                              : "border-border-subtle"
+                          }`}
+                          style={{ backgroundColor: color }}
+                          aria-label={`选择颜色 ${color}`}
+                          title={color === "#FFFFFF" ? "白色（默认）" : color}
+                          onClick={() => setEditColor(color)}
+                          disabled={editLoading}
+                        />
+                      ))}
+                      <label className="ml-auto flex items-center gap-2 text-caption text-text-secondary">
+                        自定义
+                        <input
+                          type="color"
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value.toUpperCase())}
+                          className="h-9 w-12 cursor-pointer rounded-lg border border-border-subtle bg-white p-1"
+                          disabled={editLoading}
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-status`}>

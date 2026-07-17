@@ -7,7 +7,7 @@ import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
 import type { DayTimelineBlock } from "./calendarDayLayout";
 import { DAY_TIMELINE_HEIGHT_PX, DAY_TIMELINE_HOUR_HEIGHT_PX } from "./calendarDayLayout";
 import { TaskStatusIcon } from "./TaskStatusIcon";
-import { taskCalendarColors } from "./taskUtils";
+import { taskCalendarColors, taskLabelStripeColor } from "./taskUtils";
 
 type Props = {
   dayKey: string;
@@ -129,6 +129,7 @@ export function CalendarTimelineColumn({
               backgroundColor: c.bg,
               color: c.fg,
               borderColor: c.border,
+              borderLeftColor: taskLabelStripeColor(block.item.color, c.border),
               borderLeftWidth: compact ? 3 : 4,
             }}
             title={calendarTaskTooltip(block.item, showProjectContext)}

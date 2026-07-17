@@ -4,7 +4,7 @@ import type { ScheduleTaskItem } from "@/types/api/views/schedule";
 import { AssigneeAvatar } from "./AssigneeAvatar";
 import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
 import { TaskStatusIcon } from "./TaskStatusIcon";
-import { formatScheduleTimeRange, taskCalendarColors } from "./taskUtils";
+import { formatScheduleTimeRange, taskCalendarColors, taskLabelStripeColor } from "./taskUtils";
 
 export function calendarTaskTooltip(it: ScheduleTaskItem, showProjectContext: boolean) {
   const parts = [it.title];
@@ -55,6 +55,7 @@ export function CalendarTaskBar({
         backgroundColor: c.bg,
         color: c.fg,
         borderColor: c.border,
+        borderLeftColor: taskLabelStripeColor(item.color, c.border),
         borderWidth: 1,
         borderLeftWidth: roundLeft ? 4 : 1,
         borderRadius: radius,
