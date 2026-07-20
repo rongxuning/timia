@@ -147,8 +147,9 @@ export function SystemSelect({
 
   function handleTriggerKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
     if (disabled || loading || options.length === 0) return;
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && open) {
       event.preventDefault();
+      event.stopPropagation();
       closePanel();
       return;
     }
@@ -178,6 +179,7 @@ export function SystemSelect({
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       closePanel();
       triggerRef.current?.focus();
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -206,6 +208,13 @@ export function SystemSelect({
             ref={menuRef}
             className="fixed z-[70] flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface p-1.5 shadow-xl"
             style={menuStyle}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              event.stopPropagation();
+              closePanel();
+              triggerRef.current?.focus();
+            }}
           >
             {searchable ? (
               <div className="p-1.5">

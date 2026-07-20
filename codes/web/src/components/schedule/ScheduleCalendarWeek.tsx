@@ -2,10 +2,11 @@
 
 import { useMemo } from "react";
 import type { CalendarWeekView } from "@/types/api/views/schedule";
+import { CalendarAllDayRow } from "./CalendarAllDayRow";
 import { CalendarTimelineColumn } from "./CalendarTimelineColumn";
 import { CalendarTimelineHourLabels } from "./CalendarTimelineHourLabels";
 import { lunarDateLabel } from "./calendarNav";
-import { layoutDayTimeline } from "./calendarDayLayout";
+import { layoutDayTimeline, splitDayItems } from "./calendarDayLayout";
 import { weekItemsByDayKey } from "./calendarWeekLayout";
 import { dayKeyLocal } from "./taskUtils";
 import type { ScheduleCalendarBodyProps } from "./ScheduleCalendar.types";
@@ -26,6 +27,14 @@ export function ScheduleCalendarWeek({
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
   const itemsByDay = useMemo(() => weekItemsByDayKey(week), [week]);
+  const dayItems = useMemo(
+    () =>
+      week.days.map((day) => ({
+        key: day.key,
+        ...splitDayItems(itemsByDay.get(day.key) ?? [], day.key),
+      })),
+    [itemsByDay, week.days],
+  );
 
   return (
     <div className="border-b border-border-subtle flex flex-col min-h-0">
@@ -70,12 +79,19 @@ export function ScheduleCalendarWeek({
           })}
         </div>
       </div>
+      <CalendarAllDayRow
+        columns={dayItems.map(({ key, allDayItems }) => ({ key, items: allDayItems }))}
+        onTaskClick={onTaskClick}
+        onCompleteTask={onCompleteTask}
+        completingItemId={completingItemId}
+        showProjectContext={showProjectContext}
+        showAssigneeAvatar={showAssigneeAvatar}
+      />
       <div className="flex border-t border-border-subtle bg-surface">
         <CalendarTimelineHourLabels />
         <div className="grid min-w-0 flex-1 grid-cols-7">
-          {week.days.map((day) => {
-            const items = itemsByDay.get(day.key) ?? [];
-            const blocks = layoutDayTimeline(items, day.key);
+          {dayItems.map((day) => {
+            const blocks = layoutDayTimeline(day.timedItems, day.key);
             return (
               <CalendarTimelineColumn
                 key={day.key}

@@ -99,6 +99,13 @@ export function SearchableSelect({
             setPanelOpen(true);
           }}
           onFocus={() => setPanelOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || !panelOpen) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setQuery("");
+            setPanelOpen(false);
+          }}
           disabled={disabled || loading || options.length === 0}
         />
         {panelOpen && !loading ? (

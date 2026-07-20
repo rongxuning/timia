@@ -148,6 +148,7 @@ export default function ProjectPage() {
             onItemClick={openDrawer}
             onCreateInColumn={openTaskCreate}
             onCreateOnDate={openTaskCreateOnDate}
+            calendarFirst
             simplifiedSectionHeaders
           />
         </div>

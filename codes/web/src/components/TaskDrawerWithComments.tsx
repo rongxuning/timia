@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { SystemSelect, type SystemSelectOption } from "@/components/SystemSelect";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   primeProjectNameForBreadcrumb,
   primeWorkspaceNameForBreadcrumb,
@@ -235,6 +236,30 @@ export function TaskDrawerWithComments({
 
   const assigneePickerRef = useRef<HTMLDivElement | null>(null);
   const participantPickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEscapeDismiss({
+    open,
+    onDismiss: closeDrawer,
+    disabled:
+      editLoading ||
+      deleteLoading ||
+      deleteConfirmOpen ||
+      assigneePanelOpen ||
+      participantPanelOpen,
+  });
+  useEscapeDismiss({
+    open: open && assigneePanelOpen,
+    onDismiss: () => setAssigneePanelOpen(false),
+  });
+  useEscapeDismiss({
+    open: open && participantPanelOpen,
+    onDismiss: () => setParticipantPanelOpen(false),
+  });
+  useEscapeDismiss({
+    open: open && deleteConfirmOpen,
+    onDismiss: () => setDeleteConfirmOpen(false),
+    disabled: deleteLoading,
+  });
 
   useEffect(() => {
     let firstFrame: number | undefined;

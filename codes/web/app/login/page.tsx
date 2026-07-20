@@ -3,19 +3,31 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type ApiError } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
 type LoginResponse = { access_token: string; token_type: string };
 
-/** 本地开发默认管理员（与 codes/core-service/app/scripts/seed.py 一致） */
-const DEFAULT_LOGIN_EMAIL = "admin@gmail.com";
-const DEFAULT_LOGIN_PASSWORD = "admin1234";
+function loginErrorMessage(error: unknown): string {
+  if (!error || typeof error !== "object") return "登录失败，请稍后重试";
+  const apiError = error as Partial<ApiError>;
+  const message = typeof apiError.message === "string" ? apiError.message : "";
+
+  if (apiError.status === 401 || message === "invalid_credentials") {
+    return "邮箱或密码错误，请重新输入";
+  }
+  if (apiError.status === 422) return "登录信息格式有误，请检查后重试";
+  if (typeof apiError.status === "number" && apiError.status >= 500) {
+    return "服务器暂时不可用，请稍后重试";
+  }
+  if (message && /[\u4e00-\u9fff]/.test(message)) return message;
+  return "无法连接服务器，请检查网络后重试";
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState(DEFAULT_LOGIN_EMAIL);
-  const [password, setPassword] = useState(DEFAULT_LOGIN_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -42,16 +54,33 @@ export default function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail && !password) {
+      setError("请输入邮箱和密码");
+      return;
+    }
+    if (!normalizedEmail) {
+      setError("请输入邮箱");
+      return;
+    }
+    if (!password) {
+      setError("请输入密码");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("请输入有效的邮箱地址");
+      return;
+    }
     setLoading(true);
     try {
       const res = await apiFetch<LoginResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
       setToken(res.access_token);
       router.push("/my/schedule");
-    } catch (err: any) {
-      setError(err?.message ?? "登录失败");
+    } catch (err: unknown) {
+      setError(loginErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -68,16 +97,21 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={onSubmit} className="space-y-lg">
+          <form onSubmit={onSubmit} className="space-y-lg" noValidate>
             <div className="group relative">
               <input
                 id="email"
                 className="peer w-full rounded-xl border border-border-subtle bg-surface-bright px-md pb-sm pt-6 pr-10 text-body outline-none transition-all placeholder:text-transparent focus:border-primary focus:ring-4 focus:ring-primary/10"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
                 autoComplete="email"
                 placeholder="Email"
                 type="email"
+                required
+                aria-invalid={!!error}
               />
               <label
                 htmlFor="email"
@@ -95,10 +129,15 @@ export default function LoginPage() {
                 id="password"
                 className="peer w-full rounded-xl border border-border-subtle bg-surface-bright px-md pb-sm pt-6 pr-10 text-body outline-none transition-all placeholder:text-transparent focus:border-primary focus:ring-4 focus:ring-primary/10"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
                 type="password"
                 autoComplete="current-password"
                 placeholder="Password"
+                required
+                aria-invalid={!!error}
               />
               <label
                 htmlFor="password"
@@ -117,7 +156,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {error && <div className="text-small text-error">{error}</div>}
+            {error && <div className="text-small text-error" role="alert">{error}</div>}
 
             <button
               type="submit"

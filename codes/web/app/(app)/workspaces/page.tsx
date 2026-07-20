@@ -9,6 +9,7 @@ import { fetchWorkspaceCards, updateWorkspaceFavorite } from "@/lib/api/workspac
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { favoriteCardsFirst } from "@/lib/cardSort";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { useRouter } from "next/navigation";
 import type { WorkspaceCardView } from "@/types/api/views/workspace";
 
@@ -36,6 +37,22 @@ export default function WorkspacesPage() {
   const [editColor, setEditColor] = useState("#FFFFFF");
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+
+  useEscapeDismiss({
+    open: createOpen,
+    onDismiss: () => setCreateOpen(false),
+    disabled: createLoading,
+  });
+  useEscapeDismiss({
+    open: deleteOpen,
+    onDismiss: () => setDeleteOpen(false),
+    disabled: !!deletingId,
+  });
+  useEscapeDismiss({
+    open: editOpen,
+    onDismiss: () => setEditOpen(false),
+    disabled: editLoading,
+  });
 
   async function reloadCards() {
     const token = getToken();

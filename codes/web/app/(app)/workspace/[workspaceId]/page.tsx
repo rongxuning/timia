@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
+import { LabelColorPicker } from "@/components/LabelColorPicker";
 import { ProjectList, RecentDiscussions, WorkspaceDashboardCards } from "@/components/workspace";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments } from "@/components/TaskDrawerWithComments";
@@ -11,9 +12,10 @@ import { fetchWorkspaceDashboard, updateProjectFavorite } from "@/lib/api/worksp
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { favoriteCardsFirst } from "@/lib/cardSort";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import type { DiscussionViewItem, WorkspaceDashboardView, WorkspaceProjectCard } from "@/types/api/views/workspace";
 
-type WorkspacePatch = { id: string; name: string; description?: string | null };
+type WorkspacePatch = { id: string; name: string; description?: string | null; color: string };
 
 export default function WorkspaceHome() {
   const router = useRouter();
@@ -35,11 +37,23 @@ export default function WorkspaceHome() {
   const [editWorkspaceOpen, setEditWorkspaceOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editColor, setEditColor] = useState("#FFFFFF");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [editProjectTarget, setEditProjectTarget] = useState<WorkspaceProjectCard | null>(null);
   const [favoritingProjectId, setFavoritingProjectId] = useState<string | null>(null);
+
+  useEscapeDismiss({
+    open: editWorkspaceOpen,
+    onDismiss: () => setEditWorkspaceOpen(false),
+    disabled: editLoading,
+  });
+  useEscapeDismiss({
+    open: deleteProjectOpen,
+    onDismiss: () => setDeleteProjectOpen(false),
+    disabled: !!deletingProjectId,
+  });
 
   const reloadDashboard = useCallback(async () => {
     const t = getToken();
@@ -68,6 +82,7 @@ export default function WorkspaceHome() {
     if (!dashboard?.can_edit_workspace) return;
     setEditName(dashboard.name);
     setEditDescription(dashboard.description ?? "");
+    setEditColor(dashboard.color || "#FFFFFF");
     setEditError(null);
     setEditWorkspaceOpen(true);
   }
@@ -87,7 +102,7 @@ export default function WorkspaceHome() {
       await apiFetch<WorkspacePatch>(`/workspaces/${workspaceId}`, {
         method: "PATCH",
         token,
-        body: JSON.stringify({ name, description: description || null }),
+        body: JSON.stringify({ name, description: description || null, color: editColor }),
       });
       setEditWorkspaceOpen(false);
       await reloadDashboard();
@@ -277,6 +292,11 @@ export default function WorkspaceHome() {
                     disabled={editLoading}
                   />
                 </div>
+                <LabelColorPicker
+                  value={editColor}
+                  onChange={setEditColor}
+                  disabled={editLoading}
+                />
                 {editError && <div className="text-small text-error">{editError}</div>}
                 <div className="flex items-center justify-end gap-2">
                   <button type="button" className="text-sm rounded-xl border border-border-subtle px-4 py-2" onClick={() => setEditWorkspaceOpen(false)} disabled={editLoading}>

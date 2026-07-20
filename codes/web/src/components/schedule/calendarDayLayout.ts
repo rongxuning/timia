@@ -23,6 +23,41 @@ function dayBounds(anchorKey: string): { startMs: number; endMs: number } {
   return { startMs, endMs };
 }
 
+function nextDayStart(anchorKey: string): number {
+  const [y, m, d] = anchorKey.split("-").map(Number);
+  return new Date(y, m - 1, d + 1, 0, 0, 0, 0).getTime();
+}
+
+/** 任务从当天开始前持续到次日零点，视为覆盖该日全天。 */
+export function itemCoversWholeDay(item: ScheduleTaskItem, anchorKey: string): boolean {
+  if (!item.start_at || !item.end_at) return false;
+  const startMs = new Date(item.start_at).getTime();
+  const endMs = new Date(item.end_at).getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return false;
+  const { startMs: dayStart } = dayBounds(anchorKey);
+  // 日期时间控件精确到分钟，因此 23:59 也按覆盖至当天末尾处理。
+  return startMs <= dayStart && endMs >= nextDayStart(anchorKey) - 60_000;
+}
+
+export function splitDayItems(items: ScheduleTaskItem[], anchorKey: string) {
+  const allDayItems: ScheduleTaskItem[] = [];
+  const timedItems: ScheduleTaskItem[] = [];
+  const { startMs: dayStart } = dayBounds(anchorKey);
+  const dayEnd = nextDayStart(anchorKey);
+
+  for (const item of items) {
+    const startMs = item.start_at ? new Date(item.start_at).getTime() : Number.NaN;
+    const endMs = item.end_at ? new Date(item.end_at).getTime() : startMs;
+    if (!Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs > startMs) {
+      // 后端按日期返回跨天任务；结束时间恰好为 00:00 时，不在次日重复展示。
+      if (endMs <= dayStart || startMs >= dayEnd) continue;
+    }
+    (itemCoversWholeDay(item, anchorKey) ? allDayItems : timedItems).push(item);
+  }
+
+  return { allDayItems, timedItems };
+}
+
 function dateKeyLocal(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
