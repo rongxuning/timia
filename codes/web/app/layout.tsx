@@ -24,14 +24,9 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Timia · 协作管理",
   icons: {
-    icon: [
-      { url: "/icons/logo.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", sizes: "32x32" },
-      { url: "/icons/icon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-48.png", sizes: "48x48", type: "image/png" },
-    ],
-    apple: [{ url: "/icons/icon-48.png", sizes: "48x48", type: "image/png" }],
+    icon: [{ url: "/icon.png?v=20260720", sizes: "512x512", type: "image/png" }],
+    shortcut: [{ url: "/favicon.ico?v=20260720", type: "image/x-icon" }],
+    apple: [{ url: "/icon.png?v=20260720", sizes: "512x512", type: "image/png" }],
   },
 };
 
@@ -57,4 +52,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-

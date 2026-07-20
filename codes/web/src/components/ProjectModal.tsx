@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { apiFetch } from "@/lib/api";
 import { fetchWorkspaceCards } from "@/lib/api/workspace-views";
 import type { WorkspaceOption } from "@/lib/api/workspaces";
@@ -57,6 +58,17 @@ export function ProjectModal({
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
   const [workspacesLoading, setWorkspacesLoading] = useState(false);
   const [confirmTransferOpen, setConfirmTransferOpen] = useState(false);
+
+  useEscapeDismiss({
+    open,
+    onDismiss: onClose,
+    disabled: loading || confirmTransferOpen,
+  });
+  useEscapeDismiss({
+    open: open && confirmTransferOpen,
+    onDismiss: () => setConfirmTransferOpen(false),
+    disabled: loading,
+  });
 
   useEffect(() => {
     if (!open) return;

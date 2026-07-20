@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, type ApiError } from "@/lib/api";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   getMeClientSnapshot,
   getToken,
@@ -51,6 +52,11 @@ export function AppShell({ children }: AppShellProps) {
   const me = useCurrentMe();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEscapeDismiss({
+    open: userMenuOpen,
+    onDismiss: () => setUserMenuOpen(false),
+  });
 
   useLayoutEffect(() => {
     const scrollContainer = contentScrollRef.current;

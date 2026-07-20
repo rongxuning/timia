@@ -24,7 +24,7 @@ export type ScheduleBoardProps = {
   onCreateOnDate?: (dateKey: string, hour?: number) => void;
   /** 变更后递增以触发视图刷新（如任务创建/编辑） */
   refreshNonce?: number;
-  /** 我的日程使用日历优先的纵向展示顺序。 */
+  /** 使用“日历、优先级、泳道图”的纵向展示顺序。 */
   calendarFirst?: boolean;
   simplifiedSectionHeaders?: boolean;
 };
