@@ -24,9 +24,9 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Timia · 协作管理",
   icons: {
-    icon: [{ url: "/icon.png?v=20260720", sizes: "512x512", type: "image/png" }],
-    shortcut: [{ url: "/favicon.ico?v=20260720", type: "image/x-icon" }],
-    apple: [{ url: "/icon.png?v=20260720", sizes: "512x512", type: "image/png" }],
+    icon: [{ url: "/icon.png?v=20260720-t", sizes: "512x512", type: "image/png" }],
+    shortcut: [{ url: "/favicon.ico?v=20260720-t", type: "image/x-icon" }],
+    apple: [{ url: "/icon.png?v=20260720-t", sizes: "512x512", type: "image/png" }],
   },
 };
 
