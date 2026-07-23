@@ -22,3 +22,7 @@ deploy/dist/
 codes/web/tsconfig.tsbuildinfo
 
 .idea/
+
+# Xcode user-specific state
+**/xcuserdata/
+*.xcuserstate
