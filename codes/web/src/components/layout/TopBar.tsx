@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { TimiaLogo } from "@/components/TimiaLogo";
 import { clearToken } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 
@@ -21,10 +20,7 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
     <header className="z-50 flex h-[34px] shrink-0 items-center border-b border-gray-200 bg-white/80 px-3 backdrop-blur-md">
       <div className="flex w-full items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <Link href="/my/schedule" className="flex items-center gap-1.5 md:hidden">
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white shadow-sm">
-              <TimiaLogo size={14} className="block shrink-0" />
-            </div>
+          <Link href="/my/schedule" className="md:hidden">
             <span className="font-display text-sm font-bold leading-none tracking-tight text-gray-900">Timia</span>
           </Link>
           <Breadcrumbs className="hidden min-w-0 sm:block" />

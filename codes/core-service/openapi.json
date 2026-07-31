@@ -2776,6 +2776,18 @@
             }
           },
           {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "default": "Asia/Shanghai",
+              "title": "Timezone"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,

@@ -7,6 +7,7 @@ import { apiFetch, type ApiError } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
 type LoginResponse = { access_token: string; token_type: string };
+type DevelopmentLoginResponse = { email: string; password: string };
 
 function loginErrorMessage(error: unknown): string {
   if (!error || typeof error !== "object") return "登录失败，请稍后重试";
@@ -48,6 +49,16 @@ export default function LoginPage() {
       const next = params.toString();
       const path = next ? `${window.location.pathname}?${next}` : window.location.pathname;
       window.history.replaceState(null, "", path);
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      void fetch("/api/development-login", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((login: DevelopmentLoginResponse | null) => {
+          if (!login) return;
+          if (!emailParam) setEmail(login.email);
+          setPassword(login.password);
+        });
     }
   }, []);
 

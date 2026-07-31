@@ -12,6 +12,14 @@ function formatDateAnchor(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function calendarTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
+  } catch {
+    return "Asia/Shanghai";
+  }
+}
+
 function scopeQuery(params: ScheduleScopeParams): string {
   const q = new URLSearchParams({ scope: params.scope });
   if (params.scope === "project") {
@@ -29,6 +37,7 @@ export function fetchScheduleCalendar(
   const q = new URLSearchParams(scopeQuery(params));
   q.set("view", options.view);
   q.set("anchor", formatDateAnchor(options.anchor));
+  q.set("timezone", calendarTimeZone());
   return apiFetch<ScheduleCalendarView>(`/views/schedule/calendar?${q.toString()}`, { token });
 }
 

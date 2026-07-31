@@ -73,6 +73,7 @@ struct ScheduleHomeView: View {
     @State private var naturalLanguageText = ""
     @State private var isParsing = false
     @State private var parseResponse: NaturalLanguageParseResponse?
+    @State private var isRangePickerExpanded = false
 
     var body: some View {
         ZStack {
@@ -325,49 +326,47 @@ struct ScheduleHomeView: View {
     }
 
     private var bottomControls: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    modeButton(.todo, symbol: "checklist")
-                    modeButton(.calendar, symbol: "calendar")
-                }
-                .padding(4)
-                .background(TimiaTheme.field, in: Capsule())
-
-                if contentMode == .calendar {
-                    HStack(spacing: 2) {
-                        ForEach(CalendarRange.allCases, id: \.self) { value in
-                            Button {
-                                selectRange(value)
-                            } label: {
-                                Text(value.rawValue)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(range == value ? .white : .secondary)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 38)
-                                    .background(range == value ? Color.primary.opacity(0.78) : .clear, in: Capsule())
-                            }
-                        }
-                    }
-                    .padding(4)
-                    .frame(maxWidth: .infinity)
-                    .background(TimiaTheme.field, in: Capsule())
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .leading).combined(with: .opacity),
-                            removal: .move(edge: .leading).combined(with: .opacity)
+        HStack(alignment: .bottom, spacing: 8) {
+            HStack(spacing: 2) {
+                modeButton(.todo, symbol: "checklist")
+                modeButton(.calendar, symbol: "calendar")
+            }
+            .padding(4)
+            .background(TimiaTheme.field, in: Capsule())
+            .overlay(alignment: .topLeading) {
+                if contentMode == .calendar, isRangePickerExpanded {
+                    calendarRangePicker
+                        .fixedSize(horizontal: true, vertical: false)
+                        .offset(y: -56)
+                        .transition(
+                            .asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .move(edge: .bottom).combined(with: .opacity)
+                            )
                         )
-                    )
-                } else {
-                    Spacer(minLength: 0)
+                        .zIndex(2)
                 }
             }
-            .animation(.snappy(duration: 0.32), value: contentMode)
+            .zIndex(2)
 
-            HStack(spacing: 10) {
-                Image(systemName: "plus")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        isRangePickerExpanded = false
+                    }
+                    createSelection = ScheduleCreateSelection(
+                        date: selectedDate,
+                        hasExactTime: false
+                    )
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 42)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("新建任务")
 
                 TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
                     .lineLimit(1...3)
@@ -392,9 +391,9 @@ struct ScheduleHomeView: View {
                 .disabled(!canParse)
                 .accessibilityLabel("解析任务")
             }
-            .padding(.leading, 16)
-            .padding(.trailing, 7)
-            .padding(.vertical, 7)
+            .padding(.leading, 12)
+            .padding(.trailing, 5)
+            .padding(.vertical, 5)
             .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
         }
@@ -402,6 +401,29 @@ struct ScheduleHomeView: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background(.ultraThinMaterial)
+        .animation(.snappy(duration: 0.28), value: isRangePickerExpanded)
+    }
+
+    private var calendarRangePicker: some View {
+        HStack(spacing: 2) {
+            ForEach(CalendarRange.allCases, id: \.self) { value in
+                Button {
+                    selectRange(value)
+                } label: {
+                    Text(value.rawValue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(range == value ? .white : .secondary)
+                        .frame(width: 42, height: 38)
+                        .background(range == value ? Color.primary.opacity(0.78) : .clear, in: Capsule())
+                }
+                .accessibilityLabel("\(value.rawValue) 视图")
+                .accessibilityIdentifier(value.rawValue)
+            }
+        }
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.7)))
+        .shadow(color: TimiaTheme.shadow, radius: 12, y: 5)
     }
 
     private var canParse: Bool {
@@ -410,12 +432,24 @@ struct ScheduleHomeView: View {
 
     private func modeButton(_ value: ContentMode, symbol: String) -> some View {
         Button {
-            withAnimation(.snappy(duration: 0.25)) { contentMode = value }
+            withAnimation(.snappy(duration: 0.25)) {
+                if value == .calendar {
+                    if contentMode == .calendar {
+                        isRangePickerExpanded.toggle()
+                    } else {
+                        contentMode = .calendar
+                        isRangePickerExpanded = true
+                    }
+                } else {
+                    contentMode = .todo
+                    isRangePickerExpanded = false
+                }
+            }
         } label: {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(contentMode == value ? .white : .secondary)
-                .frame(width: 42, height: 38)
+                .frame(width: 38, height: 38)
                 .background(contentMode == value ? Color.primary.opacity(0.78) : .clear, in: Capsule())
         }
         .accessibilityLabel(value == .todo ? "Todo 模式" : "日历模式")
@@ -429,6 +463,9 @@ struct ScheduleHomeView: View {
     }
 
     private func selectRange(_ newRange: CalendarRange) {
+        withAnimation(.snappy(duration: 0.22)) {
+            isRangePickerExpanded = false
+        }
         guard newRange != range else { return }
         let targetDate = newRange == .month || newRange == .year ? Date() : selectedDate
         withAnimation(.snappy(duration: 0.25)) {
@@ -864,20 +901,23 @@ private struct DayTimelineSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Color.clear.frame(height: 20)
+
             Text(ScheduleFormat.fullDateLabel(date))
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 40)
                 .padding(.leading, 8)
-                .padding(.top, 8)
-                .padding(.bottom, 5)
                 .accessibilityIdentifier("calendar-day-label-\(ScheduleFormat.dayKey(date))")
 
             AllDayRow(
                 tasks: tasks.filter(ScheduleFormat.isAllDay),
-                dayCount: 1,
                 onTaskTap: onTaskTap
             )
+
+            Color.clear.frame(height: 20)
+
             TimelineGrid(
                 days: [date],
                 tasks: tasks.filter { !ScheduleFormat.isAllDay($0) },
@@ -1021,20 +1061,24 @@ private struct WeekTimelineSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            Color.clear.frame(height: 20)
+
             Text(ScheduleFormat.weekLabel(weekStart))
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 40)
                 .padding(.leading, 8)
-                .padding(.top, 8)
-                .padding(.bottom, 5)
                 .accessibilityIdentifier("calendar-week-label-\(ScheduleFormat.weekKey(weekStart))")
 
-            AllDayRow(
-                tasks: tasks.filter(ScheduleFormat.isAllDay),
-                dayCount: 7,
+            WeekAllDayRow(
+                days: days,
+                segments: week?.segments ?? [],
                 onTaskTap: onTaskTap
             )
+
+            Color.clear.frame(height: 20)
+
             TimelineGrid(
                 days: days,
                 tasks: tasks.filter { !ScheduleFormat.isAllDay($0) },
@@ -1118,8 +1162,20 @@ private struct AllDayRow: View {
     @Environment(\.colorScheme) private var colorScheme
 
     let tasks: [ScheduleTask]
-    let dayCount: Int
     let onTaskTap: (ScheduleTask) -> Void
+
+    private let taskHeight: CGFloat = 30
+    private let taskSpacing: CGFloat = 4
+
+    private var rowHeight: CGFloat {
+        guard !tasks.isEmpty else { return 40 }
+        return max(
+            40,
+            CGFloat(tasks.count) * taskHeight
+                + CGFloat(max(tasks.count - 1, 0)) * taskSpacing
+                + 10
+        )
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -1127,12 +1183,17 @@ private struct AllDayRow: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .padding(.leading, 8)
+                .padding(.top, 12)
                 .frame(width: 48, alignment: .leading)
-                .padding(.top, 8)
 
-            ScrollView(.horizontal) {
-                HStack(spacing: 5) {
-                    ForEach(tasks.prefix(5)) { task in
+            VStack(spacing: taskSpacing) {
+                if tasks.isEmpty {
+                    Text("暂无全天任务")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, minHeight: taskHeight, alignment: .leading)
+                } else {
+                    ForEach(tasks) { task in
                         let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
                         Button { onTaskTap(task) } label: {
                             Text(task.title)
@@ -1140,25 +1201,178 @@ private struct AllDayRow: View {
                                 .lineLimit(1)
                                 .foregroundStyle(style.foreground)
                                 .padding(.horizontal, 9)
-                                .frame(height: 30)
+                                .frame(maxWidth: .infinity, minHeight: taskHeight, alignment: .leading)
                                 .background(style.background, in: RoundedRectangle(cornerRadius: 8))
                         }
-                    }
-                    if tasks.isEmpty {
-                        Text("暂无全天任务")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .frame(height: 30)
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 4)
             }
-            .scrollIndicators(.hidden)
+            .padding(.vertical, 5)
+            .padding(.trailing, 6)
         }
-        .frame(minHeight: 46)
-        .overlay(alignment: .bottom) {
-            DashedDivider().padding(.leading, 48)
+        .frame(height: rowHeight, alignment: .top)
+    }
+}
+
+private struct WeekAllDayRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let days: [Date]
+    let segments: [CalendarSegment]
+    let onTaskTap: (ScheduleTask) -> Void
+
+    private let taskHeight: CGFloat = 30
+    private let taskSpacing: CGFloat = 4
+
+    private var tasksByDay: [[ScheduleTask]] {
+        days.indices.map(tasks(for:))
+    }
+
+    private var rowHeight: CGFloat {
+        let maximumTaskCount = tasksByDay.map(\.count).max() ?? 0
+        guard maximumTaskCount > 0 else { return 40 }
+        return max(
+            40,
+            CGFloat(maximumTaskCount) * taskHeight
+                + CGFloat(max(maximumTaskCount - 1, 0)) * taskSpacing
+                + 10
+        )
+    }
+
+    var body: some View {
+        let tasksByDay = tasksByDay
+
+        HStack(alignment: .top, spacing: 0) {
+            Text("全天")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 8)
+                .padding(.top, 12)
+                .frame(width: 48, alignment: .leading)
+
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(days.indices, id: \.self) { dayIndex in
+                    let dayTasks = tasksByDay[dayIndex]
+
+                    VStack(spacing: taskSpacing) {
+                        ForEach(dayTasks) { task in
+                            let style = SchedulePriorityStyle(
+                                priority: task.priority,
+                                colorScheme: colorScheme
+                            )
+                            Button { onTaskTap(task) } label: {
+                                Text(task.title)
+                                    .lineLimit(1)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(style.foreground)
+                                    .padding(.horizontal, 3)
+                                    .frame(maxWidth: .infinity, minHeight: taskHeight, alignment: .leading)
+                                    .background(style.background, in: RoundedRectangle(cornerRadius: 5))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier(
+                        "calendar-week-all-day-\(ScheduleFormat.dayKey(days[dayIndex]))"
+                    )
+                    .accessibilityValue(
+                        dayTasks.isEmpty ? "无全天任务" : dayTasks.map(\.title).joined(separator: "，")
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.trailing, 6)
         }
+        .frame(height: rowHeight, alignment: .top)
+    }
+
+    private func tasks(for dayIndex: Int) -> [ScheduleTask] {
+        var seen = Set<String>()
+        return segments.compactMap { segment in
+            let column = dayIndex + 1
+            guard ScheduleFormat.isAllDay(segment.item),
+                  column >= segment.colStart,
+                  column < segment.colStart + segment.colSpan,
+                  seen.insert(segment.item.id).inserted else {
+                return nil
+            }
+            return segment.item
+        }
+    }
+}
+
+enum TimelineOverlapLayout {
+    struct Item: Equatable {
+        let id: String
+        let dayIndex: Int
+        let startMinutes: Int
+        let durationMinutes: Int
+
+        var endMinutes: Int { startMinutes + durationMinutes }
+    }
+
+    struct Lane: Equatable {
+        let index: Int
+        let count: Int
+    }
+
+    static func lanes(for items: [Item]) -> [String: Lane] {
+        var result: [String: Lane] = [:]
+        let itemsByDay = Dictionary(grouping: items, by: \.dayIndex)
+
+        for dayItems in itemsByDay.values {
+            let sortedItems = dayItems.sorted {
+                if $0.startMinutes != $1.startMinutes {
+                    return $0.startMinutes < $1.startMinutes
+                }
+                if $0.durationMinutes != $1.durationMinutes {
+                    return $0.durationMinutes > $1.durationMinutes
+                }
+                return $0.id < $1.id
+            }
+
+            var group: [(item: Item, laneIndex: Int)] = []
+            var laneEndMinutes: [Int] = []
+            var groupEndMinutes = 0
+
+            func commitGroup() {
+                let laneCount = max(laneEndMinutes.count, 1)
+                for entry in group {
+                    result[entry.item.id] = Lane(index: entry.laneIndex, count: laneCount)
+                }
+            }
+
+            for item in sortedItems {
+                if !group.isEmpty, item.startMinutes >= groupEndMinutes {
+                    commitGroup()
+                    group.removeAll(keepingCapacity: true)
+                    laneEndMinutes.removeAll(keepingCapacity: true)
+                }
+
+                let availableLane = laneEndMinutes.firstIndex { $0 <= item.startMinutes }
+                let laneIndex: Int
+                if let availableLane {
+                    laneIndex = availableLane
+                    laneEndMinutes[availableLane] = item.endMinutes
+                } else {
+                    laneIndex = laneEndMinutes.count
+                    laneEndMinutes.append(item.endMinutes)
+                }
+
+                group.append((item, laneIndex))
+                groupEndMinutes = max(groupEndMinutes, item.endMinutes)
+            }
+
+            if !group.isEmpty {
+                commitGroup()
+            }
+        }
+
+        return result
     }
 }
 
@@ -1180,6 +1394,20 @@ private struct TimelineGrid: View {
             let labelWidth: CGFloat = 48
             let contentWidth = max(geometry.size.width - labelWidth - 6, 1)
             let dayWidth = contentWidth / CGFloat(max(days.count, 1))
+            let taskPlacements = Dictionary(uniqueKeysWithValues: tasks.compactMap { task in
+                ScheduleFormat.placement(for: task, days: days).map { (task.id, $0) }
+            })
+            let overlapLanes = TimelineOverlapLayout.lanes(
+                for: tasks.compactMap { task in
+                    guard let placement = taskPlacements[task.id] else { return nil }
+                    return TimelineOverlapLayout.Item(
+                        id: task.id,
+                        dayIndex: placement.dayIndex,
+                        startMinutes: placement.startMinutes,
+                        durationMinutes: placement.durationMinutes
+                    )
+                }
+            )
 
             ZStack(alignment: .topLeading) {
                 Color.clear
@@ -1240,8 +1468,16 @@ private struct TimelineGrid: View {
                 }
 
                 ForEach(tasks) { task in
-                    if let placement = ScheduleFormat.placement(for: task, days: days) {
+                    if let placement = taskPlacements[task.id] {
+                        let lane = overlapLanes[task.id] ?? TimelineOverlapLayout.Lane(index: 0, count: 1)
                         let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
+                        let horizontalInset: CGFloat = days.count == 1 ? 9 : 2
+                        let availableWidth = max(dayWidth - horizontalInset * 2, 1)
+                        let laneGap: CGFloat = lane.count > 1 ? 3 : 0
+                        let laneWidth = max(
+                            (availableWidth - CGFloat(lane.count - 1) * laneGap) / CGFloat(lane.count),
+                            1
+                        )
                         Button { onTaskTap(task) } label: {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(task.title)
@@ -1263,13 +1499,17 @@ private struct TimelineGrid: View {
                         }
                         .buttonStyle(.plain)
                         .frame(
-                            width: max(dayWidth - (days.count == 1 ? 18 : 4), 12),
+                            width: laneWidth,
                             height: max(CGFloat(placement.durationMinutes) / 60 * hourHeight, days.count == 1 ? 48 : 28)
                         )
                         .offset(
-                            x: labelWidth + CGFloat(placement.dayIndex) * dayWidth + (days.count == 1 ? 9 : 2),
+                            x: labelWidth
+                                + CGFloat(placement.dayIndex) * dayWidth
+                                + horizontalInset
+                                + CGFloat(lane.index) * (laneWidth + laneGap),
                             y: CGFloat(placement.startMinutes) / 60 * hourHeight + 4
                         )
+                        .accessibilityIdentifier("calendar-timeline-task-\(task.id)")
                     }
                 }
             }

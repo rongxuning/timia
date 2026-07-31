@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as datetime_timezone
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.schemas.views.schedule import (
     CalendarDayDetailOut,
@@ -22,6 +23,8 @@ from app.schemas.views.schedule import (
 STATUS_KEYS = ("todo", "doing", "done", "archived")
 PRIORITY_KEYS = ("1", "2", "3", "4")
 CalendarViewKind = Literal["year", "month", "week", "day"]
+DEFAULT_CALENDAR_TIMEZONE = "Asia/Shanghai"
+UTC_CALENDAR_TIMEZONE = ZoneInfo("UTC")
 
 
 def _pad2(n: int) -> str:
@@ -30,6 +33,19 @@ def _pad2(n: int) -> str:
 
 def _day_key(d: date) -> str:
     return f"{d.year}-{_pad2(d.month)}-{_pad2(d.day)}"
+
+
+def resolve_calendar_timezone(timezone_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as error:
+        raise ValueError("invalid timezone") from error
+
+
+def _in_calendar_timezone(value: datetime, calendar_timezone: ZoneInfo) -> datetime:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=datetime_timezone.utc)
+    return value.astimezone(calendar_timezone)
 
 
 def _whole_days_between_inclusive(a: date, b: date) -> int:
@@ -54,23 +70,37 @@ def normalize_priority(p: str | None) -> str:
     return "1"
 
 
-def _local_day_range_from_item(it: ScheduleTaskItemOut) -> tuple[str, str] | None:
+def _local_day_range_from_item(
+    it: ScheduleTaskItemOut,
+    calendar_timezone: ZoneInfo,
+) -> tuple[str, str] | None:
     if not it.start_at:
         return None
-    s = it.start_at
-    if isinstance(s, datetime):
-        s_date = s.date()
-    else:
-        return None
-    e = it.end_at.date() if it.end_at else s_date
-    if e < s_date:
+    local_start = _in_calendar_timezone(it.start_at, calendar_timezone)
+    s_date = local_start.date()
+    if not it.end_at:
         k = _day_key(s_date)
         return k, k
-    return _day_key(s_date), _day_key(e)
+
+    local_end_exclusive = _in_calendar_timezone(it.end_at, calendar_timezone)
+    if local_end_exclusive <= local_start:
+        k = _day_key(s_date)
+        return k, k
+
+    # End time is exclusive. A task ending exactly at local midnight belongs
+    # to the preceding day, matching the Web timeline clipping behavior.
+    e_date = (local_end_exclusive - timedelta(microseconds=1)).date()
+    if e_date < s_date:
+        e_date = s_date
+    return _day_key(s_date), _day_key(e_date)
 
 
-def _item_covers_day(it: ScheduleTaskItemOut, day: date) -> bool:
-    range_keys = _local_day_range_from_item(it)
+def _item_covers_day(
+    it: ScheduleTaskItemOut,
+    day: date,
+    calendar_timezone: ZoneInfo = UTC_CALENDAR_TIMEZONE,
+) -> bool:
+    range_keys = _local_day_range_from_item(it, calendar_timezone)
     if not range_keys:
         return False
     start = date.fromisoformat(range_keys[0])
@@ -96,19 +126,16 @@ def _build_week_segments(
     items: list[ScheduleTaskItemOut],
     week_first_date: date,
     week_last_date: date,
+    calendar_timezone: ZoneInfo,
 ) -> list[CalendarSegmentOut]:
     raw_segments: list[dict] = []
 
     for it in items:
-        range_keys = _local_day_range_from_item(it)
+        range_keys = _local_day_range_from_item(it, calendar_timezone)
         if not range_keys or not it.start_at:
             continue
-        s = it.start_at
-        e = it.end_at or it.start_at
-        task_start = s.date()
-        task_end = e.date()
-        if task_end < task_start:
-            continue
+        task_start = date.fromisoformat(range_keys[0])
+        task_end = date.fromisoformat(range_keys[1])
         if task_end < week_first_date or task_start > week_last_date:
             continue
 
@@ -178,17 +205,23 @@ def _build_week_segments(
 def _build_week_out(
     items: list[ScheduleTaskItemOut],
     week_start: date,
+    calendar_timezone: ZoneInfo,
     *,
     in_month: int | None = None,
 ) -> CalendarWeekOut:
     week_days = _build_week_days(week_start, in_month=in_month)
     week_first_date = date.fromisoformat(week_days[0].key)
     week_last_date = date.fromisoformat(week_days[6].key)
-    segments = _build_week_segments(items, week_first_date, week_last_date)
+    segments = _build_week_segments(items, week_first_date, week_last_date, calendar_timezone)
     return CalendarWeekOut(days=week_days, segments=segments)
 
 
-def _build_month_weeks(items: list[ScheduleTaskItemOut], year: int, month: int) -> list[CalendarWeekOut]:
+def _build_month_weeks(
+    items: list[ScheduleTaskItemOut],
+    year: int,
+    month: int,
+    calendar_timezone: ZoneInfo,
+) -> list[CalendarWeekOut]:
     first = date(year, month, 1)
     grid_start = _sunday_week_start(first)
     last = date(year, month, calendar.monthrange(year, month)[1])
@@ -197,12 +230,16 @@ def _build_month_weeks(items: list[ScheduleTaskItemOut], year: int, month: int) 
     weeks: list[CalendarWeekOut] = []
     for w in range(week_count):
         week_start = grid_start + timedelta(days=w * 7)
-        weeks.append(_build_week_out(items, week_start, in_month=month))
+        weeks.append(_build_week_out(items, week_start, calendar_timezone, in_month=month))
     return weeks
 
 
-def _build_day_detail(items: list[ScheduleTaskItemOut], day: date) -> CalendarDayDetailOut:
-    day_items = [it for it in items if _item_covers_day(it, day)]
+def _build_day_detail(
+    items: list[ScheduleTaskItemOut],
+    day: date,
+    calendar_timezone: ZoneInfo,
+) -> CalendarDayDetailOut:
+    day_items = [it for it in items if _item_covers_day(it, day, calendar_timezone)]
     day_items.sort(
         key=lambda x: (
             x.start_at.timestamp() if x.start_at else 0,
@@ -216,6 +253,7 @@ def _build_day_detail(items: list[ScheduleTaskItemOut], day: date) -> CalendarDa
 def _build_year_months(
     items: list[ScheduleTaskItemOut],
     year: int,
+    calendar_timezone: ZoneInfo,
 ) -> list[CalendarMonthSummaryOut]:
     months: list[CalendarMonthSummaryOut] = []
     for month in range(1, 13):
@@ -227,7 +265,11 @@ def _build_year_months(
 
         for day_number in range(1, day_count + 1):
             current = date(year, month, day_number)
-            covered = [item for item in items if _item_covers_day(item, current)]
+            covered = [
+                item
+                for item in items
+                if _item_covers_day(item, current, calendar_timezone)
+            ]
             days.append(CalendarHeatDayOut(key=_day_key(current), task_count=len(covered)))
             for item in covered:
                 month_item_ids.add(item.id)
@@ -253,7 +295,9 @@ def build_calendar_view(
     *,
     view: CalendarViewKind = "month",
     anchor: date,
+    timezone_name: str = DEFAULT_CALENDAR_TIMEZONE,
 ) -> ScheduleCalendarViewOut:
+    calendar_timezone = resolve_calendar_timezone(timezone_name)
     anchor_key = _day_key(anchor)
 
     if view == "year":
@@ -263,7 +307,7 @@ def build_calendar_view(
             month=None,
             year=anchor.year,
             weeks=[],
-            months=_build_year_months(items, anchor.year),
+            months=_build_year_months(items, anchor.year, calendar_timezone),
             day=None,
         )
 
@@ -275,7 +319,7 @@ def build_calendar_view(
             year=None,
             weeks=[],
             months=[],
-            day=_build_day_detail(items, anchor),
+            day=_build_day_detail(items, anchor, calendar_timezone),
         )
 
     if view == "week":
@@ -285,12 +329,12 @@ def build_calendar_view(
             anchor=anchor_key,
             month=f"{anchor.year:04d}-{_pad2(anchor.month)}",
             year=None,
-            weeks=[_build_week_out(items, week_start)],
+            weeks=[_build_week_out(items, week_start, calendar_timezone)],
             months=[],
             day=None,
         )
 
-    weeks = _build_month_weeks(items, anchor.year, anchor.month)
+    weeks = _build_month_weeks(items, anchor.year, anchor.month, calendar_timezone)
     return ScheduleCalendarViewOut(
         view="month",
         anchor=anchor_key,

@@ -148,19 +148,28 @@ export function ScheduleBoard({
     }
   }
 
-  async function completeTask(itemId: string) {
+  async function toggleTaskCompletion(itemId: string) {
     const current = findTaskItem(swimlane, priority, calendar, itemId);
     if (!current) return;
-    if (current.status === "done" || current.status === "archived") return;
+    if (current.status === "archived") return;
+    const markAsDone = current.status !== "done";
     setCompletingItemId(itemId);
     try {
-      await updateTaskStatus(itemId, "done");
+      await updateTaskStatus(
+        itemId,
+        markAsDone ? "done" : "todo",
+        markAsDone ? new Date().toISOString() : null,
+      );
     } finally {
       setCompletingItemId(null);
     }
   }
 
-  async function updateTaskStatus(itemId: string, newStatus: StatusKey) {
+  async function updateTaskStatus(
+    itemId: string,
+    newStatus: StatusKey,
+    completedAt?: string | null,
+  ) {
     const current = findTaskItem(swimlane, priority, calendar, itemId);
     if (!current) return;
     if ((current.status as StatusKey) === newStatus) return;
@@ -168,7 +177,11 @@ export function ScheduleBoard({
       await apiFetch(patchPath(current), {
         method: "PATCH",
         token,
-        body: JSON.stringify({ version: current.version, status: newStatus }),
+        body: JSON.stringify({
+          version: current.version,
+          status: newStatus,
+          ...(completedAt !== undefined ? { completed_at: completedAt } : {}),
+        }),
       });
       await reloadAll();
     } catch (e: unknown) {
@@ -193,7 +206,7 @@ export function ScheduleBoard({
         onItemClick={onItemClick}
         onDropPriority={updateTaskPriority}
         onCreateInPriority={onCreateInPriority}
-        onCompleteTask={completeTask}
+        onCompleteTask={toggleTaskCompletion}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}
@@ -209,7 +222,7 @@ export function ScheduleBoard({
         onCalendarAnchorChange={setCalendarAnchor}
         calendar={calendar}
         onTaskClick={onItemClick}
-        onCompleteTask={completeTask}
+        onCompleteTask={toggleTaskCompletion}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}

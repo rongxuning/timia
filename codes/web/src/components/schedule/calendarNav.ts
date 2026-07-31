@@ -31,6 +31,10 @@ export function parseDateAnchor(key: string): Date {
   return new Date(y, m - 1, d);
 }
 
+export function weekdayLabel(dateKey: string): string {
+  return `星期${WEEKDAY_LABELS[parseDateAnchor(dateKey).getDay()]}`;
+}
+
 function lunarDayName(day: number) {
   const digits = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   if (day <= 10) return `初${digits[day - 1]}`;

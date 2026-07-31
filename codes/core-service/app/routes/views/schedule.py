@@ -29,6 +29,7 @@ from app.services.views.schedule_items import (
     parse_month,
 )
 from app.services.views.schedule_layout import (
+    DEFAULT_CALENDAR_TIMEZONE,
     build_calendar_view,
     build_priority_view,
     build_swimlane_view,
@@ -62,6 +63,12 @@ def schedule_calendar_view(
     view: str = Query("month", pattern="^(year|month|week|day)$"),
     anchor: str | None = None,
     month: str | None = None,
+    timezone_name: str = Query(
+        DEFAULT_CALENDAR_TIMEZONE,
+        alias="timezone",
+        min_length=1,
+        max_length=100,
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -86,7 +93,15 @@ def schedule_calendar_view(
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    return build_calendar_view(items, view=view, anchor=anchor_date)
+    try:
+        return build_calendar_view(
+            items,
+            view=view,
+            anchor=anchor_date,
+            timezone_name=timezone_name,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.post("/natural-language/parse", response_model=NaturalLanguageParseOut)

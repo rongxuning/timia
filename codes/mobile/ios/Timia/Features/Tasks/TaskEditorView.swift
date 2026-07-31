@@ -84,8 +84,8 @@ struct TaskEditorView: View {
                 .lineLimit(3...8)
             TextField("地点", text: $location)
 
-            TaskChoiceRow(title: "优先级", selection: $priority, options: taskPriorityOptions)
-            TaskChoiceRow(title: "状态", selection: $status, options: taskStatusOptions)
+            TaskChoiceRow(selection: $priority, options: taskPriorityOptions)
+            TaskChoiceRow(selection: $status, options: taskStatusOptions)
 
             ColorPicker("任务颜色", selection: Binding(
                 get: { Color(hex: color) },
@@ -93,8 +93,6 @@ struct TaskEditorView: View {
             ))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("时间")
-                    .font(.subheadline.weight(.semibold))
                 DatePicker(
                     "开始时间",
                     selection: $startDate,
@@ -280,44 +278,38 @@ struct TaskEditorView: View {
 }
 
 private struct TaskChoiceRow: View {
-    let title: String
     @Binding var selection: String
     let options: [TaskChoiceOption]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
+        HStack(spacing: 8) {
+            ForEach(options) { option in
+                let isSelected = selection == option.id
 
-            HStack(spacing: 8) {
-                ForEach(options) { option in
-                    let isSelected = selection == option.id
-
-                    Button {
-                        selection = option.id
-                    } label: {
-                        Text(option.label)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(option.color)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 38)
-                            .background(
-                                option.color.opacity(isSelected ? 0.18 : 0.06),
-                                in: RoundedRectangle(cornerRadius: 9)
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 9)
-                                    .stroke(
-                                        option.color.opacity(isSelected ? 0.9 : 0.28),
-                                        lineWidth: isSelected ? 1.5 : 1
-                                    )
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                Button {
+                    selection = option.id
+                } label: {
+                    Text(option.label)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(option.color)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .background(
+                            option.color.opacity(isSelected ? 0.18 : 0.06),
+                            in: RoundedRectangle(cornerRadius: 9)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 9)
+                                .stroke(
+                                    option.color.opacity(isSelected ? 0.9 : 0.28),
+                                    lineWidth: isSelected ? 1.5 : 1
+                                )
+                        }
                 }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
     }

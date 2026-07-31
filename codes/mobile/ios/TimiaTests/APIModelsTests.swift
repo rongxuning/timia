@@ -80,4 +80,28 @@ final class APIModelsTests: XCTestCase {
         let value = try decoder.decode(ScheduleCalendar.self, from: Data(json.utf8))
         XCTAssertEqual(value.weeks?.first?.segments.first?.item.title, "设计评审")
     }
+
+    func testTimelineOverlapLayoutPlacesIntersectingTasksSideBySide() {
+        let lanes = TimelineOverlapLayout.lanes(for: [
+            .init(id: "task-a", dayIndex: 0, startMinutes: 9 * 60, durationMinutes: 120),
+            .init(id: "task-b", dayIndex: 0, startMinutes: 9 * 60 + 30, durationMinutes: 60),
+            .init(id: "task-c", dayIndex: 0, startMinutes: 12 * 60, durationMinutes: 60)
+        ])
+
+        XCTAssertEqual(lanes["task-a"], .init(index: 0, count: 2))
+        XCTAssertEqual(lanes["task-b"], .init(index: 1, count: 2))
+        XCTAssertEqual(lanes["task-c"], .init(index: 0, count: 1))
+    }
+
+    func testTimelineOverlapLayoutReusesLaneAtIntervalBoundaryAndSeparatesDays() {
+        let lanes = TimelineOverlapLayout.lanes(for: [
+            .init(id: "day-one-a", dayIndex: 0, startMinutes: 9 * 60, durationMinutes: 30),
+            .init(id: "day-one-b", dayIndex: 0, startMinutes: 9 * 60 + 30, durationMinutes: 30),
+            .init(id: "day-two-a", dayIndex: 1, startMinutes: 9 * 60, durationMinutes: 60)
+        ])
+
+        XCTAssertEqual(lanes["day-one-a"], .init(index: 0, count: 1))
+        XCTAssertEqual(lanes["day-one-b"], .init(index: 0, count: 1))
+        XCTAssertEqual(lanes["day-two-a"], .init(index: 0, count: 1))
+    }
 }
