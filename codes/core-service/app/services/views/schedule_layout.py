@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import calendar
 from datetime import date, datetime, timedelta
 from typing import Literal
 
 from app.schemas.views.schedule import (
     CalendarDayDetailOut,
+    CalendarHeatDayOut,
+    CalendarMonthSummaryOut,
     CalendarDayOut,
     CalendarSegmentOut,
     CalendarWeekOut,
@@ -18,7 +21,7 @@ from app.schemas.views.schedule import (
 
 STATUS_KEYS = ("todo", "doing", "done", "archived")
 PRIORITY_KEYS = ("1", "2", "3", "4")
-CalendarViewKind = Literal["month", "week", "day"]
+CalendarViewKind = Literal["year", "month", "week", "day"]
 
 
 def _pad2(n: int) -> str:
@@ -188,8 +191,11 @@ def _build_week_out(
 def _build_month_weeks(items: list[ScheduleTaskItemOut], year: int, month: int) -> list[CalendarWeekOut]:
     first = date(year, month, 1)
     grid_start = _sunday_week_start(first)
+    last = date(year, month, calendar.monthrange(year, month)[1])
+    grid_end = _sunday_week_start(last) + timedelta(days=6)
+    week_count = ((grid_end - grid_start).days // 7) + 1
     weeks: list[CalendarWeekOut] = []
-    for w in range(5):
+    for w in range(week_count):
         week_start = grid_start + timedelta(days=w * 7)
         weeks.append(_build_week_out(items, week_start, in_month=month))
     return weeks
@@ -207,6 +213,41 @@ def _build_day_detail(items: list[ScheduleTaskItemOut], day: date) -> CalendarDa
     return CalendarDayDetailOut(key=_day_key(day), weekday=weekday, items=day_items)
 
 
+def _build_year_months(
+    items: list[ScheduleTaskItemOut],
+    year: int,
+) -> list[CalendarMonthSummaryOut]:
+    months: list[CalendarMonthSummaryOut] = []
+    for month in range(1, 13):
+        day_count = calendar.monthrange(year, month)[1]
+        days: list[CalendarHeatDayOut] = []
+        month_item_ids: set[str] = set()
+        todo_item_ids: set[str] = set()
+        done_item_ids: set[str] = set()
+
+        for day_number in range(1, day_count + 1):
+            current = date(year, month, day_number)
+            covered = [item for item in items if _item_covers_day(item, current)]
+            days.append(CalendarHeatDayOut(key=_day_key(current), task_count=len(covered)))
+            for item in covered:
+                month_item_ids.add(item.id)
+                if item.status in ("todo", "doing"):
+                    todo_item_ids.add(item.id)
+                elif item.status in ("done", "archived"):
+                    done_item_ids.add(item.id)
+
+        months.append(
+            CalendarMonthSummaryOut(
+                month=month,
+                task_count=len(month_item_ids),
+                todo_count=len(todo_item_ids),
+                done_count=len(done_item_ids),
+                days=days,
+            )
+        )
+    return months
+
+
 def build_calendar_view(
     items: list[ScheduleTaskItemOut],
     *,
@@ -215,12 +256,25 @@ def build_calendar_view(
 ) -> ScheduleCalendarViewOut:
     anchor_key = _day_key(anchor)
 
+    if view == "year":
+        return ScheduleCalendarViewOut(
+            view="year",
+            anchor=anchor_key,
+            month=None,
+            year=anchor.year,
+            weeks=[],
+            months=_build_year_months(items, anchor.year),
+            day=None,
+        )
+
     if view == "day":
         return ScheduleCalendarViewOut(
             view="day",
             anchor=anchor_key,
             month=None,
+            year=None,
             weeks=[],
+            months=[],
             day=_build_day_detail(items, anchor),
         )
 
@@ -230,7 +284,9 @@ def build_calendar_view(
             view="week",
             anchor=anchor_key,
             month=f"{anchor.year:04d}-{_pad2(anchor.month)}",
+            year=None,
             weeks=[_build_week_out(items, week_start)],
+            months=[],
             day=None,
         )
 
@@ -239,7 +295,9 @@ def build_calendar_view(
         view="month",
         anchor=anchor_key,
         month=f"{anchor.year:04d}-{_pad2(anchor.month)}",
+        year=None,
         weeks=weeks,
+        months=[],
         day=None,
     )
 
@@ -266,9 +324,39 @@ def build_priority_view(items: list[ScheduleTaskItemOut]) -> SchedulePriorityVie
     return SchedulePriorityViewOut(quadrants=quadrants)
 
 
-def build_swimlane_view(items: list[ScheduleTaskItemOut]) -> ScheduleSwimlaneViewOut:
-    columns: dict[str, list[ScheduleTaskItemOut]] = {k: [] for k in STATUS_KEYS}
+def build_swimlane_view(
+    items: list[ScheduleTaskItemOut],
+    *,
+    task_status: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+    completed_limit: int = 5,
+) -> ScheduleSwimlaneViewOut:
+    grouped: dict[str, list[ScheduleTaskItemOut]] = {k: [] for k in STATUS_KEYS}
     for it in items:
-        key = it.status if it.status in columns else "todo"
-        columns[key].append(it)
-    return ScheduleSwimlaneViewOut(columns=columns)
+        key = it.status if it.status in grouped else "todo"
+        grouped[key].append(it)
+
+    def recent_key(item: ScheduleTaskItemOut) -> float:
+        timestamp = item.completed_at or item.end_at or item.start_at
+        return timestamp.timestamp() if timestamp else 0
+
+    grouped["done"].sort(key=recent_key, reverse=True)
+    grouped["archived"].sort(key=recent_key, reverse=True)
+    totals = {key: len(grouped[key]) for key in STATUS_KEYS}
+    columns: dict[str, list[ScheduleTaskItemOut]] = {key: [] for key in STATUS_KEYS}
+    has_more = {key: False for key in STATUS_KEYS}
+
+    if task_status is not None:
+        start = max(offset, 0)
+        size = max(limit, 1)
+        columns[task_status] = grouped[task_status][start : start + size]
+        has_more[task_status] = start + len(columns[task_status]) < totals[task_status]
+    else:
+        columns["todo"] = grouped["todo"]
+        columns["doing"] = grouped["doing"]
+        for key in ("done", "archived"):
+            columns[key] = grouped[key][: max(completed_limit, 1)]
+            has_more[key] = len(columns[key]) < totals[key]
+
+    return ScheduleSwimlaneViewOut(columns=columns, totals=totals, has_more=has_more)

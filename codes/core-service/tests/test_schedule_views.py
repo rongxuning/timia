@@ -34,6 +34,33 @@ def test_build_swimlane_groups_by_status():
     view = build_swimlane_view(items)
     assert len(view.columns["todo"]) == 1
     assert len(view.columns["doing"]) == 1
+    assert view.totals["todo"] == 1
+
+
+def test_build_swimlane_collapses_and_pages_completed_tasks():
+    items = [
+        _item(
+            id=f"done-{index}",
+            status="done",
+            completed_at=datetime(2026, 6, index + 1, tzinfo=timezone.utc),
+        )
+        for index in range(18)
+    ]
+
+    initial = build_swimlane_view(items)
+    assert len(initial.columns["done"]) == 5
+    assert initial.totals["done"] == 18
+    assert initial.has_more["done"] is True
+    assert initial.columns["done"][0].id == "done-17"
+
+    next_page = build_swimlane_view(items, task_status="done", offset=5, limit=10)
+    assert len(next_page.columns["done"]) == 10
+    assert next_page.columns["done"][0].id == "done-12"
+    assert next_page.has_more["done"] is True
+
+    last_page = build_swimlane_view(items, task_status="done", offset=15, limit=10)
+    assert len(last_page.columns["done"]) == 3
+    assert last_page.has_more["done"] is False
 
 
 def test_build_priority_only_active_statuses():
@@ -70,6 +97,18 @@ def test_build_calendar_day_includes_spanning_task():
     assert view.day is not None
     assert view.day.key == "2026-06-11"
     assert len(view.day.items) == 1
+
+
+def test_build_calendar_year_has_twelve_month_summaries():
+    anchor = parse_anchor("2026-07-20")
+    view = build_calendar_view([_item()], view="year", anchor=anchor)
+    assert view.view == "year"
+    assert view.year == 2026
+    assert len(view.months) == 12
+    june = view.months[5]
+    assert june.month == 6
+    assert june.task_count == 1
+    assert sum(day.task_count for day in june.days) == 3
 
 
 def test_count_dashboard_health():

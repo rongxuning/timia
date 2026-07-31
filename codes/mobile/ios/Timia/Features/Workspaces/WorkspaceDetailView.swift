@@ -360,21 +360,23 @@ private struct WorkspaceProjectCardTile: View {
     }
 
     var body: some View {
+        let cardForeground = TimiaTheme.foreground(on: project.color)
+
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(project.name)
                     .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(cardForeground)
                     .lineLimit(2)
 
                 Text(projectDescription)
                     .font(.system(size: 13, weight: .regular, design: .rounded))
-                    .foregroundStyle(.black.opacity(0.78))
+                    .foregroundStyle(cardForeground.opacity(0.78))
                     .lineLimit(3)
             }
             .padding(14)
             .frame(width: width, height: 120, alignment: .topLeading)
-            .background(Color(hex: project.color))
+            .background(TimiaTheme.customSurface(project.color))
 
             Divider()
 
@@ -382,7 +384,7 @@ private struct WorkspaceProjectCardTile: View {
                 HStack(spacing: 4) {
                     Text("项目进度")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(.primary)
                     Spacer(minLength: 2)
                     Text("\(project.doneArchived)/\(total)（\(project.progressPercent)%）")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -400,10 +402,10 @@ private struct WorkspaceProjectCardTile: View {
             }
             .padding(10)
             .frame(width: width, height: 120, alignment: .topLeading)
-            .background(Color.white)
+            .background(TimiaTheme.card)
         }
         .frame(width: width, height: 240)
-        .background(Color.white)
+        .background(TimiaTheme.card)
         .clipShape(RoundedRectangle(cornerRadius: 15))
         .overlay {
             RoundedRectangle(cornerRadius: 15)

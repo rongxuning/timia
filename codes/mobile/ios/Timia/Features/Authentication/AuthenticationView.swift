@@ -1,10 +1,20 @@
 import SwiftUI
 
+private enum DevelopmentLogin {
+    #if DEBUG
+    static let email = "admin@gmail.com"
+    static let password = "admin1234"
+    #else
+    static let email = ""
+    static let password = ""
+    #endif
+}
+
 struct AuthenticationView: View {
     @State private var mode: Mode = .login
-    @State private var email = ""
+    @State private var email = DevelopmentLogin.email
     @State private var displayName = ""
-    @State private var password = ""
+    @State private var password = DevelopmentLogin.password
     @State private var confirmPassword = ""
     @State private var errorMessage: String?
     @State private var isSubmitting = false
@@ -41,7 +51,7 @@ struct AuthenticationView: View {
             VStack(spacing: 9) {
                 Text("Timia")
                     .font(.system(size: 42, weight: .black, design: .rounded))
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.primary)
 
                 VStack(spacing: 3) {
                     Text("合抱之木，生于毫末")
@@ -50,7 +60,7 @@ struct AuthenticationView: View {
                 }
                 .font(.caption.weight(.medium))
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.black.opacity(0.7))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.bottom, 3)
@@ -130,7 +140,7 @@ struct AuthenticationView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text(mode == .login ? "还没有账号？" : "已有账号？")
-                            .foregroundStyle(.black.opacity(0.65))
+                            .foregroundStyle(.secondary)
                         Text(mode == .login ? "注册" : "返回登录")
                             .fontWeight(.bold)
                             .foregroundStyle(authPurple)
@@ -145,16 +155,27 @@ struct AuthenticationView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
         .frame(maxWidth: 300)
-        .background(Color(uiColor: .systemBackground).opacity(0.94), in: RoundedRectangle(cornerRadius: 20))
-        .overlay { RoundedRectangle(cornerRadius: 20).stroke(.black, lineWidth: 4) }
-        .shadow(color: .black.opacity(0.22), radius: 16, y: 7)
+        .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 20))
+        .overlay { RoundedRectangle(cornerRadius: 20).stroke(.primary, lineWidth: 4) }
+        .shadow(color: TimiaTheme.shadow, radius: 16, y: 7)
     }
 
     private func switchMode() {
         withAnimation(.easeInOut(duration: 0.2)) {
-            mode = mode == .login ? .register : .login
+            let nextMode: Mode = mode == .login ? .register : .login
+            if nextMode == .register {
+                if email == DevelopmentLogin.email {
+                    email = ""
+                }
+                password = ""
+            } else {
+                if email.isEmpty {
+                    email = DevelopmentLogin.email
+                }
+                password = DevelopmentLogin.password
+            }
+            mode = nextMode
             errorMessage = nil
-            password = ""
             confirmPassword = ""
         }
     }
@@ -225,7 +246,7 @@ private struct FloatingAuthField: View {
 
             Text(title)
                 .font(.system(size: isLabelRaised ? 11 : 16, weight: .regular))
-                .foregroundStyle(isFocused ? tint : .black.opacity(0.52))
+                .foregroundStyle(isFocused ? tint : Color.secondary)
                 .offset(x: 14, y: isLabelRaised ? -13 : 0)
                 .allowsHitTesting(false)
 
@@ -233,20 +254,20 @@ private struct FloatingAuthField: View {
                 Spacer()
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(isFocused ? tint : .black.opacity(0.42))
+                    .foregroundStyle(isFocused ? tint : Color.secondary)
                     .padding(.trailing, 14)
             }
             .allowsHitTesting(false)
         }
         .frame(height: 50)
-        .background(.white, in: RoundedRectangle(cornerRadius: 11))
+        .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 11))
         .overlay {
             RoundedRectangle(cornerRadius: 11)
                 .stroke(isFocused ? tint.opacity(0.12) : .clear, lineWidth: 7)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 11)
-                .stroke(isFocused ? tint : .black.opacity(0.45), lineWidth: isFocused ? 1.5 : 1)
+                .stroke(isFocused ? tint : TimiaTheme.border, lineWidth: isFocused ? 1.5 : 1)
         }
         .animation(.easeInOut(duration: 0.2), value: isLabelRaised)
         .animation(.easeInOut(duration: 0.2), value: isFocused)

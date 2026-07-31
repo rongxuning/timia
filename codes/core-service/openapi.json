@@ -2738,7 +2738,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "pattern": "^(month|week|day)$",
+              "pattern": "^(year|month|week|day)$",
               "default": "month",
               "title": "View"
             }
@@ -2816,6 +2816,65 @@
         }
       }
     },
+    "/views/schedule/natural-language/parse": {
+      "post": {
+        "tags": [
+          "views-schedule"
+        ],
+        "summary": "Parse Schedule Natural Language",
+        "operationId": "parse_schedule_natural_language_views_schedule_natural_language_parse_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NaturalLanguageParseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NaturalLanguageParseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/views/schedule/swimlane": {
       "get": {
         "tags": [
@@ -2867,6 +2926,58 @@
                 }
               ],
               "title": "Project Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(todo|doing|done|archived)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "completed_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Completed Limit"
             }
           },
           {
@@ -3952,6 +4063,59 @@
           "in_month"
         ],
         "title": "CalendarDayOut"
+      },
+      "CalendarHeatDayOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "task_count": {
+            "type": "integer",
+            "title": "Task Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "task_count"
+        ],
+        "title": "CalendarHeatDayOut"
+      },
+      "CalendarMonthSummaryOut": {
+        "properties": {
+          "month": {
+            "type": "integer",
+            "title": "Month"
+          },
+          "task_count": {
+            "type": "integer",
+            "title": "Task Count"
+          },
+          "todo_count": {
+            "type": "integer",
+            "title": "Todo Count"
+          },
+          "done_count": {
+            "type": "integer",
+            "title": "Done Count"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarHeatDayOut"
+            },
+            "type": "array",
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "task_count",
+          "todo_count",
+          "done_count"
+        ],
+        "title": "CalendarMonthSummaryOut"
       },
       "CalendarSegmentOut": {
         "properties": {
@@ -5294,6 +5458,217 @@
         ],
         "title": "MyScheduleDashboardOut"
       },
+      "NaturalLanguageParseOut": {
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/NaturalLanguageTaskDraft"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assumptions"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Fields"
+          },
+          "ambiguities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ambiguities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "draft",
+          "confidence"
+        ],
+        "title": "NaturalLanguageParseOut"
+      },
+      "NaturalLanguageParseRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "reference_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reference Time"
+          },
+          "selected_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Selected Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "reference_time",
+          "selected_date"
+        ],
+        "title": "NaturalLanguageParseRequest"
+      },
+      "NaturalLanguageTaskDraft": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start At"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End At"
+          },
+          "all_day": {
+            "type": "boolean",
+            "title": "All Day",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done",
+              "archived"
+            ],
+            "title": "Status",
+            "default": "todo"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "title": "Priority",
+            "default": "1"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "workspace_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Name"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "assignee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Name"
+          },
+          "participant_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Participant Names"
+          },
+          "recurrence_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "NaturalLanguageTaskDraft"
+      },
       "ProjectBrief": {
         "properties": {
           "id": {
@@ -5894,6 +6269,7 @@
           "view": {
             "type": "string",
             "enum": [
+              "year",
               "month",
               "week",
               "day"
@@ -5915,12 +6291,30 @@
             ],
             "title": "Month"
           },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          },
           "weeks": {
             "items": {
               "$ref": "#/components/schemas/CalendarWeekOut"
             },
             "type": "array",
             "title": "Weeks"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarMonthSummaryOut"
+            },
+            "type": "array",
+            "title": "Months"
           },
           "day": {
             "anyOf": [
@@ -6015,11 +6409,27 @@
             },
             "type": "object",
             "title": "Columns"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Totals"
+          },
+          "has_more": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Has More"
           }
         },
         "type": "object",
         "required": [
-          "columns"
+          "columns",
+          "totals",
+          "has_more"
         ],
         "title": "ScheduleSwimlaneViewOut"
       },

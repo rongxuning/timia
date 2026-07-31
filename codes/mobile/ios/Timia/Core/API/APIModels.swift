@@ -95,16 +95,67 @@ struct CalendarDayDetail: Decodable, Sendable {
     let items: [ScheduleTask]
 }
 
+struct CalendarHeatDay: Decodable, Identifiable, Sendable {
+    let key: String
+    let taskCount: Int
+    var id: String { key }
+}
+
+struct CalendarMonthSummary: Decodable, Identifiable, Sendable {
+    let month: Int
+    let taskCount: Int
+    let todoCount: Int
+    let doneCount: Int
+    let days: [CalendarHeatDay]
+    var id: Int { month }
+}
+
 struct ScheduleCalendar: Decodable, Sendable {
     let view: String
     let anchor: String
     let month: String?
+    let year: Int?
     let weeks: [CalendarWeek]?
+    let months: [CalendarMonthSummary]?
     let day: CalendarDayDetail?
+}
+
+struct NaturalLanguageParsePayload: Encodable, Sendable {
+    let text: String
+    let timezone: String
+    let referenceTime: String
+    let selectedDate: String
+}
+
+struct NaturalLanguageTaskDraft: Codable, Sendable {
+    var title: String
+    var body: String?
+    var startAt: String?
+    var endAt: String?
+    var allDay: Bool
+    var status: String
+    var priority: String
+    var location: String?
+    var workspaceName: String?
+    var projectName: String?
+    var assigneeName: String?
+    var participantNames: [String]
+    var recurrenceText: String?
+}
+
+struct NaturalLanguageParseResponse: Decodable, Identifiable, Sendable {
+    let draft: NaturalLanguageTaskDraft
+    let confidence: Double
+    let assumptions: [String]
+    let missingFields: [String]
+    let ambiguities: [String]
+    var id: String { "\(draft.title)|\(draft.startAt ?? "")" }
 }
 
 struct ScheduleColumns: Decodable, Sendable {
     let columns: [String: [ScheduleTask]]
+    let totals: [String: Int]
+    let hasMore: [String: Bool]
 }
 
 struct ScheduleQuadrants: Decodable, Sendable {

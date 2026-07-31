@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -25,6 +25,7 @@
 		CA73C680278A8EF6FF5C6664 /* WorkspaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */; };
 		CBAA0C70FFD72E2A6316B660 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A8422E298A383A62006950 /* AppSession.swift */; };
 		CC2DDEA8032D997DE66FD327 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FD26119578B087A0E46AC5E /* APIClient.swift */; };
+		D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */; };
 		E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */; };
 		E550911D00F0C8E995B2B6D4 /* WorkspacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29102C072744826E8F5BF01C /* WorkspacesView.swift */; };
 		EBAF6BB8B5CB37F360A49DB2 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */; };
@@ -61,8 +62,9 @@
 		4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModelsTests.swift; sourceTree = "<group>"; };
 		4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDetailView.swift; sourceTree = "<group>"; };
 		6178EB25C6FCE14C5AA633CE /* TimiaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimiaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleHomeView.swift; sourceTree = "<group>"; };
 		7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditorView.swift; sourceTree = "<group>"; };
-		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79A8422E298A383A62006950 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDirectoryView.swift; sourceTree = "<group>"; };
 		86E0CD09843CADCDA60D838F /* TimiaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaTheme.swift; sourceTree = "<group>"; };
@@ -154,6 +156,7 @@
 		66F25BF3663196DC46717FC2 /* Schedule */ = {
 			isa = PBXGroup;
 			children = (
+				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
 				B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */,
 			);
 			path = Schedule;
@@ -321,6 +324,7 @@
 						TestTargetID = F7EBDEFB1EE636D5FF3B122D;
 					};
 					F7EBDEFB1EE636D5FF3B122D = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -335,6 +339,7 @@
 			);
 			mainGroup = 8E35241435C554F9A4DAA6A6;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -370,6 +375,7 @@
 				0F7C6FDD9A2E0F2C878933F1 /* MainTabView.swift in Sources */,
 				48B7B9EAE5EE1276084FA1FA /* MembersManagementView.swift in Sources */,
 				3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */,
+				D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */,
 				EBAF6BB8B5CB37F360A49DB2 /* ScheduleView.swift in Sources */,
 				E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */,
 				51D5DA889805C0A221723698 /* TimiaApp.swift in Sources */,
@@ -597,7 +603,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = Timia/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -634,7 +639,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = Timia/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

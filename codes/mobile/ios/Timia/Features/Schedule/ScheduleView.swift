@@ -3,12 +3,12 @@ import SwiftUI
 private enum ScheduleStyle {
     static let accent = TimiaTheme.primary
     static let accentDark = TimiaTheme.primary
-    static let canvas = Color(red: 246 / 255, green: 246 / 255, blue: 242 / 255)
-    static let card = Color(red: 253 / 255, green: 253 / 255, blue: 250 / 255)
-    static let ink = Color(red: 42 / 255, green: 53 / 255, blue: 49 / 255)
-    static let mutedInk = Color(red: 111 / 255, green: 124 / 255, blue: 119 / 255)
-    static let grid = Color(red: 198 / 255, green: 207 / 255, blue: 202 / 255)
-    static let shadow = Color(red: 58 / 255, green: 72 / 255, blue: 67 / 255).opacity(0.08)
+    static let canvas = TimiaTheme.canvas
+    static let card = TimiaTheme.surface
+    static let ink = Color.primary
+    static let mutedInk = Color.secondary
+    static let grid = TimiaTheme.border
+    static let shadow = TimiaTheme.shadow
 }
 
 private struct ScheduleTaskAppearance {
@@ -16,23 +16,35 @@ private struct ScheduleTaskAppearance {
     let foreground: Color
     let header: Color
 
-    init(task: ScheduleTask) {
-        let palette = Self.priorityPalette(task.priority)
+    init(task: ScheduleTask, colorScheme: ColorScheme) {
+        let palette = Self.priorityPalette(task.priority, colorScheme: colorScheme)
         background = palette.background
         foreground = palette.foreground
         header = Self.customColor(task.color) ?? palette.header
     }
 
-    private static func priorityPalette(_ priority: String?) -> (background: Color, foreground: Color, header: Color) {
+    private static func priorityPalette(
+        _ priority: String?,
+        colorScheme: ColorScheme
+    ) -> (background: Color, foreground: Color, header: Color) {
+        let isDark = colorScheme == .dark
         switch priority?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "2", "medium":
-            return (Color(hex: "#DCFCE7"), Color(hex: "#166534"), Color(hex: "#22C55E"))
+            return isDark
+                ? (Color(hex: "#123D26"), Color(hex: "#86EFAC"), Color(hex: "#22C55E"))
+                : (Color(hex: "#DCFCE7"), Color(hex: "#166534"), Color(hex: "#22C55E"))
         case "3", "high":
-            return (Color(hex: "#FFEDD5"), Color(hex: "#9A3412"), Color(hex: "#F97316"))
+            return isDark
+                ? (Color(hex: "#4A2510"), Color(hex: "#FDBA74"), Color(hex: "#F97316"))
+                : (Color(hex: "#FFEDD5"), Color(hex: "#9A3412"), Color(hex: "#F97316"))
         case "4", "urgent":
-            return (Color(hex: "#FEE2E2"), Color(hex: "#991B1B"), Color(hex: "#EF4444"))
+            return isDark
+                ? (Color(hex: "#4A1618"), Color(hex: "#FCA5A5"), Color(hex: "#EF4444"))
+                : (Color(hex: "#FEE2E2"), Color(hex: "#991B1B"), Color(hex: "#EF4444"))
         default:
-            return (Color(hex: "#DBEAFE"), Color(hex: "#1E40AF"), Color(hex: "#3B82F6"))
+            return isDark
+                ? (Color(hex: "#172554"), Color(hex: "#93C5FD"), Color(hex: "#3B82F6"))
+                : (Color(hex: "#DBEAFE"), Color(hex: "#1E40AF"), Color(hex: "#3B82F6"))
         }
     }
 
@@ -47,6 +59,8 @@ private struct ScheduleTaskAppearance {
 }
 
 private struct ScheduleTaskCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let task: ScheduleTask
     var fontSize: CGFloat
     var lineLimit: Int
@@ -54,7 +68,7 @@ private struct ScheduleTaskCard: View {
     var isMuted = false
 
     var body: some View {
-        let appearance = ScheduleTaskAppearance(task: task)
+        let appearance = ScheduleTaskAppearance(task: task, colorScheme: colorScheme)
 
         VStack(alignment: .leading, spacing: 0) {
             Rectangle()
@@ -99,6 +113,11 @@ private enum ScheduleTaskTiming {
     }
 }
 
+private struct ScheduleErrorTip: Identifiable, Equatable {
+    let id = UUID()
+    let message: String
+}
+
 struct ScheduleView: View {
     private enum CalendarMode {
         case day
@@ -114,7 +133,7 @@ struct ScheduleView: View {
     @State private var monthAnchor = Date()
     @State private var monthCalendar: ScheduleCalendar?
     @State private var isMonthLoading = false
-    @State private var errorMessage: String?
+    @State private var errorTip: ScheduleErrorTip?
     @State private var selectedTask: ScheduleTask?
     @State private var createSelection: CalendarCreateSelection?
 
@@ -127,19 +146,6 @@ struct ScheduleView: View {
                 .fill(ScheduleStyle.grid.opacity(0.55))
                 .frame(height: 0.5)
 
-            if let errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                    Text(errorMessage).lineLimit(2)
-                    Spacer()
-                }
-                .font(.system(.caption, design: .rounded, weight: .medium))
-                .foregroundStyle(.red)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.red.opacity(0.055))
-            }
-
             switch mode {
             case .day:
                 dayPager
@@ -148,6 +154,33 @@ struct ScheduleView: View {
             }
         }
         .background(ScheduleStyle.canvas.ignoresSafeArea())
+        .overlay {
+            if let errorTip {
+                HStack(spacing: 9) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Color.orange)
+
+                    Text(errorTip.message)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                }
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .foregroundStyle(Color.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .frame(maxWidth: 280)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                }
+                .shadow(color: Color.black.opacity(0.16), radius: 12, y: 5)
+                .transition(.scale(scale: 0.94).combined(with: .opacity))
+                .allowsHitTesting(false)
+                .accessibilityLabel("错误提示：\(errorTip.message)")
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: errorTip)
         .toolbar(.hidden, for: .navigationBar)
         .task(id: dayPage) {
             guard mode == .day else { return }
@@ -233,7 +266,7 @@ struct ScheduleView: View {
             onRefresh: { await reloadDayPage(dayPage) }
         )
         .onChange(of: dayPage) { _, newPage in
-            errorMessage = nil
+            errorTip = nil
             Task { await loadDayPage(newPage) }
         }
     }
@@ -275,7 +308,7 @@ struct ScheduleView: View {
 
     private func setMode(_ newMode: CalendarMode) {
         guard mode != newMode else { return }
-        errorMessage = nil
+        errorTip = nil
         switch newMode {
         case .month:
             monthAnchor = dayPageStart(dayPage)
@@ -297,7 +330,7 @@ struct ScheduleView: View {
         guard !isMonthLoading else { return }
         monthAnchor = Calendar.current.date(byAdding: .month, value: direction, to: monthAnchor)
             ?? monthAnchor
-        errorMessage = nil
+        errorTip = nil
         Task { await loadMonth(force: true) }
     }
 
@@ -341,9 +374,9 @@ struct ScheduleView: View {
             for result in results {
                 dayTasks[result.key] = result.tasks
             }
-            errorMessage = nil
+            errorTip = nil
         } catch {
-            errorMessage = error.localizedDescription
+            showErrorTip(error.localizedDescription)
         }
     }
 
@@ -370,9 +403,24 @@ struct ScheduleView: View {
                 ],
                 response: ScheduleCalendar.self
             )
-            errorMessage = nil
+            errorTip = nil
         } catch {
-            errorMessage = error.localizedDescription
+            showErrorTip(error.localizedDescription)
+        }
+    }
+
+    private func showErrorTip(_ message: String) {
+        let tip = ScheduleErrorTip(message: message)
+        withAnimation(.easeOut(duration: 0.2)) {
+            errorTip = tip
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            guard errorTip?.id == tip.id else { return }
+            withAnimation(.easeIn(duration: 0.2)) {
+                errorTip = nil
+            }
         }
     }
 
@@ -401,6 +449,7 @@ private enum TimelineMetrics {
     static let hourHeight: CGFloat = 58
     static let axisWidth: CGFloat = 44
     static let dateHeaderHeight: CGFloat = 30
+    static let weekdayHeaderHeight: CGFloat = 24
     static let allDayMinimumHeight: CGFloat = 38
     static let allDayTaskHeight: CGFloat = 26
     static let allDayTaskSpacing: CGFloat = 3
@@ -418,47 +467,41 @@ private struct FixedAxisTimelinePager: View {
     let onRefresh: () async -> Void
 
     var body: some View {
-        ScrollView(.vertical) {
-            HStack(alignment: .top, spacing: 0) {
-                VStack(spacing: 0) {
-                    ScheduleStyle.card
-                        .frame(width: TimelineMetrics.axisWidth, height: TimelineMetrics.dateHeaderHeight)
-                        .overlay(alignment: .bottom) {
-                            Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
-                        }
-                    Text("全天")
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(ScheduleStyle.mutedInk)
-                        .padding(.top, 8)
-                        .frame(width: TimelineMetrics.axisWidth, height: allDayHeight, alignment: .topTrailing)
-                        .background(ScheduleStyle.canvas)
-                        .overlay(alignment: .trailing) {
-                            Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(width: 0.5)
-                        }
-                        .overlay(alignment: .bottom) {
-                            Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
-                        }
-                    TimelineHourAxis()
-                }
+        let selectedAllDayHeight = allDayHeight(for: selection)
 
-                TabView(selection: $selection) {
-                    ForEach(pageRange, id: \.self) { page in
-                        FiveDayTimelinePage(
-                            startDate: pageStart(page),
-                            tasksByDay: tasksByDay,
-                            allDayHeight: allDayHeight,
-                            onTask: onTask,
-                            onCreateTime: onCreateTime
-                        )
-                        .tag(page)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: TimelineMetrics.dateHeaderHeight + allDayHeight + TimelineMetrics.totalHeight)
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
+                TimelineDateHeaderAxis()
+
+                FiveDayDateHeader(startDate: pageStart(selection))
             }
+            .background(ScheduleStyle.card)
+            .zIndex(1)
+
+            ScrollView(.vertical) {
+                HStack(alignment: .top, spacing: 0) {
+                    TimelineScrollableAxis(allDayHeight: selectedAllDayHeight)
+
+                    TabView(selection: $selection) {
+                        ForEach(pageRange, id: \.self) { page in
+                            FiveDayScrollableContent(
+                                startDate: pageStart(page),
+                                tasksByDay: tasksByDay,
+                                allDayHeight: selectedAllDayHeight,
+                                onTask: onTask,
+                                onCreateTime: onCreateTime
+                            )
+                            .tag(page)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: selectedAllDayHeight + TimelineMetrics.totalHeight)
+                }
+            }
+            .scrollIndicators(.visible)
+            .scrollBounceBehavior(.basedOnSize)
+            .refreshable { await onRefresh() }
         }
-        .scrollIndicators(.visible)
-        .refreshable { await onRefresh() }
         .overlay {
             if loadingPages.contains(selection) {
                 ProgressView()
@@ -466,6 +509,7 @@ private struct FixedAxisTimelinePager: View {
                     .padding(10)
                     .background(.regularMaterial, in: Circle())
                     .shadow(color: ScheduleStyle.shadow, radius: 8, y: 3)
+                    .allowsHitTesting(false)
             }
         }
         .background(ScheduleStyle.card)
@@ -475,9 +519,9 @@ private struct FixedAxisTimelinePager: View {
         Calendar.current.date(byAdding: .day, value: page * 5, to: baseDate) ?? baseDate
     }
 
-    private var allDayHeight: CGFloat {
+    private func allDayHeight(for page: Int) -> CGFloat {
         let dates = (0..<5).compactMap {
-            Calendar.current.date(byAdding: .day, value: $0, to: pageStart(selection))
+            Calendar.current.date(byAdding: .day, value: $0, to: pageStart(page))
         }
         let maximumCount = dates.map { date in
             (tasksByDay[ScheduleDate.key(date)] ?? [])
@@ -496,12 +540,47 @@ private struct FixedAxisTimelinePager: View {
     }
 }
 
-private struct FiveDayTimelinePage: View {
-    let startDate: Date
-    let tasksByDay: [String: [ScheduleTask]]
+private struct TimelineDateHeaderAxis: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            ScheduleStyle.card
+                .frame(width: TimelineMetrics.axisWidth, height: TimelineMetrics.dateHeaderHeight)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
+                }
+            ScheduleStyle.card
+                .frame(width: TimelineMetrics.axisWidth, height: TimelineMetrics.weekdayHeaderHeight)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
+                }
+        }
+    }
+}
+
+private struct TimelineScrollableAxis: View {
     let allDayHeight: CGFloat
-    let onTask: (ScheduleTask) -> Void
-    let onCreateTime: (Date) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("全天")
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundStyle(ScheduleStyle.mutedInk)
+                .padding(.top, 8)
+                .frame(width: TimelineMetrics.axisWidth, height: allDayHeight, alignment: .topTrailing)
+                .background(ScheduleStyle.canvas)
+                .overlay(alignment: .trailing) {
+                    Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(width: 0.5)
+                }
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
+                }
+            TimelineHourAxis()
+        }
+    }
+}
+
+private struct FiveDayDateHeader: View {
+    let startDate: Date
 
     private var dates: [Date] {
         (0..<5).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: startDate) }
@@ -527,6 +606,40 @@ private struct FiveDayTimelinePage: View {
                 Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
             }
 
+            HStack(spacing: 0) {
+                ForEach(dates, id: \.self) { date in
+                    Text(ScheduleDate.weekdayLabel(date))
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(
+                            Calendar.current.isDateInToday(date)
+                                ? ScheduleStyle.accentDark
+                                : ScheduleStyle.mutedInk
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: TimelineMetrics.weekdayHeaderHeight)
+                        .background(ScheduleStyle.accent.opacity(0.08))
+                }
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(ScheduleStyle.grid.opacity(0.55)).frame(height: 0.5)
+            }
+        }
+    }
+}
+
+private struct FiveDayScrollableContent: View {
+    let startDate: Date
+    let tasksByDay: [String: [ScheduleTask]]
+    let allDayHeight: CGFloat
+    let onTask: (ScheduleTask) -> Void
+    let onCreateTime: (Date) -> Void
+
+    private var dates: [Date] {
+        (0..<5).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: startDate) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 0) {
                 ForEach(dates, id: \.self) { date in
                     AllDayTaskColumn(
@@ -878,6 +991,14 @@ private enum ScheduleDate {
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "dd日"
+        return formatter.string(from: date)
+    }
+
+    static func weekdayLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "EEEE"
         return formatter.string(from: date)
     }
 
