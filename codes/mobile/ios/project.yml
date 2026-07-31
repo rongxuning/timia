@@ -1,0 +1,59 @@
+name: Timia
+options:
+  bundleIdPrefix: online.timia
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+targets:
+  Timia:
+    type: application
+    platform: iOS
+    sources:
+      - path: Timia
+        excludes:
+          - Resources/Assets.xcassets
+      - path: Timia/Resources/Assets.xcassets
+        buildPhase: resources
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release: Config/Release.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.timia.ios
+        PRODUCT_NAME: Timia
+        INFOPLIST_FILE: Timia/Resources/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1,2"
+    scheme:
+      testTargets:
+        - TimiaTests
+        - TimiaUITests
+  TimiaTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TimiaTests
+    dependencies:
+      - target: Timia
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.timia.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
+  TimiaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: TimiaUITests
+    dependencies:
+      - target: Timia
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.timia.ios.uitests
+        GENERATE_INFOPLIST_FILE: YES

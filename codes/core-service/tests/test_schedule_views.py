@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app.schemas.views.schedule import ScheduleTaskItemOut
 from app.services.views.schedule_items import _count_dashboard, _count_quick_view, parse_anchor
 from app.services.views.schedule_layout import build_calendar_view, build_priority_view, build_swimlane_view
@@ -34,6 +36,33 @@ def test_build_swimlane_groups_by_status():
     view = build_swimlane_view(items)
     assert len(view.columns["todo"]) == 1
     assert len(view.columns["doing"]) == 1
+    assert view.totals["todo"] == 1
+
+
+def test_build_swimlane_collapses_and_pages_completed_tasks():
+    items = [
+        _item(
+            id=f"done-{index}",
+            status="done",
+            completed_at=datetime(2026, 6, index + 1, tzinfo=timezone.utc),
+        )
+        for index in range(18)
+    ]
+
+    initial = build_swimlane_view(items)
+    assert len(initial.columns["done"]) == 5
+    assert initial.totals["done"] == 18
+    assert initial.has_more["done"] is True
+    assert initial.columns["done"][0].id == "done-17"
+
+    next_page = build_swimlane_view(items, task_status="done", offset=5, limit=10)
+    assert len(next_page.columns["done"]) == 10
+    assert next_page.columns["done"][0].id == "done-12"
+    assert next_page.has_more["done"] is True
+
+    last_page = build_swimlane_view(items, task_status="done", offset=15, limit=10)
+    assert len(last_page.columns["done"]) == 3
+    assert last_page.has_more["done"] is False
 
 
 def test_build_priority_only_active_statuses():
@@ -70,6 +99,125 @@ def test_build_calendar_day_includes_spanning_task():
     assert view.day is not None
     assert view.day.key == "2026-06-11"
     assert len(view.day.items) == 1
+
+
+def test_build_calendar_year_has_twelve_month_summaries():
+    anchor = parse_anchor("2026-07-20")
+    view = build_calendar_view([_item()], view="year", anchor=anchor)
+    assert view.view == "year"
+    assert view.year == 2026
+    assert len(view.months) == 12
+    june = view.months[5]
+    assert june.month == 6
+    assert june.task_count == 1
+    assert sum(day.task_count for day in june.days) == 4
+
+
+def test_build_calendar_groups_utc_instant_by_requested_timezone():
+    item = _item(
+        id="timezone-boundary",
+        start_at=datetime(2026, 7, 26, 18, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 7, 26, 19, 0, tzinfo=timezone.utc),
+    )
+
+    utc_day = build_calendar_view(
+        [item],
+        view="day",
+        anchor=parse_anchor("2026-07-26"),
+        timezone_name="Asia/Shanghai",
+    )
+    local_day = build_calendar_view(
+        [item],
+        view="day",
+        anchor=parse_anchor("2026-07-27"),
+        timezone_name="Asia/Shanghai",
+    )
+    week = build_calendar_view(
+        [item],
+        view="week",
+        anchor=parse_anchor("2026-07-27"),
+        timezone_name="Asia/Shanghai",
+    )
+
+    assert utc_day.day is not None
+    assert utc_day.day.items == []
+    assert local_day.day is not None
+    assert [row.id for row in local_day.day.items] == ["timezone-boundary"]
+    assert len(week.weeks[0].segments) == 1
+    assert week.weeks[0].segments[0].col_start == 2
+
+
+def test_build_calendar_treats_end_at_exact_midnight_as_exclusive():
+    item = _item(
+        id="midnight-exclusive",
+        start_at=datetime(2026, 7, 26, 16, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 7, 27, 16, 0, tzinfo=timezone.utc),
+    )
+
+    first_day = build_calendar_view(
+        [item],
+        view="day",
+        anchor=parse_anchor("2026-07-27"),
+        timezone_name="Asia/Shanghai",
+    )
+    exclusive_end_day = build_calendar_view(
+        [item],
+        view="day",
+        anchor=parse_anchor("2026-07-28"),
+        timezone_name="Asia/Shanghai",
+    )
+
+    assert first_day.day is not None
+    assert [row.id for row in first_day.day.items] == ["midnight-exclusive"]
+    assert exclusive_end_day.day is not None
+    assert exclusive_end_day.day.items == []
+
+
+def test_build_calendar_includes_both_local_days_when_task_crosses_midnight():
+    item = _item(
+        id="cross-midnight",
+        start_at=datetime(2026, 7, 27, 15, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 7, 27, 17, 0, tzinfo=timezone.utc),
+    )
+
+    week = build_calendar_view(
+        [item],
+        view="week",
+        anchor=parse_anchor("2026-07-27"),
+        timezone_name="Asia/Shanghai",
+    )
+
+    assert len(week.weeks[0].segments) == 1
+    assert week.weeks[0].segments[0].col_start == 2
+    assert week.weeks[0].segments[0].col_span == 2
+
+
+def test_build_calendar_treats_naive_datetimes_as_utc():
+    item = _item(
+        id="naive-utc",
+        start_at=datetime(2026, 7, 26, 18, 0),
+        end_at=datetime(2026, 7, 26, 19, 0),
+    )
+
+    view = build_calendar_view(
+        [item],
+        view="day",
+        anchor=parse_anchor("2026-07-27"),
+        timezone_name="Asia/Shanghai",
+    )
+
+    assert view.day is not None
+    assert [row.id for row in view.day.items] == ["naive-utc"]
+
+
+def test_build_calendar_rejects_invalid_timezone():
+    with pytest.raises(ValueError, match="invalid timezone"):
+        build_calendar_view(
+            [_item()],
+            view="day",
+            anchor=parse_anchor("2026-06-11"),
+            timezone_name="Mars/Olympus_Mons",
+        )
 
 
 def test_count_dashboard_health():

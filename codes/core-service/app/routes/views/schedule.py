@@ -9,9 +9,16 @@ from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.views.schedule import (
     MyScheduleDashboardOut,
+    NaturalLanguageParseOut,
+    NaturalLanguageParseRequest,
     ScheduleCalendarViewOut,
     SchedulePriorityViewOut,
     ScheduleSwimlaneViewOut,
+)
+from app.services.natural_language_schedule import (
+    NaturalLanguageConfigurationError,
+    NaturalLanguageProviderError,
+    parse_natural_language_task,
 )
 from app.services.views.schedule_items import (
     ScheduleScope,
@@ -22,6 +29,7 @@ from app.services.views.schedule_items import (
     parse_month,
 )
 from app.services.views.schedule_layout import (
+    DEFAULT_CALENDAR_TIMEZONE,
     build_calendar_view,
     build_priority_view,
     build_swimlane_view,
@@ -52,9 +60,15 @@ def schedule_calendar_view(
     scope: str = Query("me", pattern="^(me|project)$"),
     workspace_id: uuid.UUID | None = None,
     project_id: uuid.UUID | None = None,
-    view: str = Query("month", pattern="^(month|week|day)$"),
+    view: str = Query("month", pattern="^(year|month|week|day)$"),
     anchor: str | None = None,
     month: str | None = None,
+    timezone_name: str = Query(
+        DEFAULT_CALENDAR_TIMEZONE,
+        alias="timezone",
+        min_length=1,
+        max_length=100,
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -79,7 +93,34 @@ def schedule_calendar_view(
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    return build_calendar_view(items, view=view, anchor=anchor_date)
+    try:
+        return build_calendar_view(
+            items,
+            view=view,
+            anchor=anchor_date,
+            timezone_name=timezone_name,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.post("/natural-language/parse", response_model=NaturalLanguageParseOut)
+def parse_schedule_natural_language(
+    payload: NaturalLanguageParseRequest,
+    _: User = Depends(get_current_user),
+):
+    try:
+        return parse_natural_language_task(payload)
+    except NaturalLanguageConfigurationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(error),
+        ) from error
+    except NaturalLanguageProviderError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(error),
+        ) from error
 
 
 @router.get("/swimlane", response_model=ScheduleSwimlaneViewOut)
@@ -87,12 +128,22 @@ def schedule_swimlane_view(
     scope: str = Query("me", pattern="^(me|project)$"),
     workspace_id: uuid.UUID | None = None,
     project_id: uuid.UUID | None = None,
+    task_status: str | None = Query(None, alias="status", pattern="^(todo|doing|done|archived)$"),
+    limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+    completed_limit: int = Query(5, ge=1, le=20),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     resolved = _resolve_scope(scope, workspace_id, project_id)
     items = list_schedule_items(db, user, resolved)
-    return build_swimlane_view(items)
+    return build_swimlane_view(
+        items,
+        task_status=task_status,
+        limit=limit,
+        offset=offset,
+        completed_limit=completed_limit,
+    )
 
 
 @router.get("/priority", response_model=SchedulePriorityViewOut)

@@ -3361,6 +3361,7 @@ export interface operations {
                 view?: string;
                 anchor?: string | null;
                 month?: string | null;
+                timezone?: string;
             };
             header?: {
                 authorization?: string | null;

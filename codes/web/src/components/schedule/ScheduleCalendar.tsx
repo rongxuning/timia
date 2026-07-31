@@ -62,7 +62,7 @@ export function ScheduleCalendar({
     !calendar || calendar.view !== calendarMode || calendar.anchor !== formatDateAnchor(calendarAnchor);
 
   return (
-    <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
+    <section className="bg-white rounded-xl border border-border-subtle overflow-clip mb-lg">
       <div className="flex flex-col gap-3 p-lg sm:flex-row sm:items-center sm:justify-between">
         <div className="text-lg font-bold text-text-primary">
           {calendarTitle(calendarAnchor, calendarMode)}

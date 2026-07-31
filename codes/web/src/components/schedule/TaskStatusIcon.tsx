@@ -4,31 +4,31 @@ import type { StatusKey } from "@/types/api/views/schedule";
 
 export const TASK_STATUS_ICON: Record<
   StatusKey,
-  { icon: string; label: string; colorClass: string; completeOnClick: boolean }
+  { icon: string; label: string; colorClass: string; toggleCompletionOnClick: boolean }
 > = {
   todo: {
     icon: "radio_button_unchecked",
     label: "未开始",
     colorClass: "text-zinc-400 hover:text-zinc-600",
-    completeOnClick: true,
+    toggleCompletionOnClick: true,
   },
   doing: {
     icon: "timelapse",
     label: "进行中",
     colorClass: "text-indigo-600 hover:text-indigo-700",
-    completeOnClick: true,
+    toggleCompletionOnClick: true,
   },
   done: {
     icon: "check_circle",
     label: "已完成",
     colorClass: "text-success",
-    completeOnClick: false,
+    toggleCompletionOnClick: true,
   },
   archived: {
     icon: "inventory_2",
     label: "已归档",
     colorClass: "text-zinc-400",
-    completeOnClick: false,
+    toggleCompletionOnClick: false,
   },
 };
 
@@ -54,11 +54,12 @@ export function TaskStatusIcon({
 }: TaskStatusIconProps) {
   const key = normalizeStatusKey(status);
   const cfg = TASK_STATUS_ICON[key];
-  const canComplete = cfg.completeOnClick && !!onComplete;
+  const canToggleCompletion = cfg.toggleCompletionOnClick && !!onComplete;
+  const toggleActionLabel = key === "done" ? "标记为未完成" : "标记为已完成";
   const boxClass = size === "compact" ? "h-4 w-4" : "h-5 w-5";
   const iconClass = size === "compact" ? "text-[14px]" : "text-[18px]";
 
-  if (!canComplete) {
+  if (!canToggleCompletion) {
     return (
       <span
         className={`inline-flex ${boxClass} shrink-0 items-center justify-center ${cfg.colorClass}`}
@@ -81,8 +82,8 @@ export function TaskStatusIcon({
         loading ? "opacity-50 cursor-wait pointer-events-none" : "cursor-pointer",
         cfg.colorClass,
       ].join(" ")}
-      title={`${cfg.label} · 点击标记为已完成`}
-      aria-label={`${cfg.label}，点击标记为已完成`}
+      title={`${cfg.label} · 点击${toggleActionLabel}`}
+      aria-label={`${cfg.label}，点击${toggleActionLabel}`}
       onClick={(e) => {
         e.stopPropagation();
         if (loading) return;

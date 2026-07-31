@@ -90,6 +90,61 @@ type RawBlock = {
   endLabel: string;
 };
 
+function placeOverlapGroup(group: RawBlock[]): DayTimelineBlock[] {
+  const lanes: Array<Array<{ startMin: number; endMin: number }>> = [];
+  const placed: DayTimelineBlock[] = [];
+
+  for (const block of group) {
+    let laneIdx = 0;
+    while (true) {
+      const lane = lanes[laneIdx] ?? [];
+      const conflict = lane.some(
+        (x) => !(block.endMin <= x.startMin || block.startMin >= x.endMin),
+      );
+      if (!conflict) {
+        if (!lanes[laneIdx]) lanes[laneIdx] = [];
+        lanes[laneIdx].push({ startMin: block.startMin, endMin: block.endMin });
+        placed.push({
+          item: block.item,
+          lane: laneIdx,
+          laneCount: 1,
+          topPx: block.topPx,
+          heightPx: block.heightPx,
+          crossesDay: block.crossesDay,
+          startLabel: block.startLabel,
+          endLabel: block.endLabel,
+        });
+        break;
+      }
+      laneIdx += 1;
+    }
+  }
+
+  const laneCount = Math.max(1, lanes.length);
+  return placed.map((block) => ({ ...block, laneCount }));
+}
+
+function splitIntoOverlapGroups(blocks: RawBlock[]): RawBlock[][] {
+  const groups: RawBlock[][] = [];
+  let currentGroup: RawBlock[] = [];
+  let currentGroupEndMin = -Infinity;
+
+  for (const block of blocks) {
+    // Intervals that only touch at the boundary do not overlap, so they start
+    // separate groups and can each use the full available width.
+    if (currentGroup.length > 0 && block.startMin >= currentGroupEndMin) {
+      groups.push(currentGroup);
+      currentGroup = [];
+      currentGroupEndMin = -Infinity;
+    }
+    currentGroup.push(block);
+    currentGroupEndMin = Math.max(currentGroupEndMin, block.endMin);
+  }
+
+  if (currentGroup.length > 0) groups.push(currentGroup);
+  return groups;
+}
+
 export function layoutDayTimeline(items: ScheduleTaskItem[], anchorKey: string): DayTimelineBlock[] {
   const { startMs: dayStart, endMs: dayEnd } = dayBounds(anchorKey);
   const raw: RawBlock[] = [];
@@ -123,35 +178,5 @@ export function layoutDayTimeline(items: ScheduleTaskItem[], anchorKey: string):
   }
 
   raw.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
-
-  const lanes: Array<Array<{ startMin: number; endMin: number }>> = [];
-  const placed: DayTimelineBlock[] = [];
-
-  for (const block of raw) {
-    let laneIdx = 0;
-    while (true) {
-      const lane = lanes[laneIdx] ?? [];
-      const conflict = lane.some((x) => !(block.endMin <= x.startMin || block.startMin >= x.endMin));
-      if (!conflict) {
-        if (!lanes[laneIdx]) lanes[laneIdx] = [];
-        lanes[laneIdx].push({ startMin: block.startMin, endMin: block.endMin });
-        placed.push({
-          item: block.item,
-          lane: laneIdx,
-          laneCount: 1,
-          topPx: block.topPx,
-          heightPx: block.heightPx,
-          crossesDay: block.crossesDay,
-          startLabel: block.startLabel,
-          endLabel: block.endLabel,
-        });
-        break;
-      }
-      laneIdx += 1;
-    }
-  }
-
-  const maxLane = placed.reduce((m, b) => Math.max(m, b.lane), 0);
-  const laneCount = maxLane + 1;
-  return placed.map((b) => ({ ...b, laneCount }));
+  return splitIntoOverlapGroups(raw).flatMap(placeOverlapGroup);
 }
