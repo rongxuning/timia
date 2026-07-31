@@ -12,7 +12,7 @@ import { ProjectModal, type ProjectModalSuccessMeta } from "@/components/Project
 import { fetchProjectDashboard } from "@/lib/api/project-views";
 import { getToken } from "@/lib/auth";
 import type { ProjectDashboardView } from "@/types/api/views/project";
-import type { ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
+import type { PriorityKey, ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
 import { localDatetimeRangeFromDateKey } from "@/components/schedule/taskUtils";
 
 export default function ProjectPage() {
@@ -25,6 +25,7 @@ export default function ProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [scheduleRefreshNonce, setScheduleRefreshNonce] = useState(0);
   const [createInitialStatus, setCreateInitialStatus] = useState<StatusKey>("todo");
+  const [createInitialPriority, setCreateInitialPriority] = useState<PriorityKey>("1");
   const [createInitialStartAt, setCreateInitialStartAt] = useState("");
   const [createInitialEndAt, setCreateInitialEndAt] = useState("");
   const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
@@ -63,10 +64,16 @@ export default function ProjectPage() {
     reloadDashboard().catch(() => undefined);
   }, [scheduleRefreshNonce, token, reloadDashboard]);
 
-  function openTaskCreate(status: StatusKey = "todo", dateKey?: string, hour?: number) {
+  function openTaskCreate(
+    status: StatusKey = "todo",
+    dateKey?: string,
+    hour?: number,
+    priority: PriorityKey = "1",
+  ) {
     setTaskDrawerOpen(false);
     setTaskDrawerItemId(null);
     setCreateInitialStatus(status);
+    setCreateInitialPriority(priority);
     if (dateKey) {
       const range = localDatetimeRangeFromDateKey(dateKey, hour);
       setCreateInitialStartAt(range.start);
@@ -80,6 +87,10 @@ export default function ProjectPage() {
 
   function openTaskCreateOnDate(dateKey: string, hour?: number) {
     openTaskCreate("todo", dateKey, hour);
+  }
+
+  function openTaskCreateInPriority(priority: PriorityKey) {
+    openTaskCreate("todo", undefined, undefined, priority);
   }
 
   function openDrawer(it: ScheduleTaskItem) {
@@ -147,6 +158,7 @@ export default function ProjectPage() {
             refreshNonce={scheduleRefreshNonce}
             onItemClick={openDrawer}
             onCreateInColumn={openTaskCreate}
+            onCreateInPriority={openTaskCreateInPriority}
             onCreateOnDate={openTaskCreateOnDate}
             calendarFirst
             simplifiedSectionHeaders
@@ -201,6 +213,7 @@ export default function ProjectPage() {
         token={token}
         variant="create"
         initialCreateStatus={createInitialStatus}
+        initialCreatePriority={createInitialPriority}
         initialCreateStartAt={createInitialStartAt}
         initialCreateEndAt={createInitialEndAt}
         onTaskCreated={handleTaskCreated}

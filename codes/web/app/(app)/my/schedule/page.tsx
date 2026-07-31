@@ -9,7 +9,12 @@ import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
 import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
 import { fetchMyScheduleDashboard } from "@/lib/api/schedule-views";
 import { getToken } from "@/lib/auth";
-import type { MyScheduleDashboardView, ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
+import type {
+  MyScheduleDashboardView,
+  PriorityKey,
+  ScheduleTaskItem,
+  StatusKey,
+} from "@/types/api/views/schedule";
 import { localDatetimeRangeFromDateKey } from "@/components/schedule/taskUtils";
 
 export default function MySchedulePage() {
@@ -40,17 +45,24 @@ export default function MySchedulePage() {
   const [taskDrawerVersion, setTaskDrawerVersion] = useState(0);
   const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
   const [createInitialStatus, setCreateInitialStatus] = useState<StatusKey>("todo");
+  const [createInitialPriority, setCreateInitialPriority] = useState<PriorityKey>("1");
   const [createInitialStartAt, setCreateInitialStartAt] = useState("");
   const [createInitialEndAt, setCreateInitialEndAt] = useState("");
 
   if (!authReady || !token) return null;
 
-  function openTaskCreate(status: StatusKey = "todo", dateKey?: string, hour?: number) {
+  function openTaskCreate(
+    status: StatusKey = "todo",
+    dateKey?: string,
+    hour?: number,
+    priority: PriorityKey = "1",
+  ) {
     setTaskDrawerOpen(false);
     setTaskDrawerItemId(null);
     setTaskDrawerWorkspaceId("");
     setTaskDrawerProjectId("");
     setCreateInitialStatus(status);
+    setCreateInitialPriority(priority);
     if (dateKey) {
       const range = localDatetimeRangeFromDateKey(dateKey, hour);
       setCreateInitialStartAt(range.start);
@@ -64,6 +76,10 @@ export default function MySchedulePage() {
 
   function openTaskCreateOnDate(dateKey: string, hour?: number) {
     openTaskCreate("todo", dateKey, hour);
+  }
+
+  function openTaskCreateInPriority(priority: PriorityKey) {
+    openTaskCreate("todo", undefined, undefined, priority);
   }
 
   function openDrawer(it: ScheduleTaskItem) {
@@ -110,6 +126,7 @@ export default function MySchedulePage() {
             showAssigneeAvatar
             refreshNonce={scheduleRefreshNonce}
             onItemClick={openDrawer}
+            onCreateInPriority={openTaskCreateInPriority}
             onCreateOnDate={openTaskCreateOnDate}
             calendarFirst
             simplifiedSectionHeaders
@@ -140,6 +157,7 @@ export default function MySchedulePage() {
         token={token}
         variant="create"
         initialCreateStatus={createInitialStatus}
+        initialCreatePriority={createInitialPriority}
         initialCreateStartAt={createInitialStartAt}
         initialCreateEndAt={createInitialEndAt}
         onTaskCreated={handleTaskCreated}

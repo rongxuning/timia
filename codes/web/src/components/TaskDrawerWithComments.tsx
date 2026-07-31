@@ -181,6 +181,8 @@ type Props = {
   syncVersion?: number;
   /** 新建任务时表单的初始状态（例如看板列「添加」） */
   initialCreateStatus?: string;
+  /** 新建任务时表单的初始优先级（例如优先级象限空白区域） */
+  initialCreatePriority?: string;
   /** 新建任务时预填的开始/结束时间（datetime-local 格式） */
   initialCreateStartAt?: string;
   initialCreateEndAt?: string;
@@ -201,6 +203,7 @@ export function TaskDrawerWithComments({
   onTaskDeleted,
   syncVersion = 0,
   initialCreateStatus,
+  initialCreatePriority,
   initialCreateStartAt,
   initialCreateEndAt,
 }: Props) {
@@ -509,7 +512,7 @@ export function TaskDrawerWithComments({
     setEditBody("");
     setEditColor("#FFFFFF");
     setEditStatus(initialCreateStatus ?? "todo");
-    setEditPriority("1");
+    setEditPriority(normalizePriority(initialCreatePriority));
     setEditStartAt(initialCreateStartAt ?? "");
     setEditEndAt(initialCreateEndAt ?? "");
     setEditCompletedAt(
@@ -526,7 +529,14 @@ export function TaskDrawerWithComments({
     setParticipantStagingIds([]);
     setAssigneePanelOpen(false);
     setParticipantPanelOpen(false);
-  }, [open, variant, initialCreateStatus, initialCreateStartAt, initialCreateEndAt]);
+  }, [
+    open,
+    variant,
+    initialCreateStatus,
+    initialCreatePriority,
+    initialCreateStartAt,
+    initialCreateEndAt,
+  ]);
 
   useEffect(() => {
     if (!open || variant !== "edit" || !itemId || !token) {

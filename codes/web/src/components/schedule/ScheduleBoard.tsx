@@ -21,6 +21,7 @@ export type ScheduleBoardProps = {
   showAssigneeAvatar?: boolean;
   onItemClick: (it: ScheduleTaskItem) => void;
   onCreateInColumn?: (status: StatusKey) => void;
+  onCreateInPriority?: (priority: PriorityKey) => void;
   onCreateOnDate?: (dateKey: string, hour?: number) => void;
   /** 变更后递增以触发视图刷新（如任务创建/编辑） */
   refreshNonce?: number;
@@ -68,6 +69,7 @@ export function ScheduleBoard({
   showAssigneeAvatar = false,
   onItemClick,
   onCreateInColumn,
+  onCreateInPriority,
   onCreateOnDate,
   refreshNonce = 0,
   calendarFirst = false,
@@ -190,6 +192,7 @@ export function ScheduleBoard({
         onDragLeavePriorityZone={(p) => setDragOverPriority((cur) => (cur === p ? null : cur))}
         onItemClick={onItemClick}
         onDropPriority={updateTaskPriority}
+        onCreateInPriority={onCreateInPriority}
         onCompleteTask={completeTask}
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}

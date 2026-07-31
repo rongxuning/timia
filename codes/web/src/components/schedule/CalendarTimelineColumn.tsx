@@ -46,10 +46,6 @@ export function CalendarTimelineColumn({
     if (!onDateBlankClick) return;
     if ((e.target as HTMLElement).closest("button")) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    if (isGridSlot) {
-      const x = e.clientX - rect.left;
-      if (x > (rect.width * gridColWidthPct) / 100) return;
-    }
     const y = e.clientY - rect.top;
     const hour = Math.min(23, Math.max(0, Math.floor(y / DAY_TIMELINE_HOUR_HEIGHT_PX)));
     onDateBlankClick(dayKey, hour);
@@ -63,28 +59,28 @@ export function CalendarTimelineColumn({
       className={[
         "relative min-w-0",
         bordered && !isGridSlot ? "border-r border-border-subtle last:border-r-0" : "",
-        onDateBlankClick && !isGridSlot ? "cursor-pointer" : "",
+        onDateBlankClick ? "cursor-pointer" : "",
         isGridSlot ? "flex-1" : "",
       ].join(" ")}
       style={{ height: DAY_TIMELINE_HEIGHT_PX }}
       onClick={onDateBlankClick && !isGridSlot ? handleTimelineBlankClick : undefined}
       title={onDateBlankClick && !isGridSlot ? "点击空白处添加任务" : undefined}
     >
-      {isGridSlot && onDateBlankClick ? (
-        <button
-          type="button"
-          className="absolute top-0 bottom-0 left-0 z-0 cursor-pointer bg-transparent"
-          style={{ width: `${gridColWidthPct}%` }}
-          onClick={handleTimelineBlankClick}
-          title="点击空白处添加任务"
-          aria-label={`在 ${dayKey} 添加任务`}
-        />
-      ) : null}
       {Array.from({ length: 24 }, (_, hour) => (
-        <div
+        <button
           key={hour}
-          className="absolute left-0 right-0 border-b border-border-subtle/50"
+          type="button"
+          className={[
+            "absolute left-0 right-0 border-b border-border-subtle/50",
+            isGridSlot && onDateBlankClick
+              ? "z-0 text-left hover:bg-violet-50/50 focus-visible:z-[2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+              : "pointer-events-none",
+          ].join(" ")}
           style={{ top: hour * DAY_TIMELINE_HOUR_HEIGHT_PX, height: DAY_TIMELINE_HOUR_HEIGHT_PX }}
+          onClick={isGridSlot && onDateBlankClick ? () => onDateBlankClick(dayKey, hour) : undefined}
+          title={isGridSlot && onDateBlankClick ? `${hour}:00 添加任务` : undefined}
+          aria-label={isGridSlot && onDateBlankClick ? `在 ${dayKey} ${hour}:00 添加任务` : undefined}
+          tabIndex={isGridSlot && onDateBlankClick ? 0 : -1}
         />
       ))}
       {isGridSlot ? (

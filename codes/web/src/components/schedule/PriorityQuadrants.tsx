@@ -28,6 +28,7 @@ export type PriorityQuadrantsProps = {
   onDragLeavePriorityZone: (p: PriorityKey) => void;
   onItemClick: (it: ScheduleTaskItem) => void;
   onDropPriority: (itemId: string, priority: PriorityKey) => void;
+  onCreateInPriority?: (priority: PriorityKey) => void;
   onCompleteTask?: (itemId: string) => void;
   completingItemId?: string | null;
   /** 任务卡片展示项目名（跨项目视图） */
@@ -56,6 +57,7 @@ export function PriorityQuadrants({
   onDragLeavePriorityZone,
   onItemClick,
   onDropPriority,
+  onCreateInPriority,
   onCompleteTask,
   completingItemId = null,
   showProjectContext = true,
@@ -83,7 +85,14 @@ export function PriorityQuadrants({
                 className={[
                   `rounded-xl border ${q.colorClass} p-lg`,
                   dragOverPriority === q.p ? "ring-2 ring-primary/25 ring-inset" : "",
+                  onCreateInPriority ? "cursor-pointer" : "",
                 ].join(" ")}
+                title={onCreateInPriority ? `在 ${q.title} 添加任务` : undefined}
+                onClick={(e) => {
+                  if (!onCreateInPriority || dragItemId) return;
+                  if ((e.target as HTMLElement).closest("button")) return;
+                  onCreateInPriority(q.p);
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   onDragOverPriorityChange(q.p);
@@ -107,7 +116,17 @@ export function PriorityQuadrants({
                 </div>
                 <div className="mt-3 space-y-1.5">
                   {list.length === 0 ? (
-                    <div className="text-[12px] text-neutral-muted">暂无任务。</div>
+                    onCreateInPriority ? (
+                      <button
+                        type="button"
+                        className="w-full rounded-lg py-3 text-left text-[12px] text-neutral-muted transition-colors hover:bg-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        onClick={() => onCreateInPriority(q.p)}
+                      >
+                        暂无任务，点击添加。
+                      </button>
+                    ) : (
+                      <div className="text-[12px] text-neutral-muted">暂无任务。</div>
+                    )
                   ) : (
                     list.slice(0, 6).map((it) => {
                       const target = countdownTargetForItem(it);
