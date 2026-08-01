@@ -2191,6 +2191,7 @@ private struct TodoScheduleView: View {
             .padding(.vertical, 8)
         }
         .background(TimiaTheme.canvas)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     @ViewBuilder
@@ -2258,7 +2259,7 @@ private struct TodoScheduleView: View {
             isUpdating: updatingTaskIds.contains(task.id),
             revealedEdge: revealedTaskId == task.id ? revealedEdge : nil,
             onReveal: { edge in
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(.snappy(duration: 0.22)) {
                     revealedTaskId = edge == nil ? nil : task.id
                     revealedEdge = edge
                 }
@@ -2336,12 +2337,17 @@ private struct TodoScheduleView: View {
     }
 }
 
-private enum TodoRevealEdge {
+private enum TodoRevealEdge: Equatable {
     case leading
     case trailing
 }
 
 private struct TodoTaskRow: View {
+    private enum DragIntent {
+        case horizontal
+        case vertical
+    }
+
     private struct ActionOption: Identifiable {
         let id: String
         let label: String
@@ -2360,10 +2366,13 @@ private struct TodoTaskRow: View {
 
     @State private var dragTranslation: CGFloat = 0
     @State private var snappedDuringCurrentDrag = false
+    @State private var dragIntent: DragIntent?
 
     private let actionWidth: CGFloat = 224
     private let actionCount: CGFloat = 4
     private let openingVisibleActionCount: CGFloat = 2
+    private let releaseOpeningActionFraction: CGFloat = 0.55
+    private let horizontalIntentRatio: CGFloat = 1.25
     private let cornerRadius: CGFloat = 14
     private let statusOptions = [
         ActionOption(id: "todo", label: "未开始", color: TaskStatusPalette.todo),
@@ -2388,7 +2397,7 @@ private struct TodoTaskRow: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .accessibilityElement(children: .contain)
         .onChange(of: revealedEdge) { _, newValue in
-            if newValue == nil { dragTranslation = 0 }
+            dragTranslation = 0
         }
     }
 
@@ -2557,13 +2566,28 @@ private struct TodoTaskRow: View {
         actionButtonWidth
     }
 
+    private var releaseOpeningThreshold: CGFloat {
+        actionButtonWidth * releaseOpeningActionFraction
+    }
+
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
             .onChanged { value in
-                guard !snappedDuringCurrentDrag,
-                      abs(value.translation.width) > abs(value.translation.height) else {
+                guard !snappedDuringCurrentDrag else { return }
+
+                if dragIntent == nil {
+                    let horizontalDistance = abs(value.translation.width)
+                    let verticalDistance = abs(value.translation.height)
+                    dragIntent = horizontalDistance > verticalDistance * horizontalIntentRatio
+                        ? .horizontal
+                        : .vertical
+                }
+
+                guard dragIntent == .horizontal else {
+                    dragTranslation = 0
                     return
                 }
+
                 dragTranslation = value.translation.width
                 switch revealedEdge {
                 case .leading where value.translation.width <= -closingThreshold:
@@ -2579,30 +2603,57 @@ private struct TodoTaskRow: View {
                 }
             }
             .onEnded { value in
+                defer { dragIntent = nil }
+
                 if snappedDuringCurrentDrag {
                     snappedDuringCurrentDrag = false
                     dragTranslation = 0
                     return
                 }
-                defer {
-                    withAnimation(.easeOut(duration: 0.2)) { dragTranslation = 0 }
+
+                guard dragIntent == .horizontal else {
+                    dragTranslation = 0
+                    return
                 }
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+
+                let releaseTranslation = horizontalReleaseTranslation(for: value)
+                let targetEdge: TodoRevealEdge?
                 switch revealedEdge {
                 case .leading:
-                    onReveal(value.translation.width <= -closingThreshold ? nil : .leading)
+                    targetEdge = releaseTranslation <= -closingThreshold ? nil : .leading
                 case .trailing:
-                    onReveal(value.translation.width >= closingThreshold ? nil : .trailing)
+                    targetEdge = releaseTranslation >= closingThreshold ? nil : .trailing
                 case nil:
-                    if value.translation.width >= openingThreshold {
-                        onReveal(.leading)
-                    } else if value.translation.width <= -openingThreshold {
-                        onReveal(.trailing)
+                    if releaseTranslation >= releaseOpeningThreshold {
+                        targetEdge = .leading
+                    } else if releaseTranslation <= -releaseOpeningThreshold {
+                        targetEdge = .trailing
                     } else {
-                        onReveal(nil)
+                        targetEdge = nil
                     }
                 }
+                settleSwipe(to: targetEdge)
             }
+    }
+
+    private func horizontalReleaseTranslation(for value: DragGesture.Value) -> CGFloat {
+        let translation = value.translation.width
+        let predicted = value.predictedEndTranslation.width
+        guard translation * predicted > 0,
+              abs(predicted) > abs(translation) else {
+            return translation
+        }
+        return predicted
+    }
+
+    private func settleSwipe(to edge: TodoRevealEdge?) {
+        if edge == revealedEdge {
+            withAnimation(.snappy(duration: 0.22)) {
+                dragTranslation = 0
+            }
+        } else {
+            onReveal(edge)
+        }
     }
 
     private func snapDuringDrag(to edge: TodoRevealEdge?) {
