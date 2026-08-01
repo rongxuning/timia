@@ -1,5 +1,16 @@
 import SwiftUI
 
+private struct NavigateToAppHomeKey: EnvironmentKey {
+    static var defaultValue: () -> Void { {} }
+}
+
+extension EnvironmentValues {
+    var navigateToAppHome: () -> Void {
+        get { self[NavigateToAppHomeKey.self] }
+        set { self[NavigateToAppHomeKey.self] = newValue }
+    }
+}
+
 struct MainTabView: View {
     let user: CurrentUser
     @State private var showWorkspaces = false
@@ -20,5 +31,9 @@ struct MainTabView: View {
             }
         }
         .tint(TimiaTheme.primary)
+        .environment(\.navigateToAppHome) {
+            showWorkspaces = false
+            showAccount = false
+        }
     }
 }

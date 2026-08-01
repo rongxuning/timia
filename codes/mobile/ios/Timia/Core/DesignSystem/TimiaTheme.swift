@@ -54,6 +54,22 @@ enum TimiaTheme {
     }
 }
 
+enum TaskStatusPalette {
+    static let todo = Color(hex: "#64748B")
+    static let doing = Color(hex: "#3B82F6")
+    static let done = Color(hex: "#10B981")
+    static let archived = Color(hex: "#8B5CF6")
+
+    static func color(for status: String) -> Color {
+        switch status {
+        case "doing": doing
+        case "done": done
+        case "archived": archived
+        default: todo
+        }
+    }
+}
+
 extension Color {
     init(hex: String) {
         let value = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0xFFFFFF
@@ -80,5 +96,33 @@ struct StatCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+struct TaskGroupHeader: View {
+    let title: String
+    let symbol: String
+    let count: Int
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: symbol)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(color)
+
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(color)
+
+            Spacer()
+
+            Text(count, format: .number)
+                .font(.caption.bold())
+                .foregroundStyle(color)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(color.opacity(0.1), in: Capsule())
+        }
     }
 }

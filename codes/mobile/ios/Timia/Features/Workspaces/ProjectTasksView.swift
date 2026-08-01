@@ -48,6 +48,7 @@ struct ProjectTasksView: View {
     let workspace: WorkspaceCard
     let project: Project
     @EnvironmentObject private var session: AppSession
+    @Environment(\.navigateToAppHome) private var navigateToAppHome
     @State private var items: [ItemResponse] = []
     @State private var errorMessage: String?
     @State private var editTask: ScheduleTask?
@@ -75,26 +76,28 @@ struct ProjectTasksView: View {
                             }
                         }
                     } header: {
-                        HStack(spacing: 7) {
-                            Image(systemName: group.symbol)
-                                .foregroundStyle(group.color)
-                            Text(group.title)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Text(groupedItems.count, format: .number)
-                                .font(.caption.bold())
-                                .foregroundStyle(group.color)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background(group.color.opacity(0.1), in: Capsule())
-                        }
+                        TaskGroupHeader(
+                            title: group.title,
+                            symbol: group.symbol,
+                            count: groupedItems.count,
+                            color: group.color
+                        )
                     }
                 }
             }
 
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
-        .navigationTitle(project.name)
+        .navigationTitle("\(workspace.name)/\(project.name)")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: navigateToAppHome) {
+                    Image(systemName: "house.fill")
+                }
+                .accessibilityLabel("返回首页")
+                .accessibilityIdentifier("project-home-button")
+            }
+        }
         .refreshable { await load() }
         .task { await load() }
         .sheet(item: $editTask) { task in NavigationStack { TaskEditorView(mode: .edit(task), onSaved: reload) } }

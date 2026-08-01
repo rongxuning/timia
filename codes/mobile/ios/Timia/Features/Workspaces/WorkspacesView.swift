@@ -45,9 +45,6 @@ struct WorkspacesView: View {
         }
         .navigationTitle("空间")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: WorkspaceCard.self) { workspace in
-            WorkspaceDetailView(workspace: workspace)
-        }
         .refreshable { await load() }
         .task { await load() }
         .sheet(item: $formMode) { mode in
@@ -116,10 +113,13 @@ private struct WorkspaceCardSection: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            NavigationLink(value: workspace) {
+            NavigationLink {
+                WorkspaceDetailView(workspace: workspace)
+            } label: {
                 WorkspaceCardTile(workspace: workspace)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("打开空间：\(workspace.name)")
 
             HStack(spacing: 3) {
                 Button(action: onFavorite) {

@@ -261,7 +261,10 @@ struct ItemPayload: Encodable, Sendable {
     let priority: String
     let startAt: String?
     let endAt: String?
+    let completedAt: String?
     let details: String?
+    let assigneeUserId: String?
+    let participantUserIds: [String]
     let location: String?
 }
 
@@ -274,8 +277,86 @@ struct ItemUpdatePayload: Encodable, Sendable {
     let priority: String
     let startAt: String?
     let endAt: String?
+    let completedAt: String?
     let details: String?
+    let assigneeUserId: String?
+    let participantUserIds: [String]
     let location: String?
+    let targetWorkspaceId: String?
+    let targetProjectId: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case title
+        case body
+        case color
+        case status
+        case priority
+        case startAt
+        case endAt
+        case completedAt
+        case details
+        case assigneeUserId
+        case participantUserIds
+        case location
+        case targetWorkspaceId
+        case targetProjectId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(title, forKey: .title)
+        try container.encodeIfPresent(body, forKey: .body)
+        try container.encode(color, forKey: .color)
+        try container.encode(status, forKey: .status)
+        try container.encode(priority, forKey: .priority)
+        try container.encodeIfPresent(startAt, forKey: .startAt)
+        try container.encodeIfPresent(endAt, forKey: .endAt)
+        if let completedAt {
+            try container.encode(completedAt, forKey: .completedAt)
+        } else {
+            try container.encodeNil(forKey: .completedAt)
+        }
+        try container.encodeIfPresent(details, forKey: .details)
+        if let assigneeUserId {
+            try container.encode(assigneeUserId, forKey: .assigneeUserId)
+        } else {
+            try container.encodeNil(forKey: .assigneeUserId)
+        }
+        try container.encode(participantUserIds, forKey: .participantUserIds)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(targetWorkspaceId, forKey: .targetWorkspaceId)
+        try container.encodeIfPresent(targetProjectId, forKey: .targetProjectId)
+    }
+}
+
+struct TodoTaskStatusUpdatePayload: Encodable, Sendable {
+    let version: Int
+    let status: String
+    let completedAt: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case status
+        case completedAt
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(status, forKey: .status)
+        if let completedAt {
+            try container.encode(completedAt, forKey: .completedAt)
+        } else {
+            try container.encodeNil(forKey: .completedAt)
+        }
+    }
+}
+
+struct TodoTaskPriorityUpdatePayload: Encodable, Sendable {
+    let version: Int
+    let priority: String
 }
 
 struct ItemResponse: Decodable, Identifiable, Sendable {
@@ -287,6 +368,7 @@ struct ItemResponse: Decodable, Identifiable, Sendable {
     let priority: String?
     let startAt: String?
     let endAt: String?
+    let completedAt: String?
     let details: String?
     let version: Int
     let location: String?
@@ -314,10 +396,24 @@ struct ItemDetail: Decodable, Sendable {
     let priority: String?
     let startAt: String?
     let endAt: String?
+    let completedAt: String?
     let details: String?
     let version: Int
+    let createdBy: UserBrief?
+    let assignee: UserBrief?
+    let participants: [UserBrief]?
     let location: String?
     let comments: [TaskComment]?
+}
+
+struct TaskDrawerContext: Decodable, Sendable {
+    let workspaceId: String
+    let workspaceName: String
+    let projectId: String
+    let projectName: String
+    let currentUserId: String
+    let currentUserDisplayName: String
+    let memberOptions: [AssignableUser]
 }
 
 struct CommentPayload: Encodable, Sendable {
