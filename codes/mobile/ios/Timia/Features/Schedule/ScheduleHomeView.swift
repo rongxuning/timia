@@ -2259,10 +2259,8 @@ private struct TodoScheduleView: View {
             isUpdating: updatingTaskIds.contains(task.id),
             revealedEdge: revealedTaskId == task.id ? revealedEdge : nil,
             onReveal: { edge in
-                withAnimation(.snappy(duration: 0.22)) {
-                    revealedTaskId = edge == nil ? nil : task.id
-                    revealedEdge = edge
-                }
+                revealedTaskId = edge == nil ? nil : task.id
+                revealedEdge = edge
             },
             onToggleCompletion: {
                 revealedTaskId = nil
@@ -2343,11 +2341,6 @@ private enum TodoRevealEdge: Equatable {
 }
 
 private struct TodoTaskRow: View {
-    private enum DragIntent {
-        case horizontal
-        case vertical
-    }
-
     private struct ActionOption: Identifiable {
         let id: String
         let label: String
@@ -2365,14 +2358,12 @@ private struct TodoTaskRow: View {
     let onTap: () -> Void
 
     @State private var dragTranslation: CGFloat = 0
-    @State private var snappedDuringCurrentDrag = false
-    @State private var dragIntent: DragIntent?
+    @State private var suppressCardTapUntil = Date.distantPast
 
     private let actionWidth: CGFloat = 224
-    private let actionCount: CGFloat = 4
-    private let openingVisibleActionCount: CGFloat = 2
-    private let releaseOpeningActionFraction: CGFloat = 0.55
+    private let swipeMinimumDistance: CGFloat = 16
     private let horizontalIntentRatio: CGFloat = 1.25
+    private let cardTapSuppressionInterval: TimeInterval = 0.35
     private let cornerRadius: CGFloat = 14
     private let statusOptions = [
         ActionOption(id: "todo", label: "未开始", color: TaskStatusPalette.todo),
@@ -2396,7 +2387,7 @@ private struct TodoTaskRow: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .accessibilityElement(children: .contain)
-        .onChange(of: revealedEdge) { _, newValue in
+        .onChange(of: revealedEdge) { _, _ in
             dragTranslation = 0
         }
     }
@@ -2404,7 +2395,7 @@ private struct TodoTaskRow: View {
     private var taskContent: some View {
         let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
         return HStack(alignment: .center, spacing: 10) {
-            Button(action: onToggleCompletion) {
+            Button(action: handleToggleCompletion) {
                 Image(systemName: statusIndicatorSymbol)
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(statusIndicatorColor)
@@ -2414,7 +2405,7 @@ private struct TodoTaskRow: View {
             .disabled(isUpdating)
             .accessibilityLabel(toggleCompletionAccessibilityLabel)
 
-            Button(action: onTap) {
+            Button(action: handleDetailsTap) {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(task.title)
@@ -2488,7 +2479,7 @@ private struct TodoTaskRow: View {
             ForEach(options) { option in
                 Button {
                     guard option.id != selectedId else {
-                        onReveal(nil)
+                        settleSwipe(to: nil)
                         return
                     }
                     action(option.id)
@@ -2554,112 +2545,70 @@ private struct TodoTaskRow: View {
         }
     }
 
-    private var actionButtonWidth: CGFloat {
-        actionWidth / actionCount
-    }
-
-    private var openingThreshold: CGFloat {
-        actionButtonWidth * openingVisibleActionCount
-    }
-
-    private var closingThreshold: CGFloat {
-        actionButtonWidth
-    }
-
-    private var releaseOpeningThreshold: CGFloat {
-        actionButtonWidth * releaseOpeningActionFraction
-    }
-
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+        DragGesture(minimumDistance: swipeMinimumDistance, coordinateSpace: .local)
             .onChanged { value in
-                guard !snappedDuringCurrentDrag else { return }
-
-                if dragIntent == nil {
-                    let horizontalDistance = abs(value.translation.width)
-                    let verticalDistance = abs(value.translation.height)
-                    dragIntent = horizontalDistance > verticalDistance * horizontalIntentRatio
-                        ? .horizontal
-                        : .vertical
-                }
-
-                guard dragIntent == .horizontal else {
+                guard isHorizontalSwipe(value.translation) else {
                     dragTranslation = 0
                     return
                 }
 
+                suppressCardTapAfterSwipe()
                 dragTranslation = value.translation.width
-                switch revealedEdge {
-                case .leading where value.translation.width <= -closingThreshold:
-                    snapDuringDrag(to: nil)
-                case .trailing where value.translation.width >= closingThreshold:
-                    snapDuringDrag(to: nil)
-                case nil where value.translation.width >= openingThreshold:
-                    snapDuringDrag(to: .leading)
-                case nil where value.translation.width <= -openingThreshold:
-                    snapDuringDrag(to: .trailing)
-                default:
-                    break
-                }
             }
             .onEnded { value in
-                defer { dragIntent = nil }
-
-                if snappedDuringCurrentDrag {
-                    snappedDuringCurrentDrag = false
-                    dragTranslation = 0
+                guard isHorizontalSwipe(value.translation) else {
+                    resetDragTranslation()
                     return
                 }
 
-                guard dragIntent == .horizontal else {
-                    dragTranslation = 0
-                    return
-                }
-
-                let releaseTranslation = horizontalReleaseTranslation(for: value)
+                suppressCardTapAfterSwipe()
                 let targetEdge: TodoRevealEdge?
                 switch revealedEdge {
                 case .leading:
-                    targetEdge = releaseTranslation <= -closingThreshold ? nil : .leading
+                    targetEdge = value.translation.width < 0 ? nil : .leading
                 case .trailing:
-                    targetEdge = releaseTranslation >= closingThreshold ? nil : .trailing
+                    targetEdge = value.translation.width > 0 ? nil : .trailing
                 case nil:
-                    if releaseTranslation >= releaseOpeningThreshold {
-                        targetEdge = .leading
-                    } else if releaseTranslation <= -releaseOpeningThreshold {
-                        targetEdge = .trailing
-                    } else {
-                        targetEdge = nil
-                    }
+                    targetEdge = value.translation.width > 0 ? .leading : .trailing
                 }
                 settleSwipe(to: targetEdge)
             }
     }
 
-    private func horizontalReleaseTranslation(for value: DragGesture.Value) -> CGFloat {
-        let translation = value.translation.width
-        let predicted = value.predictedEndTranslation.width
-        guard translation * predicted > 0,
-              abs(predicted) > abs(translation) else {
-            return translation
-        }
-        return predicted
+    private func isHorizontalSwipe(_ translation: CGSize) -> Bool {
+        abs(translation.width) > abs(translation.height) * horizontalIntentRatio
+    }
+
+    private var shouldSuppressCardTap: Bool {
+        Date.now < suppressCardTapUntil
+    }
+
+    private func suppressCardTapAfterSwipe() {
+        suppressCardTapUntil = Date.now.addingTimeInterval(cardTapSuppressionInterval)
+    }
+
+    private func handleToggleCompletion() {
+        guard !shouldSuppressCardTap else { return }
+        onToggleCompletion()
+    }
+
+    private func handleDetailsTap() {
+        guard !shouldSuppressCardTap else { return }
+        onTap()
     }
 
     private func settleSwipe(to edge: TodoRevealEdge?) {
-        if edge == revealedEdge {
-            withAnimation(.snappy(duration: 0.22)) {
-                dragTranslation = 0
-            }
-        } else {
+        withAnimation(.snappy(duration: 0.22)) {
+            dragTranslation = 0
             onReveal(edge)
         }
     }
 
-    private func snapDuringDrag(to edge: TodoRevealEdge?) {
-        snappedDuringCurrentDrag = true
-        dragTranslation = 0
-        onReveal(edge)
+    private func resetDragTranslation() {
+        withAnimation(.snappy(duration: 0.22)) {
+            dragTranslation = 0
+        }
     }
 }
 
