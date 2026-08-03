@@ -1,5 +1,12 @@
 import SwiftUI
 
+private enum AuthenticationFocusField: Hashable {
+    case email
+    case displayName
+    case password
+    case confirmPassword
+}
+
 private enum DevelopmentLogin {
     #if DEBUG
     static let email = "admin@gmail.com"
@@ -18,6 +25,7 @@ struct AuthenticationView: View {
     @State private var confirmPassword = ""
     @State private var errorMessage: String?
     @State private var isSubmitting = false
+    @FocusState private var focusedField: AuthenticationFocusField?
     @EnvironmentObject private var session: AppSession
 
     private enum Mode { case login, register }
@@ -30,20 +38,17 @@ struct AuthenticationView: View {
                 .scaledToFill()
                 .ignoresSafeArea()
 
-            Color.black.opacity(0.08).ignoresSafeArea()
+            Color.black.opacity(0.08)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { focusedField = nil }
 
-            GeometryReader { proxy in
-                ScrollView {
-                    VStack {
-                        authenticationCard
-                    }
-                    .frame(maxWidth: .infinity, minHeight: proxy.size.height)
-                    .padding(.horizontal, 42)
-                    .padding(.vertical, 28)
-                }
-                .scrollDismissesKeyboard(.interactively)
-            }
+            authenticationCard
+                .padding(.horizontal, 42)
+                .padding(.vertical, 28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
+        .keyboardDoneToolbar { focusedField = nil }
     }
 
     private var authenticationCard: some View {
@@ -70,39 +75,59 @@ struct AuthenticationView: View {
                     title: "Email",
                     text: $email,
                     icon: "envelope",
+                    field: .email,
+                    focusedField: $focusedField,
                     textContentType: .emailAddress,
                     keyboardType: .emailAddress,
                     tint: authPurple
                 )
+                .submitLabel(.next)
+                .onSubmit {
+                    focusedField = mode == .login ? .password : .displayName
+                }
 
                 if mode == .register {
                     FloatingAuthField(
                         title: "显示名称",
                         text: $displayName,
                         icon: "person",
+                        field: .displayName,
+                        focusedField: $focusedField,
                         textContentType: .name,
                         tint: authPurple
                     )
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .password }
                 }
 
                 FloatingAuthField(
                     title: "Password",
                     text: $password,
                     icon: "lock",
+                    field: .password,
+                    focusedField: $focusedField,
                     isSecure: true,
                     textContentType: mode == .login ? .password : .newPassword,
                     tint: authPurple
                 )
+                .submitLabel(mode == .login ? .done : .next)
+                .onSubmit {
+                    focusedField = mode == .login ? nil : .confirmPassword
+                }
 
                 if mode == .register {
                     FloatingAuthField(
                         title: "Confirm Password",
                         text: $confirmPassword,
                         icon: "lock",
+                        field: .confirmPassword,
+                        focusedField: $focusedField,
                         isSecure: true,
                         textContentType: .newPassword,
                         tint: authPurple
                     )
+                    .submitLabel(.done)
+                    .onSubmit { focusedField = nil }
                 }
             }
             .onChange(of: email) { _, _ in errorMessage = nil }
@@ -155,12 +180,18 @@ struct AuthenticationView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
         .frame(maxWidth: 300)
-        .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 20))
+        .background {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(TimiaTheme.card)
+                .contentShape(Rectangle())
+                .onTapGesture { focusedField = nil }
+        }
         .overlay { RoundedRectangle(cornerRadius: 20).stroke(.primary, lineWidth: 4) }
         .shadow(color: TimiaTheme.shadow, radius: 16, y: 7)
     }
 
     private func switchMode() {
+        focusedField = nil
         withAnimation(.easeInOut(duration: 0.2)) {
             let nextMode: Mode = mode == .login ? .register : .login
             if nextMode == .register {
@@ -181,6 +212,7 @@ struct AuthenticationView: View {
     }
 
     private func submit() {
+        focusedField = nil
         errorMessage = nil
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -214,15 +246,19 @@ private struct FloatingAuthField: View {
     let title: String
     @Binding var text: String
     let icon: String
+    let field: AuthenticationFocusField
+    let focusedField: FocusState<AuthenticationFocusField?>.Binding
     var isSecure = false
     var textContentType: UITextContentType? = nil
     var keyboardType: UIKeyboardType = .default
     let tint: Color
 
-    @FocusState private var isFocused: Bool
-
     private var isLabelRaised: Bool {
         isFocused || !text.isEmpty
+    }
+
+    private var isFocused: Bool {
+        focusedField.wrappedValue == field
     }
 
     var body: some View {
@@ -238,7 +274,7 @@ private struct FloatingAuthField: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .keyboardType(keyboardType)
-            .focused($isFocused)
+            .focused(focusedField, equals: field)
             .padding(.leading, 14)
             .padding(.trailing, 42)
             .padding(.top, isLabelRaised ? 12 : 0)

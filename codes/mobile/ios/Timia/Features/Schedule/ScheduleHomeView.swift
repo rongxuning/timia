@@ -139,6 +139,7 @@ struct ScheduleHomeView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .keyboardDoneToolbar { dismissNaturalLanguageInput() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomControls
         }
@@ -2133,7 +2134,7 @@ private struct TodoScheduleView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var revealedTaskId: String?
-    @State private var revealedEdge: TodoRevealEdge?
+    @State private var revealedEdge: TaskCardRevealEdge?
 
     let columns: [String: [ScheduleTask]]
     let totals: [String: Int]
@@ -2253,7 +2254,7 @@ private struct TodoScheduleView: View {
     }
 
     private func taskRow(_ task: ScheduleTask) -> some View {
-        TodoTaskRow(
+        SwipeTaskCard(
             task: task,
             colorScheme: colorScheme,
             isUpdating: updatingTaskIds.contains(task.id),
@@ -2335,12 +2336,12 @@ private struct TodoScheduleView: View {
     }
 }
 
-private enum TodoRevealEdge: Equatable {
+enum TaskCardRevealEdge: Equatable {
     case leading
     case trailing
 }
 
-private struct TodoTaskRow: View {
+struct SwipeTaskCard: View {
     private struct ActionOption: Identifiable {
         let id: String
         let label: String
@@ -2350,8 +2351,8 @@ private struct TodoTaskRow: View {
     let task: ScheduleTask
     let colorScheme: ColorScheme
     let isUpdating: Bool
-    let revealedEdge: TodoRevealEdge?
-    let onReveal: (TodoRevealEdge?) -> Void
+    let revealedEdge: TaskCardRevealEdge?
+    let onReveal: (TaskCardRevealEdge?) -> Void
     let onToggleCompletion: () -> Void
     let onStatusChange: (String) -> Void
     let onPriorityChange: (String) -> Void
@@ -2563,7 +2564,7 @@ private struct TodoTaskRow: View {
                 }
 
                 suppressCardTapAfterSwipe()
-                let targetEdge: TodoRevealEdge?
+                let targetEdge: TaskCardRevealEdge?
                 switch revealedEdge {
                 case .leading:
                     targetEdge = value.translation.width < 0 ? nil : .leading
@@ -2598,7 +2599,7 @@ private struct TodoTaskRow: View {
         onTap()
     }
 
-    private func settleSwipe(to edge: TodoRevealEdge?) {
+    private func settleSwipe(to edge: TaskCardRevealEdge?) {
         withAnimation(.snappy(duration: 0.22)) {
             dragTranslation = 0
             onReveal(edge)

@@ -8,14 +8,9 @@ struct WorkspacesView: View {
     @State private var formMode: WorkspaceFormView.Mode?
     @State private var deleteTarget: WorkspaceCard?
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 12, alignment: .top),
-        GridItem(.flexible(), spacing: 12, alignment: .top)
-    ]
-
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVStack(spacing: 12) {
                 ForEach(workspaces) { workspace in
                     WorkspaceCardSection(
                         workspace: workspace,
@@ -121,7 +116,7 @@ private struct WorkspaceCardSection: View {
             .buttonStyle(.plain)
             .accessibilityLabel("打开空间：\(workspace.name)")
 
-            HStack(spacing: 3) {
+            HStack(spacing: 8) {
                 Button(action: onFavorite) {
                     WorkspaceCardActionIcon(
                         systemName: workspace.isFavorite ? "heart.fill" : "heart",
@@ -158,8 +153,8 @@ private struct WorkspaceCardSection: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.trailing, 4)
-            .padding(.bottom, 8)
+            .padding(.trailing, 12)
+            .padding(.bottom, 12)
         }
     }
 }
@@ -171,18 +166,21 @@ private struct WorkspaceCardTile: View {
         let cardForeground = TimiaTheme.foreground(on: workspace.color)
 
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(workspace.name)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(cardForeground)
-                    .lineLimit(2)
-
-                Text(workspaceDescription)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
-                    .foregroundStyle(cardForeground.opacity(0.78))
-                    .lineLimit(3)
-
+            HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
+                    Text(workspace.name)
+                        .font(.title2.bold())
+                        .foregroundStyle(cardForeground)
+                        .lineLimit(2)
+
+                    Text(workspaceDescription)
+                        .font(.body)
+                        .foregroundStyle(cardForeground.opacity(0.82))
+                        .lineLimit(3)
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                VStack(alignment: .leading, spacing: 12) {
                     WorkspaceMetadataRow(label: "负责人", foreground: cardForeground) {
                         WorkspacePeoplePreview(people: workspace.owners, foreground: cardForeground)
                     }
@@ -193,19 +191,20 @@ private struct WorkspaceCardTile: View {
 
                     WorkspaceMetadataRow(label: "项目", foreground: cardForeground) {
                         Text("\(workspace.projectCount) 个")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.headline)
                             .foregroundStyle(cardForeground)
                             .monospacedDigit()
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
             .background(TimiaTheme.customSurface(workspace.color))
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
                 HStack(spacing: 5) {
                     WorkspaceStatusMetric(label: "待", count: workspace.todoCount, color: Color(hex: "#94A3B8"))
                     WorkspaceStatusMetric(label: "进", count: workspace.doingCount, color: Color(hex: "#3B82F6"))
@@ -213,10 +212,12 @@ private struct WorkspaceCardTile: View {
                     WorkspaceStatusMetric(label: "归", count: workspace.archivedCount, color: Color(hex: "#71717A"))
                 }
 
-                Color.clear.frame(height: 30)
+                Spacer(minLength: 0)
+
+                Color.clear
+                    .frame(width: workspace.myWorkspaceRole == "owner" ? 184 : 88, height: 40)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(12)
             .background(TimiaTheme.card)
         }
         .frame(maxWidth: .infinity)
@@ -248,13 +249,13 @@ private struct WorkspaceMetadataRow<Content: View>: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(label)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .font(.subheadline)
                 .foregroundStyle(foreground)
-                .frame(width: 40, alignment: .leading)
+                .frame(width: 48, alignment: .leading)
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(minHeight: 26)
+        .frame(minHeight: 34)
     }
 }
 
@@ -268,22 +269,24 @@ private struct WorkspacePeoplePreview: View {
                 .font(.caption)
                 .foregroundStyle(foreground.opacity(0.52))
         } else {
-            HStack(spacing: 3) {
+            HStack(spacing: -8) {
                 ForEach(Array(people.prefix(2)), id: \.id) { person in
                     Text(personInitial(person))
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(foreground)
-                        .frame(width: 26, height: 26)
-                        .background(foreground.opacity(0.1), in: Circle())
+                        .font(.subheadline.bold())
+                        .foregroundStyle(TimiaTheme.primary)
+                        .frame(width: 34, height: 34)
+                        .background(TimiaTheme.surface, in: Circle())
+                        .overlay { Circle().stroke(TimiaTheme.surface, lineWidth: 2) }
                         .accessibilityLabel(person.displayName)
                 }
 
                 if people.count > 2 {
                     Text("+\(people.count - 2)")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(foreground)
-                        .frame(width: 26, height: 26)
-                        .background(foreground.opacity(0.1), in: Circle())
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 34, height: 34)
+                        .background(Color(uiColor: .systemGray6), in: Circle())
+                        .overlay { Circle().stroke(TimiaTheme.surface, lineWidth: 2) }
                 }
             }
         }
@@ -305,9 +308,9 @@ private struct WorkspaceStatusMetric: View {
         HStack(spacing: 2) {
             Circle()
                 .fill(color)
-                .frame(width: 5, height: 5)
-            Text("\(label)\(count)")
-                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .frame(width: 7, height: 7)
+            Text("\(label) \(count)")
+                .font(.caption.bold())
                 .foregroundStyle(color)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -323,11 +326,11 @@ private struct WorkspaceCardActionIcon: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 15, weight: .semibold))
+            .font(.title3.bold())
             .foregroundStyle(isDestructive ? Color.red : TimiaTheme.primary)
-            .frame(width: 28, height: 28)
+            .frame(width: 40, height: 40)
             .background(
-                (isDestructive ? Color.red : TimiaTheme.primary).opacity(0.045),
+                (isDestructive ? Color.red : TimiaTheme.primary).opacity(0.035),
                 in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
@@ -349,7 +352,7 @@ private struct AddWorkspaceCard: View {
                 .foregroundStyle(TimiaTheme.primary)
             Text("添加空间").font(.subheadline.weight(.semibold))
         }
-        .frame(maxWidth: .infinity, minHeight: 268)
+        .frame(maxWidth: .infinity, minHeight: 242)
         .padding(14)
         .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
@@ -357,6 +360,11 @@ private struct AddWorkspaceCard: View {
                 .stroke(TimiaTheme.primary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [6]))
         }
     }
+}
+
+private enum WorkspaceFormFocusField: Hashable {
+    case name
+    case description
 }
 
 struct WorkspaceFormView: View {
@@ -375,22 +383,50 @@ struct WorkspaceFormView: View {
     @State private var color = "#FFFFFF"
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @FocusState private var focusedField: WorkspaceFormFocusField?
 
     var body: some View {
         Form {
             Section {
                 TextField("工作空间名称", text: $name)
+                    .focused($focusedField, equals: .name)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .description }
                 TextField("描述", text: $description, axis: .vertical)
-                ColorPicker("标识颜色", selection: Binding(get: { Color(hex: color) }, set: { color = $0.workspaceHex ?? "#FFFFFF" }))
+                    .focused($focusedField, equals: .description)
+                ColorPicker(
+                    "标识颜色",
+                    selection: Binding(
+                        get: { Color(hex: color) },
+                        set: {
+                            focusedField = nil
+                            color = $0.workspaceHex ?? "#FFFFFF"
+                        }
+                    )
+                )
             }
             if let errorMessage { Section { Text(errorMessage).foregroundStyle(.red) } }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(isCreate ? "创建工作空间" : "编辑工作空间")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("保存") { Task { await save() } }.disabled(isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") {
+                    focusedField = nil
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") {
+                    focusedField = nil
+                    Task { await save() }
+                }
+                .disabled(isSaving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
         }
+        .keyboardDoneToolbar { focusedField = nil }
+        .onDisappear { focusedField = nil }
         .onAppear {
             if case let .edit(value) = mode { name = value.name; description = value.description ?? ""; color = value.color }
         }

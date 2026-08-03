@@ -4,6 +4,69 @@ struct TokenResponse: Decodable, Sendable {
     let accessToken: String
 }
 
+struct MobileChallengeResponse: Decodable, Sendable {
+    let challengeId: String
+    let nonce: String
+}
+
+struct MobileTokenResponse: Decodable, Sendable {
+    let accessToken: String
+    let expiresIn: Int
+    let refreshToken: String
+    let sessionId: String
+}
+
+struct MobileChallengeRequest: Encodable, Sendable {
+    let installationId: String
+    let purpose: String
+}
+
+struct MobileRefreshChallengeRequest: Encodable, Sendable {
+    let installationId: String
+    let sessionId: String
+}
+
+struct MobileDeviceRegisterRequest: Encodable, Sendable {
+    let installationId: String
+    let challengeId: String
+    let nonce: String
+    let publicKey: String
+    let signature: String
+    let deviceName: String
+    let osVersion: String
+    let appVersion: String
+}
+
+struct MobileDeviceResponse: Decodable, Sendable {
+    let deviceId: String
+}
+
+struct MobilePasswordLoginRequest: Encodable, Sendable {
+    let email: String
+    let password: String
+    let installationId: String
+    let challengeId: String
+    let nonce: String
+    let signature: String
+}
+
+struct MobileTokenExchangeRequest: Encodable, Sendable {
+    let installationId: String
+    let challengeId: String
+    let nonce: String
+    let signature: String
+}
+
+struct MobileRefreshRequest: Encodable, Sendable {
+    let sessionId: String
+    let installationId: String
+    let refreshToken: String
+    let requestId: String
+    let challengeId: String
+    let nonce: String
+    let signature: String
+}
+
 struct CurrentUser: Codable, Equatable, Sendable {
     let id: String
     let email: String

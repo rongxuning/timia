@@ -2,52 +2,59 @@ import Foundation
 
 @MainActor
 final class AppSession: ObservableObject {
-    enum State: Equatable { case loading, signedOut, signedIn(CurrentUser) }
+    enum State: Equatable {
+        case loading
+        case signedOut
+        case restoreUnavailable(String)
+        case signedIn(CurrentUser)
+    }
 
     @Published private(set) var state: State = .loading
-    private let keychain = KeychainStore()
-    nonisolated(unsafe) private var accessToken: String?
+    private let credentials: CredentialManager
     private let baseURL: URL
     lazy var api: APIClient = APIClient(
         baseURL: baseURL,
-        token: { [weak self] in self?.accessToken },
+        credentials: credentials,
         onUnauthorized: { [weak self] in
-            Task { @MainActor in self?.signOut() }
+            Task { @MainActor in await self?.invalidateSession() }
         }
     )
 
     init() {
         let configured = Bundle.main.object(forInfoDictionaryKey: "TIMIA_API_BASE_URL") as? String
         baseURL = URL(string: configured ?? "") ?? URL(string: "http://127.0.0.1:8000")!
+        let keychain = KeychainStore()
         if ProcessInfo.processInfo.arguments.contains("-ui-testing") {
-            keychain.deleteToken()
+            keychain.deleteAuthentication()
         }
-        accessToken = keychain.readToken()
+        credentials = CredentialManager(baseURL: baseURL, keychain: keychain)
     }
 
     func restore() async {
-        guard accessToken != nil else {
+        guard await credentials.hasRestorableCredential else {
             state = .signedOut
             return
         }
+        state = .loading
         do {
-            let me = try await api.request("/auth/me", response: CurrentUser.self)
-            state = .signedIn(me)
+            if await credentials.needsLegacyExchange {
+                let me = try await api.request("/auth/me", response: CurrentUser.self)
+                try await credentials.exchangeLegacyToken(userID: me.id)
+                state = .signedIn(me)
+            } else {
+                _ = try await credentials.refresh()
+                let me = try await api.request("/auth/me", response: CurrentUser.self)
+                state = .signedIn(me)
+            }
+        } catch APIError.unauthorized {
+            await invalidateSession()
         } catch {
-            signOut()
+            state = .restoreUnavailable(error.localizedDescription)
         }
     }
 
     func login(email: String, password: String) async throws {
-        let token = try await api.request(
-            "/auth/login",
-            method: "POST",
-            body: LoginRequest(email: email, password: password),
-            authenticated: false,
-            response: TokenResponse.self
-        )
-        try keychain.saveToken(token.accessToken)
-        accessToken = token.accessToken
+        try await credentials.passwordLogin(email: email, password: password)
         let me = try await api.request("/auth/me", response: CurrentUser.self)
         state = .signedIn(me)
     }
@@ -63,8 +70,19 @@ final class AppSession: ObservableObject {
     }
 
     func signOut() {
-        keychain.deleteToken()
-        accessToken = nil
+        state = .signedOut
+        Task { @MainActor in
+            guard let token = await credentials.takeAccessTokenAndClearSession() else { return }
+            var request = URLRequest(url: baseURL.appending(path: "/auth/mobile/logout"))
+            request.httpMethod = "POST"
+            request.timeoutInterval = 10
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            _ = try? await URLSession.shared.data(for: request)
+        }
+    }
+
+    private func invalidateSession() async {
+        await credentials.clearSession()
         state = .signedOut
     }
 }

@@ -81,6 +81,26 @@ extension Color {
     }
 }
 
+private struct KeyboardDoneToolbarModifier: ViewModifier {
+    let dismissKeyboard: () -> Void
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("完成", action: dismissKeyboard)
+                    .fontWeight(.semibold)
+            }
+        }
+    }
+}
+
+extension View {
+    func keyboardDoneToolbar(dismissKeyboard: @escaping () -> Void) -> some View {
+        modifier(KeyboardDoneToolbarModifier(dismissKeyboard: dismissKeyboard))
+    }
+}
+
 struct StatCard: View {
     let title: String
     let value: Int

@@ -20,6 +20,13 @@ private let taskStatusOptions = [
     TaskChoiceOption(id: "archived", label: "已归档", color: TaskStatusPalette.archived)
 ]
 
+private enum TaskEditorFocusField: Hashable {
+    case title
+    case body
+    case location
+    case comment
+}
+
 struct TaskEditorView: View {
     enum Mode {
         case create
@@ -60,6 +67,7 @@ struct TaskEditorView: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var isPrepared = false
     @State private var errorMessage: String?
+    @FocusState private var focusedField: TaskEditorFocusField?
 
     private var isEditing: Bool {
         if case .edit = mode { return true }
@@ -82,6 +90,7 @@ struct TaskEditorView: View {
                 .disabled(isFixedCreate)
                 .onChange(of: workspaceId) { oldValue, newValue in
                     guard oldValue != newValue else { return }
+                    focusedField = nil
                     if isPrepared {
                         projectId = ""
                         memberOptions = []
@@ -101,6 +110,7 @@ struct TaskEditorView: View {
                 .disabled(isFixedCreate)
                 .onChange(of: projectId) { oldValue, newValue in
                     guard oldValue != newValue else { return }
+                    focusedField = nil
                     if isPrepared {
                         memberOptions = []
                         assigneeUserId = ""
@@ -144,33 +154,55 @@ struct TaskEditorView: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("标题")
                     .fixedSize()
+                    .frame(width: 40, alignment: .leading)
                 TextField("请输入标题", text: $title)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($focusedField, equals: .title)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .body }
             }
 
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("正文")
                     .fixedSize()
-                    .padding(.top, 2)
+                    .frame(width: 40, alignment: .leading)
                 TextField("请输入正文", text: $bodyText, axis: .vertical)
                     .lineLimit(2...8)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
+                    .focused($focusedField, equals: .body)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("地点")
                     .fixedSize()
+                    .frame(width: 40, alignment: .leading)
                 TextField("请输入地点", text: $location)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($focusedField, equals: .location)
+                    .submitLabel(.done)
+                    .onSubmit { focusedField = nil }
             }
 
-            TaskChoiceRow(title: "优先级", selection: $priority, options: taskPriorityOptions)
-            TaskChoiceRow(title: "状态", selection: $status, options: taskStatusOptions)
+            TaskChoiceRow(
+                title: "优先级",
+                selection: $priority,
+                options: taskPriorityOptions,
+                onSelection: { focusedField = nil }
+            )
+            TaskChoiceRow(
+                title: "状态",
+                selection: $status,
+                options: taskStatusOptions,
+                onSelection: { focusedField = nil }
+            )
 
             ColorPicker("任务颜色", selection: Binding(
                 get: { Color(hex: color) },
-                set: { color = $0.hexString ?? "#FFFFFF" }
+                set: {
+                    focusedField = nil
+                    color = $0.hexString ?? "#FFFFFF"
+                }
             ))
 
             VStack(alignment: .leading, spacing: 12) {
@@ -194,15 +226,19 @@ struct TaskEditorView: View {
                 }
             }
             .onChange(of: startDate) { oldValue, newValue in
+                focusedField = nil
                 guard endDate <= newValue else { return }
                 let previousDuration = max(3_600, endDate.timeIntervalSince(oldValue))
                 endDate = newValue.addingTimeInterval(previousDuration)
             }
             .onChange(of: status) { oldValue, newValue in
+                focusedField = nil
                 if isPrepared, newValue == "done", oldValue != "done" {
                     completedDate = Date()
                 }
             }
+            .onChange(of: endDate) { _, _ in focusedField = nil }
+            .onChange(of: completedDate) { _, _ in focusedField = nil }
 
             if let response = naturalLanguageResponse {
                 Section("置信度") {
@@ -230,29 +266,35 @@ struct TaskEditorView: View {
             }
 
             if isEditing {
-                Text("评论")
-                    .font(.headline)
                 ForEach(comments) { comment in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack { Text(comment.authorDisplayName).font(.subheadline.bold()); Spacer(); Text(comment.createdAtLabel).font(.caption).foregroundStyle(.secondary) }
                         Text(comment.body)
                     }
                 }
-                HStack(alignment: .bottom, spacing: 10) {
-                    TextField("添加评论", text: $newComment, axis: .vertical)
-                        .lineLimit(1...4)
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("评论")
+                            .fixedSize()
 
-                    Button {
-                        Task { await sendComment() }
-                    } label: {
-                        Label("发送评论", systemImage: "paperplane.fill")
-                            .font(.subheadline.weight(.bold))
-                            .frame(minHeight: 32)
+                        Button {
+                            focusedField = nil
+                            Task { await sendComment() }
+                        } label: {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(TaskCommentSendButtonStyle(tint: TimiaTheme.primary))
+                        .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityLabel("发送评论")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(TimiaTheme.primary)
-                    .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel("发送评论")
+                    .frame(width: 40, alignment: .leading)
+
+                    TextField("添加评论", text: $newComment, axis: .vertical)
+                        .lineLimit(2...4)
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+                        .focused($focusedField, equals: .comment)
                 }
             }
 
@@ -260,6 +302,7 @@ struct TaskEditorView: View {
 
             if isEditing {
                 Button {
+                    focusedField = nil
                     isShowingDeleteConfirmation = true
                 } label: {
                     HStack(spacing: 8) {
@@ -284,12 +327,21 @@ struct TaskEditorView: View {
                 .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 8, trailing: 0))
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") {
+                    focusedField = nil
+                    dismiss()
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
-                Button(isSaving ? "保存中…" : "保存") { Task { await save() } }
+                Button(isSaving ? "保存中…" : "保存") {
+                    focusedField = nil
+                    Task { await save() }
+                }
                     .disabled(
                         isSaving
                             || isDeleting
@@ -300,7 +352,9 @@ struct TaskEditorView: View {
                     )
             }
         }
+        .keyboardDoneToolbar { focusedField = nil }
         .task { await prepare() }
+        .onDisappear { focusedField = nil }
         .alert("确认删除任务？", isPresented: $isShowingDeleteConfirmation) {
             Button("取消", role: .cancel) {}
             Button("删除任务", role: .destructive) {
@@ -657,6 +711,7 @@ struct TaskEditorView: View {
 
 private struct TaskAssigneeSelectionView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: String
     @State private var searchText = ""
@@ -677,6 +732,8 @@ private struct TaskAssigneeSelectionView: View {
         .navigationTitle("选择负责人")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "搜索姓名或邮箱")
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneToolbar { dismissSearch() }
         .overlay {
             if filteredUsers.isEmpty, !searchText.isEmpty {
                 ContentUnavailableView.search(text: searchText)
@@ -690,6 +747,7 @@ private struct TaskAssigneeSelectionView: View {
 }
 
 private struct TaskParticipantsSelectionView: View {
+    @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: Set<String>
     @State private var searchText = ""
@@ -711,6 +769,8 @@ private struct TaskParticipantsSelectionView: View {
         .navigationTitle("选择成员")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "搜索姓名或邮箱")
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneToolbar { dismissSearch() }
         .overlay {
             if filteredUsers.isEmpty {
                 ContentUnavailableView(
@@ -771,6 +831,7 @@ private struct TaskChoiceRow: View {
     let title: String
     @Binding var selection: String
     let options: [TaskChoiceOption]
+    let onSelection: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -782,6 +843,7 @@ private struct TaskChoiceRow: View {
                     let isSelected = selection == option.id
 
                     Button {
+                        onSelection()
                         selection = option.id
                     } label: {
                         HStack(spacing: 4) {
@@ -822,6 +884,23 @@ private struct TaskChoiceRow: View {
             }
         }
         .animation(.easeInOut(duration: 0.16), value: selection)
+    }
+}
+
+private struct TaskCommentSendButtonStyle: ButtonStyle {
+    let tint: Color
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .background(
+                tint.opacity(configuration.isPressed ? 0.72 : 1),
+                in: RoundedRectangle(cornerRadius: 10)
+            )
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .opacity(isEnabled ? 1 : 0.42)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

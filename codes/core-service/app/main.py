@@ -5,6 +5,7 @@ from app.routes.auth import router as auth_router
 from app.routes.comments import router as comments_router
 from app.routes.items import router as items_router
 from app.routes.members import router as members_router
+from app.routes.mobile_auth import router as mobile_auth_router
 from app.routes.projects import router as projects_router
 from app.routes.users import router as users_router
 from app.routes.workspaces import router as workspaces_router
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(mobile_auth_router)
 app.include_router(workspaces_router)
 app.include_router(members_router)
 app.include_router(users_router)
@@ -47,4 +49,3 @@ app.include_router(views_analytics_router)
 @app.get("/health")
 def health():
     return {"ok": True}
-
