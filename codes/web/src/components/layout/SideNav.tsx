@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearToken } from "@/lib/auth";
+import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
 import { NavItem } from "./NavItem";
@@ -104,9 +104,9 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
                 role="menuitem"
-                onClick={() => {
+                onClick={async () => {
                   onUserMenuOpenChange(false);
-                  clearToken();
+                  await logoutAndClear();
                   router.push("/login");
                 }}
               >

@@ -13,6 +13,8 @@ export type ApiCatalogEntry = {
   requestJson: ApiJsonShape;
   /** 出参：响应 JSON 形状说明 */
   responseJson: ApiJsonShape;
+  /** 文档说明：此接口会下发或轮换的 Cookie（可选） */
+  cookies?: string;
 };
 
 export type ApiUsageHit = {
@@ -176,7 +178,73 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     path: "/auth/login",
     name: "登录",
     requestJson: { headers: null, query: null, jsonBody: { email: "string (email)", password: "string" } },
-    responseJson: { access_token: "string", token_type: "string (default bearer)" },
+    responseJson: {
+      access_token: "string",
+      token_type: "string (default bearer)",
+      expires_in: "number (seconds)",
+      session_id: "string (uuid)",
+      refresh_token_expires_at: "string (ISO 8601)",
+    },
+    cookies: "Sets HttpOnly cookie `timia_rt` (Path=/auth, SameSite=lax).",
+  },
+  {
+    method: "POST",
+    path: "/auth/refresh",
+    name: "刷新访问令牌",
+    requestJson: {
+      headers: { "X-Session-Id": "string (uuid, current session id)" },
+      query: null,
+      jsonBody: { request_id: "string (min 16, client-generated idempotency key)" },
+    },
+    responseJson: {
+      access_token: "string",
+      expires_in: "number (seconds)",
+      session_id: "string (uuid)",
+      refresh_token_expires_at: "string (ISO 8601)",
+    },
+    cookies: "Rotates `timia_rt` cookie. Reusing a stale RT revokes the whole family.",
+  },
+  {
+    method: "POST",
+    path: "/auth/logout",
+    name: "退出登录",
+    requestJson: { headers: { Cookie: "timia_rt=..." }, query: null, jsonBody: null },
+    responseJson: { "": "204 No Content" },
+    cookies: "Clears `timia_rt` cookie.",
+  },
+  {
+    method: "POST",
+    path: "/auth/logout-all",
+    name: "退出所有 Web 设备",
+    requestJson: { headers: { Cookie: "timia_rt=..." }, query: null, jsonBody: null },
+    responseJson: { "": "204 No Content" },
+  },
+  {
+    method: "GET",
+    path: "/auth/sessions",
+    name: "当前用户的活跃 Web 会话",
+    requestJson: { headers: { Cookie: "timia_rt=..." }, query: null, jsonBody: null },
+    responseJson: {
+      type: "array",
+      items: {
+        id: "string (uuid)",
+        login_provider: "string",
+        created_at: "string (ISO 8601)",
+        last_used_at: "string (ISO 8601)",
+        idle_expires_at: "string (ISO 8601)",
+        absolute_expires_at: "string (ISO 8601)",
+        last_ip: "string | null",
+        last_user_agent: "string | null",
+        is_current: "boolean",
+      },
+    },
+  },
+  {
+    method: "DELETE",
+    path: "/auth/sessions/{session_id}",
+    name: "吊销指定 Web 会话",
+    requestJson: { headers: { Cookie: "timia_rt=..." }, query: null, jsonBody: null },
+    responseJson: { "": "204 No Content" },
   },
   {
     method: "POST",

@@ -8,6 +8,7 @@ from app.routes.members import router as members_router
 from app.routes.mobile_auth import router as mobile_auth_router
 from app.routes.projects import router as projects_router
 from app.routes.users import router as users_router
+from app.routes.web_auth import router as web_auth_router
 from app.routes.workspaces import router as workspaces_router
 from app.core.config import settings
 from app.routes.dev_db_tables import router as dev_db_tables_router
@@ -30,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(web_auth_router)
 app.include_router(mobile_auth_router)
 app.include_router(workspaces_router)
 app.include_router(members_router)

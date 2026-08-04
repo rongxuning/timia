@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { apiFetch, type ApiError } from "@/lib/api";
+import { apiFetch, bootstrapSession, type ApiError } from "@/lib/api";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   getMeClientSnapshot,
-  getToken,
+  getAccessToken,
   loginRedirectReasonWhenUnauthenticated,
   publishMe,
   redirectToLoginPage,
@@ -27,7 +27,7 @@ function refreshMeIfNeeded() {
   if (getMeClientSnapshot()) return Promise.resolve();
   if (inflightMeFetch) return inflightMeFetch;
 
-  const t = getToken();
+  const t = getAccessToken();
   if (!t) return Promise.resolve();
 
   inflightMeFetch = apiFetch<MeWithSystemRole>("/auth/me", { token: t })
@@ -51,6 +51,7 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const me = useCurrentMe();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEscapeDismiss({
@@ -65,14 +66,29 @@ export function AppShell({ children }: AppShellProps) {
     scrollContainer.scrollLeft = 0;
   }, [pathname]);
 
+  // On mount, try to silently restore the session from the RT cookie. The AT
+  // lives in memory only, so a hard refresh wipes it even when the cookie is
+  // still valid. Without this, we'd bounce to /login on every F5.
+  //
+  // We gate `children` on `authReady` so that protected pages don't run their
+  // mount-time token checks before bootstrap has had a chance to populate
+  // the in-memory AT — otherwise they see `getToken() === null` and
+  // `router.push("/login")` fires before our refresh lands.
   useEffect(() => {
-    if (!getToken()) {
-      redirectToLoginPage({ reason: loginRedirectReasonWhenUnauthenticated() });
-    }
-  }, [pathname]);
-
-  useEffect(() => {
-    void refreshMeIfNeeded();
+    let cancelled = false;
+    (async () => {
+      const ok = await bootstrapSession();
+      if (cancelled) return;
+      if (!ok) {
+        redirectToLoginPage({ reason: loginRedirectReasonWhenUnauthenticated() });
+        return;
+      }
+      setAuthReady(true);
+      void refreshMeIfNeeded();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const isAdmin = isSystemAdmin(me?.system_role);
@@ -106,7 +122,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
         <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          {children}
+          {authReady ? children : null}
         </div>
       </div>
     </div>

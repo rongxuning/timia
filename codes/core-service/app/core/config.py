@@ -16,6 +16,15 @@ class Settings(BaseSettings):
     mobile_session_absolute_days: int = 365
     mobile_challenge_expires_minutes: int = 5
     mobile_refresh_retry_grace_seconds: int = 60
+    # Web session (HttpOnly cookie RT). Mirrors mobile mechanics minus the device keypair.
+    web_access_token_expires_minutes: int = 30
+    web_session_idle_days: int = 30
+    web_session_absolute_days: int = 90
+    web_refresh_retry_grace_seconds: int = 60
+    # Cookie hardening. In dev (HTTP localhost) the Secure flag must be False.
+    web_cookie_secure: bool = False
+    web_cookie_samesite: str = "lax"
+    web_cookie_name: str = "timia_rt"
     # Exposes GET /dev/db-tables for local documentation UI; keep false in production.
     enable_dev_db_tables: bool = False
     # Comma-separated browser origins allowed by CORS (e.g. https://app.example.com).

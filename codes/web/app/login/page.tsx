@@ -4,9 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, type ApiError } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { publishAuth } from "@/lib/auth";
+import { publishSessionEvent } from "@/lib/session-sync";
+import { purgeLegacyAuthState } from "@/lib/legacy-migration";
 
-type LoginResponse = { access_token: string; token_type: string };
+type LoginResponse = {
+  access_token: string;
+  expires_in: number;
+  session_id: string;
+  refresh_token_expires_at: string;
+};
 type DevelopmentLoginResponse = { email: string; password: string };
 
 function loginErrorMessage(error: unknown): string {
@@ -34,6 +41,7 @@ export default function LoginPage() {
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    purgeLegacyAuthState();
     const params = new URLSearchParams(window.location.search);
     const emailParam = params.get("email");
     const sessionExpired = params.get("reason") === "session-expired";
@@ -88,7 +96,17 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
-      setToken(res.access_token);
+      // AT lives in memory; RT was set as HttpOnly cookie by the server.
+      publishAuth({
+        token: res.access_token,
+        sessionId: res.session_id,
+        expiresAt: Date.now() + res.expires_in * 1000,
+      });
+      publishSessionEvent({
+        type: "auth-updated",
+        at: res.access_token,
+        sessionId: res.session_id,
+      });
       router.push("/my/schedule");
     } catch (err: unknown) {
       setError(loginErrorMessage(err));
