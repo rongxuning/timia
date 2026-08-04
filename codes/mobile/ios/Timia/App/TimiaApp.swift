@@ -23,6 +23,17 @@ private struct RootView: View {
             ProgressView("正在载入 Timia…")
         case .signedOut:
             AuthenticationView()
+        case let .restoreUnavailable(message):
+            ContentUnavailableView {
+                Label("暂时无法恢复登录", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(message)
+            } actions: {
+                Button("重试") {
+                    Task { await session.restore() }
+                }
+                .buttonStyle(.borderedProminent)
+            }
         case let .signedIn(user):
             MainTabView(user: user)
         }

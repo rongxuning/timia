@@ -8,6 +8,7 @@ struct MembersManagementView: View {
 
     let scope: Scope
     @EnvironmentObject private var session: AppSession
+    @Environment(\.dismissSearch) private var dismissSearch
     @State private var members: [MembershipRow] = []
     @State private var candidates: [AssignableUser] = []
     @State private var canManage = false
@@ -72,6 +73,8 @@ struct MembersManagementView: View {
         }
         .navigationTitle(title)
         .searchable(text: $query, prompt: "搜索姓名、邮箱或用户 ID")
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneToolbar { dismissSearch() }
         .refreshable { await load() }
         .task { await load() }
         .disabled(isLoading)

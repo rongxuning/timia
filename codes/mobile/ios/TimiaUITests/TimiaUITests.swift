@@ -22,7 +22,7 @@ final class TimiaUITests: XCTestCase {
         let todoModeButton = app.buttons["Todo 模式"]
         XCTAssertTrue(todoModeButton.waitForExistence(timeout: 2))
         XCTAssertEqual(todoModeButton.frame.midY, input.frame.midY, accuracy: 6)
-        XCTAssertFalse(app.buttons["D"].exists)
+        XCTAssertFalse(app.buttons["日"].exists)
 
         let directCreateButton = app.buttons["新建任务"]
         XCTAssertTrue(directCreateButton.waitForExistence(timeout: 2))
@@ -40,21 +40,21 @@ final class TimiaUITests: XCTestCase {
         attachScreenshot(named: "schedule-day", app: app)
 
         app.buttons["日历模式"].tap()
-        XCTAssertTrue(app.buttons["W"].waitForExistence(timeout: 2))
-        app.buttons["W"].tap()
-        XCTAssertFalse(app.buttons["D"].exists)
+        XCTAssertTrue(app.buttons["周"].waitForExistence(timeout: 2))
+        app.buttons["周"].tap()
+        XCTAssertFalse(app.buttons["日"].exists)
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-week", app: app)
 
         app.buttons["日历模式"].tap()
-        app.buttons["M"].tap()
-        XCTAssertFalse(app.buttons["Y"].exists)
+        app.buttons["月"].tap()
+        XCTAssertFalse(app.buttons["年"].exists)
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-month", app: app)
 
         app.buttons["日历模式"].tap()
-        XCTAssertTrue(app.buttons["Y"].waitForExistence(timeout: 3))
-        app.buttons["Y"].tap()
+        XCTAssertTrue(app.buttons["年"].waitForExistence(timeout: 3))
+        app.buttons["年"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH '年'")).firstMatch.waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-year", app: app)
@@ -67,22 +67,33 @@ final class TimiaUITests: XCTestCase {
 
         app.buttons["打开空间页面"].tap()
         XCTAssertTrue(app.navigationBars["空间"].waitForExistence(timeout: 3))
+        let workspaceLink = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "打开空间：")
+        ).firstMatch
+        XCTAssertTrue(workspaceLink.waitForExistence(timeout: 3))
+        let workspaceName = String(workspaceLink.label.dropFirst("打开空间：".count))
+        workspaceLink.tap()
+        XCTAssertTrue(app.navigationBars[workspaceName].waitForExistence(timeout: 3))
+        app.navigationBars[workspaceName].buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["空间"].waitForExistence(timeout: 3))
         app.navigationBars["空间"].buttons.firstMatch.tap()
         XCTAssertTrue(input.waitForExistence(timeout: 3))
 
         app.buttons["Todo 模式"].tap()
         XCTAssertTrue(app.buttons["日历模式"].waitForExistence(timeout: 2))
-        XCTAssertFalse(app.buttons["D"].exists)
+        XCTAssertFalse(app.buttons["日"].exists)
+        XCTAssertTrue(element("todo-section-today", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-this-week", in: app).waitForExistence(timeout: 3))
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-todo", app: app)
 
         app.buttons["日历模式"].tap()
-        XCTAssertTrue(app.buttons["D"].waitForExistence(timeout: 2))
-        app.buttons["D"].tap()
-        XCTAssertFalse(app.buttons["D"].exists)
+        XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
+        app.buttons["日"].tap()
+        XCTAssertFalse(app.buttons["日"].exists)
         Thread.sleep(forTimeInterval: 0.35)
         app.buttons["日历模式"].tap()
-        XCTAssertTrue(app.buttons["D"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
     }
 
     func testCalendarBlankCreateAndVerticalRangeNavigation() {
@@ -120,7 +131,7 @@ final class TimiaUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
 
         app.buttons["日历模式"].tap()
-        app.buttons["W"].tap()
+        app.buttons["周"].tap()
         XCTAssertTrue(element("calendar-week-timeline", in: app).waitForExistence(timeout: 3))
         let todayInWeekHeader = element("calendar-week-date-\(todayKey)", in: app)
         XCTAssertTrue(todayInWeekHeader.waitForExistence(timeout: 3))
@@ -141,7 +152,7 @@ final class TimiaUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.5)
 
         app.buttons["日历模式"].tap()
-        app.buttons["M"].tap()
+        app.buttons["月"].tap()
         let monthGrid = element("calendar-month-grid", in: app)
         let calendarHeader = app.staticTexts["calendar-header-title"]
         XCTAssertTrue(monthGrid.waitForExistence(timeout: 3))
@@ -177,7 +188,7 @@ final class TimiaUITests: XCTestCase {
         )
 
         app.buttons["日历模式"].tap()
-        app.buttons["Y"].tap()
+        app.buttons["年"].tap()
         let yearGrid = element("calendar-year-grid", in: app)
         let yearHeader = app.staticTexts["calendar-header-title"]
         XCTAssertTrue(yearGrid.waitForExistence(timeout: 3))
@@ -205,7 +216,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
-        app.buttons["W"].tap()
+        app.buttons["周"].tap()
         XCTAssertTrue(element("calendar-week-timeline", in: app).waitForExistence(timeout: 3))
 
         let todayKey = dayKey(Date())

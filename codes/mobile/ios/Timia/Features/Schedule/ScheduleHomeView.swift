@@ -35,10 +35,10 @@ struct ScheduleHomeView: View {
     }
 
     private enum CalendarRange: String, CaseIterable {
-        case day = "D"
-        case week = "W"
-        case month = "M"
-        case year = "Y"
+        case day = "日"
+        case week = "周"
+        case month = "月"
+        case year = "年"
 
         var apiValue: String {
             switch self {
@@ -66,6 +66,7 @@ struct ScheduleHomeView: View {
     @State private var todoTotals: [String: Int] = [:]
     @State private var todoHasMore: [String: Bool] = [:]
     @State private var loadingTodoStatuses: Set<String> = []
+    @State private var updatingTodoTaskIds: Set<String> = []
     @State private var isLoading = false
     @State private var errorTip: String?
     @State private var selectedTask: ScheduleTask?
@@ -74,6 +75,7 @@ struct ScheduleHomeView: View {
     @State private var isParsing = false
     @State private var parseResponse: NaturalLanguageParseResponse?
     @State private var isRangePickerExpanded = false
+    @FocusState private var isNaturalLanguageInputFocused: Bool
 
     var body: some View {
         ZStack {
@@ -92,6 +94,17 @@ struct ScheduleHomeView: View {
                             onLoadMore: { status in
                                 Task { await loadMoreTodo(status) }
                             },
+                            updatingTaskIds: updatingTodoTaskIds,
+                            onToggleCompletion: { task in
+                                let nextStatus = task.status == "todo" || task.status == "doing" ? "done" : "todo"
+                                Task { await updateTodoTaskStatus(task, status: nextStatus) }
+                            },
+                            onStatusChange: { task, status in
+                                Task { await updateTodoTaskStatus(task, status: status) }
+                            },
+                            onPriorityChange: { task, priority in
+                                Task { await updateTodoTaskPriority(task, priority: priority) }
+                            },
                             onTaskTap: { selectedTask = $0 }
                         )
                     } else {
@@ -99,6 +112,17 @@ struct ScheduleHomeView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        dismissNaturalLanguageInput()
+                    }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 6).onChanged { _ in
+                        dismissNaturalLanguageInput()
+                    }
+                )
             }
 
             if let errorTip {
@@ -115,6 +139,7 @@ struct ScheduleHomeView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .keyboardDoneToolbar { dismissNaturalLanguageInput() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomControls
         }
@@ -147,12 +172,13 @@ struct ScheduleHomeView: View {
             }
         }
         .sheet(item: $parseResponse) { response in
-            NaturalLanguageConfirmationView(response: response) {
-                parseResponse = nil
-                naturalLanguageText = ""
-                Task { await loadVisibleContent(force: true) }
+            NavigationStack {
+                TaskEditorView(mode: .naturalLanguage(response)) {
+                    parseResponse = nil
+                    naturalLanguageText = ""
+                    Task { await loadVisibleContent(force: true) }
+                }
             }
-            .environmentObject(session)
         }
     }
 
@@ -180,7 +206,10 @@ struct ScheduleHomeView: View {
 
             Spacer()
 
-            Button(action: onOpenWorkspaces) {
+            Button {
+                dismissNaturalLanguageInput()
+                onOpenWorkspaces()
+            } label: {
                 Image(systemName: "square.grid.2x2")
                     .font(.body.weight(.semibold))
             }
@@ -189,7 +218,10 @@ struct ScheduleHomeView: View {
             .controlSize(.large)
             .accessibilityLabel("打开空间页面")
 
-            Button(action: onOpenAccount) {
+            Button {
+                dismissNaturalLanguageInput()
+                onOpenAccount()
+            } label: {
                 Text(user.initials)
                     .font(.subheadline.bold())
                     .foregroundStyle(.white)
@@ -204,6 +236,12 @@ struct ScheduleHomeView: View {
         .padding(.top, 6)
         .padding(.bottom, 6)
         .background(TimiaTheme.surface)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                dismissNaturalLanguageInput()
+            }
+        )
     }
 
     private var periodHeaderTransition: AnyTransition {
@@ -351,6 +389,7 @@ struct ScheduleHomeView: View {
 
             HStack(spacing: 8) {
                 Button {
+                    dismissNaturalLanguageInput()
                     withAnimation(.snappy(duration: 0.2)) {
                         isRangePickerExpanded = false
                     }
@@ -370,10 +409,15 @@ struct ScheduleHomeView: View {
 
                 TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
                     .lineLimit(1...3)
+                    .focused($isNaturalLanguageInputFocused)
                     .submitLabel(.send)
-                    .onSubmit { Task { await parseNaturalLanguage() } }
+                    .onSubmit {
+                        dismissNaturalLanguageInput()
+                        Task { await parseNaturalLanguage() }
+                    }
 
                 Button {
+                    dismissNaturalLanguageInput()
                     Task { await parseNaturalLanguage() }
                 } label: {
                     Group {
@@ -432,6 +476,7 @@ struct ScheduleHomeView: View {
 
     private func modeButton(_ value: ContentMode, symbol: String) -> some View {
         Button {
+            dismissNaturalLanguageInput()
             withAnimation(.snappy(duration: 0.25)) {
                 if value == .calendar {
                     if contentMode == .calendar {
@@ -456,6 +501,9 @@ struct ScheduleHomeView: View {
     }
 
     private var headerTitle: String {
+        if contentMode == .todo {
+            return ScheduleFormat.fullDateLabel(selectedDate)
+        }
         if contentMode == .calendar, range == .year {
             return "\(Calendar.current.component(.year, from: selectedDate))年"
         }
@@ -463,6 +511,7 @@ struct ScheduleHomeView: View {
     }
 
     private func selectRange(_ newRange: CalendarRange) {
+        dismissNaturalLanguageInput()
         withAnimation(.snappy(duration: 0.22)) {
             isRangePickerExpanded = false
         }
@@ -476,6 +525,7 @@ struct ScheduleHomeView: View {
     }
 
     private func selectDate(_ date: Date) {
+        dismissNaturalLanguageInput()
         guard !Calendar.current.isDate(date, inSameDayAs: selectedDate) else { return }
         withAnimation(.snappy(duration: 0.28)) {
             selectedDate = date
@@ -720,7 +770,96 @@ struct ScheduleHomeView: View {
         }
     }
 
+    @MainActor
+    private func updateTodoTaskStatus(_ task: ScheduleTask, status: String) async {
+        guard task.status != status, !updatingTodoTaskIds.contains(task.id) else { return }
+        updatingTodoTaskIds.insert(task.id)
+
+        var optimisticTask = task
+        optimisticTask.status = status
+        optimisticTask.completedAt = status == "done" ? ISO8601DateFormatter().string(from: Date()) : nil
+        withAnimation(.easeInOut(duration: reduceMotion ? 0.12 : 0.24)) {
+            moveTodoTask(optimisticTask, from: task.status, to: status)
+        }
+
+        do {
+            let response = try await session.api.request(
+                "/workspaces/\(task.workspaceId)/projects/\(task.projectId)/items/\(task.id)",
+                method: "PATCH",
+                body: TodoTaskStatusUpdatePayload(
+                    version: task.version,
+                    status: status,
+                    completedAt: optimisticTask.completedAt
+                ),
+                response: ItemResponse.self
+            )
+            applyTodoResponse(response, fallback: optimisticTask)
+        } catch {
+            withAnimation(.easeInOut(duration: reduceMotion ? 0.12 : 0.24)) {
+                moveTodoTask(task, from: status, to: task.status)
+            }
+            showTip(error.localizedDescription)
+        }
+        updatingTodoTaskIds.remove(task.id)
+    }
+
+    @MainActor
+    private func updateTodoTaskPriority(_ task: ScheduleTask, priority: String) async {
+        guard task.priority != priority, !updatingTodoTaskIds.contains(task.id) else { return }
+        updatingTodoTaskIds.insert(task.id)
+
+        var optimisticTask = task
+        optimisticTask.priority = priority
+        replaceTodoTask(optimisticTask)
+
+        do {
+            let response = try await session.api.request(
+                "/workspaces/\(task.workspaceId)/projects/\(task.projectId)/items/\(task.id)",
+                method: "PATCH",
+                body: TodoTaskPriorityUpdatePayload(version: task.version, priority: priority),
+                response: ItemResponse.self
+            )
+            applyTodoResponse(response, fallback: optimisticTask)
+        } catch {
+            replaceTodoTask(task)
+            showTip(error.localizedDescription)
+        }
+        updatingTodoTaskIds.remove(task.id)
+    }
+
+    private func moveTodoTask(_ task: ScheduleTask, from oldStatus: String, to newStatus: String) {
+        todoColumns[oldStatus]?.removeAll { $0.id == task.id }
+        todoColumns[newStatus, default: []].insert(task, at: 0)
+        todoTotals[oldStatus] = max((todoTotals[oldStatus] ?? 1) - 1, 0)
+        todoTotals[newStatus] = (todoTotals[newStatus] ?? 0) + 1
+    }
+
+    private func replaceTodoTask(_ task: ScheduleTask) {
+        for status in ["todo", "doing", "done", "archived"] {
+            guard let index = todoColumns[status]?.firstIndex(where: { $0.id == task.id }) else { continue }
+            todoColumns[status]?[index] = task
+            return
+        }
+    }
+
+    private func applyTodoResponse(_ response: ItemResponse, fallback: ScheduleTask) {
+        var updated = fallback
+        updated.title = response.title
+        updated.body = response.body
+        updated.color = response.color
+        updated.status = response.status
+        updated.priority = response.priority
+        updated.startAt = response.startAt
+        updated.endAt = response.endAt
+        updated.completedAt = response.completedAt
+        updated.details = response.details
+        updated.version = response.version
+        updated.location = response.location
+        replaceTodoTask(updated)
+    }
+
     private func parseNaturalLanguage() async {
+        dismissNaturalLanguageInput()
         let value = naturalLanguageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
         isParsing = true
@@ -740,6 +879,11 @@ struct ScheduleHomeView: View {
         } catch {
             showTip(error.localizedDescription)
         }
+    }
+
+    private func dismissNaturalLanguageInput() {
+        guard isNaturalLanguageInputFocused else { return }
+        isNaturalLanguageInputFocused = false
     }
 
     private func showTip(_ message: String) {
@@ -1981,274 +2125,491 @@ private struct YearMonthCard: View {
 }
 
 private struct TodoScheduleView: View {
+    private struct SectionStyle {
+        let id: String
+        let label: String
+        let symbol: String
+        let color: Color
+    }
+
     @Environment(\.colorScheme) private var colorScheme
+    @State private var revealedTaskId: String?
+    @State private var revealedEdge: TaskCardRevealEdge?
 
     let columns: [String: [ScheduleTask]]
     let totals: [String: Int]
     let hasMore: [String: Bool]
     let loadingStatuses: Set<String>
     let onLoadMore: (String) -> Void
+    let updatingTaskIds: Set<String>
+    let onToggleCompletion: (ScheduleTask) -> Void
+    let onStatusChange: (ScheduleTask, String) -> Void
+    let onPriorityChange: (ScheduleTask, String) -> Void
     let onTaskTap: (ScheduleTask) -> Void
 
     private let statuses = [
-        ("todo", "待办", "circle"),
-        ("doing", "进行中", "clock"),
-        ("done", "已完成", "checkmark.circle"),
-        ("archived", "已归档", "archivebox")
+        SectionStyle(id: "todo", label: "未开始", symbol: "circle", color: TaskStatusPalette.todo),
+        SectionStyle(id: "doing", label: "进行中", symbol: "clock", color: TaskStatusPalette.doing),
+        SectionStyle(id: "done", label: "已完成", symbol: "checkmark.circle.fill", color: TaskStatusPalette.done),
+        SectionStyle(id: "archived", label: "已归档", symbol: "archivebox.fill", color: TaskStatusPalette.archived)
     ]
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(statuses, id: \.0) { status, label, symbol in
-                    let tasks = columns[status] ?? []
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Label(label, systemImage: symbol).font(.headline)
-                            Spacer()
-                            Text("\(totals[status] ?? tasks.count)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        ForEach(tasks) { task in
-                            let style = SchedulePriorityStyle(
-                                priority: task.priority,
-                                colorScheme: colorScheme
-                            )
-                            Button { onTaskTap(task) } label: {
-                                HStack(alignment: .center, spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(task.title)
-                                            .font(.subheadline.weight(.semibold))
-                                            .lineLimit(2)
-                                        Text(ScheduleFormat.todoTimeRange(task))
-                                            .font(.caption)
-                                            .lineLimit(1)
-                                            .opacity(0.78)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                taskSection(
+                    id: "today",
+                    label: "今日",
+                    symbol: "sun.max.fill",
+                    color: TimiaTheme.primary,
+                    tasks: todayTasks,
+                    total: todayTasks.count
+                )
 
-                                    Spacer()
+                taskSection(
+                    id: "this-week",
+                    label: "本周",
+                    symbol: "calendar",
+                    color: Color(hex: "#3B82F6"),
+                    tasks: thisWeekTasks,
+                    total: thisWeekTasks.count
+                )
 
-                                    VStack(alignment: .trailing, spacing: 5) {
-                                        Text(task.workspaceName)
-                                        Text(task.projectName)
-                                    }
-                                    .font(.caption.weight(.medium))
-                                    .lineLimit(1)
-                                    .frame(width: 108, alignment: .trailing)
-                                    .opacity(0.82)
-                                }
-                                .foregroundStyle(style.foreground)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 12)
-                                .background(style.background, in: RoundedRectangle(cornerRadius: 14))
-                                .overlay(alignment: .leading) {
-                                    Capsule()
-                                        .fill(style.accent)
-                                        .frame(width: 4)
-                                        .padding(.vertical, 8)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        if hasMore[status] == true {
-                            Button {
-                                onLoadMore(status)
-                            } label: {
-                                HStack(spacing: 7) {
-                                    if loadingStatuses.contains(status) {
-                                        ProgressView().controlSize(.small)
-                                    } else {
-                                        Image(systemName: "chevron.down")
-                                    }
-                                    let remaining = max(
-                                        (totals[status] ?? tasks.count) - tasks.count,
-                                        0
-                                    )
-                                    Text("展开更多\(remaining > 0 ? "（剩余 \(remaining)）" : "")")
-                                }
-                                .font(.caption.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(TimiaTheme.field, in: Capsule())
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(loadingStatuses.contains(status))
-                            .accessibilityLabel("加载更多\(label)任务")
-                        }
-
-                        if tasks.isEmpty {
-                            Text("暂无任务").font(.caption).foregroundStyle(.tertiary).padding(.vertical, 6)
-                        }
-                    }
-                    .padding(14)
-                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 18))
-                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(TimiaTheme.border.opacity(0.45)))
+                ForEach(statuses, id: \.id) { style in
+                    let tasks = columns[style.id] ?? []
+                    taskSection(
+                        id: style.id,
+                        label: style.label,
+                        symbol: style.symbol,
+                        color: style.color,
+                        tasks: tasks,
+                        total: totals[style.id] ?? tasks.count,
+                        loadMoreStatus: style.id
+                    )
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
         .background(TimiaTheme.canvas)
-    }
-}
-
-private struct NaturalLanguageConfirmationView: View {
-    let response: NaturalLanguageParseResponse
-    let onCreated: () -> Void
-
-    @EnvironmentObject private var session: AppSession
-    @Environment(\.dismiss) private var dismiss
-    @State private var draft: NaturalLanguageTaskDraft
-    @State private var workspaces: [WorkspaceCard] = []
-    @State private var projects: [Project] = []
-    @State private var workspaceId = ""
-    @State private var projectId = ""
-    @State private var isSaving = false
-    @State private var errorMessage: String?
-
-    init(response: NaturalLanguageParseResponse, onCreated: @escaping () -> Void) {
-        self.response = response
-        self.onCreated = onCreated
-        _draft = State(initialValue: response.draft)
+        .scrollDismissesKeyboard(.interactively)
     }
 
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("解析结果") {
-                    TextField("标题", text: $draft.title)
-                    TextField("说明", text: optionalBinding(\.body), axis: .vertical).lineLimit(2...5)
-                    TextField("地点", text: optionalBinding(\.location))
-                    LabeledContent("置信度", value: "\(Int(response.confidence * 100))%")
-                }
+    @ViewBuilder
+    private func taskSection(
+        id: String,
+        label: String,
+        symbol: String,
+        color: Color,
+        tasks: [ScheduleTask],
+        total: Int,
+        loadMoreStatus: String? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TaskGroupHeader(
+                title: label,
+                symbol: symbol,
+                count: total,
+                color: color
+            )
 
-                Section("时间") {
-                    Toggle("全天", isOn: $draft.allDay)
-                    if let start = ScheduleFormat.parseISO(draft.startAt) {
-                        LabeledContent("开始", value: ScheduleFormat.fullDateTime(start))
-                    }
-                    if let end = ScheduleFormat.parseISO(draft.endAt) {
-                        LabeledContent("结束", value: ScheduleFormat.fullDateTime(end))
-                    }
-                    if let recurrence = draft.recurrenceText, !recurrence.isEmpty {
-                        LabeledContent("重复", value: recurrence)
-                    }
-                }
+            ForEach(tasks) { task in
+                taskRow(task)
+            }
 
-                Section("保存到") {
-                    Picker("空间", selection: $workspaceId) {
-                        Text("请选择").tag("")
-                        ForEach(workspaces) { Text($0.name).tag($0.id) }
-                    }
-                    .onChange(of: workspaceId) { _, _ in Task { await loadProjects() } }
-                    Picker("项目", selection: $projectId) {
-                        Text("请选择").tag("")
-                        ForEach(projects) { Text($0.name).tag($0.id) }
-                    }
-                }
-
-                if !response.assumptions.isEmpty || !response.ambiguities.isEmpty {
-                    Section("请确认") {
-                        ForEach(response.assumptions + response.ambiguities, id: \.self) {
-                            Label($0, systemImage: "exclamationmark.bubble").font(.subheadline)
+            if let status = loadMoreStatus, hasMore[status] == true {
+                Button {
+                    onLoadMore(status)
+                } label: {
+                    HStack(spacing: 7) {
+                        if loadingStatuses.contains(status) {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "chevron.down")
                         }
+                        let remaining = max(total - tasks.count, 0)
+                        Text("展开更多\(remaining > 0 ? "（剩余 \(remaining)）" : "")")
                     }
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(TimiaTheme.field, in: Capsule())
                 }
+                .buttonStyle(.plain)
+                .disabled(loadingStatuses.contains(status))
+                .accessibilityLabel("加载更多\(label)任务")
+            }
 
-                if let errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
+            if tasks.isEmpty {
+                Text("暂无任务")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.vertical, 6)
             }
-            .navigationTitle("确认新任务")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "创建中…" : "创建") { Task { await createTask() } }
-                        .disabled(isSaving || draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || projectId.isEmpty)
-                }
-            }
-            .task { await loadWorkspaces() }
         }
+        .padding(14)
+        .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(TimiaTheme.border.opacity(0.45)))
+        .accessibilityIdentifier("todo-section-\(id)")
     }
 
-    private func optionalBinding(_ keyPath: WritableKeyPath<NaturalLanguageTaskDraft, String?>) -> Binding<String> {
-        Binding(
-            get: { draft[keyPath: keyPath] ?? "" },
-            set: { draft[keyPath: keyPath] = $0.isEmpty ? nil : $0 }
+    private func taskRow(_ task: ScheduleTask) -> some View {
+        SwipeTaskCard(
+            task: task,
+            colorScheme: colorScheme,
+            isUpdating: updatingTaskIds.contains(task.id),
+            revealedEdge: revealedTaskId == task.id ? revealedEdge : nil,
+            onReveal: { edge in
+                revealedTaskId = edge == nil ? nil : task.id
+                revealedEdge = edge
+            },
+            onToggleCompletion: {
+                revealedTaskId = nil
+                revealedEdge = nil
+                onToggleCompletion(task)
+            },
+            onStatusChange: { status in
+                revealedTaskId = nil
+                revealedEdge = nil
+                onStatusChange(task, status)
+            },
+            onPriorityChange: { priority in
+                revealedTaskId = nil
+                revealedEdge = nil
+                onPriorityChange(task, priority)
+            },
+            onTap: {
+                if revealedTaskId == task.id {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        revealedTaskId = nil
+                        revealedEdge = nil
+                    }
+                } else {
+                    onTaskTap(task)
+                }
+            }
         )
     }
 
-    private func loadWorkspaces() async {
-        do {
-            workspaces = try await session.api.request("/workspaces/cards", response: [WorkspaceCard].self)
-            if let named = draft.workspaceName,
-               let match = workspaces.first(where: { $0.name.localizedCaseInsensitiveCompare(named) == .orderedSame }) {
-                workspaceId = match.id
-            } else {
-                workspaceId = workspaces.first?.id ?? ""
+    private var activeTasks: [ScheduleTask] {
+        (columns["todo"] ?? []) + (columns["doing"] ?? [])
+    }
+
+    private var todayTasks: [ScheduleTask] {
+        guard let today = Calendar.current.dateInterval(of: .day, for: Date()) else { return [] }
+        return sortedQuickTasks(activeTasks.filter { taskOverlaps($0, interval: today) })
+    }
+
+    private var thisWeekTasks: [ScheduleTask] {
+        let calendar = Calendar.current
+        guard let today = calendar.dateInterval(of: .day, for: Date()),
+              let week = calendar.dateInterval(of: .weekOfYear, for: Date()) else {
+            return []
+        }
+        return sortedQuickTasks(activeTasks.filter {
+            !taskOverlaps($0, interval: today) && taskOverlaps($0, interval: week)
+        })
+    }
+
+    private func sortedQuickTasks(_ tasks: [ScheduleTask]) -> [ScheduleTask] {
+        tasks.sorted {
+            let left = ScheduleFormat.parseISO($0.endAt)
+                ?? ScheduleFormat.parseISO($0.startAt)
+                ?? .distantFuture
+            let right = ScheduleFormat.parseISO($1.endAt)
+                ?? ScheduleFormat.parseISO($1.startAt)
+                ?? .distantFuture
+            return left == right ? $0.title < $1.title : left < right
+        }
+    }
+
+    private func taskOverlaps(_ task: ScheduleTask, interval: DateInterval) -> Bool {
+        let parsedStart = ScheduleFormat.parseISO(task.startAt)
+        let parsedEnd = ScheduleFormat.parseISO(task.endAt)
+        guard let start = parsedStart ?? parsedEnd else { return false }
+        let end = parsedEnd ?? parsedStart ?? start
+
+        if end > start {
+            return start < interval.end && end > interval.start
+        }
+        return interval.contains(start)
+    }
+}
+
+enum TaskCardRevealEdge: Equatable {
+    case leading
+    case trailing
+}
+
+struct SwipeTaskCard: View {
+    private struct ActionOption: Identifiable {
+        let id: String
+        let label: String
+        let color: Color
+    }
+
+    let task: ScheduleTask
+    let colorScheme: ColorScheme
+    let isUpdating: Bool
+    let revealedEdge: TaskCardRevealEdge?
+    let onReveal: (TaskCardRevealEdge?) -> Void
+    let onToggleCompletion: () -> Void
+    let onStatusChange: (String) -> Void
+    let onPriorityChange: (String) -> Void
+    let onTap: () -> Void
+
+    @State private var dragTranslation: CGFloat = 0
+    @State private var suppressCardTapUntil = Date.distantPast
+
+    private let actionWidth: CGFloat = 224
+    private let swipeMinimumDistance: CGFloat = 16
+    private let horizontalIntentRatio: CGFloat = 1.25
+    private let cardTapSuppressionInterval: TimeInterval = 0.35
+    private let cornerRadius: CGFloat = 14
+    private let statusOptions = [
+        ActionOption(id: "todo", label: "未开始", color: TaskStatusPalette.todo),
+        ActionOption(id: "doing", label: "进行中", color: TaskStatusPalette.doing),
+        ActionOption(id: "done", label: "已完成", color: TaskStatusPalette.done),
+        ActionOption(id: "archived", label: "已归档", color: TaskStatusPalette.archived)
+    ]
+    private let priorityOptions = [
+        ActionOption(id: "1", label: "低", color: Color(hex: "#3B82F6")),
+        ActionOption(id: "2", label: "中", color: Color(hex: "#22C55E")),
+        ActionOption(id: "3", label: "高", color: Color(hex: "#EAB308")),
+        ActionOption(id: "4", label: "紧急", color: Color(hex: "#EF4444"))
+    ]
+
+    var body: some View {
+        ZStack {
+            actionBackground
+            taskContent
+                .offset(x: rowOffset)
+                .simultaneousGesture(swipeGesture)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .accessibilityElement(children: .contain)
+        .onChange(of: revealedEdge) { _, _ in
+            dragTranslation = 0
+        }
+    }
+
+    private var taskContent: some View {
+        let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
+        return HStack(alignment: .center, spacing: 10) {
+            Button(action: handleToggleCompletion) {
+                Image(systemName: statusIndicatorSymbol)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(statusIndicatorColor)
+                    .frame(width: 30, height: 36)
             }
-            await loadProjects()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
+            .buttonStyle(.plain)
+            .disabled(isUpdating)
+            .accessibilityLabel(toggleCompletionAccessibilityLabel)
 
-    private func loadProjects() async {
-        guard !workspaceId.isEmpty else {
-            projects = []
-            projectId = ""
-            return
-        }
-        do {
-            projects = try await session.api.request("/workspaces/\(workspaceId)/projects", response: [Project].self)
-            if let named = draft.projectName,
-               let match = projects.first(where: { $0.name.localizedCaseInsensitiveCompare(named) == .orderedSame }) {
-                projectId = match.id
-            } else if !projects.contains(where: { $0.id == projectId }) {
-                projectId = projects.first?.id ?? ""
+            Button(action: handleDetailsTap) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(task.title)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(2)
+                        Text(ScheduleFormat.todoTimeRange(task))
+                            .font(.caption)
+                            .lineLimit(1)
+                            .opacity(0.78)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .trailing, spacing: 5) {
+                        Text(task.workspaceName)
+                        Text(task.projectName)
+                    }
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                    .frame(width: 102, alignment: .trailing)
+                    .opacity(0.82)
+                }
+                .contentShape(Rectangle())
             }
-        } catch {
-            errorMessage = error.localizedDescription
+            .buttonStyle(.plain)
+            .disabled(isUpdating)
+
+            if isUpdating {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 18)
+                    .accessibilityLabel("正在更新任务")
+            }
+        }
+        .foregroundStyle(style.foreground)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(style.background)
+        .overlay(alignment: .leading) {
+            Capsule()
+                .fill(style.accent)
+                .frame(width: 4)
+                .padding(.vertical, 8)
         }
     }
 
-    private func createTask() async {
-        guard !workspaceId.isEmpty, !projectId.isEmpty else { return }
-        isSaving = true
-        defer { isSaving = false }
-        do {
-            _ = try await session.api.request(
-                "/workspaces/\(workspaceId)/projects/\(projectId)/items",
-                method: "POST",
-                body: ItemPayload(
-                    title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
-                    body: draft.body,
-                    color: "#FFFFFF",
-                    status: draft.status,
-                    priority: draft.priority,
-                    startAt: draft.startAt,
-                    endAt: draft.endAt,
-                    details: recurrenceDetails,
-                    location: draft.location
-                ),
-                response: ItemResponse.self
-            )
-            onCreated()
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
+    private var actionBackground: some View {
+        ZStack {
+            if rowOffset > 0 {
+                HStack(spacing: 0) {
+                    actionPanel(statusOptions, selectedId: task.status, action: onStatusChange)
+                        .frame(width: actionWidth)
+                    Spacer(minLength: 0)
+                }
+            } else if rowOffset < 0 {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    actionPanel(priorityOptions, selectedId: task.priority, action: onPriorityChange)
+                        .frame(width: actionWidth)
+                }
+            }
+        }
+        .background(TimiaTheme.field)
+    }
+
+    private func actionPanel(
+        _ options: [ActionOption],
+        selectedId: String?,
+        action: @escaping (String) -> Void
+    ) -> some View {
+        HStack(spacing: 0) {
+            ForEach(options) { option in
+                Button {
+                    guard option.id != selectedId else {
+                        settleSwipe(to: nil)
+                        return
+                    }
+                    action(option.id)
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: option.id == selectedId ? "checkmark.circle.fill" : "circle.fill")
+                            .font(.system(size: 15, weight: .bold))
+                        Text(option.label)
+                            .font(.system(size: 10, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(option.color.opacity(option.id == selectedId ? 1 : 0.82))
+                }
+                .buttonStyle(.plain)
+                .disabled(isUpdating)
+                .accessibilityLabel(option.label)
+                .accessibilityValue(option.id == selectedId ? "已选择" : "")
+            }
         }
     }
 
-    private var recurrenceDetails: String? {
-        guard let recurrence = draft.recurrenceText, !recurrence.isEmpty else { return nil }
-        return "重复：\(recurrence)"
+    private var isCompleted: Bool {
+        task.status == "done" || task.status == "archived"
+    }
+
+    private var statusIndicatorSymbol: String {
+        switch task.status {
+        case "doing": "clock.fill"
+        case "done": "checkmark.circle.fill"
+        case "archived": "archivebox.fill"
+        default: "circle"
+        }
+    }
+
+    private var statusIndicatorColor: Color {
+        TaskStatusPalette.color(for: task.status)
+    }
+
+    private var toggleCompletionAccessibilityLabel: String {
+        isCompleted ? "将\(task.title)设为未开始" : "完成\(task.title)"
+    }
+
+    private var baseOffset: CGFloat {
+        switch revealedEdge {
+        case .leading: actionWidth
+        case .trailing: -actionWidth
+        case nil: 0
+        }
+    }
+
+    private var rowOffset: CGFloat {
+        let proposed = baseOffset + dragTranslation
+        switch revealedEdge {
+        case .leading:
+            return min(max(proposed, 0), actionWidth)
+        case .trailing:
+            return min(max(proposed, -actionWidth), 0)
+        case nil:
+            return min(max(proposed, -actionWidth), actionWidth)
+        }
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: swipeMinimumDistance, coordinateSpace: .local)
+            .onChanged { value in
+                guard isHorizontalSwipe(value.translation) else {
+                    dragTranslation = 0
+                    return
+                }
+
+                suppressCardTapAfterSwipe()
+                dragTranslation = value.translation.width
+            }
+            .onEnded { value in
+                guard isHorizontalSwipe(value.translation) else {
+                    resetDragTranslation()
+                    return
+                }
+
+                suppressCardTapAfterSwipe()
+                let targetEdge: TaskCardRevealEdge?
+                switch revealedEdge {
+                case .leading:
+                    targetEdge = value.translation.width < 0 ? nil : .leading
+                case .trailing:
+                    targetEdge = value.translation.width > 0 ? nil : .trailing
+                case nil:
+                    targetEdge = value.translation.width > 0 ? .leading : .trailing
+                }
+                settleSwipe(to: targetEdge)
+            }
+    }
+
+    private func isHorizontalSwipe(_ translation: CGSize) -> Bool {
+        abs(translation.width) > abs(translation.height) * horizontalIntentRatio
+    }
+
+    private var shouldSuppressCardTap: Bool {
+        Date.now < suppressCardTapUntil
+    }
+
+    private func suppressCardTapAfterSwipe() {
+        suppressCardTapUntil = Date.now.addingTimeInterval(cardTapSuppressionInterval)
+    }
+
+    private func handleToggleCompletion() {
+        guard !shouldSuppressCardTap else { return }
+        onToggleCompletion()
+    }
+
+    private func handleDetailsTap() {
+        guard !shouldSuppressCardTap else { return }
+        onTap()
+    }
+
+    private func settleSwipe(to edge: TaskCardRevealEdge?) {
+        withAnimation(.snappy(duration: 0.22)) {
+            dragTranslation = 0
+            onReveal(edge)
+        }
+    }
+
+    private func resetDragTranslation() {
+        withAnimation(.snappy(duration: 0.22)) {
+            dragTranslation = 0
+        }
     }
 }
 

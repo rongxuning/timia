@@ -35,8 +35,8 @@ private struct ScheduleTaskAppearance {
                 : (Color(hex: "#DCFCE7"), Color(hex: "#166534"), Color(hex: "#22C55E"))
         case "3", "high":
             return isDark
-                ? (Color(hex: "#4A2510"), Color(hex: "#FDBA74"), Color(hex: "#F97316"))
-                : (Color(hex: "#FFEDD5"), Color(hex: "#9A3412"), Color(hex: "#F97316"))
+                ? (Color(hex: "#422F08"), Color(hex: "#FDE68A"), Color(hex: "#EAB308"))
+                : (Color(hex: "#FEF9C3"), Color(hex: "#854D0E"), Color(hex: "#EAB308"))
         case "4", "urgent":
             return isDark
                 ? (Color(hex: "#4A1618"), Color(hex: "#FCA5A5"), Color(hex: "#EF4444"))

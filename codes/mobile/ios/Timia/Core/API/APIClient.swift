@@ -22,19 +22,19 @@ struct EmptyResponse: Decodable, Sendable {}
 
 struct APIClient: Sendable {
     let baseURL: URL
-    var token: @Sendable () -> String?
+    let credentials: CredentialManager
     var onUnauthorized: @Sendable () -> Void
     private let session: URLSession
 
     init(
         baseURL: URL,
+        credentials: CredentialManager,
         session: URLSession = .shared,
-        token: @escaping @Sendable () -> String?,
         onUnauthorized: @escaping @Sendable () -> Void = {}
     ) {
         self.baseURL = baseURL
+        self.credentials = credentials
         self.session = session
-        self.token = token
         self.onUnauthorized = onUnauthorized
     }
 
@@ -60,25 +60,37 @@ struct APIClient: Sendable {
             request.httpBody = try Self.encoder.encode(AnyEncodable(body))
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        if authenticated, let token = token() {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if authenticated {
+            do {
+                if let token = try await credentials.tokenForRequest() {
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+            } catch APIError.unauthorized {
+                onUnauthorized()
+                throw APIError.unauthorized
+            }
         }
 
-        let data: Data
-        let rawResponse: URLResponse
-        do {
-            (data, rawResponse) = try await session.data(for: request)
-        } catch {
-            throw APIError.transport(error.localizedDescription)
-        }
+        var (data, rawResponse) = try await perform(request)
         guard let http = rawResponse as? HTTPURLResponse else { throw APIError.invalidResponse }
-        if http.statusCode == 401 {
+        if http.statusCode == 401, authenticated {
+            do {
+                let refreshed = try await credentials.refresh(force: true)
+                request.setValue("Bearer \(refreshed.accessToken)", forHTTPHeaderField: "Authorization")
+                (data, rawResponse) = try await perform(request)
+            } catch APIError.unauthorized {
+                onUnauthorized()
+                throw APIError.unauthorized
+            }
+        }
+        guard let finalHTTP = rawResponse as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if finalHTTP.statusCode == 401 {
             onUnauthorized()
             throw APIError.unauthorized
         }
-        guard (200..<300).contains(http.statusCode) else {
+        guard (200..<300).contains(finalHTTP.statusCode) else {
             let envelope = try? Self.decoder.decode(ErrorEnvelope.self, from: data)
-            throw APIError.server(status: http.statusCode, message: envelope?.detail ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode))
+            throw APIError.server(status: finalHTTP.statusCode, message: envelope?.detail ?? HTTPURLResponse.localizedString(forStatusCode: finalHTTP.statusCode))
         }
         if Response.self == EmptyResponse.self, data.isEmpty {
             return EmptyResponse() as! Response
@@ -87,6 +99,14 @@ struct APIClient: Sendable {
             return try Self.decoder.decode(Response.self, from: data)
         } catch {
             throw APIError.invalidResponse
+        }
+    }
+
+    private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do {
+            return try await session.data(for: request)
+        } catch {
+            throw APIError.transport(error.localizedDescription)
         }
     }
 

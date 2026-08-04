@@ -136,6 +136,459 @@
         }
       }
     },
+    "/auth/mobile/devices/challenge": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Mobile Device Challenge",
+        "operationId": "mobile_device_challenge_auth_mobile_devices_challenge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MobileChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/devices/register": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Register Mobile Device",
+        "operationId": "register_mobile_device_auth_mobile_devices_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MobileDeviceRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileDeviceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/login/password": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Mobile Password Login",
+        "operationId": "mobile_password_login_auth_mobile_login_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MobilePasswordLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/token/exchange": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Exchange Legacy Access Token",
+        "operationId": "exchange_legacy_access_token_auth_mobile_token_exchange_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MobileTokenExchangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/token/refresh/challenge": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Mobile Refresh Challenge",
+        "operationId": "mobile_refresh_challenge_auth_mobile_token_refresh_challenge_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MobileRefreshChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileChallengeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/token/refresh": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Refresh Mobile Token",
+        "operationId": "refresh_mobile_token_auth_mobile_token_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MobileRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/logout": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Logout Mobile Session",
+        "operationId": "logout_mobile_session_auth_mobile_logout_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/logout-all": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Logout All Mobile Sessions",
+        "operationId": "logout_all_mobile_sessions_auth_mobile_logout_all_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/sessions": {
+      "get": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "List Mobile Sessions",
+        "operationId": "list_mobile_sessions_auth_mobile_sessions_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MobileSessionOut"
+                  },
+                  "title": "Response List Mobile Sessions Auth Mobile Sessions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/sessions/{session_id}": {
+      "delete": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Revoke Mobile Session",
+        "operationId": "revoke_mobile_session_auth_mobile_sessions__session_id__delete",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workspaces": {
       "get": {
         "tags": [
@@ -5319,6 +5772,444 @@
           "status"
         ],
         "title": "MembershipRowOut"
+      },
+      "MobileChallengeOut": {
+        "properties": {
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "nonce",
+          "expires_at"
+        ],
+        "title": "MobileChallengeOut"
+      },
+      "MobileChallengeRequest": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "register",
+              "login",
+              "exchange"
+            ],
+            "title": "Purpose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "purpose"
+        ],
+        "title": "MobileChallengeRequest"
+      },
+      "MobileDeviceOut": {
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Device Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "title": "Installation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_id",
+          "installation_id"
+        ],
+        "title": "MobileDeviceOut"
+      },
+      "MobileDeviceRegisterRequest": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          },
+          "public_key": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 80,
+            "title": "Public Key"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 64,
+            "title": "Signature"
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name"
+          },
+          "os_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Os Version"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "challenge_id",
+          "nonce",
+          "public_key",
+          "signature"
+        ],
+        "title": "MobileDeviceRegisterRequest"
+      },
+      "MobilePasswordLoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 64,
+            "title": "Signature"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "installation_id",
+          "challenge_id",
+          "nonce",
+          "signature"
+        ],
+        "title": "MobilePasswordLoginRequest"
+      },
+      "MobileRefreshChallengeRequest": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "session_id"
+        ],
+        "title": "MobileRefreshChallengeRequest"
+      },
+      "MobileRefreshRequest": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Session Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "refresh_token": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Refresh Token"
+          },
+          "request_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Request Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 64,
+            "title": "Signature"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "installation_id",
+          "refresh_token",
+          "request_id",
+          "challenge_id",
+          "nonce",
+          "signature"
+        ],
+        "title": "MobileRefreshRequest"
+      },
+      "MobileSessionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "title": "Installation Id"
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "os_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Os Version"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
+          "login_provider": {
+            "type": "string",
+            "title": "Login Provider"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Used At"
+          },
+          "idle_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Idle Expires At"
+          },
+          "absolute_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Absolute Expires At"
+          },
+          "is_current": {
+            "type": "boolean",
+            "title": "Is Current"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "installation_id",
+          "device_name",
+          "platform",
+          "os_version",
+          "app_version",
+          "login_provider",
+          "created_at",
+          "last_used_at",
+          "idle_expires_at",
+          "absolute_expires_at",
+          "is_current"
+        ],
+        "title": "MobileSessionOut"
+      },
+      "MobileTokenExchangeRequest": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 64,
+            "title": "Signature"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "challenge_id",
+          "nonce",
+          "signature"
+        ],
+        "title": "MobileTokenExchangeRequest"
+      },
+      "MobileTokenOut": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "refresh_token_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Refresh Token Expires At"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "refresh_token",
+          "refresh_token_expires_at",
+          "session_id"
+        ],
+        "title": "MobileTokenOut"
       },
       "MyAnalyticsViewOut": {
         "properties": {

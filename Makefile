@@ -1,4 +1,33 @@
-.PHONY: dev db core-service web core-service-install web-install verify local codegen
+.PHONY: dev db core-service web core-service-install web-install verify local codegen kill-port-8000 kill-port-3000
+
+# Kill whatever is holding port 8000 (uvicorn / fastapi). No-op if free.
+# 1s grace period, then SIGKILL if still alive.
+kill-port-8000:
+	@PID=$$(lsof -ti :8000 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		echo "Port 8000 busy, killing PID $$PID"; \
+		kill $$PID 2>/dev/null; sleep 1; \
+		PID=$$(lsof -ti :8000 2>/dev/null); \
+		if [ -n "$$PID" ]; then echo "  force-kill $$PID"; kill -9 $$PID 2>/dev/null; sleep 1; fi; \
+	else \
+		echo "Port 8000 free"; \
+	fi
+
+# Same for the Next.js dev server.
+kill-port-3000:
+	@PID=$$(lsof -ti :3000 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		echo "Port 3000 busy, killing PID $$PID"; \
+		kill $$PID 2>/dev/null; sleep 1; \
+		PID=$$(lsof -ti :3000 2>/dev/null); \
+		if [ -n "$$PID" ]; then echo "  force-kill $$PID"; kill -9 $$PID 2>/dev/null; sleep 1; fi; \
+	else \
+		echo "Port 3000 free"; \
+	fi
+
+# Wipe both — handy when you know nothing should be running.
+kill-ports: kill-port-8000 kill-port-3000
+	@true
 
 dev: db
 	@echo "Run in separate terminals:"
@@ -15,7 +44,7 @@ UV_HTTP_TIMEOUT ?= 300
 core-service-install:
 	cd codes/core-service && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
 
-core-service: core-service-install
+core-service: core-service-install kill-port-8000
 	cd codes/core-service && PYTHONPATH=. uv run python -m alembic upgrade head && uv run python -m uvicorn app.main:app --reload --port 8000
 
 # Future: notification-service-install / notification-service (port 8001), etc.
@@ -23,7 +52,7 @@ core-service: core-service-install
 web-install:
 	cd codes/web && npm install
 
-web:
+web: kill-port-3000
 	cd codes/web && npm run dev -- --port 3000 --webpack
 
 local: db

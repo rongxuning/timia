@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { apiFetch } from "@/lib/api";
-import { getToken } from "@/lib/auth";
+import { getAccessToken } from "@/lib/auth";
 
 function titleCase(input: string) {
   return input
@@ -119,7 +119,7 @@ export function Breadcrumbs({
     const projectsIdx = segments.findIndex((s) => s === "projects");
     const projectId = projectsIdx >= 0 ? segments[projectsIdx + 1] : undefined;
 
-    const token = getToken();
+    const token = getAccessToken();
     if (!token) return;
 
     let cancelled = false;

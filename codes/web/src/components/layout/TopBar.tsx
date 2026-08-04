@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { clearToken } from "@/lib/auth";
+import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 
 export type TopBarProps = {
@@ -46,9 +46,9 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
                 role="menuitem"
-                onClick={() => {
+                onClick={async () => {
                   onUserMenuOpenChange(false);
-                  clearToken();
+                  await logoutAndClear();
                   router.push("/login");
                 }}
               >

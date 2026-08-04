@@ -69,7 +69,7 @@ struct WorkspaceDetailView: View {
                     .scrollTargetBehavior(.viewAligned)
                     .scrollIndicators(.hidden)
                 }
-                .frame(height: 252)
+                .frame(height: 228)
             }
             .padding(.top, 12)
             .padding(.bottom, 10)
@@ -401,10 +401,10 @@ private struct WorkspaceProjectCardTile: View {
                 Color.clear.frame(height: 32)
             }
             .padding(10)
-            .frame(width: width, height: 120, alignment: .topLeading)
+            .frame(width: width, height: 96, alignment: .topLeading)
             .background(TimiaTheme.card)
         }
-        .frame(width: width, height: 240)
+        .frame(width: width, height: 216)
         .background(TimiaTheme.card)
         .clipShape(RoundedRectangle(cornerRadius: 15))
         .overlay {
@@ -457,7 +457,7 @@ private struct AddProjectCard: View {
             Image(systemName: "plus.circle.fill").font(.system(size: 32)).foregroundStyle(TimiaTheme.primary)
             Text("添加项目").font(.subheadline.weight(.semibold))
         }
-        .frame(width: width, height: 240)
+        .frame(width: width, height: 216)
         .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 17))
         .overlay {
             RoundedRectangle(cornerRadius: 17)
@@ -503,6 +503,11 @@ private struct WorkspaceCommentCard: View {
     }
 }
 
+private enum ProjectFormFocusField: Hashable {
+    case name
+    case description
+}
+
 struct ProjectFormView: View {
     enum Mode: Identifiable {
         case create
@@ -518,20 +523,48 @@ struct ProjectFormView: View {
     @State private var description = ""
     @State private var color = "#FFFFFF"
     @State private var errorMessage: String?
+    @FocusState private var focusedField: ProjectFormFocusField?
 
     var body: some View {
         Form {
             TextField("项目名称", text: $name)
+                .focused($focusedField, equals: .name)
+                .submitLabel(.next)
+                .onSubmit { focusedField = .description }
             TextField("描述", text: $description, axis: .vertical)
-            ColorPicker("标识颜色", selection: Binding(get: { Color(hex: color) }, set: { color = $0.projectHex ?? "#FFFFFF" }))
+                .focused($focusedField, equals: .description)
+            ColorPicker(
+                "标识颜色",
+                selection: Binding(
+                    get: { Color(hex: color) },
+                    set: {
+                        focusedField = nil
+                        color = $0.projectHex ?? "#FFFFFF"
+                    }
+                )
+            )
             if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(isCreate ? "创建项目" : "编辑项目")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-            ToolbarItem(placement: .confirmationAction) { Button("保存") { Task { await save() } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") {
+                    focusedField = nil
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") {
+                    focusedField = nil
+                    Task { await save() }
+                }
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
         }
+        .keyboardDoneToolbar { focusedField = nil }
+        .onDisappear { focusedField = nil }
         .onAppear { if case let .edit(value) = mode { name = value.name; description = value.description ?? ""; color = value.color } }
     }
 
