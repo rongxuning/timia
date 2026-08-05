@@ -381,7 +381,7 @@ struct ScheduleHomeView: View {
             HStack(spacing: 2) {
                 modeButton(.todo, symbol: "checklist")
                 modeButton(.calendar, symbol: "calendar")
-                modeButton(.stickyNote, symbol: "note.text")
+                modeButton(.stickyNote, symbol: "highlighter")
             }
             .padding(4)
             .background(TimiaTheme.field, in: Capsule())

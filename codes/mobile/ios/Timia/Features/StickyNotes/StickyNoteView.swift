@@ -61,9 +61,21 @@ struct StickyNoteView: View {
         draft.isSaving = true
         defer { draft.isSaving = false }
 
+        let (title, content) = draft.splitTitleContent
+        let finalContent: String
+        if !content.isEmpty {
+            finalContent = content
+        } else if title == nil {
+            finalContent = ""
+        } else {
+            // User typed only a title with no body — store it as the body
+            // so the API contract is satisfied (content is required).
+            finalContent = title ?? ""
+        }
+
         let payload = StickyNoteCreatePayload(
-            title: draft.title.isEmpty ? nil : draft.title,
-            content: draft.content,
+            title: title,
+            content: finalContent,
             recordedAt: nil,
             timezone: TimeZone.current.identifier,
             location: draft.location.map {

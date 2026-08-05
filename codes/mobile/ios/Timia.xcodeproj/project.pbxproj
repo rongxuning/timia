@@ -13,6 +13,7 @@
 		13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */; };
 		16E99362D39572A6C5FB47C9 /* WorkspaceActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A7C44F73401A44586DF4EC /* WorkspaceActivityView.swift */; };
 		172948F3E2131FEAD88ADBBD /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD38F9E831FF4FA469537A7C /* AccountView.swift */; };
+		1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */; };
 		2B046FB62E0822FA3D838F2A /* StickyNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C481250694F9070FC3FF7CD5 /* StickyNoteView.swift */; };
 		3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */; };
 		48B7B9EAE5EE1276084FA1FA /* MembersManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED6C2C43F4BC0703D2F3243 /* MembersManagementView.swift */; };
@@ -90,6 +91,7 @@
 		7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditorView.swift; sourceTree = "<group>"; };
 		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79A8422E298A383A62006950 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleBodyTextEditor.swift; sourceTree = "<group>"; };
 		8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDirectoryView.swift; sourceTree = "<group>"; };
 		86E0CD09843CADCDA60D838F /* TimiaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaTheme.swift; sourceTree = "<group>"; };
 		874748456061425CD0A7F885 /* SpeechPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPermissionManager.swift; sourceTree = "<group>"; };
@@ -220,6 +222,7 @@
 				016C053A9F4E98EC45B77450 /* StickyNoteListView.swift */,
 				C481250694F9070FC3FF7CD5 /* StickyNoteView.swift */,
 				1E47A83D778195D960B3C530 /* StickyNoteVoiceLauncher.swift */,
+				7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */,
 			);
 			path = StickyNotes;
 			sourceTree = "<group>";
@@ -468,6 +471,7 @@
 				E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */,
 				51D5DA889805C0A221723698 /* TimiaApp.swift in Sources */,
 				AAB8EE3FDFB7671AB0A72B7A /* TimiaTheme.swift in Sources */,
+				1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */,
 				13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */,
 				16E99362D39572A6C5FB47C9 /* WorkspaceActivityView.swift in Sources */,
 				CA73C680278A8EF6FF5C6664 /* WorkspaceDetailView.swift in Sources */,

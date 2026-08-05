@@ -1,7 +1,13 @@
 import SwiftUI
 
-/// The top half of ``StickyNoteView`` — a persistent form for the next
-/// note. Always visible so the user can type (or speak) without an extra tap.
+/// Top half of ``StickyNoteView`` — a persistent form for the next note.
+///
+/// Layout (top → bottom):
+///   * Date header (yyyy年MM月dd日)
+///   * One input area: first line = title (bold, larger), rest = body
+///   * Bottom row:
+///       - Left:  VStack of `附件` + `位置` chips
+///       - Right: `保存` button
 struct StickyNoteInputView: View {
     @ObservedObject var draft: StickyNoteDraftStore
     @Binding var locationError: String?
@@ -11,37 +17,49 @@ struct StickyNoteInputView: View {
     var onSave: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Title (optional)
-            TextField("标题（可选）", text: $draft.title)
-                .font(.subheadline)
-                .textInputAutocapitalization(.sentences)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 8))
+        VStack(alignment: .leading, spacing: 12) {
+            dateHeader
 
-            // Content (required)
+            // Combined title + content editor
             ZStack(alignment: .topLeading) {
-                if draft.content.isEmpty {
-                    Text("内容")
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 10)
-                        .allowsHitTesting(false)
+                TitleBodyTextEditor(text: $draft.combined, minHeight: 140)
+                    .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 10))
+                if draft.combined.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("标题（可选）")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                        Text("内容")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 18)
+                    .allowsHitTesting(false)
                 }
-                TextEditor(text: $draft.content)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 60, maxHeight: 120)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
             }
-            .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 8))
+            .frame(minHeight: 140)
 
-            // Attachments row
-            attachmentRow
+            bottomRow
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
 
-            // Location + error row
-            HStack(spacing: 8) {
+    // MARK: - Sections
+
+    private var dateHeader: some View {
+        HStack {
+            Text(formattedToday)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
+    private var bottomRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                attachmentChip
                 LocationChip(
                     snapshot: draft.location,
                     onTap: onRequestLocation,
@@ -53,18 +71,16 @@ struct StickyNoteInputView: View {
                         .foregroundStyle(.red)
                         .lineLimit(1)
                 }
-                Spacer()
             }
-
-            // Save row
-            HStack {
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
                 if let err = draft.lastError {
                     Text(err)
                         .font(.caption2)
                         .foregroundStyle(.red)
                         .lineLimit(2)
+                        .multilineTextAlignment(.trailing)
                 }
-                Spacer()
                 Button(action: onSave) {
                     HStack(spacing: 4) {
                         if draft.isSaving {
@@ -83,34 +99,39 @@ struct StickyNoteInputView: View {
                 .disabled(!draft.canSubmit)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
     }
 
     @ViewBuilder
-    private var attachmentRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                Button(action: onPickAttachments) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "paperclip")
-                        Text(draft.pendingAttachments.isEmpty ? "附件" : "附件 (\(draft.pendingAttachments.count))")
-                    }
-                    .font(.footnote.weight(.medium))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(TimiaTheme.field, in: Capsule())
-                    .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.5)))
+    private var attachmentChip: some View {
+        HStack(spacing: 6) {
+            Button(action: onPickAttachments) {
+                HStack(spacing: 4) {
+                    Image(systemName: "paperclip")
+                    Text(draft.pendingAttachments.isEmpty ? "附件" : "附件 (\(draft.pendingAttachments.count))")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("添加附件")
+                .font(.footnote.weight(.medium))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(TimiaTheme.field, in: Capsule())
+                .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.5)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("添加附件")
 
-                ForEach(draft.pendingAttachments) { p in
-                    PendingAttachmentChip(attachment: p) {
-                        draft.pendingAttachments.removeAll { $0.id == p.id }
-                    }
+            ForEach(draft.pendingAttachments) { p in
+                PendingAttachmentChip(attachment: p) {
+                    draft.pendingAttachments.removeAll { $0.id == p.id }
                 }
             }
         }
+    }
+
+    // MARK: - Helpers
+
+    private var formattedToday: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "yyyy年MM月dd日"
+        return f.string(from: Date())
     }
 }
