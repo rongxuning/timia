@@ -197,38 +197,27 @@ struct ScheduleHomeView: View {
 
     private var header: some View {
         HStack(alignment: .center) {
-            if contentMode == .stickyNote {
-                // Sticky-note mode: small full-date sits just to the left of
-                // the avatar; the large left-aligned title is hidden so the
-                // page feels like a "today's notes" surface.
-                Spacer()
-                Text(formattedToday)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("sticky-note-header-date")
-            } else {
-                Group {
-                if contentMode == .calendar, range == .month || range == .year {
-                        ZStack(alignment: .leading) {
-                            Text(headerTitle)
-                                .id(headerTitle)
-                                .transition(periodHeaderTransition)
-                        }
-                        .animation(.easeInOut(duration: reduceMotion ? 0.18 : 0.3), value: headerTitle)
-                        .accessibilityElement(children: .combine)
+            Group {
+            if contentMode == .calendar, range == .month || range == .year {
+                    ZStack(alignment: .leading) {
+                        Text(headerTitle)
+                            .id(headerTitle)
+                            .transition(periodHeaderTransition)
+                    }
+                    .animation(.easeInOut(duration: reduceMotion ? 0.18 : 0.3), value: headerTitle)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("calendar-header-title")
+                    .accessibilityValue(headerTitle)
+                } else {
+                    Text(headerTitle)
+                        .contentTransition(.numericText())
                         .accessibilityIdentifier("calendar-header-title")
                         .accessibilityValue(headerTitle)
-                    } else {
-                        Text(headerTitle)
-                            .contentTransition(.numericText())
-                            .accessibilityIdentifier("calendar-header-title")
-                            .accessibilityValue(headerTitle)
-                    }
                 }
-                .font(.system(size: 29, weight: .bold, design: .rounded))
-
-                Spacer()
             }
+            .font(.system(size: 29, weight: .bold, design: .rounded))
+
+            Spacer()
 
             Button {
                 dismissNaturalLanguageInput()
@@ -266,13 +255,6 @@ struct ScheduleHomeView: View {
                 dismissNaturalLanguageInput()
             }
         )
-    }
-
-    private var formattedToday: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "yyyy年MM月dd日"
-        return f.string(from: Date())
     }
 
     private var periodHeaderTransition: AnyTransition {
@@ -421,12 +403,19 @@ struct ScheduleHomeView: View {
 
             HStack(spacing: 8) {
                 if contentMode == .stickyNote {
-                    // Voice button sits directly on the toolbar's material
-                    // background — no white surface around it.
-                    StickyNoteVoiceLauncher(
-                        session: session,
-                        draft: stickyDraft
-                    )
+                    // Sticky-note mode: keep the same right-side footprint as
+                    // the natural-language input row so the toolbar height
+                    // matches the other modes. No white surface — the user
+                    // asked to remove the surrounding white.
+                    HStack(spacing: 0) {
+                        StickyNoteVoiceLauncher(
+                            session: session,
+                            draft: stickyDraft
+                        )
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 5)
+                    .padding(.vertical, 5)
                 } else {
                     HStack(spacing: 8) {
                         Button {
@@ -552,6 +541,11 @@ struct ScheduleHomeView: View {
     }
 
     private var headerTitle: String {
+        if contentMode == .stickyNote {
+            // Sticky-note mode: always show today's full date, in the same
+            // 29pt rounded-bold style as the other modes.
+            return ScheduleFormat.fullDateLabel(Date())
+        }
         if contentMode == .todo {
             return ScheduleFormat.fullDateLabel(selectedDate)
         }
