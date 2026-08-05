@@ -402,75 +402,73 @@ struct ScheduleHomeView: View {
             .zIndex(2)
 
             HStack(spacing: 8) {
-                if contentMode == .stickyNote {
-                    // Sticky-note mode: keep the same right-side footprint as
-                    // the natural-language input row so the toolbar height
-                    // matches the other modes. No white surface — the user
-                    // asked to remove the surrounding white.
-                    HStack(spacing: 0) {
-                        StickyNoteVoiceLauncher(
-                            session: session,
-                            draft: stickyDraft
-                        )
-                    }
-                    .padding(.leading, 12)
-                    .padding(.trailing, 5)
-                    .padding(.vertical, 5)
-                } else {
-                    HStack(spacing: 8) {
-                        Button {
-                            dismissNaturalLanguageInput()
-                            withAnimation(.snappy(duration: 0.2)) {
-                                isRangePickerExpanded = false
-                            }
-                            createSelection = ScheduleCreateSelection(
-                                date: selectedDate,
-                                hasExactTime: false
+                Group {
+                    if contentMode == .stickyNote {
+                        // Sticky-note mode: voice button inside the same
+                        // white pill as the other modes. Only the inner
+                        // content differs.
+                        HStack(spacing: 0) {
+                            StickyNoteVoiceLauncher(
+                                session: session,
+                                draft: stickyDraft
                             )
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 28, height: 42)
-                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("新建任务")
+                    } else {
+                        HStack(spacing: 8) {
+                            Button {
+                                dismissNaturalLanguageInput()
+                                withAnimation(.snappy(duration: 0.2)) {
+                                    isRangePickerExpanded = false
+                                }
+                                createSelection = ScheduleCreateSelection(
+                                    date: selectedDate,
+                                    hasExactTime: false
+                                )
+                            } label: {
+                                Image(systemName: "plus")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 28, height: 42)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("新建任务")
 
-                        TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
-                            .lineLimit(1...3)
-                            .focused($isNaturalLanguageInputFocused)
-                            .submitLabel(.send)
-                            .onSubmit {
+                            TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
+                                .lineLimit(1...3)
+                                .focused($isNaturalLanguageInputFocused)
+                                .submitLabel(.send)
+                                .onSubmit {
+                                    dismissNaturalLanguageInput()
+                                    Task { await parseNaturalLanguage() }
+                                }
+
+                            Button {
                                 dismissNaturalLanguageInput()
                                 Task { await parseNaturalLanguage() }
-                            }
-
-                        Button {
-                            dismissNaturalLanguageInput()
-                            Task { await parseNaturalLanguage() }
-                        } label: {
-                            Group {
-                                if isParsing {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Image(systemName: "arrow.up")
-                                        .font(.body.bold())
+                            } label: {
+                                Group {
+                                    if isParsing {
+                                        ProgressView().tint(.white)
+                                    } else {
+                                        Image(systemName: "arrow.up")
+                                            .font(.body.bold())
+                                    }
                                 }
+                                .foregroundStyle(.white)
+                                .frame(width: 42, height: 42)
+                                .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
                             }
-                            .foregroundStyle(.white)
-                            .frame(width: 42, height: 42)
-                            .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
+                            .disabled(!canParse)
+                            .accessibilityLabel("解析任务")
                         }
-                        .disabled(!canParse)
-                        .accessibilityLabel("解析任务")
                     }
-                    .padding(.leading, 12)
-                    .padding(.trailing, 5)
-                    .padding(.vertical, 5)
-                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
                 }
+                .padding(.leading, 12)
+                .padding(.trailing, 5)
+                .padding(.vertical, 5)
+                .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
             }
         }
         .padding(.horizontal, 16)
