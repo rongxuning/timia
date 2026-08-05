@@ -402,77 +402,73 @@ struct ScheduleHomeView: View {
             .zIndex(2)
 
             HStack(spacing: 8) {
-                Group {
-                    if contentMode == .stickyNote {
-                        // Sticky-note mode: voice button centered inside the
-                        // same white pill as the other modes. Spacers push
-                        // the button to the visual center so the pill width
-                        // matches the other modes (which would otherwise
-                        // shrink to just the button + padding).
-                        HStack(spacing: 0) {
-                            Spacer(minLength: 0)
-                            StickyNoteVoiceLauncher(
-                                session: session,
-                                draft: stickyDraft
-                            )
-                            Spacer(minLength: 0)
-                        }
-                    } else {
-                        HStack(spacing: 8) {
-                            Button {
-                                dismissNaturalLanguageInput()
-                                withAnimation(.snappy(duration: 0.2)) {
-                                    isRangePickerExpanded = false
-                                }
-                                createSelection = ScheduleCreateSelection(
-                                    date: selectedDate,
-                                    hasExactTime: false
-                                )
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 28, height: 42)
-                                    .contentShape(Rectangle())
+                if contentMode == .stickyNote {
+                    // Sticky-note mode: voice button pinned to the right edge
+                    // of the toolbar, no surrounding white pill — the
+                    // surrounding white pill only makes sense for the
+                    // multi-element natural-language input row.
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        StickyNoteVoiceLauncher(
+                            session: session,
+                            draft: stickyDraft
+                        )
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Button {
+                            dismissNaturalLanguageInput()
+                            withAnimation(.snappy(duration: 0.2)) {
+                                isRangePickerExpanded = false
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("新建任务")
+                            createSelection = ScheduleCreateSelection(
+                                date: selectedDate,
+                                hasExactTime: false
+                            )
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 28, height: 42)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("新建任务")
 
-                            TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
-                                .lineLimit(1...3)
-                                .focused($isNaturalLanguageInputFocused)
-                                .submitLabel(.send)
-                                .onSubmit {
-                                    dismissNaturalLanguageInput()
-                                    Task { await parseNaturalLanguage() }
-                                }
-
-                            Button {
+                        TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
+                            .lineLimit(1...3)
+                            .focused($isNaturalLanguageInputFocused)
+                            .submitLabel(.send)
+                            .onSubmit {
                                 dismissNaturalLanguageInput()
                                 Task { await parseNaturalLanguage() }
-                            } label: {
-                                Group {
-                                    if isParsing {
-                                        ProgressView().tint(.white)
-                                    } else {
-                                        Image(systemName: "arrow.up")
-                                            .font(.body.bold())
-                                    }
-                                }
-                                .foregroundStyle(.white)
-                                .frame(width: 42, height: 42)
-                                .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
                             }
-                            .disabled(!canParse)
-                            .accessibilityLabel("解析任务")
+
+                        Button {
+                            dismissNaturalLanguageInput()
+                            Task { await parseNaturalLanguage() }
+                        } label: {
+                            Group {
+                                if isParsing {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Image(systemName: "arrow.up")
+                                        .font(.body.bold())
+                                }
+                            }
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
                         }
+                        .disabled(!canParse)
+                        .accessibilityLabel("解析任务")
                     }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 5)
+                    .padding(.vertical, 5)
+                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
                 }
-                .padding(.leading, 12)
-                .padding(.trailing, 5)
-                .padding(.vertical, 5)
-                .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
             }
             .frame(maxWidth: .infinity)
         }
