@@ -32,6 +32,7 @@ struct ScheduleHomeView: View {
     private enum ContentMode: String, CaseIterable {
         case todo
         case calendar
+        case stickyNote
     }
 
     private enum CalendarRange: String, CaseIterable {
@@ -59,6 +60,7 @@ struct ScheduleHomeView: View {
     @State private var contentMode: ContentMode = .calendar
     @State private var range: CalendarRange = .day
     @State private var selectedDate = Date()
+    @State private var stickyDraft = StickyNoteDraftStore()
     @State private var calendarData: ScheduleCalendar?
     @State private var calendarCache: [String: ScheduleCalendar] = [:]
     @State private var loadingCalendarKeys: Set<String> = []
@@ -85,7 +87,15 @@ struct ScheduleHomeView: View {
                 header
 
                 Group {
-                    if contentMode == .todo {
+                    if contentMode == .stickyNote {
+                        StickyNoteView(
+                            session: session,
+                            draft: stickyDraft,
+                            onTaskCreated: { _ in
+                                Task { await loadVisibleContent(force: true) }
+                            }
+                        )
+                    } else if contentMode == .todo {
                         TodoScheduleView(
                             columns: todoColumns,
                             totals: todoTotals,
@@ -150,10 +160,13 @@ struct ScheduleHomeView: View {
         }
         .onChange(of: contentMode) { _, newValue in
             Task {
-                if newValue == .todo {
+                switch newValue {
+                case .todo:
                     await loadTodo()
-                } else {
+                case .calendar:
                     await loadCalendar()
+                case .stickyNote:
+                    break  // StickyNoteView fetches its own data
                 }
             }
         }
@@ -368,6 +381,7 @@ struct ScheduleHomeView: View {
             HStack(spacing: 2) {
                 modeButton(.todo, symbol: "checklist")
                 modeButton(.calendar, symbol: "calendar")
+                modeButton(.stickyNote, symbol: "note.text")
             }
             .padding(4)
             .background(TimiaTheme.field, in: Capsule())
@@ -388,52 +402,59 @@ struct ScheduleHomeView: View {
             .zIndex(2)
 
             HStack(spacing: 8) {
-                Button {
-                    dismissNaturalLanguageInput()
-                    withAnimation(.snappy(duration: 0.2)) {
-                        isRangePickerExpanded = false
-                    }
-                    createSelection = ScheduleCreateSelection(
-                        date: selectedDate,
-                        hasExactTime: false
+                if contentMode == .stickyNote {
+                    StickyNoteVoiceLauncher(
+                        session: session,
+                        draft: stickyDraft
                     )
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 42)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("新建任务")
+                } else {
+                    Button {
+                        dismissNaturalLanguageInput()
+                        withAnimation(.snappy(duration: 0.2)) {
+                            isRangePickerExpanded = false
+                        }
+                        createSelection = ScheduleCreateSelection(
+                            date: selectedDate,
+                            hasExactTime: false
+                        )
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 28, height: 42)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("新建任务")
 
-                TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
-                    .lineLimit(1...3)
-                    .focused($isNaturalLanguageInputFocused)
-                    .submitLabel(.send)
-                    .onSubmit {
+                    TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
+                        .lineLimit(1...3)
+                        .focused($isNaturalLanguageInputFocused)
+                        .submitLabel(.send)
+                        .onSubmit {
+                            dismissNaturalLanguageInput()
+                            Task { await parseNaturalLanguage() }
+                        }
+
+                    Button {
                         dismissNaturalLanguageInput()
                         Task { await parseNaturalLanguage() }
-                    }
-
-                Button {
-                    dismissNaturalLanguageInput()
-                    Task { await parseNaturalLanguage() }
-                } label: {
-                    Group {
-                        if isParsing {
-                            ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: "arrow.up")
-                                .font(.body.bold())
+                    } label: {
+                        Group {
+                            if isParsing {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: "arrow.up")
+                                    .font(.body.bold())
+                            }
                         }
+                        .foregroundStyle(.white)
+                        .frame(width: 42, height: 42)
+                        .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
                     }
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
+                    .disabled(!canParse)
+                    .accessibilityLabel("解析任务")
                 }
-                .disabled(!canParse)
-                .accessibilityLabel("解析任务")
             }
             .padding(.leading, 12)
             .padding(.trailing, 5)
@@ -486,7 +507,7 @@ struct ScheduleHomeView: View {
                         isRangePickerExpanded = true
                     }
                 } else {
-                    contentMode = .todo
+                    contentMode = value
                     isRangePickerExpanded = false
                 }
             }
@@ -497,7 +518,15 @@ struct ScheduleHomeView: View {
                 .frame(width: 38, height: 38)
                 .background(contentMode == value ? Color.primary.opacity(0.78) : .clear, in: Capsule())
         }
-        .accessibilityLabel(value == .todo ? "Todo 模式" : "日历模式")
+        .accessibilityLabel(accessibilityLabel(for: value))
+    }
+
+    private func accessibilityLabel(for value: ContentMode) -> String {
+        switch value {
+        case .todo: return "Todo 模式"
+        case .calendar: return "日历模式"
+        case .stickyNote: return "便利贴模式"
+        }
     }
 
     private var headerTitle: String {

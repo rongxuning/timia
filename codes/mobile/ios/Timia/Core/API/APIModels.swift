@@ -190,7 +190,7 @@ struct NaturalLanguageParsePayload: Encodable, Sendable {
     let selectedDate: String
 }
 
-struct NaturalLanguageTaskDraft: Codable, Sendable {
+struct NaturalLanguageTaskDraft: Codable, Hashable, Sendable {
     var title: String
     var body: String?
     var startAt: String?
@@ -619,3 +619,164 @@ struct DiscussionItem: Decodable, Identifiable, Sendable {
 }
 
 struct CommentStatusPayload: Encodable, Sendable { let completionStatus: String }
+
+// ---------------------------------------------------------------------------
+// Sticky notes
+// ---------------------------------------------------------------------------
+
+struct StickyNoteLocation: Codable, Hashable, Sendable {
+    var lat: Double
+    var lng: Double
+    var accuracyM: Double?
+    var name: String?
+    var source: String?
+}
+
+struct StickyNoteAttachment: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    var attachmentType: String
+    var storageUrl: String
+    var filename: String
+    var mimeType: String
+    var byteSize: Int
+    var durationMs: Int?
+    var widthPx: Int?
+    var heightPx: Int?
+    var transcript: String?
+    var ocrText: String?
+    var createdAt: String
+}
+
+enum StickyNoteParseStatus: String, Codable, Sendable {
+    case pending
+    case success
+    case failed
+    case skipped
+}
+
+struct StickyNoteAIParse: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let stickyNoteId: String
+    var parseStatus: StickyNoteParseStatus
+    var parseProvider: String?
+    var parseLatencyMs: Int?
+    var draft: NaturalLanguageTaskDraft?
+    var confidence: Double?
+    var assumptions: [String]
+    var missingFields: [String]
+    var ambiguities: [String]
+    var convertedItemId: String?
+    var convertedAt: String?
+    var errorCode: String?
+    var errorMessage: String?
+    var createdAt: String
+}
+
+struct StickyNote: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let ownerUserId: String
+    var title: String?
+    var content: String
+    var recordedAt: String
+    var createdAt: String
+    var timezone: String
+    var location: StickyNoteLocation?
+    var deviceKind: String?
+    var archivedAt: String?
+    var convertedCount: Int
+    var attachments: [StickyNoteAttachment]
+    var latestParse: StickyNoteAIParse?
+}
+
+struct StickyNoteListResponse: Decodable, Sendable {
+    let items: [StickyNote]
+    let nextCursor: String?
+}
+
+struct StickyNoteAttachmentInput: Encodable, Sendable {
+    let attachmentType: String
+    let filename: String
+    let mimeType: String
+    let byteSize: Int
+    let widthPx: Int?
+    let heightPx: Int?
+    let durationMs: Int?
+}
+
+struct StickyNoteLocationInput: Encodable, Sendable {
+    let lat: Double
+    let lng: Double
+    let accuracyM: Double?
+    let name: String?
+    let source: String
+}
+
+struct StickyNoteCreatePayload: Encodable, Sendable {
+    var title: String?
+    var content: String
+    var recordedAt: String?
+    var timezone: String
+    var location: StickyNoteLocationInput?
+    var attachments: [StickyNoteAttachmentInput]
+    var autoParse: Bool
+}
+
+struct StickyNoteUpdatePayload: Encodable, Sendable {
+    var title: String?
+    var content: String?
+    var locationName: String?
+}
+
+struct StickyNoteConvertPayload: Encodable, Sendable {
+    let parseId: String
+    let workspaceId: String
+    let projectId: String
+    let fieldOverrides: [String: AnyEncodableJSON]
+}
+
+/// Loose-JSON wrapper so the convert endpoint's ``field_overrides`` dict
+/// can carry anything that ``ItemPayload`` accepts.
+enum AnyEncodableJSON: Encodable, Hashable, Sendable {
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+    case null
+    case array([AnyEncodableJSON])
+    case object([String: AnyEncodableJSON])
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let v): try c.encode(v)
+        case .int(let v): try c.encode(v)
+        case .double(let v): try c.encode(v)
+        case .bool(let v): try c.encode(v)
+        case .null: try c.encodeNil()
+        case .array(let v): try c.encode(v)
+        case .object(let v): try c.encode(v)
+        }
+    }
+
+    /// Build from any ``Encodable`` value by round-tripping through JSON.
+    static func from(_ value: Any) -> AnyEncodableJSON? {
+        if value is NSNull { return .null }
+        if let v = value as? String { return .string(v) }
+        if let v = value as? Bool { return .bool(v) }
+        if let v = value as? Int { return .int(v) }
+        if let v = value as? Double { return .double(v) }
+        if let v = value as? [Any] { return .array(v.compactMap(from)) }
+        if let v = value as? [String: Any] {
+            var obj: [String: AnyEncodableJSON] = [:]
+            for (k, val) in v { if let x = from(val) { obj[k] = x } }
+            return .object(obj)
+        }
+        return nil
+    }
+}
+
+struct StickyNoteConvertResponse: Decodable, Sendable {
+    let item: ItemResponse
+    let stickyNote: StickyNote
+    let parse: StickyNoteAIParse
+}

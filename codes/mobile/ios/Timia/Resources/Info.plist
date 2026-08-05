@@ -27,6 +27,10 @@
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Timia 需要使用麦克风录制您说的便利贴内容。</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Timia 用本地语音识别把您说的话转成便利贴文字，识别在设备上完成，不会上传到任何服务器。</string>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>
