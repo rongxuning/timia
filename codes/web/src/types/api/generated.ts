@@ -4,23 +4,6 @@
  */
 
 export interface paths {
-    "/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Login */
-        post: operations["login_auth_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/auth/register": {
         parameters: {
             query?: never;
@@ -50,6 +33,301 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: operations["login_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh
+         * @description Issue a fresh AT by rotating the RT cookie.
+         *
+         *     The RT cookie is the single source of truth for which session is being
+         *     refreshed. The client does not need to send a session id, which means
+         *     `bootstrapSession()` works on a hard refresh (when in-memory state is
+         *     gone) and on a new tab. The rotated RT cookie + new AT come back in the
+         *     response; `session_id` is informational.
+         */
+        post: operations["refresh_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Revoke the current session and clear the RT cookie.
+         *
+         *     We must NOT return a new `Response` here — that would discard the
+         *     `Set-Cookie` header we just put on the injected `response`. Returning
+         *     `None` lets FastAPI build a 204 from the decorator's status_code and
+         *     keep the headers we set.
+         */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout All
+         * @description Revoke every web session for the current user.
+         */
+        post: operations["logout_all_auth_logout_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description Show all active web sessions for the current user, marking the caller.
+         */
+        get: operations["list_sessions_auth_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Session */
+        delete: operations["revoke_session_auth_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/devices/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mobile Device Challenge */
+        post: operations["mobile_device_challenge_auth_mobile_devices_challenge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/devices/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Mobile Device */
+        post: operations["register_mobile_device_auth_mobile_devices_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/login/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mobile Password Login */
+        post: operations["mobile_password_login_auth_mobile_login_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/token/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange Legacy Access Token */
+        post: operations["exchange_legacy_access_token_auth_mobile_token_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/token/refresh/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mobile Refresh Challenge */
+        post: operations["mobile_refresh_challenge_auth_mobile_token_refresh_challenge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/token/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Mobile Token */
+        post: operations["refresh_mobile_token_auth_mobile_token_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout Mobile Session */
+        post: operations["logout_mobile_session_auth_mobile_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout All Mobile Sessions */
+        post: operations["logout_all_mobile_sessions_auth_mobile_logout_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mobile Sessions */
+        get: operations["list_mobile_sessions_auth_mobile_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mobile/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Mobile Session */
+        delete: operations["revoke_mobile_session_auth_mobile_sessions__session_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -435,6 +713,94 @@ export interface paths {
         patch: operations["patch_comment_workspaces__workspace_id__projects__project_id__items__item_id__comments__comment_id__patch"];
         trace?: never;
     };
+    "/sticky-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sticky Notes */
+        get: operations["get_sticky_notes_sticky_notes_get"];
+        put?: never;
+        /** Post Sticky Note */
+        post: operations["post_sticky_note_sticky_notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sticky-notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sticky Note Route */
+        get: operations["get_sticky_note_route_sticky_notes__note_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Sticky Note Route */
+        delete: operations["delete_sticky_note_route_sticky_notes__note_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Sticky Note Route */
+        patch: operations["patch_sticky_note_route_sticky_notes__note_id__patch"];
+        trace?: never;
+    };
+    "/sticky-notes/{note_id}/ai-parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Ai Parse */
+        post: operations["post_ai_parse_sticky_notes__note_id__ai_parse_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sticky-notes/{note_id}/parses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Parses */
+        get: operations["get_parses_sticky_notes__note_id__parses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sticky-notes/{note_id}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Convert */
+        post: operations["post_convert_sticky_notes__note_id__convert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dev/db-tables": {
         parameters: {
             query?: never;
@@ -463,6 +829,23 @@ export interface paths {
         get: operations["schedule_calendar_view_views_schedule_calendar_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/schedule/natural-language/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parse Schedule Natural Language */
+        post: operations["parse_schedule_natural_language_views_schedule_natural_language_parse_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -788,6 +1171,26 @@ export interface components {
             /** In Month */
             in_month: boolean;
         };
+        /** CalendarHeatDayOut */
+        CalendarHeatDayOut: {
+            /** Key */
+            key: string;
+            /** Task Count */
+            task_count: number;
+        };
+        /** CalendarMonthSummaryOut */
+        CalendarMonthSummaryOut: {
+            /** Month */
+            month: number;
+            /** Task Count */
+            task_count: number;
+            /** Todo Count */
+            todo_count: number;
+            /** Done Count */
+            done_count: number;
+            /** Days */
+            days?: components["schemas"]["CalendarHeatDayOut"][];
+        };
         /** CalendarSegmentOut */
         CalendarSegmentOut: {
             item: components["schemas"]["ScheduleTaskItemOut"];
@@ -1054,16 +1457,6 @@ export interface components {
             /** Target Project Id */
             target_project_id?: string | null;
         };
-        /** LoginRequest */
-        LoginRequest: {
-            /**
-             * Email
-             * Format: email
-             */
-            email: string;
-            /** Password */
-            password: string;
-        };
         /** MeResponse */
         MeResponse: {
             /** Id */
@@ -1180,6 +1573,197 @@ export interface components {
              */
             is_creator: boolean;
         };
+        /** MobileChallengeOut */
+        MobileChallengeOut: {
+            /**
+             * Challenge Id
+             * Format: uuid
+             */
+            challenge_id: string;
+            /** Nonce */
+            nonce: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** MobileChallengeRequest */
+        MobileChallengeRequest: {
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "register" | "login" | "exchange";
+        };
+        /** MobileDeviceOut */
+        MobileDeviceOut: {
+            /**
+             * Device Id
+             * Format: uuid
+             */
+            device_id: string;
+            /** Installation Id */
+            installation_id: string;
+        };
+        /** MobileDeviceRegisterRequest */
+        MobileDeviceRegisterRequest: {
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Challenge Id
+             * Format: uuid
+             */
+            challenge_id: string;
+            /** Nonce */
+            nonce: string;
+            /** Public Key */
+            public_key: string;
+            /** Signature */
+            signature: string;
+            /** Device Name */
+            device_name?: string | null;
+            /** Os Version */
+            os_version?: string | null;
+            /** App Version */
+            app_version?: string | null;
+        };
+        /** MobilePasswordLoginRequest */
+        MobilePasswordLoginRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Challenge Id
+             * Format: uuid
+             */
+            challenge_id: string;
+            /** Nonce */
+            nonce: string;
+            /** Signature */
+            signature: string;
+        };
+        /** MobileRefreshChallengeRequest */
+        MobileRefreshChallengeRequest: {
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+        };
+        /** MobileRefreshRequest */
+        MobileRefreshRequest: {
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /** Installation Id */
+            installation_id: string;
+            /** Refresh Token */
+            refresh_token: string;
+            /** Request Id */
+            request_id: string;
+            /**
+             * Challenge Id
+             * Format: uuid
+             */
+            challenge_id: string;
+            /** Nonce */
+            nonce: string;
+            /** Signature */
+            signature: string;
+        };
+        /** MobileSessionOut */
+        MobileSessionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Installation Id */
+            installation_id: string;
+            /** Device Name */
+            device_name: string | null;
+            /** Platform */
+            platform: string;
+            /** Os Version */
+            os_version: string | null;
+            /** App Version */
+            app_version: string | null;
+            /** Login Provider */
+            login_provider: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Last Used At
+             * Format: date-time
+             */
+            last_used_at: string;
+            /**
+             * Idle Expires At
+             * Format: date-time
+             */
+            idle_expires_at: string;
+            /**
+             * Absolute Expires At
+             * Format: date-time
+             */
+            absolute_expires_at: string;
+            /** Is Current */
+            is_current: boolean;
+        };
+        /** MobileTokenExchangeRequest */
+        MobileTokenExchangeRequest: {
+            /** Installation Id */
+            installation_id: string;
+            /**
+             * Challenge Id
+             * Format: uuid
+             */
+            challenge_id: string;
+            /** Nonce */
+            nonce: string;
+            /** Signature */
+            signature: string;
+        };
+        /** MobileTokenOut */
+        MobileTokenOut: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Token Type
+             * @default bearer
+             */
+            token_type: string;
+            /** Expires In */
+            expires_in: number;
+            /** Refresh Token */
+            refresh_token: string;
+            /**
+             * Refresh Token Expires At
+             * Format: date-time
+             */
+            refresh_token_expires_at: string;
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+        };
         /** MyAnalyticsViewOut */
         MyAnalyticsViewOut: {
             /** Display Name */
@@ -1233,6 +1817,38 @@ export interface components {
             overdue_count: number;
             /** Due This Week Count */
             due_this_week_count: number;
+        };
+        /** NaturalLanguageParseOut */
+        NaturalLanguageParseOut: {
+            draft: components["schemas"]["app__schemas__views__schedule__NaturalLanguageTaskDraft"];
+            /** Confidence */
+            confidence: number;
+            /** Assumptions */
+            assumptions?: string[];
+            /** Missing Fields */
+            missing_fields?: string[];
+            /** Ambiguities */
+            ambiguities?: string[];
+        };
+        /** NaturalLanguageParseRequest */
+        NaturalLanguageParseRequest: {
+            /** Text */
+            text: string;
+            /**
+             * Timezone
+             * @default Asia/Shanghai
+             */
+            timezone: string;
+            /**
+             * Reference Time
+             * Format: date-time
+             */
+            reference_time: string;
+            /**
+             * Selected Date
+             * Format: date
+             */
+            selected_date: string;
         };
         /** ProjectBrief */
         ProjectBrief: {
@@ -1462,13 +2078,17 @@ export interface components {
              * View
              * @enum {string}
              */
-            view: "month" | "week" | "day";
+            view: "year" | "month" | "week" | "day";
             /** Anchor */
             anchor: string;
             /** Month */
             month?: string | null;
+            /** Year */
+            year?: number | null;
             /** Weeks */
             weeks?: components["schemas"]["CalendarWeekOut"][];
+            /** Months */
+            months?: components["schemas"]["CalendarMonthSummaryOut"][];
             day?: components["schemas"]["CalendarDayDetailOut"] | null;
         };
         /** ScheduleDashboardOut */
@@ -1498,6 +2118,14 @@ export interface components {
             /** Columns */
             columns: {
                 [key: string]: components["schemas"]["ScheduleTaskItemOut"][];
+            };
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+            /** Has More */
+            has_more: {
+                [key: string]: boolean;
             };
         };
         /** ScheduleTaskItemOut */
@@ -1542,6 +2170,232 @@ export interface components {
             /** Project Name */
             project_name: string;
         };
+        /** StickyNoteAIParseOut */
+        StickyNoteAIParseOut: {
+            /** Id */
+            id: string;
+            /** Sticky Note Id */
+            sticky_note_id: string;
+            /**
+             * Parse Status
+             * @enum {string}
+             */
+            parse_status: "pending" | "success" | "failed" | "skipped";
+            /** Parse Provider */
+            parse_provider?: string | null;
+            /** Parse Latency Ms */
+            parse_latency_ms?: number | null;
+            draft?: components["schemas"]["app__schemas__sticky_note__NaturalLanguageTaskDraft"] | null;
+            /** Confidence */
+            confidence?: number | null;
+            /** Assumptions */
+            assumptions?: string[];
+            /** Missing Fields */
+            missing_fields?: string[];
+            /** Ambiguities */
+            ambiguities?: string[];
+            /** Converted Item Id */
+            converted_item_id?: string | null;
+            /** Converted At */
+            converted_at?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Error Message */
+            error_message?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** StickyNoteAttachmentIn */
+        StickyNoteAttachmentIn: {
+            /**
+             * Attachment Type
+             * @enum {string}
+             */
+            attachment_type: "text" | "image" | "audio" | "video" | "file";
+            /** Filename */
+            filename: string;
+            /** Mime Type */
+            mime_type: string;
+            /** Byte Size */
+            byte_size: number;
+            /** Width Px */
+            width_px?: number | null;
+            /** Height Px */
+            height_px?: number | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+        };
+        /** StickyNoteAttachmentOut */
+        StickyNoteAttachmentOut: {
+            /** Id */
+            id: string;
+            /** Attachment Type */
+            attachment_type: string;
+            /** Storage Url */
+            storage_url: string;
+            /** Filename */
+            filename: string;
+            /** Mime Type */
+            mime_type: string;
+            /** Byte Size */
+            byte_size: number;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Width Px */
+            width_px?: number | null;
+            /** Height Px */
+            height_px?: number | null;
+            /** Transcript */
+            transcript?: string | null;
+            /** Ocr Text */
+            ocr_text?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * StickyNoteConvertRequest
+         * @description Finalize a parse into a real Item.
+         *
+         *     ``workspace_id`` / ``project_id`` are required (callers must have already
+         *     matched the AI's ``workspace_name`` / ``project_name`` against their own
+         *     workspace/project list, or chosen one manually). The convenience endpoint
+         *     falls back to the user's most-recently-active workspace if these are
+         *     omitted *and* the request is shaped via the auto-fallback path.
+         */
+        StickyNoteConvertRequest: {
+            /** Parse Id */
+            parse_id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Project Id */
+            project_id: string;
+            /** Field Overrides */
+            field_overrides?: {
+                [key: string]: unknown;
+            };
+        };
+        /** StickyNoteConvertResponse */
+        StickyNoteConvertResponse: {
+            /** Item */
+            item: {
+                [key: string]: unknown;
+            };
+            sticky_note: components["schemas"]["StickyNoteOut"];
+            parse: components["schemas"]["StickyNoteAIParseOut"];
+        };
+        /** StickyNoteCreate */
+        StickyNoteCreate: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+            /**
+             * Timezone
+             * @default Asia/Shanghai
+             */
+            timezone: string;
+            location?: components["schemas"]["StickyNoteLocationIn"] | null;
+            /** Attachments */
+            attachments?: components["schemas"]["StickyNoteAttachmentIn"][];
+            /**
+             * Auto Parse
+             * @default false
+             */
+            auto_parse: boolean;
+        };
+        /** StickyNoteListOut */
+        StickyNoteListOut: {
+            /** Items */
+            items: components["schemas"]["StickyNoteOut"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** StickyNoteLocationIn */
+        StickyNoteLocationIn: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Accuracy M */
+            accuracy_m?: number | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Source
+             * @default gps
+             * @enum {string}
+             */
+            source: "gps" | "ip" | "manual";
+        };
+        /** StickyNoteLocationOut */
+        StickyNoteLocationOut: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Accuracy M */
+            accuracy_m?: number | null;
+            /** Name */
+            name?: string | null;
+            /** Source */
+            source?: string | null;
+        };
+        /** StickyNoteOut */
+        StickyNoteOut: {
+            /** Id */
+            id: string;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Title */
+            title: string | null;
+            /** Content */
+            content: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Timezone */
+            timezone: string;
+            location?: components["schemas"]["StickyNoteLocationOut"] | null;
+            /** Device Kind */
+            device_kind?: string | null;
+            /** Archived At */
+            archived_at?: string | null;
+            /**
+             * Converted Count
+             * @default 0
+             */
+            converted_count: number;
+            /** Attachments */
+            attachments?: components["schemas"]["StickyNoteAttachmentOut"][];
+            latest_parse?: components["schemas"]["StickyNoteAIParseOut"] | null;
+        };
+        /**
+         * StickyNoteUpdate
+         * @description Only the editable fields; everything else is append-only.
+         */
+        StickyNoteUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Location Name */
+            location_name?: string | null;
+        };
         /** TaskDrawerContextOut */
         TaskDrawerContextOut: {
             /** Workspace Id */
@@ -1567,16 +2421,6 @@ export interface components {
             email: string;
             /** Display Name */
             display_name: string;
-        };
-        /** TokenResponse */
-        TokenResponse: {
-            /** Access Token */
-            access_token: string;
-            /**
-             * Token Type
-             * @default bearer
-             */
-            token_type: string;
         };
         /**
          * UserAssignableOut
@@ -1703,6 +2547,79 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WebLoginRequest */
+        WebLoginRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+        };
+        /** WebRefreshRequest */
+        WebRefreshRequest: {
+            /** Request Id */
+            request_id: string;
+        };
+        /** WebSessionOut */
+        WebSessionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Login Provider */
+            login_provider: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Last Used At
+             * Format: date-time
+             */
+            last_used_at: string;
+            /**
+             * Idle Expires At
+             * Format: date-time
+             */
+            idle_expires_at: string;
+            /**
+             * Absolute Expires At
+             * Format: date-time
+             */
+            absolute_expires_at: string;
+            /** Last Ip */
+            last_ip: string | null;
+            /** Last User Agent */
+            last_user_agent: string | null;
+            /** Is Current */
+            is_current: boolean;
+        };
+        /** WebTokenOut */
+        WebTokenOut: {
+            /** Access Token */
+            access_token: string;
+            /**
+             * Token Type
+             * @default bearer
+             */
+            token_type: string;
+            /** Expires In */
+            expires_in: number;
+            /**
+             * Session Id
+             * Format: uuid
+             */
+            session_id: string;
+            /**
+             * Refresh Token Expires At
+             * Format: date-time
+             */
+            refresh_token_expires_at: string;
         };
         /** WorkspaceActivityViewOut */
         WorkspaceActivityViewOut: {
@@ -1967,6 +2884,92 @@ export interface components {
             /** Color */
             color?: string | null;
         };
+        /**
+         * NaturalLanguageTaskDraft
+         * @description Mirrors ``app.schemas.views.schedule.NaturalLanguageTaskDraft``.
+         *
+         *     Duplicated here so the sticky-note API does not require clients to know
+         *     about the schedule view schema.
+         */
+        app__schemas__sticky_note__NaturalLanguageTaskDraft: {
+            /** Title */
+            title: string;
+            /** Body */
+            body?: string | null;
+            /** Start At */
+            start_at?: string | null;
+            /** End At */
+            end_at?: string | null;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /**
+             * Status
+             * @default todo
+             * @enum {string}
+             */
+            status: "todo" | "doing" | "done" | "archived";
+            /**
+             * Priority
+             * @default 1
+             * @enum {string}
+             */
+            priority: "1" | "2" | "3" | "4";
+            /** Location */
+            location?: string | null;
+            /** Workspace Name */
+            workspace_name?: string | null;
+            /** Project Name */
+            project_name?: string | null;
+            /** Assignee Name */
+            assignee_name?: string | null;
+            /** Participant Names */
+            participant_names?: string[];
+            /** Recurrence Text */
+            recurrence_text?: string | null;
+        };
+        /** NaturalLanguageTaskDraft */
+        app__schemas__views__schedule__NaturalLanguageTaskDraft: {
+            /** Title */
+            title: string;
+            /** Body */
+            body?: string | null;
+            /** Start At */
+            start_at?: string | null;
+            /** End At */
+            end_at?: string | null;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /**
+             * Status
+             * @default todo
+             * @enum {string}
+             */
+            status: "todo" | "doing" | "done" | "archived";
+            /**
+             * Priority
+             * @default 1
+             * @enum {string}
+             */
+            priority: "1" | "2" | "3" | "4";
+            /** Location */
+            location?: string | null;
+            /** Workspace Name */
+            workspace_name?: string | null;
+            /** Project Name */
+            project_name?: string | null;
+            /** Assignee Name */
+            assignee_name?: string | null;
+            /** Participant Names */
+            participant_names?: string[];
+            /** Recurrence Text */
+            recurrence_text?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1976,39 +2979,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    login_auth_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     register_auth_register_post: {
         parameters: {
             query?: never;
@@ -2061,6 +3031,514 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_auth_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                timia_rt?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebRefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                timia_rt?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_all_auth_logout_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                timia_rt?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_auth_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                timia_rt?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebSessionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_session_auth_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                timia_rt?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mobile_device_challenge_auth_mobile_devices_challenge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileChallengeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_mobile_device_auth_mobile_devices_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileDeviceRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileDeviceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mobile_password_login_auth_mobile_login_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobilePasswordLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exchange_legacy_access_token_auth_mobile_token_exchange_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileTokenExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mobile_refresh_challenge_auth_mobile_token_refresh_challenge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileRefreshChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileChallengeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_mobile_token_auth_mobile_token_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MobileRefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_mobile_session_auth_mobile_logout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_all_mobile_sessions_auth_mobile_logout_all_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_mobile_sessions_auth_mobile_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileSessionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_mobile_session_auth_mobile_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -3330,6 +4808,283 @@ export interface operations {
             };
         };
     };
+    get_sticky_notes_sticky_notes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                include_archived?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sticky_note_sticky_notes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StickyNoteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sticky_note_route_sticky_notes__note_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_sticky_note_route_sticky_notes__note_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_sticky_note_route_sticky_notes__note_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StickyNoteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_ai_parse_sticky_notes__note_id__ai_parse_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteAIParseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_parses_sticky_notes__note_id__parses_get: {
+        parameters: {
+            query?: {
+                /** @description If true, return only the unconverted success parse */
+                latest?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteAIParseOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_convert_sticky_notes__note_id__convert_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StickyNoteConvertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StickyNoteConvertResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_db_tables_dev_db_tables_get: {
         parameters: {
             query?: never;
@@ -3391,12 +5146,51 @@ export interface operations {
             };
         };
     };
+    parse_schedule_natural_language_views_schedule_natural_language_parse_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NaturalLanguageParseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NaturalLanguageParseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     schedule_swimlane_view_views_schedule_swimlane_get: {
         parameters: {
             query?: {
                 scope?: string;
                 workspace_id?: string | null;
                 project_id?: string | null;
+                status?: string | null;
+                limit?: number;
+                offset?: number;
+                completed_limit?: number;
             };
             header?: {
                 authorization?: string | null;
