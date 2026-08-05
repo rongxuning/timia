@@ -3,8 +3,10 @@ import SwiftUI
 /// Top half of ``StickyNoteView`` — a persistent form for the next note.
 ///
 /// Layout (top → bottom):
-///   * Date header (yyyy年MM月dd日)
-///   * One input area: first line = title (bold, larger), rest = body
+///   * One input area: first line = title (bold, larger), rest = body.
+///     The first line is automatically styled via ``TitleBodyTextEditor``;
+///     when the user presses enter after the title, the body starts on
+///     a new line below it.
 ///   * Bottom row:
 ///       - Left:  VStack of `附件` + `位置` chips
 ///       - Right: `保存` button
@@ -18,26 +20,8 @@ struct StickyNoteInputView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            dateHeader
-
-            // Combined title + content editor
-            ZStack(alignment: .topLeading) {
-                TitleBodyTextEditor(text: $draft.combined, minHeight: 140)
-                    .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 10))
-                if draft.combined.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("标题（可选）")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                        Text("内容")
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 18)
-                    .allowsHitTesting(false)
-                }
-            }
-            .frame(minHeight: 140)
+            TitleBodyTextEditor(text: $draft.combined, minHeight: 140)
+                .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 10))
 
             bottomRow
         }
@@ -45,16 +29,7 @@ struct StickyNoteInputView: View {
         .padding(.vertical, 10)
     }
 
-    // MARK: - Sections
-
-    private var dateHeader: some View {
-        HStack {
-            Text(formattedToday)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-    }
+    // MARK: - Bottom row
 
     private var bottomRow: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -124,14 +99,5 @@ struct StickyNoteInputView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Helpers
-
-    private var formattedToday: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "yyyy年MM月dd日"
-        return f.string(from: Date())
     }
 }

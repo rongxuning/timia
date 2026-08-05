@@ -197,27 +197,38 @@ struct ScheduleHomeView: View {
 
     private var header: some View {
         HStack(alignment: .center) {
-            Group {
-            if contentMode == .calendar, range == .month || range == .year {
-                    ZStack(alignment: .leading) {
-                        Text(headerTitle)
-                            .id(headerTitle)
-                            .transition(periodHeaderTransition)
-                    }
-                    .animation(.easeInOut(duration: reduceMotion ? 0.18 : 0.3), value: headerTitle)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("calendar-header-title")
-                    .accessibilityValue(headerTitle)
-                } else {
-                    Text(headerTitle)
-                        .contentTransition(.numericText())
+            if contentMode == .stickyNote {
+                // Sticky-note mode: small full-date sits just to the left of
+                // the avatar; the large left-aligned title is hidden so the
+                // page feels like a "today's notes" surface.
+                Spacer()
+                Text(formattedToday)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("sticky-note-header-date")
+            } else {
+                Group {
+                if contentMode == .calendar, range == .month || range == .year {
+                        ZStack(alignment: .leading) {
+                            Text(headerTitle)
+                                .id(headerTitle)
+                                .transition(periodHeaderTransition)
+                        }
+                        .animation(.easeInOut(duration: reduceMotion ? 0.18 : 0.3), value: headerTitle)
+                        .accessibilityElement(children: .combine)
                         .accessibilityIdentifier("calendar-header-title")
                         .accessibilityValue(headerTitle)
+                    } else {
+                        Text(headerTitle)
+                            .contentTransition(.numericText())
+                            .accessibilityIdentifier("calendar-header-title")
+                            .accessibilityValue(headerTitle)
+                    }
                 }
-            }
-            .font(.system(size: 29, weight: .bold, design: .rounded))
+                .font(.system(size: 29, weight: .bold, design: .rounded))
 
-            Spacer()
+                Spacer()
+            }
 
             Button {
                 dismissNaturalLanguageInput()
@@ -255,6 +266,13 @@ struct ScheduleHomeView: View {
                 dismissNaturalLanguageInput()
             }
         )
+    }
+
+    private var formattedToday: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "yyyy年MM月dd日"
+        return f.string(from: Date())
     }
 
     private var periodHeaderTransition: AnyTransition {
@@ -403,64 +421,68 @@ struct ScheduleHomeView: View {
 
             HStack(spacing: 8) {
                 if contentMode == .stickyNote {
+                    // Voice button sits directly on the toolbar's material
+                    // background — no white surface around it.
                     StickyNoteVoiceLauncher(
                         session: session,
                         draft: stickyDraft
                     )
                 } else {
-                    Button {
-                        dismissNaturalLanguageInput()
-                        withAnimation(.snappy(duration: 0.2)) {
-                            isRangePickerExpanded = false
+                    HStack(spacing: 8) {
+                        Button {
+                            dismissNaturalLanguageInput()
+                            withAnimation(.snappy(duration: 0.2)) {
+                                isRangePickerExpanded = false
+                            }
+                            createSelection = ScheduleCreateSelection(
+                                date: selectedDate,
+                                hasExactTime: false
+                            )
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 28, height: 42)
+                                .contentShape(Rectangle())
                         }
-                        createSelection = ScheduleCreateSelection(
-                            date: selectedDate,
-                            hasExactTime: false
-                        )
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 28, height: 42)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("新建任务")
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("新建任务")
 
-                    TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
-                        .lineLimit(1...3)
-                        .focused($isNaturalLanguageInputFocused)
-                        .submitLabel(.send)
-                        .onSubmit {
+                        TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
+                            .lineLimit(1...3)
+                            .focused($isNaturalLanguageInputFocused)
+                            .submitLabel(.send)
+                            .onSubmit {
+                                dismissNaturalLanguageInput()
+                                Task { await parseNaturalLanguage() }
+                            }
+
+                        Button {
                             dismissNaturalLanguageInput()
                             Task { await parseNaturalLanguage() }
-                        }
-
-                    Button {
-                        dismissNaturalLanguageInput()
-                        Task { await parseNaturalLanguage() }
-                    } label: {
-                        Group {
-                            if isParsing {
-                                ProgressView().tint(.white)
-                            } else {
-                                Image(systemName: "arrow.up")
-                                    .font(.body.bold())
+                        } label: {
+                            Group {
+                                if isParsing {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Image(systemName: "arrow.up")
+                                        .font(.body.bold())
+                                }
                             }
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
                         }
-                        .foregroundStyle(.white)
-                        .frame(width: 42, height: 42)
-                        .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
+                        .disabled(!canParse)
+                        .accessibilityLabel("解析任务")
                     }
-                    .disabled(!canParse)
-                    .accessibilityLabel("解析任务")
+                    .padding(.leading, 12)
+                    .padding(.trailing, 5)
+                    .padding(.vertical, 5)
+                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
                 }
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 5)
-            .padding(.vertical, 5)
-            .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
