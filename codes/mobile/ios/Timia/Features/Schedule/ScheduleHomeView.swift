@@ -404,14 +404,18 @@ struct ScheduleHomeView: View {
             HStack(spacing: 8) {
                 Group {
                     if contentMode == .stickyNote {
-                        // Sticky-note mode: voice button inside the same
-                        // white pill as the other modes. Only the inner
-                        // content differs.
+                        // Sticky-note mode: voice button centered inside the
+                        // same white pill as the other modes. Spacers push
+                        // the button to the visual center so the pill width
+                        // matches the other modes (which would otherwise
+                        // shrink to just the button + padding).
                         HStack(spacing: 0) {
+                            Spacer(minLength: 0)
                             StickyNoteVoiceLauncher(
                                 session: session,
                                 draft: stickyDraft
                             )
+                            Spacer(minLength: 0)
                         }
                     } else {
                         HStack(spacing: 8) {
@@ -470,6 +474,7 @@ struct ScheduleHomeView: View {
                 .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
             }
+            .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
