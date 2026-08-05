@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +30,9 @@ class WorkspaceMember(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")  # owner | member
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active/removed
     is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Bumped on workspace/item access — used as a tie-breaker for "most-recently-active"
+    # when a sticky note's AI parse cannot find a matching workspace name.
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     workspace = relationship("Workspace", back_populates="members")
     user = relationship("User", back_populates="workspace_memberships")

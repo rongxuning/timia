@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -77,17 +78,31 @@ _TASK_DRAFT_SCHEMA: dict[str, Any] = {
 }
 
 
-def _system_prompt(payload: NaturalLanguageParseRequest) -> str:
+def _system_prompt(
+    payload: NaturalLanguageParseRequest,
+    *,
+    selected_date: date | None = None,
+) -> str:
+    selected_line = (
+        f"日程页当前选中日期：{selected_date.isoformat()}"
+        if selected_date is not None
+        else "日程页当前选中日期：未指定（请从用户输入中自行推断日期）"
+    )
+    rule_no_date = (
+        "2. 没有日期时使用当前选中日期，并在 assumptions 中说明。"
+        if selected_date is not None
+        else "2. 没有日期时不要编造，请把 start_at/end_at 留为 null，并在 ambiguities 中说明「未指定日期」。"
+    )
     return f"""
 你是 Timia 的中文任务解析器。把用户输入转换成一个任务草稿，不执行任务创建。
 
 当前参考时间：{payload.reference_time.isoformat()}
 用户时区：{payload.timezone}
-日程页当前选中日期：{payload.selected_date.isoformat()}
+{selected_line}
 
 规则：
 1. 相对日期和时间必须基于参考时间与用户时区解析，并输出带时区的 ISO 8601。
-2. 没有日期时使用当前选中日期，并在 assumptions 中说明。
+{rule_no_date}
 3. 有具体时间但没有结束时间或时长时，默认持续一小时，并在 assumptions 中说明。
 4. 只有日期、没有时间时设为全天：start_at 为当天 00:00，end_at 为次日 00:00。
 5. 没有状态时 status=todo；没有优先级时 priority=1。
@@ -102,11 +117,15 @@ def _system_prompt(payload: NaturalLanguageParseRequest) -> str:
 """.strip()
 
 
-def build_minimax_request(payload: NaturalLanguageParseRequest) -> dict[str, Any]:
+def build_minimax_request(
+    payload: NaturalLanguageParseRequest,
+    *,
+    selected_date: date | None,
+) -> dict[str, Any]:
     return {
         "model": settings.minimax_model,
         "messages": [
-            {"role": "system", "content": _system_prompt(payload)},
+            {"role": "system", "content": _system_prompt(payload, selected_date=selected_date)},
             {"role": "user", "content": payload.text.strip()},
         ],
         "temperature": 1.0,
@@ -152,6 +171,13 @@ def parse_provider_response(response: dict[str, Any]) -> NaturalLanguageParseOut
 def parse_natural_language_task(
     payload: NaturalLanguageParseRequest,
 ) -> NaturalLanguageParseOut:
+    """Backwards-compatible entry point — passes ``selected_date`` through.
+
+    The schedule view sends ``payload.selected_date`` so the model uses it as
+    the implicit date when the text is ambiguous. Pass it explicitly so any
+    future change to ``NaturalLanguageParseRequest.selected_date``'s
+    nullability does not silently break the schedule call.
+    """
     if not settings.minimax_api_key:
         raise NaturalLanguageConfigurationError("自然语言解析服务尚未配置")
 
@@ -164,7 +190,46 @@ def parse_natural_language_task(
                     "Authorization": f"Bearer {settings.minimax_api_key}",
                     "Content-Type": "application/json",
                 },
-                json=build_minimax_request(payload),
+                json=build_minimax_request(payload, selected_date=payload.selected_date),
+            )
+            response.raise_for_status()
+            body = response.json()
+    except (httpx.HTTPError, ValueError) as error:
+        raise NaturalLanguageProviderError("自然语言解析服务暂时不可用，请稍后重试") from error
+
+    return parse_provider_response(body)
+
+
+def parse_natural_language_task_without_date(
+    text: str,
+    *,
+    timezone: str,
+    reference_time: datetime,
+) -> NaturalLanguageParseOut:
+    """Variant for sticky notes — no ``selected_date`` context.
+
+    The model is told to infer a date from the text itself; if it cannot, it
+    should leave ``start_at``/``end_at`` null and note the ambiguity.
+    """
+    if not settings.minimax_api_key:
+        raise NaturalLanguageConfigurationError("自然语言解析服务尚未配置")
+
+    payload = NaturalLanguageParseRequest(
+        text=text,
+        timezone=timezone,
+        reference_time=reference_time,
+        selected_date=reference_time.date(),  # temporary; only used to satisfy schema
+    )
+    url = f"{settings.minimax_base_url.rstrip('/')}/chat/completions"
+    try:
+        with httpx.Client(timeout=settings.minimax_timeout_seconds) as client:
+            response = client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {settings.minimax_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=build_minimax_request(payload, selected_date=None),
             )
             response.raise_for_status()
             body = response.json()
