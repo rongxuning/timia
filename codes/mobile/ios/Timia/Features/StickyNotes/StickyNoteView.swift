@@ -1,10 +1,11 @@
 import SwiftUI
 import CoreLocation
+import UIKit
 
-/// Top-level sticky-note view: a VStack split into an input form (top) and
-/// a list of saved notes (bottom). Both the form and the bottom toolbar's
-/// voice button share the same ``StickyNoteDraftStore`` so voice-recognized
-/// text lands in the same input box.
+/// Top-level sticky-note view. The middle area shows the editor and the list
+/// in alternation: by default the editor takes the full area; tapping the
+/// handle swaps in the list. Voice-recognized text lands in the same input
+/// box via the shared ``StickyNoteDraftStore``.
 struct StickyNoteView: View {
     let session: AppSession
     @ObservedObject var draft: StickyNoteDraftStore
@@ -14,34 +15,46 @@ struct StickyNoteView: View {
     @State private var locationManager = StickyNoteLocationManager()
     @State private var showingPicker = false
     @State private var locationError: String? = nil
+    /// `true` = editor fills the middle area; `false` = list fills it.
+    @State private var isEditorExpanded: Bool = true
 
     private var api: StickyNotesAPI { StickyNotesAPI(client: session.api) }
 
     var body: some View {
         VStack(spacing: 0) {
-            StickyNoteInputView(
-                draft: draft,
-                locationError: $locationError,
-                onPickAttachments: { showingPicker = true },
-                onRequestLocation: { Task { await requestLocation() } },
-                onClearLocation: {
-                    draft.location = nil
-                    locationError = nil
-                },
-                onSave: { Task { await save() } }
-            )
-            .frame(maxWidth: .infinity, alignment: .top)
-            .background(TimiaTheme.surface)
+            // Top half: handle OR editor OR list, so the handle sits at the
+            // visual boundary between the two panes.
+            if isEditorExpanded {
+                StickyNoteInputView(
+                    draft: draft,
+                    locationError: $locationError,
+                    onPickAttachments: { showingPicker = true },
+                    onRequestLocation: { Task { await requestLocation() } },
+                    onClearLocation: {
+                        draft.location = nil
+                        locationError = nil
+                    },
+                    onSave: { Task { await save() } }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(TimiaTheme.surface)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            } else {
+                StickyNoteHandleBar(
+                    isEditorExpanded: false,
+                    onToggle: { withAnimation(panelAnimation) { isEditorExpanded = true } }
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
 
-            Divider()
-
-            StickyNoteListView(
-                model: model,
-                api: api,
-                onTaskCreated: onTaskCreated
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                StickyNoteListView(
+                    model: model,
+                    api: api,
+                    onTaskCreated: onTaskCreated
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
+        .animation(panelAnimation, value: isEditorExpanded)
         .task {
             await model.refresh(api: api)
         }
@@ -52,6 +65,10 @@ struct StickyNoteView: View {
         ) { result in
             handleFileImport(result)
         }
+    }
+
+    private var panelAnimation: Animation {
+        .spring(response: 0.4, dampingFraction: 0.85)
     }
 
     // MARK: - Save
@@ -116,9 +133,25 @@ struct StickyNoteView: View {
             // Invalidate list cache so the new note shows at the top.
             await model.refresh(api: api)
             draft.reset()
+
+            // Auto-collapse: dismiss any keyboard, then animate the
+            // editor away and let the list fill the middle area.
+            dismissKeyboard()
+            withAnimation(panelAnimation) {
+                isEditorExpanded = false
+            }
         } catch {
             draft.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 
     private func handleFileImport(_ result: Result<[URL], Error>) {
