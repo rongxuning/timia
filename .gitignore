@@ -1,5 +1,6 @@
 .DS_Store
 .worktrees/
+.mavis-deep-research/
 
 **/__pycache__/
 *.py[cod]
@@ -15,6 +16,7 @@ codes/core-service/.env
 codes/web/node_modules/
 codes/web/.next/
 codes/web/.env.local
+codes/web/next-env.d.ts
 
 .env.prod
 .env.pack
