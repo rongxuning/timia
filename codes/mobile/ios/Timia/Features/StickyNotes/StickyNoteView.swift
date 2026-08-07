@@ -22,8 +22,10 @@ struct StickyNoteView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top half: handle OR editor OR list, so the handle sits at the
-            // visual boundary between the two panes.
+            // The handle is rendered in *both* branches so it always sits at
+            // the visual boundary between the editor and the list:
+            //   expanded   → editor (fills) + handle (at bottom)
+            //   collapsed  → handle (at top) + list (fills)
             if isEditorExpanded {
                 StickyNoteInputView(
                     draft: draft,
@@ -39,6 +41,11 @@ struct StickyNoteView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(TimiaTheme.surface)
                 .transition(.move(edge: .top).combined(with: .opacity))
+
+                StickyNoteHandleBar(
+                    isEditorExpanded: true,
+                    onToggle: { withAnimation(panelAnimation) { isEditorExpanded = false } }
+                )
             } else {
                 StickyNoteHandleBar(
                     isEditorExpanded: false,

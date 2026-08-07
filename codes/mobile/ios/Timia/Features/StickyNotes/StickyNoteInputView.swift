@@ -24,9 +24,15 @@ struct StickyNoteInputView: View {
                 .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 10))
 
             bottomRow
+
+            // Push the editor contents to the top so the bottom row
+            // (附件/位置/保存) sits just above the handle bar that lives
+            // immediately under this view in ``StickyNoteView``.
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
     }
 
     // MARK: - Bottom row

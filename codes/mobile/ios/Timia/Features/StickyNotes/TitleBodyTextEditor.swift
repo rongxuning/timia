@@ -36,7 +36,8 @@ struct TitleBodyTextEditor: UIViewRepresentable {
 
     /// Style the first line (everything up to the first newline, or all the
     /// text if there is no newline) with a bold title font. The remainder
-    /// uses the body font.
+    /// uses the body font. After the title, leave a 4pt gap before the
+    /// body so the boundary is visible.
     private func applyAttributes(to textView: UITextView) {
         let bodyFont = UIFont.preferredFont(forTextStyle: .body)
         let titleDescriptor = UIFont
@@ -52,9 +53,17 @@ struct TitleBodyTextEditor: UIViewRepresentable {
             if let newlineIdx = textView.text.firstIndex(of: "\n") {
                 let titleLength = textView.text.distance(from: textView.text.startIndex, to: newlineIdx)
                 if titleLength > 0 {
+                    // Title font + 4pt gap after the title line.
+                    let titleStyle = NSMutableParagraphStyle()
+                    titleStyle.paragraphSpacing = 4
                     attributed.addAttribute(
                         .font,
                         value: titleFont,
+                        range: NSRange(location: 0, length: titleLength)
+                    )
+                    attributed.addAttribute(
+                        .paragraphStyle,
+                        value: titleStyle,
                         range: NSRange(location: 0, length: titleLength)
                     )
                 }
