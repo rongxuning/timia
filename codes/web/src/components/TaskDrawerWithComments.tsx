@@ -186,6 +186,10 @@ type Props = {
   /** 新建任务时预填的开始/结束时间（datetime-local 格式） */
   initialCreateStartAt?: string;
   initialCreateEndAt?: string;
+  /** 新建任务时预填的标题、描述和地点 */
+  initialCreateTitle?: string;
+  initialCreateBody?: string;
+  initialCreateLocation?: string;
 };
 
 export function TaskDrawerWithComments({
@@ -206,6 +210,9 @@ export function TaskDrawerWithComments({
   initialCreatePriority,
   initialCreateStartAt,
   initialCreateEndAt,
+  initialCreateTitle,
+  initialCreateBody,
+  initialCreateLocation,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const effectiveShowComments = showCommentsProp ?? (variant !== "create");
@@ -508,8 +515,8 @@ export function TaskDrawerWithComments({
   useEffect(() => {
     if (!open || variant !== "create") return;
     setDrawerItem(null);
-    setEditTitle("");
-    setEditBody("");
+    setEditTitle(initialCreateTitle ?? "");
+    setEditBody(initialCreateBody ?? "");
     setEditColor("#FFFFFF");
     setEditStatus(initialCreateStatus ?? "todo");
     setEditPriority(normalizePriority(initialCreatePriority));
@@ -520,7 +527,7 @@ export function TaskDrawerWithComments({
     );
     setEditAssigneeUserId("");
     setEditParticipantUserIds([]);
-    setEditLocation("");
+    setEditLocation(initialCreateLocation ?? "");
     setEditError(null);
     setItemLoading(false);
     setComments([]);
@@ -536,6 +543,9 @@ export function TaskDrawerWithComments({
     initialCreatePriority,
     initialCreateStartAt,
     initialCreateEndAt,
+    initialCreateTitle,
+    initialCreateBody,
+    initialCreateLocation,
   ]);
 
   useEffect(() => {
@@ -1003,7 +1013,7 @@ export function TaskDrawerWithComments({
   const creatorLabel = variant === "edit" && drawerItem ? drawerItem.created_by?.display_name ?? "—" : "—";
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[60]">
       <div
         className={`absolute inset-0 bg-black/30 ${drawerVisible ? "" : "pointer-events-none"}`}
         onClick={closeDrawer}

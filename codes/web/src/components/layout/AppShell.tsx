@@ -21,6 +21,7 @@ import { StickyNoteModal } from "@/components/sticky-notes/StickyNoteModal";
 import { TaskDrawerWithComments } from "@/components/TaskDrawerWithComments";
 import {
   TaskCreateDrawerProvider,
+  type TaskCreatePrefill,
   useTaskCreateDrawer,
 } from "./TaskCreateDrawerContext";
 
@@ -66,6 +67,11 @@ function FloatingButtons({ pathname }: { pathname: string }) {
   const { openCreate, close: closeTaskCreate } = useTaskCreateDrawer();
   const previousPathnameRef = useRef(pathname);
 
+  function openTaskFromStickyNote(prefill: TaskCreatePrefill) {
+    openCreate(prefill);
+    setStickyNoteOpen(false);
+  }
+
   useEffect(() => {
     if (previousPathnameRef.current === pathname) return;
     previousPathnameRef.current = pathname;
@@ -100,6 +106,7 @@ function FloatingButtons({ pathname }: { pathname: string }) {
       <StickyNoteModal
         open={stickyNoteOpen}
         onClose={() => setStickyNoteOpen(false)}
+        onConvertToTask={openTaskFromStickyNote}
       />
     </>
   );
@@ -112,6 +119,9 @@ function GlobalTaskCreateDrawer({ enabled }: { enabled: boolean }) {
     initialPriority,
     initialStartAt,
     initialEndAt,
+    initialTitle,
+    initialBody,
+    initialLocation,
     close,
   } = useTaskCreateDrawer();
 
@@ -131,6 +141,9 @@ function GlobalTaskCreateDrawer({ enabled }: { enabled: boolean }) {
       initialCreatePriority={initialPriority}
       initialCreateStartAt={initialStartAt}
       initialCreateEndAt={initialEndAt}
+      initialCreateTitle={initialTitle}
+      initialCreateBody={initialBody}
+      initialCreateLocation={initialLocation}
       onTaskCreated={() => close()}
     />
   );

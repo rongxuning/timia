@@ -9,11 +9,14 @@ import {
 } from "react";
 import type { PriorityKey, StatusKey } from "@/types/api/views/schedule";
 
-type CreateParams = {
+export type TaskCreatePrefill = {
   status?: StatusKey;
   priority?: PriorityKey;
   startAt?: string;
   endAt?: string;
+  title?: string;
+  body?: string;
+  location?: string;
 };
 
 type TaskCreateDrawerContextValue = {
@@ -22,7 +25,10 @@ type TaskCreateDrawerContextValue = {
   initialPriority: PriorityKey;
   initialStartAt: string;
   initialEndAt: string;
-  openCreate: (params?: CreateParams) => void;
+  initialTitle: string;
+  initialBody: string;
+  initialLocation: string;
+  openCreate: (params?: TaskCreatePrefill) => void;
   close: () => void;
 };
 
@@ -32,6 +38,9 @@ const TaskCreateDrawerContext = createContext<TaskCreateDrawerContextValue>({
   initialPriority: "1",
   initialStartAt: "",
   initialEndAt: "",
+  initialTitle: "",
+  initialBody: "",
+  initialLocation: "",
   openCreate: () => {},
   close: () => {},
 });
@@ -42,12 +51,18 @@ export function TaskCreateDrawerProvider({ children }: { children: ReactNode }) 
   const [initialPriority, setInitialPriority] = useState<PriorityKey>("1");
   const [initialStartAt, setInitialStartAt] = useState("");
   const [initialEndAt, setInitialEndAt] = useState("");
+  const [initialTitle, setInitialTitle] = useState("");
+  const [initialBody, setInitialBody] = useState("");
+  const [initialLocation, setInitialLocation] = useState("");
 
-  const openCreate = useCallback((params?: CreateParams) => {
+  const openCreate = useCallback((params?: TaskCreatePrefill) => {
     setInitialStatus(params?.status ?? "todo");
     setInitialPriority(params?.priority ?? "1");
     setInitialStartAt(params?.startAt ?? "");
     setInitialEndAt(params?.endAt ?? "");
+    setInitialTitle(params?.title ?? "");
+    setInitialBody(params?.body ?? "");
+    setInitialLocation(params?.location ?? "");
     setOpen(true);
   }, []);
 
@@ -55,7 +70,18 @@ export function TaskCreateDrawerProvider({ children }: { children: ReactNode }) 
 
   return (
     <TaskCreateDrawerContext.Provider
-      value={{ open, initialStatus, initialPriority, initialStartAt, initialEndAt, openCreate, close }}
+      value={{
+        open,
+        initialStatus,
+        initialPriority,
+        initialStartAt,
+        initialEndAt,
+        initialTitle,
+        initialBody,
+        initialLocation,
+        openCreate,
+        close,
+      }}
     >
       {children}
     </TaskCreateDrawerContext.Provider>

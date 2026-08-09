@@ -9,7 +9,6 @@ import {
   updateStickyNote,
   archiveStickyNote,
   triggerStickyNoteParse,
-  convertStickyNoteToTask,
   getLatestStickyNoteParse,
   isStickyNoteParseTerminal,
   STICKY_NOTE_PARSE_POLL_INTERVAL_MS,
@@ -20,6 +19,7 @@ import {
 } from "@/lib/api/sticky-notes";
 import { getAccessToken } from "@/lib/auth";
 import { type LocationSnapshot } from "@/lib/sticky-notes/geolocation";
+import type { TaskCreatePrefill } from "@/components/layout/TaskCreateDrawerContext";
 import {
   StickyNoteInputForm,
   type StickyNoteInputFormHandle,
@@ -29,7 +29,7 @@ import { StickyNoteListPane } from "./StickyNoteListPane";
 type Props = {
   open: boolean;
   onClose: () => void;
-  onConvertToTask?: (item: unknown) => void;
+  onConvertToTask: (prefill: TaskCreatePrefill) => void;
 };
 
 const STICKY_NOTE_TRANSITION_MS = 600;
@@ -38,6 +38,14 @@ function getTokenOrThrow(): string {
   const t = getAccessToken();
   if (!t) throw new Error("未登录");
   return t;
+}
+
+function toLocalDatetimeInputValue(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
@@ -308,28 +316,22 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
   };
 
   const handleConvert = async (noteId: string, parseId: string) => {
-    const token = getTokenOrThrow();
-    // Workspace/project selection is wired through the task drawer in v1;
-    // for now we just convert with the AI's strings (server will fall back
-    // to most-recent-active when names don't match).
-    const resp = await convertStickyNoteToTask(token, noteId, {
-      parse_id: parseId,
-      workspace_id: "",  // server falls back
-      project_id: "",    // server falls back
-      field_overrides: {},
+    const note = list?.items.find((item) => item.id === noteId);
+    const parse = note?.latest_parse;
+    if (!parse || parse.id !== parseId || parse.parse_status !== "success" || !parse.draft) {
+      return;
+    }
+    const draft = parse.draft;
+    onConvertToTask({
+      title: draft.title || note?.title?.trim() || "",
+      body: draft.body ?? note?.content ?? "",
+      status: draft.status ?? "todo",
+      priority: draft.priority ?? "1",
+      startAt: toLocalDatetimeInputValue(draft.start_at),
+      endAt: toLocalDatetimeInputValue(draft.end_at),
+      location: draft.location ?? note?.location?.name ?? "",
     });
-    setList((prev) =>
-      prev
-        ? {
-            ...prev,
-            items: prev.items.map((n) =>
-              n.id === noteId ? resp.sticky_note : n,
-            ),
-          }
-        : prev,
-    );
     setExpandedParseId(null);
-    onConvertToTask?.(resp.item);
   };
 
   const sortedNotes = useMemo<StickyNoteOut[]>(() => {

@@ -32,6 +32,9 @@ export default function MySchedulePage() {
     initialPriority,
     initialStartAt,
     initialEndAt,
+    initialTitle,
+    initialBody,
+    initialLocation,
     openCreate,
     close: closeTaskCreate,
   } = useTaskCreateDrawer();
@@ -161,6 +164,9 @@ export default function MySchedulePage() {
         initialCreatePriority={initialPriority}
         initialCreateStartAt={initialStartAt}
         initialCreateEndAt={initialEndAt}
+        initialCreateTitle={initialTitle}
+        initialCreateBody={initialBody}
+        initialCreateLocation={initialLocation}
         onTaskCreated={handleTaskCreated}
       />
     </PageMain>

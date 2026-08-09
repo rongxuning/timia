@@ -35,6 +35,9 @@ export default function ProjectPage() {
     initialPriority,
     initialStartAt,
     initialEndAt,
+    initialTitle,
+    initialBody,
+    initialLocation,
     openCreate,
     close: closeTaskCreate,
   } = useTaskCreateDrawer();
@@ -216,6 +219,9 @@ export default function ProjectPage() {
         initialCreatePriority={initialPriority}
         initialCreateStartAt={initialStartAt}
         initialCreateEndAt={initialEndAt}
+        initialCreateTitle={initialTitle}
+        initialCreateBody={initialBody}
+        initialCreateLocation={initialLocation}
         onTaskCreated={handleTaskCreated}
       />
     </PageMain>
