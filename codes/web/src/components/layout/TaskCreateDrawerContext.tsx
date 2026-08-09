@@ -10,6 +10,7 @@ import {
 import type { PriorityKey, StatusKey } from "@/types/api/views/schedule";
 
 export type TaskCreatePrefill = {
+  noteId?: string;
   status?: StatusKey;
   priority?: PriorityKey;
   startAt?: string;
@@ -17,6 +18,12 @@ export type TaskCreatePrefill = {
   title?: string;
   body?: string;
   location?: string;
+};
+
+export type TaskEditPrefill = {
+  itemId: string;
+  workspaceId: string;
+  projectId: string;
 };
 
 type TaskCreateDrawerContextValue = {
@@ -28,7 +35,10 @@ type TaskCreateDrawerContextValue = {
   initialTitle: string;
   initialBody: string;
   initialLocation: string;
+  /** 待编辑的任务（来自便利贴转化） */
+  taskToEdit: TaskEditPrefill | null;
   openCreate: (params?: TaskCreatePrefill) => void;
+  openTaskEdit: (prefill: TaskEditPrefill) => void;
   close: () => void;
 };
 
@@ -41,7 +51,9 @@ const TaskCreateDrawerContext = createContext<TaskCreateDrawerContextValue>({
   initialTitle: "",
   initialBody: "",
   initialLocation: "",
+  taskToEdit: null,
   openCreate: () => {},
+  openTaskEdit: () => {},
   close: () => {},
 });
 
@@ -54,6 +66,7 @@ export function TaskCreateDrawerProvider({ children }: { children: ReactNode }) 
   const [initialTitle, setInitialTitle] = useState("");
   const [initialBody, setInitialBody] = useState("");
   const [initialLocation, setInitialLocation] = useState("");
+  const [taskToEdit, setTaskToEdit] = useState<TaskEditPrefill | null>(null);
 
   const openCreate = useCallback((params?: TaskCreatePrefill) => {
     setInitialStatus(params?.status ?? "todo");
@@ -63,10 +76,26 @@ export function TaskCreateDrawerProvider({ children }: { children: ReactNode }) 
     setInitialTitle(params?.title ?? "");
     setInitialBody(params?.body ?? "");
     setInitialLocation(params?.location ?? "");
+    setTaskToEdit(null);
     setOpen(true);
   }, []);
 
-  const close = useCallback(() => setOpen(false), []);
+  const openTaskEdit = useCallback((prefill: TaskEditPrefill) => {
+    setTaskToEdit(prefill);
+    setInitialStatus("todo");
+    setInitialPriority("1");
+    setInitialStartAt("");
+    setInitialEndAt("");
+    setInitialTitle("");
+    setInitialBody("");
+    setInitialLocation("");
+    setOpen(true);
+  }, []);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setTaskToEdit(null);
+  }, []);
 
   return (
     <TaskCreateDrawerContext.Provider
@@ -79,7 +108,9 @@ export function TaskCreateDrawerProvider({ children }: { children: ReactNode }) 
         initialTitle,
         initialBody,
         initialLocation,
+        taskToEdit,
         openCreate,
+        openTaskEdit,
         close,
       }}
     >

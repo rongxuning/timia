@@ -28,12 +28,13 @@ private enum TaskEditorFocusField: Hashable {
 }
 
 struct TaskEditorView: View {
-    enum Mode {
+    enum Mode: Equatable {
         case create
         case createOn(Date)
         case createAt(Date)
         case createIn(workspaceId: String, projectId: String)
         case naturalLanguage(NaturalLanguageParseResponse)
+        case fromStickyNote(parse: StickyNoteAIParse, workspaceId: String, projectId: String)
         case edit(ScheduleTask)
     }
 
@@ -76,6 +77,11 @@ struct TaskEditorView: View {
 
     private var naturalLanguageResponse: NaturalLanguageParseResponse? {
         if case let .naturalLanguage(response) = mode { return response }
+        return nil
+    }
+
+    private var stickyNoteParse: StickyNoteAIParse? {
+        if case let .fromStickyNote(parse, _, _) = mode { return parse }
         return nil
     }
 
@@ -265,6 +271,11 @@ struct TaskEditorView: View {
                 .accessibilityIdentifier("natural-language-confirmations")
             }
 
+            // Show AI parse context for sticky note conversion.
+            if let parse = stickyNoteParse {
+                parseInfoSection(parse)
+            }
+
             if isEditing {
                 ForEach(comments) { comment in
                     VStack(alignment: .leading, spacing: 4) {
@@ -411,6 +422,20 @@ struct TaskEditorView: View {
             await loadProjects()
         case let .naturalLanguage(response):
             await prepareNaturalLanguage(response)
+        case let .fromStickyNote(parse, wsId, pjId):
+            workspaceId = wsId
+            projectId = pjId
+            if let draft = parse.draft {
+                await prepareNaturalLanguage(NaturalLanguageParseResponse(
+                    draft: draft,
+                    confidence: parse.confidence ?? 0.8,
+                    assumptions: parse.assumptions,
+                    missingFields: parse.missingFields,
+                    ambiguities: parse.ambiguities
+                ))
+            }
+            await loadWorkspaces()
+            await loadProjects()
         case let .edit(task):
             workspaceId = task.workspaceId
             projectId = task.projectId
@@ -480,6 +505,41 @@ struct TaskEditorView: View {
         }
 
         applyNaturalLanguagePeople(draft)
+    }
+
+    // MARK: - Sticky note parse info section
+
+    @ViewBuilder
+    private func parseInfoSection(_ parse: StickyNoteAIParse) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !parse.assumptions.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("模型假设").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    ForEach(parse.assumptions, id: \.self) { a in
+                        Text("· \(a)").font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if !parse.missingFields.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("缺失信息").font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                    ForEach(parse.missingFields, id: \.self) { m in
+                        Text("· \(m)").font(.caption2).foregroundStyle(.orange)
+                    }
+                }
+            }
+            if !parse.ambiguities.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("歧义").font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                    ForEach(parse.ambiguities, id: \.self) { a in
+                        Text("· \(a)").font(.caption2).foregroundStyle(.orange)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func applyNaturalLanguagePeople(_ draft: NaturalLanguageTaskDraft) {
@@ -597,7 +657,7 @@ struct TaskEditorView: View {
         isSaving = true; errorMessage = nil
         do {
             switch mode {
-            case .create, .createOn, .createAt, .createIn, .naturalLanguage:
+            case .create, .createOn, .createAt, .createIn, .naturalLanguage, .fromStickyNote:
                 _ = try await session.api.request(
                     "/workspaces/\(workspaceId)/projects/\(projectId)/items", method: "POST", body: payload(), response: ItemResponse.self
                 )
@@ -698,7 +758,7 @@ struct TaskEditorView: View {
 
     private var navigationTitle: String {
         if isEditing { return "任务详情" }
-        if naturalLanguageResponse != nil { return "确认新任务" }
+        if naturalLanguageResponse != nil || stickyNoteParse != nil { return "确认新任务" }
         return "新建任务"
     }
 

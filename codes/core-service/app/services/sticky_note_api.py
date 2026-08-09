@@ -276,6 +276,19 @@ def trigger_sticky_note_parse(
 ) -> StickyNoteAIParse:
     note = _load_note_or_404(db, note_id, user)
     _ensure_not_archived(note)
+
+    # 重新解析时，把旧的成功记录标记为 skipped，避免部分唯一索引冲突
+    from app.models.sticky_note import PARSE_STATUS_SUCCESS
+
+    db.query(StickyNoteAIParse).filter(
+        StickyNoteAIParse.sticky_note_id == note_id,
+        StickyNoteAIParse.parse_status == PARSE_STATUS_SUCCESS,
+        StickyNoteAIParse.converted_item_id.is_(None),
+    ).update(
+        {StickyNoteAIParse.parse_status: "skipped"},
+        synchronize_session=False,
+    )
+
     parse, _error = run_sticky_note_parse(db, note)
     db.commit()
     db.refresh(parse)

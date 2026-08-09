@@ -11,6 +11,7 @@ import {
   triggerStickyNoteParse,
   getLatestStickyNoteParse,
   isStickyNoteParseTerminal,
+  statusOf,
   STICKY_NOTE_PARSE_POLL_INTERVAL_MS,
   STICKY_NOTE_PARSE_POLL_TIMEOUT_MS,
   type StickyNoteAIParseOut,
@@ -29,7 +30,7 @@ import { StickyNoteListPane } from "./StickyNoteListPane";
 type Props = {
   open: boolean;
   onClose: () => void;
-  onConvertToTask: (prefill: TaskCreatePrefill) => void;
+  onConvertToTask: (noteId: string, prefill: TaskCreatePrefill) => void;
 };
 
 const STICKY_NOTE_TRANSITION_MS = 600;
@@ -58,6 +59,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
   const [expandedParseId, setExpandedParseId] = useState<string | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectingNoteId, setSelectingNoteId] = useState<string | null>(null);
+  const [isUpdatingNoteId, setIsUpdatingNoteId] = useState<string | null>(null);
   const inputFormRef = useRef<StickyNoteInputFormHandle>(null);
   const parsePollingRef = useRef<Map<string, { cancelled: boolean }>>(new Map());
   const openRef = useRef(open);
@@ -113,7 +115,42 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
     };
   }, []);
 
-  const applyLatestParse = (noteId: string, parse: StickyNoteAIParseOut) => {
+  // 监听任务创建完成事件，更新便利贴状态为"已转化"
+  useEffect(() => {
+    function onConverted(e: Event) {
+      const { noteId, itemId } = (e as CustomEvent<{ noteId: string; itemId: string }>).detail;
+      setList((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((note) =>
+                note.id === noteId
+                  ? {
+                      ...note,
+                      latest_parse: note.latest_parse
+                        ? { ...note.latest_parse, parse_status: "converted" as StickyNoteAIParseOut["parse_status"], converted_item_id: itemId }
+                        : null,
+                    }
+                  : note,
+              ),
+            }
+          : prev,
+      );
+    }
+    window.addEventListener("sticky-note-converted", onConverted);
+    return () => window.removeEventListener("sticky-note-converted", onConverted);
+  }, []);
+
+  // 点击"已转化"badge，打开对应的任务编辑
+  const handleOpenTask = (noteId: string, itemId: string) => {
+    window.dispatchEvent(
+      new CustomEvent("sticky-note-open-task", { detail: { noteId, itemId } }),
+    );
+  };
+
+  const applyLatestParse = (noteId: string, parse: StickyNoteAIParseOut, requestId: number) => {
+    // Guard: skip updates from stale requests
+    if (requestId !== refreshRequestRef.current) return;
     setList((prev) =>
       prev
         ? {
@@ -155,7 +192,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
         if (!latest || task.cancelled) continue;
 
         current = latest;
-        applyLatestParse(noteId, latest);
+        applyLatestParse(noteId, latest, refreshRequestRef.current);
       }
     } catch {
       // Keep the last server state visible. The next list refresh can retry.
@@ -248,23 +285,30 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       location: LocationSnapshot | null;
     },
   ) => {
-    const token = getTokenOrThrow();
-    const updated = await updateStickyNote(token, id, {
-      title: input.title,
-      content: input.content,
-      location_name: input.location?.name ?? null,
-    });
-    setList((prev) =>
-      prev
-        ? {
-            ...prev,
-            items: prev.items.map((note) =>
-              note.id === id ? updated : note,
-            ),
-          }
-        : prev,
-    );
-    return updated;
+    setIsUpdatingNoteId(id);
+    try {
+      const token = getTokenOrThrow();
+      const updated = await updateStickyNote(token, id, {
+        title: input.title,
+        content: input.content,
+        location_name: input.location?.name ?? null,
+      });
+      setList((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((note) =>
+                note.id === id ? updated : note,
+              ),
+            }
+          : prev,
+      );
+      // 自动触发重新解析，等待解析完成
+      await handleTriggerParse(id);
+      return updated;
+    } finally {
+      setIsUpdatingNoteId(null);
+    }
   };
 
   const handleArchive = async (id: string) => {
@@ -307,12 +351,37 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
     }
   };
 
-  const handleTriggerParse = async (id: string) => {
-    const token = getTokenOrThrow();
-    const updated = await triggerStickyNoteParse(token, id);
-    applyLatestParse(id, updated);
-    if (updated.parse_status === "pending") void pollParse(id, updated);
-    return updated;
+  const handleTriggerParse = (id: string): Promise<void> => {
+    return new Promise((resolve) => {
+      void (async () => {
+        try {
+          const token = getTokenOrThrow();
+          // 乐观更新：立即显示"解析中"
+          const optimisticParse: StickyNoteAIParseOut = {
+            id: "",
+            sticky_note_id: id,
+            parse_status: "pending",
+            parse_provider: null,
+            parse_latency_ms: null,
+            draft: null,
+            confidence: null,
+            converted_item_id: null,
+            created_at: new Date().toISOString(),
+          };
+          applyLatestParse(id, optimisticParse, refreshRequestRef.current);
+          const updated = await triggerStickyNoteParse(token, id);
+          if (isStickyNoteParseTerminal(updated)) {
+            // 已完成（success / failed），直接应用
+            applyLatestParse(id, updated, refreshRequestRef.current);
+          } else {
+            // 仍在 pending，轮询直到完成
+            await pollParse(id, updated);
+          }
+        } finally {
+          resolve();
+        }
+      })();
+    });
   };
 
   const handleConvert = async (noteId: string, parseId: string) => {
@@ -322,7 +391,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       return;
     }
     const draft = parse.draft;
-    onConvertToTask({
+    onConvertToTask(noteId, {
       title: draft.title || note?.title?.trim() || "",
       body: draft.body ?? note?.content ?? "",
       status: draft.status ?? "todo",
@@ -340,6 +409,9 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       return (b.recorded_at ?? "").localeCompare(a.recorded_at ?? "");
     });
   }, [list]);
+
+  const selectedNote = list?.items.find((n) => n.id === selectedNoteId);
+  const isReadOnly = selectedNote !== undefined && statusOf(selectedNote) === "converted";
 
   if (!drawerMounted) return null;
 
@@ -389,6 +461,8 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
             <StickyNoteInputForm
               ref={inputFormRef}
               editingNoteId={selectedNoteId}
+              isUpdating={isUpdatingNoteId === selectedNoteId}
+              isReadOnly={isReadOnly}
               onSubmit={handleSubmit}
               onUpdate={handleUpdate}
               onClear={() => setSelectedNoteId(null)}
@@ -411,6 +485,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
               selectedNoteId={selectedNoteId}
               selectingNoteId={selectingNoteId}
               onSelectNote={handleSelectNote}
+              onOpenTask={handleOpenTask}
             />
           </div>
         </div>

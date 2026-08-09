@@ -45,11 +45,11 @@ export function StickyNoteDraftPreview({
   return (
     <div className="rounded-lg border border-border-subtle bg-surface-container-lowest p-2.5">
       <div className="mb-1.5 flex items-center justify-between">
-        <h4 className="inline-flex items-center gap-1 text-subhead font-semibold text-text-primary">
+        <h4 className="inline-flex items-center gap-1 text-caption font-semibold text-text-primary">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/>
           </svg>
-          任务预览
+          解析结果
         </h4>
         {onClose && (
           <button

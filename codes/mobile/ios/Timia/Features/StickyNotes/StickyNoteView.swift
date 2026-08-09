@@ -17,6 +17,7 @@ struct StickyNoteView: View {
     @State private var showingPicker = false
     @State private var locationError: String? = nil
     @State private var editingNoteID: String? = nil
+    @State private var taskToOpen: ScheduleTask? = nil
 
     private var api: StickyNotesAPI { StickyNotesAPI(client: session.api) }
 
@@ -25,7 +26,8 @@ struct StickyNoteView: View {
             model: model,
             api: api,
             onEdit: beginEditing,
-            onTaskCreated: onTaskCreated
+            onTaskCreated: onTaskCreated,
+            onOpenTask: { task in taskToOpen = task }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
@@ -43,13 +45,16 @@ struct StickyNoteView: View {
                 StickyNoteInputView(
                     draft: draft,
                     locationError: $locationError,
+                    isEditMode: editingNoteID != nil,
                     onPickAttachments: { showingPicker = true },
                     onRequestLocation: { Task { await requestLocation() } },
                     onClearLocation: {
                         draft.location = nil
                         locationError = nil
                     },
-                    onSave: { Task { await save() } }
+                    onSave: { Task { await save() } },
+                    onCancel: { isEditorPresented = false },
+                    onUpdate: { Task { await update() } }
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(TimiaTheme.surface)
@@ -65,6 +70,92 @@ struct StickyNoteView: View {
             }
             .presentationDetents([.large])
         }
+        .sheet(item: $taskToOpen) { task in
+            NavigationStack {
+                TaskEditorView(mode: .edit(task)) {
+                    taskToOpen = nil
+                    Task { await model.refresh(api: api) }
+                }
+            }
+        }
+    }
+
+    // MARK: - Update (edit mode)
+
+    private func update() async {
+        guard draft.canSubmit, let editingNoteID else { return }
+        draft.isSaving = true
+
+        let (title, content) = draft.splitTitleContent
+        let finalContent: String
+        if !content.isEmpty {
+            finalContent = content
+        } else if title == nil {
+            finalContent = ""
+        } else {
+            finalContent = title ?? ""
+        }
+
+        // Close sheet immediately so the card can transition to parsing state.
+        draft.reset()
+        dismissKeyboard()
+        isEditorPresented = false
+
+        // Mark as pending parse in the model immediately.
+        if let note = model.notes.first(where: { $0.id == editingNoteID }) {
+            var updated = note
+            updated.latestParse = StickyNoteAIParse(
+                id: UUID().uuidString,
+                stickyNoteId: editingNoteID,
+                parseStatus: .pending,
+                parseProvider: nil,
+                parseLatencyMs: nil,
+                draft: nil,
+                confidence: nil,
+                assumptions: [],
+                missingFields: [],
+                ambiguities: [],
+                convertedItemId: nil,
+                convertedAt: nil,
+                errorCode: nil,
+                errorMessage: nil,
+                createdAt: ISO8601DateFormatter().string(from: Date())
+            )
+            model.replace(updated)
+        }
+        draft.isSaving = false
+
+        do {
+            let updated = try await api.update(
+                id: editingNoteID,
+                payload: StickyNoteUpdatePayload(
+                    title: title,
+                    content: finalContent,
+                    locationName: draft.location?.name
+                )
+            )
+            model.replace(updated)
+            let parse = try await api.triggerParse(id: editingNoteID)
+            await pollParse(noteId: editingNoteID, initialParse: parse)
+        } catch {
+            // Silent — the card will stay in whatever parse state it had.
+        }
+    }
+
+    private func pollParse(noteId: String, initialParse: StickyNoteAIParse) async {
+        for _ in 0..<15 {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard let p = try? await api.latestParse(noteId: noteId) else { continue }
+            if p.parseStatus != .pending {
+                if let note = model.notes.first(where: { $0.id == noteId }) {
+                    var updated = note
+                    updated.latestParse = p
+                    model.replace(updated)
+                }
+                return
+            }
+        }
+        await model.refresh(api: api)
     }
 
     // MARK: - Save

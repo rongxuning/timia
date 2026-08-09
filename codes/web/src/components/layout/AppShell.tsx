@@ -62,13 +62,21 @@ function pageOwnsTaskCreateDrawer(pathname: string) {
   );
 }
 
-function FloatingButtons({ pathname }: { pathname: string }) {
+function FloatingButtons({
+  pathname,
+  setPendingConvertNoteId,
+}: {
+  pathname: string;
+  setPendingConvertNoteId: (noteId: string | null) => void;
+}) {
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const { openCreate, close: closeTaskCreate } = useTaskCreateDrawer();
   const previousPathnameRef = useRef(pathname);
 
-  function openTaskFromStickyNote(prefill: TaskCreatePrefill) {
-    openCreate(prefill);
+  function openTaskFromStickyNote(noteId: string, prefill: TaskCreatePrefill) {
+    setPendingConvertNoteId(noteId);
+    const { noteId: _noteId, ...createPrefill } = prefill;
+    openCreate(createPrefill);
     setStickyNoteOpen(false);
   }
 
@@ -112,7 +120,15 @@ function FloatingButtons({ pathname }: { pathname: string }) {
   );
 }
 
-function GlobalTaskCreateDrawer({ enabled }: { enabled: boolean }) {
+function GlobalTaskCreateDrawer({
+  enabled,
+  pendingConvertNoteId,
+  onStickyNoteConverted,
+}: {
+  enabled: boolean;
+  pendingConvertNoteId: string | null;
+  onStickyNoteConverted: (noteId: string, itemId: string, workspaceId: string, projectId: string) => void;
+}) {
   const {
     open,
     initialStatus,
@@ -122,21 +138,24 @@ function GlobalTaskCreateDrawer({ enabled }: { enabled: boolean }) {
     initialTitle,
     initialBody,
     initialLocation,
+    taskToEdit,
     close,
   } = useTaskCreateDrawer();
 
   if (!enabled) return null;
 
+  const isEditMode = !!taskToEdit;
+
   return (
     <TaskDrawerWithComments
       open={open}
       onClose={close}
-      workspaceId=""
-      projectId=""
-      itemId={null}
+      workspaceId={taskToEdit?.workspaceId ?? ""}
+      projectId={taskToEdit?.projectId ?? ""}
+      itemId={taskToEdit?.itemId ?? null}
       highlightCommentId={null}
       token={getAccessToken()}
-      variant="create"
+      variant={isEditMode ? "edit" : "create"}
       initialCreateStatus={initialStatus}
       initialCreatePriority={initialPriority}
       initialCreateStartAt={initialStartAt}
@@ -144,7 +163,12 @@ function GlobalTaskCreateDrawer({ enabled }: { enabled: boolean }) {
       initialCreateTitle={initialTitle}
       initialCreateBody={initialBody}
       initialCreateLocation={initialLocation}
-      onTaskCreated={() => close()}
+      onTaskCreated={(ctx) => {
+        if (pendingConvertNoteId) {
+          onStickyNoteConverted(pendingConvertNoteId, ctx.item.id, ctx.workspaceId, ctx.projectId);
+        }
+        close();
+      }}
     />
   );
 }
@@ -153,8 +177,18 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const me = useCurrentMe();
+  const { openTaskEdit } = useTaskCreateDrawer();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [pendingConvertNoteId, setPendingConvertNoteId] = useState<string | null>(null);
+  const pendingTaskContextRef = useRef<{
+    noteId: string;
+    itemId: string;
+    workspaceId: string;
+    projectId: string;
+  } | null>(null);
+  const openTaskEditRef = useRef(openTaskEdit);
+  openTaskEditRef.current = openTaskEdit;
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEscapeDismiss({
@@ -189,6 +223,33 @@ export function AppShell({ children }: AppShellProps) {
   const isAdmin = isSystemAdmin(me?.system_role);
   const ownsTaskCreateDrawer = pageOwnsTaskCreateDrawer(pathname);
 
+  const handleStickyNoteConverted = (
+    noteId: string,
+    itemId: string,
+    workspaceId: string,
+    projectId: string,
+  ) => {
+    // 存储 workspace/project 映射，供后续打开编辑时使用
+    pendingTaskContextRef.current = { noteId, itemId, workspaceId, projectId };
+    window.dispatchEvent(
+      new CustomEvent("sticky-note-converted", { detail: { noteId, itemId, workspaceId, projectId } }),
+    );
+    setPendingConvertNoteId(null);
+  };
+
+  // 监听点击"已转化"badge，打开对应的任务编辑
+  useEffect(() => {
+    function onOpenTask(e: Event) {
+      const { noteId, itemId } = (e as CustomEvent<{ noteId: string; itemId: string }>).detail;
+      const ctx = pendingTaskContextRef.current;
+      if (ctx && ctx.noteId === noteId && ctx.itemId === itemId) {
+        openTaskEditRef.current({ itemId: ctx.itemId, workspaceId: ctx.workspaceId, projectId: ctx.projectId });
+      }
+    }
+    window.addEventListener("sticky-note-open-task", onOpenTask);
+    return () => window.removeEventListener("sticky-note-open-task", onOpenTask);
+  }, []);
+
   useEffect(() => {
     if (!me || isAdmin) return;
     if (isAdminOnlyPath(pathname)) {
@@ -222,9 +283,20 @@ export function AppShell({ children }: AppShellProps) {
             {authReady ? children : null}
           </div>
         </div>
-        {authReady && me && <FloatingButtons pathname={pathname} />}
+        {authReady && me && (
+          <FloatingButtons
+            pathname={pathname}
+            setPendingConvertNoteId={setPendingConvertNoteId}
+          />
+        )}
       </div>
-      {authReady && me && <GlobalTaskCreateDrawer enabled={!ownsTaskCreateDrawer} />}
+      {authReady && me && (
+        <GlobalTaskCreateDrawer
+          enabled={!ownsTaskCreateDrawer}
+          pendingConvertNoteId={pendingConvertNoteId}
+          onStickyNoteConverted={handleStickyNoteConverted}
+        />
+      )}
     </TaskCreateDrawerProvider>
   );
 }

@@ -47,6 +47,8 @@ export type StickyNoteInputFormHandle = {
 
 type Props = {
   editingNoteId: string | null;
+  isUpdating: boolean;
+  isReadOnly: boolean;
   onSubmit: (input: {
     title: string | null;
     content: string;
@@ -67,7 +69,7 @@ type Props = {
 
 export const StickyNoteInputForm = forwardRef<StickyNoteInputFormHandle, Props>(
   function StickyNoteInputForm(
-    { editingNoteId, onSubmit, onUpdate, onClear },
+    { editingNoteId, isUpdating, isReadOnly, onSubmit, onUpdate, onClear },
     ref,
   ) {
     const [title, setTitle] = useState("");
@@ -93,7 +95,7 @@ export const StickyNoteInputForm = forwardRef<StickyNoteInputFormHandle, Props>(
     const canSave =
       hasRequiredFields && !isSaving && (draftDirty || editingNoteId !== null);
     const canUpdate =
-      editingNoteId !== null && hasRequiredFields && !isSaving;
+      editingNoteId !== null && hasRequiredFields && !isSaving && !isReadOnly;
     const canClear = hasDraft || editingNoteId !== null;
 
     async function handleLocationClick() {
@@ -264,7 +266,7 @@ export const StickyNoteInputForm = forwardRef<StickyNoteInputFormHandle, Props>(
         }}
         maxLength={200}
         required
-        className="w-full rounded-lg border border-border-subtle bg-surface-container-lowest px-3 py-2 text-subhead placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
+        className="w-full rounded-lg border border-border-subtle bg-surface-container-lowest px-3 py-2 text-body placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
       />
       <textarea
         placeholder="内容（必填）"
@@ -275,7 +277,7 @@ export const StickyNoteInputForm = forwardRef<StickyNoteInputFormHandle, Props>(
         }}
         maxLength={10000}
         required
-        className="min-h-0 flex-1 resize-none rounded-lg border border-border-subtle bg-surface-container-lowest px-3 py-2 text-subhead placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
+        className="min-h-0 flex-1 resize-none rounded-lg border border-border-subtle bg-surface-container-lowest px-3 py-2 text-body placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
       />
 
       <div className="mt-auto flex items-end justify-between gap-2">
@@ -363,7 +365,7 @@ export const StickyNoteInputForm = forwardRef<StickyNoteInputFormHandle, Props>(
           <button
             type="button"
             onClick={() => void handleUpdate()}
-            disabled={!canUpdate}
+            disabled={!canUpdate || isUpdating}
             className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary bg-transparent px-4 py-2 text-caption font-semibold text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-border-subtle disabled:text-text-tertiary disabled:opacity-70"
           >
             {savingAction === "update" && (

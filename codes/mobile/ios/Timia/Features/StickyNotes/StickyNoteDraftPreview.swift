@@ -8,13 +8,12 @@ import SwiftUI
 /// present a proper picker.
 struct StickyNoteDraftPreview: View {
     let parse: StickyNoteAIParse
+    var workspaceId: String = ""
+    var projectId: String = ""
     var isConverting: Bool = false
+    var showConvertButton: Bool = true
     var onConvert: (String /* workspaceId */, String /* projectId */) -> Void
     var onClose: () -> Void
-
-    @State private var workspaceId: String = ""
-    @State private var projectId: String = ""
-    @State private var didSetDefaults: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -54,64 +53,41 @@ struct StickyNoteDraftPreview: View {
                 }
             }
 
-            if !parse.assumptions.isEmpty {
-                Text("模型假设")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                ForEach(parse.assumptions, id: \.self) { a in
-                    Text("· \(a)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+            // Hints below draft info, above the action divider.
+            if !parse.ambiguities.isEmpty {
+                hintSection("歧义", parse.ambiguities, color: .orange)
             }
             if !parse.missingFields.isEmpty {
-                Text("缺失信息")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
-                ForEach(parse.missingFields, id: \.self) { m in
-                    Text("· \(m)")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
+                hintSection("缺失信息", parse.missingFields, color: .orange)
             }
-            if !parse.ambiguities.isEmpty {
-                Text("歧义")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
-                ForEach(parse.ambiguities, id: \.self) { a in
-                    Text("· \(a)")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
+            if !parse.assumptions.isEmpty {
+                hintSection("模型假设", parse.assumptions, color: .secondary)
             }
 
-            Divider()
-            HStack {
-                Spacer()
-                Button {
-                    onConvert(workspaceId, projectId)
-                } label: {
-                    HStack(spacing: 4) {
-                        if isConverting {
-                            ProgressView().tint(.white).controlSize(.mini)
-                        } else {
-                            Image(systemName: "arrow.right.circle.fill")
+            if showConvertButton {
+                Divider()
+
+                HStack {
+                    Spacer()
+                    Button {
+                        onConvert(workspaceId, projectId)
+                    } label: {
+                        HStack(spacing: 4) {
+                            if isConverting {
+                                ProgressView().tint(.white).controlSize(.mini)
+                            } else {
+                                Image(systemName: "arrow.right.circle.fill")
+                            }
+                            Text("转化为任务")
                         }
-                        Text("转化为任务")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(canConvert ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Capsule())
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(canConvert ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Capsule())
+                    .disabled(!canConvert || isConverting)
                 }
-                .disabled(!canConvert || isConverting)
-            }
-
-            if workspaceId.isEmpty {
-                Text("提示：暂未配置默认工作空间，请先在「工作空间」页选择默认工作空间后再转化。")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
             }
         }
         .padding(10)
@@ -120,6 +96,20 @@ struct StickyNoteDraftPreview: View {
 
     private var canConvert: Bool {
         !workspaceId.isEmpty && !projectId.isEmpty
+    }
+
+    @ViewBuilder
+    private func hintSection(_ title: String, _ items: [String], color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(color)
+            ForEach(items, id: \.self) { item in
+                Text("· \(item)")
+                    .font(.caption2)
+                    .foregroundStyle(color)
+            }
+        }
     }
 
     private func previewRow(_ label: String, _ value: String) -> some View {

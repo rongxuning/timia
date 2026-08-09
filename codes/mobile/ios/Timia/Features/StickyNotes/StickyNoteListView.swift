@@ -7,6 +7,7 @@ struct StickyNoteListView: View {
     let api: StickyNotesAPI
     var onEdit: (StickyNote) -> Void = { _ in }
     var onTaskCreated: ((StickyNoteConvertResponse) -> Void)? = nil
+    var onOpenTask: ((ScheduleTask) -> Void)? = nil
 
     var body: some View {
         ScrollView {
@@ -25,7 +26,8 @@ struct StickyNoteListView: View {
                         onArchived: {
                             model.remove(note.id)
                         },
-                        onTaskCreated: onTaskCreated
+                        onTaskCreated: onTaskCreated,
+                        onOpenTask: onOpenTask
                     )
                     .onAppear {
                         if note == model.notes.last {

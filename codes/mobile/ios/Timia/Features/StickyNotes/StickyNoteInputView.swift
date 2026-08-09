@@ -13,14 +13,22 @@ import SwiftUI
 struct StickyNoteInputView: View {
     @ObservedObject var draft: StickyNoteDraftStore
     @Binding var locationError: String?
+    var isEditMode: Bool = false
     var onPickAttachments: () -> Void
     var onRequestLocation: () -> Void
     var onClearLocation: () -> Void
     var onSave: () -> Void
+    var onCancel: (() -> Void)? = nil
+    var onUpdate: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TitleBodyTextEditor(text: $draft.combined, minHeight: 140)
+            TitleBodyTextEditor(
+                text: $draft.combined,
+                titlePlaceholder: "标题",
+                bodyPlaceholder: "写点什么...",
+                minHeight: 140
+            )
                 .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 10))
 
             bottomRow
@@ -58,7 +66,7 @@ struct StickyNoteInputView: View {
 
             Spacer()
 
-            // Right column: error (if any) above save, save stays at bottom
+            // Right column: edit mode → cancel + update; create mode → save
             VStack(alignment: .trailing, spacing: 4) {
                 if let err = draft.lastError {
                     Text(err)
@@ -68,22 +76,54 @@ struct StickyNoteInputView: View {
                         .multilineTextAlignment(.trailing)
                 }
 
-                Button(action: onSave) {
-                    HStack(spacing: 4) {
-                        if draft.isSaving {
-                            ProgressView().tint(.white).controlSize(.small)
-                        } else {
-                            Image(systemName: "tray.and.arrow.down")
+                if isEditMode {
+                    HStack(spacing: 8) {
+                        Button(action: { onCancel?() }) {
+                            Text("取消")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(TimiaTheme.field, in: Capsule())
+                                .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.5)))
                         }
-                        Text("保存")
+                        .disabled(draft.isSaving)
+
+                        Button(action: { onUpdate?() }) {
+                            HStack(spacing: 4) {
+                                if draft.isSaving {
+                                    ProgressView().tint(.white).controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                }
+                                Text("更新")
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(draft.canSubmit ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Capsule())
+                        }
+                        .disabled(!draft.canSubmit || draft.isSaving)
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(draft.canSubmit ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Capsule())
+                } else {
+                    Button(action: onSave) {
+                        HStack(spacing: 4) {
+                            if draft.isSaving {
+                                ProgressView().tint(.white).controlSize(.small)
+                            } else {
+                                Image(systemName: "tray.and.arrow.down")
+                            }
+                            Text("保存")
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(draft.canSubmit ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Capsule())
+                    }
+                    .disabled(!draft.canSubmit)
                 }
-                .disabled(!draft.canSubmit)
             }
         }
     }

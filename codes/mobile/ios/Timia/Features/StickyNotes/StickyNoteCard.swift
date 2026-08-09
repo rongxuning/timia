@@ -19,6 +19,7 @@ struct StickyNoteCard: View {
     var onChanged: (StickyNote) -> Void = { _ in }
     var onArchived: () -> Void = {}
     var onTaskCreated: ((StickyNoteConvertResponse) -> Void)? = nil
+    var onOpenTask: ((ScheduleTask) -> Void)? = nil
 
     @State private var isExpanded: Bool = false
     @State private var isParsing: Bool = false
@@ -28,6 +29,11 @@ struct StickyNoteCard: View {
     @State private var latestParse: StickyNoteAIParse? = nil
     @State private var pollingTask: Task<Void, Never>? = nil
     @State private var isShowingArchiveConfirmation: Bool = false
+    @State private var defaultWorkspaceId: String = ""
+    @State private var defaultProjectId: String = ""
+    @State private var convertedTask: ScheduleTask? = nil
+    @State private var convertedWorkspaceId: String = ""
+    @State private var convertedProjectId: String = ""
 
     private var displayStatus: StickyNoteDisplayStatus {
         guard let parse = latestParse else { return .awaitingParse }
@@ -55,7 +61,10 @@ struct StickyNoteCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    onEdit(note)
+                    // Block editing while parsing or already converted.
+                    if displayStatus != .parsing && displayStatus != .converted {
+                        onEdit(note)
+                    }
                 }
 
                 VStack(alignment: .trailing, spacing: 0) {
@@ -66,12 +75,15 @@ struct StickyNoteCard: View {
                 .frame(maxHeight: .infinity, alignment: .top)
             }
 
-            if isExpanded, let parse = latestParse, parse.parseStatus == .success {
+            if isExpanded, let parse = latestParse, displayStatus == .parsed || displayStatus == .converted {
                 StickyNoteDraftPreview(
                     parse: parse,
+                    workspaceId: defaultWorkspaceId,
+                    projectId: defaultProjectId,
                     isConverting: converting,
-                    onConvert: { workspaceId, projectId in
-                        Task { await convert(parse: parse, workspaceId: workspaceId, projectId: projectId) }
+                    showConvertButton: displayStatus == .parsed,
+                    onConvert: { wsId, pjId in
+                        Task { await convert(parse: parse, workspaceId: wsId, projectId: pjId) }
                     },
                     onClose: { isExpanded = false }
                 )
@@ -94,6 +106,9 @@ struct StickyNoteCard: View {
             if let parse = note.latestParse, parse.parseStatus == .pending {
                 startPolling()
             }
+        }
+        .task {
+            await loadDefaults()
         }
         .onDisappear {
             pollingTask?.cancel()
@@ -275,11 +290,16 @@ struct StickyNoteCard: View {
             .disabled(isParsing)
             .accessibilityLabel("已跳过，重新开始 AI 解析")
         case .converted:
-            Label("已转为任务", systemImage: "checkmark.circle.fill")
-                .font(.caption2.weight(.semibold))
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Color.green.opacity(0.1), in: Capsule())
-                .foregroundStyle(.green)
+            Button {
+                isExpanded.toggle()
+            } label: {
+                Label("已转为任务", systemImage: "checkmark.circle.fill")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Color.green.opacity(0.1), in: Capsule())
+                    .foregroundStyle(.green)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -289,10 +309,11 @@ struct StickyNoteCard: View {
         } label: {
             Image(systemName: "trash.fill")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.red)
+                .foregroundStyle(displayStatus == .parsing ? Color.gray : Color.red)
                 .frame(width: 28, height: 28)
         }
         .buttonStyle(.plain)
+        .disabled(displayStatus == .parsing)
         .accessibilityLabel("删除便利贴")
         .accessibilityHint("需要二次确认")
     }
@@ -370,6 +391,15 @@ struct StickyNoteCard: View {
             latestParse = resp.parse
             onChanged(resp.stickyNote)
             isExpanded = false
+
+            // Fetch the full task so we can open the task editor later.
+            if let taskId = resp.parse.convertedItemId {
+                convertedWorkspaceId = workspaceId
+                convertedProjectId = projectId
+                if let task = try? await api.getTask(workspaceId: workspaceId, projectId: projectId, taskId: taskId) {
+                    convertedTask = task
+                }
+            }
         } catch {
             parseError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -407,5 +437,18 @@ struct StickyNoteCard: View {
         let f = DateFormatter()
         f.dateFormat = "MM-dd HH:mm"
         return f.string(from: date)
+    }
+
+    private func loadDefaults() async {
+        do {
+            let workspaces: [WorkspaceCard] = try await api.listWorkspaces()
+            if let defaultWS = workspaces.first {
+                defaultWorkspaceId = defaultWS.id
+                let projects: [Project] = try await api.listProjects(workspaceId: defaultWS.id)
+                defaultProjectId = projects.first?.id ?? ""
+            }
+        } catch {
+            // Silently ignore — the convert button will stay disabled.
+        }
     }
 }

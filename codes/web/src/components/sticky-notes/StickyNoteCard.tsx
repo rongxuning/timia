@@ -8,17 +8,19 @@ import {
 } from "@/lib/api/sticky-notes";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { StickyNoteDraftPreview } from "./StickyNoteDraftPreview";
+import { StickyNoteConvertedPreview } from "./StickyNoteConvertedPreview";
 
 type Props = {
   note: StickyNoteOut;
   isParseExpanded: boolean;
   isSelected: boolean;
   isSelecting: boolean;
-  onTriggerParse: (id: string) => Promise<StickyNoteAIParseOut | undefined>;
+  onTriggerParse: (id: string) => Promise<void>;
   onArchive: (id: string) => Promise<void>;
   onConvert: (noteId: string, parseId: string) => Promise<void>;
   onToggleParse: (parseId: string) => void;
   onSelectNote: (note: StickyNoteOut) => void | Promise<void>;
+  onOpenTask: (noteId: string, itemId: string) => void;
 };
 
 function formatTime(iso: string): string {
@@ -42,6 +44,7 @@ export function StickyNoteCard({
   onConvert,
   onToggleParse,
   onSelectNote,
+  onOpenTask,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -119,7 +122,7 @@ export function StickyNoteCard({
           <h3 className="truncate py-1 text-lg font-semibold text-text-primary">
             {note.title?.trim() || "未命名便利贴"}
           </h3>
-          <p className="line-clamp-2 min-h-8 whitespace-pre-wrap py-1 text-small text-text-primary">
+          <p className="line-clamp-2 min-h-8 whitespace-pre-wrap py-1 font-normal text-caption text-text-primary">
             {note.content.trim() || "暂无正文"}
           </p>
           <div className="flex min-h-8 items-center gap-1.5 py-2 text-caption text-text-secondary">
@@ -154,6 +157,12 @@ export function StickyNoteCard({
             parse={parse}
             busy={busy}
             onClick={async () => {
+              if (status === "converted") {
+                if (parse?.converted_item_id && note.id) {
+                  onOpenTask(note.id, parse.converted_item_id);
+                }
+                return;
+              }
               if (status === "parsed" && parse) {
                 onToggleParse(parse.id);
                 return;
@@ -229,6 +238,12 @@ export function StickyNoteCard({
             }}
             onClose={() => onToggleParse(parse.id)}
           />
+        </div>
+      )}
+
+      {status === "converted" && parse && (
+        <div className="mt-2">
+          <StickyNoteConvertedPreview parse={parse} />
         </div>
       )}
       {parseError && (
@@ -308,12 +323,19 @@ function ParseStatusBadge({
       );
     case "converted":
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-caption font-semibold text-success">
+        <button
+          type="button"
+          disabled={busy}
+          className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-caption font-semibold text-success hover:bg-success/15 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={`${STICKY_NOTE_STATUS_LABELS.converted}，查看任务`}
+          title="查看任务"
+          onClick={onClick}
+        >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
           </svg>
           {STICKY_NOTE_STATUS_LABELS.converted}
-        </span>
+        </button>
       );
     case "archived":
       return (

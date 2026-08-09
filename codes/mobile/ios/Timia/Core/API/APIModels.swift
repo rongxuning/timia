@@ -108,7 +108,7 @@ struct UserBrief: Codable, Hashable, Sendable {
     let displayName: String
 }
 
-struct ScheduleTask: Codable, Identifiable, Hashable, Sendable {
+struct ScheduleTask: Codable, Identifiable, Hashable, Equatable, Sendable {
     let id: String
     var title: String
     var body: String?
@@ -190,7 +190,7 @@ struct NaturalLanguageParsePayload: Encodable, Sendable {
     let selectedDate: String
 }
 
-struct NaturalLanguageTaskDraft: Codable, Hashable, Sendable {
+struct NaturalLanguageTaskDraft: Codable, Hashable, Equatable, Sendable {
     var title: String
     var body: String?
     var startAt: String?
@@ -206,7 +206,7 @@ struct NaturalLanguageTaskDraft: Codable, Hashable, Sendable {
     var recurrenceText: String?
 }
 
-struct NaturalLanguageParseResponse: Decodable, Identifiable, Sendable {
+struct NaturalLanguageParseResponse: Decodable, Identifiable, Equatable, Sendable {
     let draft: NaturalLanguageTaskDraft
     let confidence: Double
     let assumptions: [String]
@@ -647,14 +647,14 @@ struct StickyNoteAttachment: Codable, Identifiable, Hashable, Sendable {
     var createdAt: String
 }
 
-enum StickyNoteParseStatus: String, Codable, Sendable {
+enum StickyNoteParseStatus: String, Codable, Equatable, Sendable {
     case pending
     case success
     case failed
     case skipped
 }
 
-struct StickyNoteAIParse: Codable, Identifiable, Hashable, Sendable {
+struct StickyNoteAIParse: Codable, Identifiable, Hashable, Equatable, Sendable {
     let id: String
     let stickyNoteId: String
     var parseStatus: StickyNoteParseStatus

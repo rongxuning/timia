@@ -93,6 +93,26 @@ struct StickyNotesAPI: Sendable {
         )
     }
 
+    // MARK: - Workspaces / Projects (for default workspace/project selection)
+
+    func listWorkspaces() async throws -> [WorkspaceCard] {
+        try await client.request("/workspaces/cards", response: [WorkspaceCard].self)
+    }
+
+    func listProjects(workspaceId: String) async throws -> [Project] {
+        try await client.request("/workspaces/\(workspaceId)/projects", response: [Project].self)
+    }
+
+    // MARK: - Tasks
+
+    func getTask(workspaceId: String, projectId: String, taskId: String) async throws -> ScheduleTask {
+        try await client.request(
+            "/workspaces/\(workspaceId)/projects/\(projectId)/items/\(taskId)",
+            method: "GET",
+            response: ScheduleTask.self
+        )
+    }
+
     // MARK: - Convert
 
     func convert(noteId: String, payload: StickyNoteConvertPayload) async throws -> StickyNoteConvertResponse {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { StickyNoteOut, StickyNoteAIParseOut } from "@/lib/api/sticky-notes";
+import type { StickyNoteOut } from "@/lib/api/sticky-notes";
 import { StickyNoteCard } from "./StickyNoteCard";
 
 type Props = {
@@ -10,11 +10,12 @@ type Props = {
   expandedParseId: string | null;
   selectedNoteId: string | null;
   selectingNoteId: string | null;
-  onTriggerParse: (id: string) => Promise<StickyNoteAIParseOut | undefined>;
+  onTriggerParse: (id: string) => Promise<void>;
   onArchive: (id: string) => Promise<void>;
   onConvert: (noteId: string, parseId: string) => Promise<void>;
   onToggleParse: (parseId: string) => void;
   onSelectNote: (note: StickyNoteOut) => void | Promise<void>;
+  onOpenTask: (noteId: string, itemId: string) => void;
 };
 
 export function StickyNoteListPane({
@@ -29,6 +30,7 @@ export function StickyNoteListPane({
   onConvert,
   onToggleParse,
   onSelectNote,
+  onOpenTask,
 }: Props) {
   if (isLoading && notes.length === 0) {
     return (
@@ -73,6 +75,7 @@ export function StickyNoteListPane({
             onConvert={onConvert}
             onToggleParse={onToggleParse}
             onSelectNote={onSelectNote}
+            onOpenTask={onOpenTask}
           />
         </li>
       ))}

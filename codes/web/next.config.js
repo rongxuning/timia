@@ -9,6 +9,10 @@ const nextConfig = {
         source: "/auth/:path*",
         destination: "http://localhost:8000/auth/:path*",
       },
+      {
+        source: "/sticky-notes/:path*",
+        destination: "http://localhost:8000/sticky-notes/:path*",
+      },
     ];
   },
 };
