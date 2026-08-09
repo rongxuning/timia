@@ -120,12 +120,11 @@ def post_ai_parse(
 @router.get("/{note_id}/parses", response_model=list[StickyNoteAIParseOut])
 def get_parses(
     note_id: uuid.UUID,
-    latest: bool = Query(False, description="If true, return only the unconverted success parse"),
+    latest: bool = Query(False, description="If true, return only the latest parse attempt"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    only_unconverted = latest
-    rows = list_sticky_note_parses(db, user, note_id, only_unconverted=only_unconverted)
+    rows = list_sticky_note_parses(db, user, note_id, latest=latest)
     if latest:
         return [parse_row_to_out(rows[0])] if rows else []
     return [parse_row_to_out(p) for p in rows]

@@ -2,31 +2,44 @@ import SwiftUI
 import CoreLocation
 import UIKit
 
-/// Top-level sticky-note view. The middle area shows the editor and the list
-/// in alternation: by default the editor takes the full area; tapping the
-/// handle swaps in the list. Voice-recognized text lands in the same input
-/// box via the shared ``StickyNoteDraftStore``.
+/// Top-level sticky-note view. The default content is the saved-card list;
+/// the editor is presented as a separate sheet from the bottom toolbar.
+/// Voice-recognized text lands in the same input box via the shared
+/// ``StickyNoteDraftStore``.
 struct StickyNoteView: View {
     let session: AppSession
     @ObservedObject var draft: StickyNoteDraftStore
+    @Binding var isEditorPresented: Bool
     var onTaskCreated: ((StickyNoteConvertResponse) -> Void)? = nil
 
     @StateObject private var model = StickyNoteListModel()
     @State private var locationManager = StickyNoteLocationManager()
     @State private var showingPicker = false
     @State private var locationError: String? = nil
-    /// `true` = editor fills the middle area; `false` = list fills it.
-    @State private var isEditorExpanded: Bool = true
+    @State private var editingNoteID: String? = nil
 
     private var api: StickyNotesAPI { StickyNotesAPI(client: session.api) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // The handle is rendered in *both* branches so it always sits at
-            // the visual boundary between the editor and the list:
-            //   expanded   → editor (fills) + handle (at bottom)
-            //   collapsed  → handle (at top) + list (fills)
-            if isEditorExpanded {
+        StickyNoteListView(
+            model: model,
+            api: api,
+            onEdit: beginEditing,
+            onTaskCreated: onTaskCreated
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            await model.refresh(api: api)
+        }
+        .fileImporter(
+            isPresented: $showingPicker,
+            allowedContentTypes: [.image, .movie, .audio, .pdf, .data],
+            allowsMultipleSelection: true
+        ) { result in
+            handleFileImport(result)
+        }
+        .sheet(isPresented: $isEditorPresented, onDismiss: resetEditorState) {
+            NavigationStack {
                 StickyNoteInputView(
                     draft: draft,
                     locationError: $locationError,
@@ -40,42 +53,18 @@ struct StickyNoteView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(TimiaTheme.surface)
-                .transition(.move(edge: .top).combined(with: .opacity))
-
-                StickyNoteHandleBar(
-                    isEditorExpanded: true,
-                    onToggle: { withAnimation(panelAnimation) { isEditorExpanded = false } }
-                )
-            } else {
-                StickyNoteHandleBar(
-                    isEditorExpanded: false,
-                    onToggle: { withAnimation(panelAnimation) { isEditorExpanded = true } }
-                )
-                .transition(.move(edge: .top).combined(with: .opacity))
-
-                StickyNoteListView(
-                    model: model,
-                    api: api,
-                    onTaskCreated: onTaskCreated
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle(editingNoteID == nil ? "新建便利贴" : "编辑便利贴")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("取消") {
+                            isEditorPresented = false
+                        }
+                    }
+                }
             }
+            .presentationDetents([.large])
         }
-        .animation(panelAnimation, value: isEditorExpanded)
-        .task {
-            await model.refresh(api: api)
-        }
-        .fileImporter(
-            isPresented: $showingPicker,
-            allowedContentTypes: [.image, .movie, .audio, .pdf, .data],
-            allowsMultipleSelection: true
-        ) { result in
-            handleFileImport(result)
-        }
-    }
-
-    private var panelAnimation: Animation {
-        .spring(response: 0.4, dampingFraction: 0.85)
     }
 
     // MARK: - Save
@@ -126,27 +115,34 @@ struct StickyNoteView: View {
         )
 
         do {
-            let note = try await api.create(payload)
-            // Persist local files (v1: server holds metadata only).
-            for pending in draft.pendingAttachments {
-                if let local = pending.localFileURL {
-                    _ = try? StickyNoteLocalStore.shared.ingest(
-                        source: local,
-                        noteId: note.id,
-                        attachmentId: pending.id
+            if let editingNoteID {
+                let updated = try await api.update(
+                    id: editingNoteID,
+                    payload: StickyNoteUpdatePayload(
+                        title: title,
+                        content: finalContent,
+                        locationName: draft.location?.name
                     )
+                )
+                model.replace(updated)
+            } else {
+                let note = try await api.create(payload)
+                // Persist local files (v1: server holds metadata only).
+                for pending in draft.pendingAttachments {
+                    if let local = pending.localFileURL {
+                        _ = try? StickyNoteLocalStore.shared.ingest(
+                            source: local,
+                            noteId: note.id,
+                            attachmentId: pending.id
+                        )
+                    }
                 }
+                // Invalidate list cache so the new note shows at the top.
+                await model.refresh(api: api)
             }
-            // Invalidate list cache so the new note shows at the top.
-            await model.refresh(api: api)
             draft.reset()
-
-            // Auto-collapse: dismiss any keyboard, then animate the
-            // editor away and let the list fill the middle area.
             dismissKeyboard()
-            withAnimation(panelAnimation) {
-                isEditorExpanded = false
-            }
+            isEditorPresented = false
         } catch {
             draft.lastError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -159,6 +155,35 @@ struct StickyNoteView: View {
             from: nil,
             for: nil
         )
+    }
+
+    private func resetEditorState() {
+        dismissKeyboard()
+        draft.reset()
+        locationError = nil
+        editingNoteID = nil
+    }
+
+    private func beginEditing(_ note: StickyNote) {
+        editingNoteID = note.id
+        let title = note.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let content = note.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.combined = [title, content]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+        draft.pendingAttachments = []
+        draft.location = note.location.map {
+            StickyNoteLocationSnapshot(
+                lat: $0.lat,
+                lng: $0.lng,
+                accuracyM: $0.accuracyM,
+                name: $0.name,
+                source: $0.source ?? "manual"
+            )
+        }
+        draft.lastError = nil
+        locationError = nil
+        isEditorPresented = true
     }
 
     private func handleFileImport(_ result: Result<[URL], Error>) {

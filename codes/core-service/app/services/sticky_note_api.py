@@ -283,7 +283,7 @@ def trigger_sticky_note_parse(
 
 
 def list_sticky_note_parses(
-    db: Session, user: User, note_id: uuid.UUID, *, only_unconverted: bool = False
+    db: Session, user: User, note_id: uuid.UUID, *, latest: bool = False
 ) -> list[StickyNoteAIParse]:
     _load_note_or_404(db, note_id, user)
     stmt = (
@@ -291,11 +291,8 @@ def list_sticky_note_parses(
         .where(StickyNoteAIParse.sticky_note_id == note_id)
         .order_by(StickyNoteAIParse.created_at.desc())
     )
-    if only_unconverted:
-        stmt = stmt.where(
-            StickyNoteAIParse.parse_status == PARSE_STATUS_SUCCESS,
-            StickyNoteAIParse.converted_item_id.is_(None),
-        )
+    if latest:
+        stmt = stmt.limit(1)
     return list(db.scalars(stmt).all())
 
 

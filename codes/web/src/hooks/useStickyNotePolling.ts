@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getStickyNoteParses, type StickyNoteAIParseOut } from "@/lib/api/sticky-notes";
+import {
+  getLatestStickyNoteParse,
+  isStickyNoteParseTerminal,
+  type StickyNoteAIParseOut,
+} from "@/lib/api/sticky-notes";
 
 /**
  * Polls the latest AI parse for a sticky note until it reaches a terminal
@@ -28,16 +32,10 @@ export function useStickyNotePolling(
     const tick = async () => {
       if (cancelledRef.current) return;
       try {
-        const arr = await getStickyNoteParses(token, noteId, { onlyLatest: true });
+        const next = await getLatestStickyNoteParse(token, noteId);
         if (cancelledRef.current) return;
-        const next = arr[0] ?? null;
-        setParse(next);
-        const terminal =
-          !next ||
-          next.parse_status === "success" ||
-          next.parse_status === "failed" ||
-          next.parse_status === "skipped";
-        if (terminal) {
+        if (next) setParse(next);
+        if (next && isStickyNoteParseTerminal(next)) {
           setIsPolling(false);
           return;
         }

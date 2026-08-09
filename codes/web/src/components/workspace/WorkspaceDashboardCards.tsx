@@ -38,14 +38,12 @@ export type WorkspaceDashboardCardsProps = {
   dashboard: WorkspaceDashboardView | null;
   workspaceId: string;
   onEditWorkspace?: () => void;
-  onCreateProject?: () => void;
 };
 
 export function WorkspaceDashboardCards({
   dashboard,
   workspaceId,
   onEditWorkspace,
-  onCreateProject,
 }: WorkspaceDashboardCardsProps) {
   if (!dashboard) {
     return (
@@ -145,16 +143,6 @@ export function WorkspaceDashboardCards({
         </div>
       </div>
 
-      {canEdit && (
-        <button
-          type="button"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-100 transition-all hover:-translate-y-0.5 hover:bg-primary-hover"
-          onClick={onCreateProject}
-        >
-          <span className="material-symbols-outlined text-lg">add</span>
-          新建项目
-        </button>
-      )}
     </section>
   );
 }

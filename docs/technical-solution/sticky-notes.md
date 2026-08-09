@@ -271,7 +271,7 @@ users ─┬─< sticky_notes ─┬─< sticky_note_attachments
 **服务端实现要点**：
 - 取 `device_kind` 从 `payload.get("did")`（mobile JWT 存在） → `"ios"`，否则 `"web"`。
 - 写库**先 INSERT sticky_notes，再 async-trigger `auto_parse`**——AI 解析失败回 201，UI 后台轮询 / 解析端点。
-- `auto_parse=true` 时返回的 `id` 立即可被前端拿去轮询 `GET /sticky-notes/{id}/parses?latest=true`。
+- `auto_parse=true` 时返回的 `id` 立即可被前端拿去轮询 `GET /sticky-notes/{id}/parses?latest=true`；`latest=true` 返回最新一次解析尝试（包括 `pending`、`success`、`failed`、`skipped`），Web 与 iOS 使用同一轮询语义。
 - `attachments` 跟便利贴**同一事务** INSERT；`storage_url` 自动填占位符 `local://{attachment_id}/{filename}`。
 
 #### `POST /sticky-notes/{id}/ai-parse`
@@ -431,8 +431,8 @@ export function aiDraftToDrawerInitial(
 ```ts
 // 30s 内每 2s 轮询一次
 const poll = usePollUntil(
-  () => apiFetch(`/sticky-notes/${id}/parses?latest=true`),
-  (parse) => parse?.parse_status === "success" || parse?.parse_status === "failed",
+  () => apiFetch(`/sticky-notes/${id}/parses?latest=true`), // 返回最新一次解析尝试
+  (parse) => ["success", "failed", "skipped"].includes(parse?.parse_status),
   { interval: 2000, timeout: 30000 }
 );
 ```

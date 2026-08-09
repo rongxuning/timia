@@ -207,7 +207,6 @@ export default function WorkspaceHome() {
             dashboard={dashboard}
             workspaceId={workspaceId}
             onEditWorkspace={openEditWorkspaceModal}
-            onCreateProject={() => setCreateProjectOpen(true)}
           />
         </aside>
 
@@ -216,6 +215,7 @@ export default function WorkspaceHome() {
             workspaceId={workspaceId}
             projects={dashboard?.active_projects ?? []}
             canCreateProject={dashboard?.can_edit_workspace ?? false}
+            onCreateProject={() => setCreateProjectOpen(true)}
             deletingProjectId={deletingProjectId}
             favoritingProjectId={favoritingProjectId}
             onFavoriteProject={onToggleProjectFavorite}

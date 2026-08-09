@@ -8,6 +8,7 @@ export type ProjectListProps = {
   workspaceId: string;
   projects: WorkspaceProjectCard[];
   canCreateProject: boolean;
+  onCreateProject?: () => void;
   favoritingProjectId?: string | null;
   onFavoriteProject?: (project: WorkspaceProjectCard) => void;
   onEditProject?: (project: WorkspaceProjectCard) => void;
@@ -19,6 +20,7 @@ export function ProjectList({
   workspaceId,
   projects,
   canCreateProject,
+  onCreateProject,
   favoritingProjectId,
   onFavoriteProject,
   onEditProject,
@@ -31,11 +33,9 @@ export function ProjectList({
 
   return (
     <section>
-      {projects.length === 0 ? (
+      {projects.length === 0 && !canCreateProject ? (
         <div className="bg-white rounded-xl border border-border-subtle p-lg text-small text-text-secondary">
-          {canCreateProject
-            ? "暂无项目。创建第一个项目即可开始。"
-            : "暂无你可访问的项目。请联系空间负责人将你加入项目。"}
+          暂无你可访问的项目。请联系空间负责人将你加入项目。
         </div>
       ) : (
         <div ref={gridRef} className="grid grid-cols-1 gap-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -158,6 +158,20 @@ export function ProjectList({
               </article>
             );
           })}
+          {canCreateProject && onCreateProject ? (
+            <button
+              type="button"
+              data-card-reorder-id="create-project"
+              className="group flex min-h-[210px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white p-4 text-center transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
+              onClick={onCreateProject}
+            >
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
+                <span className="material-symbols-outlined text-[26px]">add</span>
+              </div>
+              <h3 className="font-subhead text-base font-bold text-black">新建项目</h3>
+              <p className="mt-1 max-w-[200px] text-caption text-black">在当前空间中创建一个新项目。</p>
+            </button>
+          ) : null}
         </div>
       )}
     </section>

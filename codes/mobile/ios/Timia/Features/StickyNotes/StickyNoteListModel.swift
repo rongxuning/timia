@@ -59,8 +59,9 @@ final class StickyNoteListModel: ObservableObject {
 
 /// Tiny wrapper around ``CLLocationManager`` for the location chip.
 ///
-/// Requests ``whenInUse`` authorization on first use. Caches the most recent
-/// fix for the rest of the session so the chip does not ask twice.
+/// Requests ``always`` authorization on first use so that the system Settings
+/// page shows the full set of options including "使用App或小组件".
+/// Caches the most recent fix for the rest of the session.
 @MainActor
 final class StickyNoteLocationManager: NSObject, CLLocationManagerDelegate {
     enum LocError: LocalizedError {
@@ -88,9 +89,10 @@ final class StickyNoteLocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func requestCurrent() async throws -> StickyNoteLocationSnapshot {
-        // Ask for permission lazily.
+        // Ask for permission lazily — prefer Always so Settings shows the full
+        // set of options including "使用App或小组件".
         if manager.authorizationStatus == .notDetermined {
-            manager.requestWhenInUseAuthorization()
+            manager.requestAlwaysAuthorization()
         }
         guard manager.authorizationStatus == .authorizedWhenInUse
             || manager.authorizationStatus == .authorizedAlways else {

@@ -61,7 +61,7 @@ export function SwimlaneKanban({
         {STATUSES.map((s) => (
           <div
             key={s.key}
-            className="flex items-center justify-between border-r border-border-subtle p-lg last:border-r-0"
+            className="flex items-center justify-between border-r border-border-subtle last:border-r-0"
           >
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${s.dotClass}`} />
@@ -71,12 +71,14 @@ export function SwimlaneKanban({
             {onCreateInColumn ? (
               <button
                 type="button"
-                className="material-symbols-outlined cursor-pointer text-lg text-neutral-muted hover:text-text-primary"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg"
                 onClick={() => onCreateInColumn(s.key)}
                 title="添加任务"
                 aria-label={`在${s.label}列添加任务`}
               >
-                add
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
               </button>
             ) : null}
           </div>

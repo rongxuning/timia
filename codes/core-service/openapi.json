@@ -3764,11 +3764,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "If true, return only the unconverted success parse",
+              "description": "If true, return only the latest parse attempt",
               "default": false,
               "title": "Latest"
             },
-            "description": "If true, return only the unconverted success parse"
+            "description": "If true, return only the latest parse attempt"
           },
           {
             "name": "authorization",

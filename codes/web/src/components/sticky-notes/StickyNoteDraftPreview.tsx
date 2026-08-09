@@ -46,9 +46,9 @@ export function StickyNoteDraftPreview({
     <div className="rounded-lg border border-border-subtle bg-surface-container-lowest p-2.5">
       <div className="mb-1.5 flex items-center justify-between">
         <h4 className="inline-flex items-center gap-1 text-subhead font-semibold text-text-primary">
-          <span className="material-icons text-footnote" aria-hidden>
-            auto_awesome
-          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z"/>
+          </svg>
           任务预览
         </h4>
         {onClose && (
@@ -58,9 +58,9 @@ export function StickyNoteDraftPreview({
             className="flex h-6 w-6 items-center justify-center rounded-full text-text-secondary hover:bg-surface-container-lowest hover:text-text-primary"
             aria-label="关闭预览"
           >
-            <span className="material-icons text-footnote" aria-hidden>
-              close
-            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
           </button>
         )}
       </div>

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Top half of ``StickyNoteView`` — a persistent form for the next note.
+/// Editor form for creating the next sticky note.
 ///
 /// Layout (top → bottom):
 ///   * One input area: first line = title (bold, larger), rest = body.
@@ -26,8 +26,7 @@ struct StickyNoteInputView: View {
             bottomRow
 
             // Push the editor contents to the top so the bottom row
-            // (附件/位置/保存) sits just above the handle bar that lives
-            // immediately under this view in ``StickyNoteView``.
+            // (附件/位置/保存) stays above the sheet's bottom edge.
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
@@ -38,14 +37,17 @@ struct StickyNoteInputView: View {
     // MARK: - Bottom row
 
     private var bottomRow: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .bottom, spacing: 12) {
+            // Left column: attachment button + chips below, location below that
             VStack(alignment: .leading, spacing: 6) {
                 attachmentChip
+
                 LocationChip(
                     snapshot: draft.location,
                     onTap: onRequestLocation,
                     onClear: draft.location == nil ? nil : onClearLocation
                 )
+
                 if let err = locationError {
                     Text(err)
                         .font(.caption2)
@@ -53,7 +55,10 @@ struct StickyNoteInputView: View {
                         .lineLimit(1)
                 }
             }
+
             Spacer()
+
+            // Right column: error (if any) above save, save stays at bottom
             VStack(alignment: .trailing, spacing: 4) {
                 if let err = draft.lastError {
                     Text(err)
@@ -62,6 +67,7 @@ struct StickyNoteInputView: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.trailing)
                 }
+
                 Button(action: onSave) {
                     HStack(spacing: 4) {
                         if draft.isSaving {
@@ -84,7 +90,7 @@ struct StickyNoteInputView: View {
 
     @ViewBuilder
     private var attachmentChip: some View {
-        HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             Button(action: onPickAttachments) {
                 HStack(spacing: 4) {
                     Image(systemName: "paperclip")
@@ -99,9 +105,12 @@ struct StickyNoteInputView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("添加附件")
 
-            ForEach(draft.pendingAttachments) { p in
-                PendingAttachmentChip(attachment: p) {
-                    draft.pendingAttachments.removeAll { $0.id == p.id }
+            // Chips stack below the button.
+            HStack(spacing: 6) {
+                ForEach(draft.pendingAttachments) { p in
+                    PendingAttachmentChip(attachment: p) {
+                        draft.pendingAttachments.removeAll { $0.id == p.id }
+                    }
                 }
             }
         }

@@ -6,6 +6,7 @@ export type StickyNoteListOut = components["schemas"]["StickyNoteListOut"];
 export type StickyNoteAttachmentOut = components["schemas"]["StickyNoteAttachmentOut"];
 export type StickyNoteLocationOut = components["schemas"]["StickyNoteLocationOut"];
 export type StickyNoteAIParseOut = components["schemas"]["StickyNoteAIParseOut"];
+export type StickyNoteParseStatus = StickyNoteAIParseOut["parse_status"];
 export type StickyNoteCreate = components["schemas"]["StickyNoteCreate"];
 export type StickyNoteUpdate = components["schemas"]["StickyNoteUpdate"];
 export type StickyNoteConvertRequest = components["schemas"]["StickyNoteConvertRequest"];
@@ -19,8 +20,22 @@ export type StickyNoteStatus =
   | "parsing"
   | "parsed"
   | "parse_failed"
+  | "skipped"
   | "converted"
   | "archived";
+
+export const STICKY_NOTE_STATUS_LABELS = {
+  saved: "待解析",
+  parsing: "AI 解析中",
+  parsed: "已解析",
+  parse_failed: "解析失败",
+  skipped: "已跳过",
+  converted: "已转为任务",
+  archived: "已归档",
+} as const satisfies Record<StickyNoteStatus, string>;
+
+export const STICKY_NOTE_PARSE_POLL_INTERVAL_MS = 2_000;
+export const STICKY_NOTE_PARSE_POLL_TIMEOUT_MS = 30_000;
 
 // ---- API ----------------------------------------------------------------
 
@@ -102,6 +117,14 @@ export function getStickyNoteParses(
   );
 }
 
+export async function getLatestStickyNoteParse(
+  token: string,
+  id: string,
+): Promise<StickyNoteAIParseOut | null> {
+  const parses = await getStickyNoteParses(token, id, { onlyLatest: true });
+  return parses[0] ?? null;
+}
+
 export function convertStickyNoteToTask(
   token: string,
   id: string,
@@ -128,6 +151,10 @@ export function statusOf(note: StickyNoteOut): StickyNoteStatus {
     case "failed":
       return "parse_failed";
     case "skipped":
-      return "saved";
+      return "skipped";
   }
+}
+
+export function isStickyNoteParseTerminal(parse: StickyNoteAIParseOut): boolean {
+  return parse.parse_status !== "pending";
 }

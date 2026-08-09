@@ -1,11 +1,21 @@
 import SwiftUI
 
+private enum StickyNoteDisplayStatus {
+    case awaitingParse
+    case parsing
+    case parsed
+    case failed
+    case skipped
+    case converted
+}
+
 /// One saved sticky note. Shows the title (if any), content, time + location,
 /// attachments, and the AI-status chip. Tapping the status chip expands an
 /// inline ``StickyNoteDraftPreview`` and a "Convert to task" button.
 struct StickyNoteCard: View {
     let note: StickyNote
     let api: StickyNotesAPI
+    var onEdit: (StickyNote) -> Void = { _ in }
     var onChanged: (StickyNote) -> Void = { _ in }
     var onArchived: () -> Void = {}
     var onTaskCreated: ((StickyNoteConvertResponse) -> Void)? = nil
@@ -17,21 +27,45 @@ struct StickyNoteCard: View {
     @State private var converting: Bool = false
     @State private var latestParse: StickyNoteAIParse? = nil
     @State private var pollingTask: Task<Void, Never>? = nil
+    @State private var isShowingArchiveConfirmation: Bool = false
+
+    private var displayStatus: StickyNoteDisplayStatus {
+        guard let parse = latestParse else { return .awaitingParse }
+        switch parse.parseStatus {
+        case .pending:
+            return .parsing
+        case .success:
+            return parse.convertedItemId?.isEmpty == false ? .converted : .parsed
+        case .failed:
+            return .failed
+        case .skipped:
+            return .skipped
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            header
-            if !note.content.isEmpty {
-                Text(note.content)
-                    .font(.subheadline)
-                    .lineLimit(isExpanded ? nil : 4)
-                    .multilineTextAlignment(.leading)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    titleRow
+                    bodyRow
+                    timeRow
+                    locationAndAttachmentRow
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onEdit(note)
+                }
+
+                VStack(alignment: .trailing, spacing: 0) {
+                    statusChip
+                    Spacer(minLength: 12)
+                    deleteButton
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
             }
-            metaRow
-            if !note.attachments.isEmpty {
-                attachmentRow
-            }
-            actionRow
+
             if isExpanded, let parse = latestParse, parse.parseStatus == .success {
                 StickyNoteDraftPreview(
                     parse: parse,
@@ -57,65 +91,151 @@ struct StickyNoteCard: View {
         )
         .onAppear {
             latestParse = note.latestParse
+            if let parse = note.latestParse, parse.parseStatus == .pending {
+                startPolling()
+            }
         }
         .onDisappear {
             pollingTask?.cancel()
         }
-        .onChange(of: note.latestParse?.id) { _, newID in
-            latestParse = note.latestParse
-            if let p = note.latestParse, p.parseStatus == .pending {
+        .onChange(of: note.latestParse) { _, newParse in
+            latestParse = newParse
+            if let p = newParse, p.parseStatus == .pending {
                 startPolling()
+            } else {
+                pollingTask?.cancel()
+                if newParse?.convertedItemId?.isEmpty == false {
+                    isExpanded = false
+                }
             }
+        }
+        .alert("删除便利贴？", isPresented: $isShowingArchiveConfirmation) {
+            Button("删除", role: .destructive) {
+                archive()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除后将从当前列表移除。")
         }
     }
 
     // MARK: - Sections
 
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                if let title = note.title, !title.isEmpty {
-                    Text(title)
-                        .font(.headline)
-                        .lineLimit(2)
-                }
+    private var titleRow: some View {
+        Group {
+            if let title = note.title, !title.isEmpty {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            } else {
+                Text("未命名便利贴")
+                    .font(.headline)
+                    .foregroundStyle(.tertiary)
             }
-            Spacer()
-            statusChip
+        }
+        .lineLimit(1)
+    }
+
+    private var bodyRow: some View {
+        Group {
+            if note.content.isEmpty {
+                Text("无正文")
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(note.content)
+                    .foregroundStyle(.primary)
+                    .lineLimit(isExpanded ? nil : 2)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+        .font(.subheadline)
+    }
+
+    private var timeRow: some View {
+        Label(formatTime(note.recordedAt), systemImage: "clock")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+    }
+
+    private var locationAndAttachmentRow: some View {
+        HStack(spacing: 8) {
+            locationSummary
+                .lineLimit(1)
+                .truncationMode(.tail)
+            attachmentSummary
+            Spacer(minLength: 0)
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var locationSummary: some View {
+        if let loc = note.location {
+            Label(
+                loc.name ?? String(format: "(%.3f, %.3f)", loc.lat, loc.lng),
+                systemImage: "location.fill"
+            )
+        } else {
+            Label("未记录地点", systemImage: "location")
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    @ViewBuilder
+    private var attachmentSummary: some View {
+        if note.attachments.isEmpty {
+            Label("附件 0", systemImage: "paperclip")
+                .foregroundStyle(.tertiary)
+        } else {
+            Menu {
+                ForEach(note.attachments) { attachment in
+                    Button {
+                        openAttachment(attachment)
+                    } label: {
+                        Label(attachment.filename, systemImage: "paperclip")
+                    }
+                }
+            } label: {
+                Label("附件 \(note.attachments.count)", systemImage: "paperclip")
+            }
+            .buttonStyle(.plain)
         }
     }
 
     @ViewBuilder
     private var statusChip: some View {
-        switch note.latestParse?.parseStatus {
-        case .none:
+        switch displayStatus {
+        case .awaitingParse:
             Button {
                 Task { await triggerParse() }
             } label: {
-                Label("AI 解析", systemImage: "sparkles")
+                Label("待解析", systemImage: "sparkles")
                     .font(.caption2.weight(.semibold))
                     .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(TimiaTheme.primary.opacity(0.12), in: Capsule())
-                    .foregroundStyle(TimiaTheme.primary)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
             .disabled(isParsing)
-        case .pending:
+            .accessibilityLabel("待解析，开始 AI 解析")
+        case .parsing:
             HStack(spacing: 4) {
                 ProgressView().controlSize(.mini)
-                Text("解析中…")
+                Text("AI 解析中")
             }
             .font(.caption2)
             .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(Color.secondary.opacity(0.15), in: Capsule())
-        case .success:
+            .background(TimiaTheme.primary.opacity(0.1), in: Capsule())
+            .foregroundStyle(TimiaTheme.primary)
+        case .parsed:
             Button {
                 isExpanded.toggle()
                 if !isExpanded { pollingTask?.cancel() }
             } label: {
                 HStack(spacing: 3) {
                     Image(systemName: "sparkles")
-                    Text("已生成草稿")
+                    Text("已解析")
                 }
                 .font(.caption2.weight(.semibold))
                 .padding(.horizontal, 8).padding(.vertical, 3)
@@ -123,75 +243,58 @@ struct StickyNoteCard: View {
                 .foregroundStyle(.green)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("已解析，查看解析结果")
         case .failed:
             Button {
                 Task { await triggerParse() }
             } label: {
                 HStack(spacing: 3) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                    Text("重试解析")
+                    Text("解析失败")
                 }
                 .font(.caption2.weight(.semibold))
                 .padding(.horizontal, 8).padding(.vertical, 3)
-                .background(Color.orange.opacity(0.18), in: Capsule())
-                .foregroundStyle(.orange)
+                .background(Color.red.opacity(0.12), in: Capsule())
+                .foregroundStyle(.red)
             }
             .buttonStyle(.plain)
             .disabled(isParsing)
-        case .some(.skipped):
-            EmptyView()
-        }
-    }
-
-    private var metaRow: some View {
-        HStack(spacing: 8) {
-            Label(formatTime(note.recordedAt), systemImage: "clock")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            if let loc = note.location {
-                Label(
-                    loc.name ?? String(format: "(%.3f, %.3f)", loc.lat, loc.lng),
-                    systemImage: "location.fill"
-                )
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            }
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private var attachmentRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(note.attachments) { att in
-                    AttachmentChip(attachment: att) {
-                        openAttachment(att)
-                    }
-                }
-            }
-        }
-    }
-
-    private var actionRow: some View {
-        HStack {
-            if note.convertedCount > 0 {
-                Text("已转化为任务 ×\(note.convertedCount)")
-                    .font(.caption2)
+            .accessibilityLabel("解析失败，重试 AI 解析")
+        case .skipped:
+            Button {
+                Task { await triggerParse() }
+            } label: {
+                Label("已跳过", systemImage: "minus.circle")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.secondary.opacity(0.15), in: Capsule())
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            Button {
-                archive()
-            } label: {
-                Image(systemName: "trash")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-            }
             .buttonStyle(.plain)
-            .accessibilityLabel("归档便利贴")
+            .disabled(isParsing)
+            .accessibilityLabel("已跳过，重新开始 AI 解析")
+        case .converted:
+            Label("已转为任务", systemImage: "checkmark.circle.fill")
+                .font(.caption2.weight(.semibold))
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Color.green.opacity(0.1), in: Capsule())
+                .foregroundStyle(.green)
         }
+    }
+
+    private var deleteButton: some View {
+        Button {
+            isShowingArchiveConfirmation = true
+        } label: {
+            Image(systemName: "trash.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.red)
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("删除便利贴")
+        .accessibilityHint("需要二次确认")
     }
 
     // MARK: - Actions
@@ -205,25 +308,13 @@ struct StickyNoteCard: View {
             latestParse = parse
             if parse.parseStatus == .pending {
                 startPolling()
-            } else if parse.parseStatus == .success {
+            } else if parse.parseStatus == .success, parse.convertedItemId?.isEmpty != false {
                 isExpanded = true
+            } else {
+                isExpanded = false
             }
             var updated = note
-            updated = StickyNote(
-                id: note.id,
-                ownerUserId: note.ownerUserId,
-                title: note.title,
-                content: note.content,
-                recordedAt: note.recordedAt,
-                createdAt: note.createdAt,
-                timezone: note.timezone,
-                location: note.location,
-                deviceKind: note.deviceKind,
-                archivedAt: note.archivedAt,
-                convertedCount: note.convertedCount,
-                attachments: note.attachments,
-                latestParse: parse
-            )
+            updated.latestParse = parse
             onChanged(updated)
         } catch {
             parseError = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -235,16 +326,23 @@ struct StickyNoteCard: View {
         pollingTask = Task { @MainActor in
             for _ in 0..<15 {  // up to 30s, every 2s
                 if Task.isCancelled { return }
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: 2_000_000_000)
+                } catch {
+                    return
+                }
                 if Task.isCancelled { return }
                 do {
-                    if let p = try await api.latestUnconvertedParse(noteId: note.id) {
-                        latestParse = p
-                        if p.parseStatus != .pending {
-                            if p.parseStatus == .success { isExpanded = true }
-                            return
-                        }
-                    } else {
+                    guard let p = try await api.latestParse(noteId: note.id) else {
+                        // A transient empty response is not a terminal status.
+                        continue
+                    }
+                    latestParse = p
+                    var updated = note
+                    updated.latestParse = p
+                    onChanged(updated)
+                    if p.parseStatus != .pending {
+                        isExpanded = p.parseStatus == .success && p.convertedItemId?.isEmpty != false
                         return
                     }
                 } catch {
@@ -268,24 +366,9 @@ struct StickyNoteCard: View {
                 )
             )
             onTaskCreated?(resp)
-            // Optimistic: bump convertedCount on the card.
-            var updated = note
-            updated = StickyNote(
-                id: note.id,
-                ownerUserId: note.ownerUserId,
-                title: note.title,
-                content: note.content,
-                recordedAt: note.recordedAt,
-                createdAt: note.createdAt,
-                timezone: note.timezone,
-                location: note.location,
-                deviceKind: note.deviceKind,
-                archivedAt: note.archivedAt,
-                convertedCount: note.convertedCount + 1,
-                attachments: note.attachments,
-                latestParse: resp.parse
-            )
-            onChanged(updated)
+            // Use the server response as the canonical converted state.
+            latestParse = resp.parse
+            onChanged(resp.stickyNote)
             isExpanded = false
         } catch {
             parseError = (error as? APIError)?.errorDescription ?? error.localizedDescription

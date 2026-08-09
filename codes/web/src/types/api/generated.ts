@@ -5015,7 +5015,7 @@ export interface operations {
     get_parses_sticky_notes__note_id__parses_get: {
         parameters: {
             query?: {
-                /** @description If true, return only the unconverted success parse */
+                /** @description If true, return only the latest parse attempt */
                 latest?: boolean;
             };
             header?: {

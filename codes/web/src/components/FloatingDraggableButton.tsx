@@ -31,6 +31,7 @@ export function FloatingDraggableButton({
 }: FloatingDraggableButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const hasBeenDraggedRef = useRef(false);
+  const suppressClickRef = useRef(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -38,7 +39,6 @@ export function FloatingDraggableButton({
     startY: number;
     originLeft: number;
     originTop: number;
-    moved: boolean;
   } | null>(null);
 
   const syncInitialPosition = useCallback(() => {
@@ -106,6 +106,7 @@ export function FloatingDraggableButton({
 
   function handlePointerDown(event: React.PointerEvent<HTMLButtonElement>) {
     const el = event.currentTarget;
+    suppressClickRef.current = false;
     let currentPos = position;
     if (!currentPos) {
       const rect = el.getBoundingClientRect();
@@ -120,7 +121,6 @@ export function FloatingDraggableButton({
       startY: event.clientY,
       originLeft: currentPos.left,
       originTop: currentPos.top,
-      moved: false,
     };
   }
 
@@ -131,7 +131,7 @@ export function FloatingDraggableButton({
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
     if (Math.abs(dx) > DRAG_THRESHOLD_PX || Math.abs(dy) > DRAG_THRESHOLD_PX) {
-      drag.moved = true;
+      suppressClickRef.current = true;
       hasBeenDraggedRef.current = true;
     }
 
@@ -149,18 +149,28 @@ export function FloatingDraggableButton({
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    if (!drag.moved) {
-      onClick();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
     dragRef.current = null;
   }
 
   function handlePointerCancel(event: React.PointerEvent<HTMLButtonElement>) {
     if (dragRef.current?.pointerId === event.pointerId) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
       dragRef.current = null;
     }
+  }
+
+  function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      event.preventDefault();
+      return;
+    }
+    onClick();
   }
 
   return (
@@ -178,6 +188,7 @@ export function FloatingDraggableButton({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onClick={handleClick}
     >
       {children}
     </button>

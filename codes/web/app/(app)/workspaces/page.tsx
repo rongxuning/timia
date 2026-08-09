@@ -200,18 +200,6 @@ export default function WorkspacesPage() {
 
   return (
     <PageMain className="!px-3" fullWidth>
-      <button
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl hover:bg-primary-hover transition-all duration-200 shadow-sm active:translate-y-px"
-        type="button"
-        onClick={() => {
-          setCreateError(null);
-          setCreateOpen(true);
-        }}
-      >
-        <span className="material-symbols-outlined">add_circle</span>
-        <span className="font-medium">创建工作空间</span>
-      </button>
-
       {error && (
         <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
           {error}

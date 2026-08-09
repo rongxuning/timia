@@ -5,6 +5,7 @@ import SwiftUI
 struct StickyNoteListView: View {
     @ObservedObject var model: StickyNoteListModel
     let api: StickyNotesAPI
+    var onEdit: (StickyNote) -> Void = { _ in }
     var onTaskCreated: ((StickyNoteConvertResponse) -> Void)? = nil
 
     var body: some View {
@@ -17,6 +18,7 @@ struct StickyNoteListView: View {
                     StickyNoteCard(
                         note: note,
                         api: api,
+                        onEdit: onEdit,
                         onChanged: { updated in
                             model.replace(updated)
                         },
@@ -38,7 +40,7 @@ struct StickyNoteListView: View {
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.top, 10)
+            .padding(.top, 12)
         }
         .background(TimiaTheme.canvas)
         .refreshable {

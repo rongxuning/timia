@@ -18,7 +18,7 @@ struct StickyNoteVoiceLauncher: View {
             Image(systemName: isPressed ? "mic.fill" : "mic")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
+                .frame(width: 38, height: 38)
                 .background(isPressed ? Color.red : TimiaTheme.primary, in: Circle())
         }
         .buttonStyle(.plain)

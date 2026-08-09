@@ -28,10 +28,16 @@ struct TitleBodyTextEditor: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if uiView.text != text {
-            uiView.text = text
+        // Only touch attributedText when the user is NOT in the middle of
+        // composing (e.g. Chinese IME). Setting attributedText while markedTextRange
+        // is active disrupts the IME candidate selection and drops characters.
+        let isComposing = uiView.markedTextRange != nil
+        if !isComposing {
+            if uiView.text != text {
+                uiView.text = text
+            }
+            applyAttributes(to: uiView)
         }
-        applyAttributes(to: uiView)
     }
 
     /// Style the first line (everything up to the first newline, or all the
@@ -96,8 +102,11 @@ struct TitleBodyTextEditor: UIViewRepresentable {
             if parent.text != updated {
                 parent.text = updated
             }
-            // Re-style (first line is still bold) without losing selection.
-            parent.applyAttributes(to: textView)
+            // Skip re-styling while the IME is still composing (markedTextRange
+            // is non-nil). Setting attributedText here drops the composing text.
+            if textView.markedTextRange == nil {
+                parent.applyAttributes(to: textView)
+            }
         }
     }
 }

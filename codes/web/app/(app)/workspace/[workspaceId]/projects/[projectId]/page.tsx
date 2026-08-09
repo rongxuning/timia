@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FloatingDraggableButton } from "@/components/FloatingDraggableButton";
 import { PageMain } from "@/components/layout";
 import { ProjectDashboardCards } from "@/components/project/ProjectDashboardCards";
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
 import { ProjectModal, type ProjectModalSuccessMeta } from "@/components/ProjectModal";
+import { useTaskCreateDrawer } from "@/components/layout/TaskCreateDrawerContext";
 import { fetchProjectDashboard } from "@/lib/api/project-views";
 import { getToken } from "@/lib/auth";
 import type { ProjectDashboardView } from "@/types/api/views/project";
@@ -24,16 +24,20 @@ export default function ProjectPage() {
   const [dashboard, setDashboard] = useState<ProjectDashboardView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scheduleRefreshNonce, setScheduleRefreshNonce] = useState(0);
-  const [createInitialStatus, setCreateInitialStatus] = useState<StatusKey>("todo");
-  const [createInitialPriority, setCreateInitialPriority] = useState<PriorityKey>("1");
-  const [createInitialStartAt, setCreateInitialStartAt] = useState("");
-  const [createInitialEndAt, setCreateInitialEndAt] = useState("");
-  const [taskCreateDrawerOpen, setTaskCreateDrawerOpen] = useState(false);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
   const [taskDrawerVersion, setTaskDrawerVersion] = useState(0);
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const taskLeftCurrentProjectRef = useRef(false);
+  const {
+    open: taskCreateOpen,
+    initialStatus,
+    initialPriority,
+    initialStartAt,
+    initialEndAt,
+    openCreate,
+    close: closeTaskCreate,
+  } = useTaskCreateDrawer();
 
   const scope = useMemo(
     () => ({ scope: "project" as const, workspaceId, projectId }),
@@ -72,17 +76,12 @@ export default function ProjectPage() {
   ) {
     setTaskDrawerOpen(false);
     setTaskDrawerItemId(null);
-    setCreateInitialStatus(status);
-    setCreateInitialPriority(priority);
     if (dateKey) {
       const range = localDatetimeRangeFromDateKey(dateKey, hour);
-      setCreateInitialStartAt(range.start);
-      setCreateInitialEndAt(range.end);
+      openCreate({ status, priority, startAt: range.start, endAt: range.end });
     } else {
-      setCreateInitialStartAt("");
-      setCreateInitialEndAt("");
+      openCreate({ status, priority });
     }
-    setTaskCreateDrawerOpen(true);
   }
 
   function openTaskCreateOnDate(dateKey: string, hour?: number) {
@@ -94,7 +93,7 @@ export default function ProjectPage() {
   }
 
   function openDrawer(it: ScheduleTaskItem) {
-    setTaskCreateDrawerOpen(false);
+    closeTaskCreate();
     taskLeftCurrentProjectRef.current = false;
     setTaskDrawerItemId(it.id);
     setTaskDrawerVersion(it.version);
@@ -120,6 +119,7 @@ export default function ProjectPage() {
   }
 
   async function handleTaskCreated(ctx: TaskDrawerSaveContext) {
+    closeTaskCreate();
     if (ctx.projectId !== projectId) return;
     bumpSchedule();
     await reloadDashboard();
@@ -204,29 +204,20 @@ export default function ProjectPage() {
       />
 
       <TaskDrawerWithComments
-        open={taskCreateDrawerOpen}
-        onClose={() => setTaskCreateDrawerOpen(false)}
+        open={taskCreateOpen}
+        onClose={closeTaskCreate}
         workspaceId={workspaceId}
         projectId={projectId}
         itemId={null}
         highlightCommentId={null}
         token={token}
         variant="create"
-        initialCreateStatus={createInitialStatus}
-        initialCreatePriority={createInitialPriority}
-        initialCreateStartAt={createInitialStartAt}
-        initialCreateEndAt={createInitialEndAt}
+        initialCreateStatus={initialStatus}
+        initialCreatePriority={initialPriority}
+        initialCreateStartAt={initialStartAt}
+        initialCreateEndAt={initialEndAt}
         onTaskCreated={handleTaskCreated}
       />
-
-      <FloatingDraggableButton
-        ariaLabel="新建任务"
-        initialAnchorId="project-detail-status-panel"
-        className="flex h-14 w-14 cursor-grab items-center justify-center rounded-full bg-primary text-on-primary shadow-lg shadow-indigo-100 transition-colors hover:bg-primary-hover active:cursor-grabbing"
-        onClick={() => openTaskCreate("todo")}
-      >
-        <span className="material-symbols-outlined text-2xl">add</span>
-      </FloatingDraggableButton>
     </PageMain>
   );
 }

@@ -61,6 +61,7 @@ struct ScheduleHomeView: View {
     @State private var range: CalendarRange = .day
     @State private var selectedDate = Date()
     @State private var stickyDraft = StickyNoteDraftStore()
+    @State private var isStickyNoteEditorPresented = false
     @State private var calendarData: ScheduleCalendar?
     @State private var calendarCache: [String: ScheduleCalendar] = [:]
     @State private var loadingCalendarKeys: Set<String> = []
@@ -91,6 +92,7 @@ struct ScheduleHomeView: View {
                         StickyNoteView(
                             session: session,
                             draft: stickyDraft,
+                            isEditorPresented: $isStickyNoteEditorPresented,
                             onTaskCreated: { _ in
                                 Task { await loadVisibleContent(force: true) }
                             }
@@ -159,6 +161,9 @@ struct ScheduleHomeView: View {
             Task { await loadCalendar() }
         }
         .onChange(of: contentMode) { _, newValue in
+            if newValue != .stickyNote {
+                isStickyNoteEditorPresented = false
+            }
             Task {
                 switch newValue {
                 case .todo:
@@ -224,11 +229,12 @@ struct ScheduleHomeView: View {
                 onOpenWorkspaces()
             } label: {
                 Image(systemName: "square.grid.2x2")
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 32, height: 32)
+                    .background(TimiaTheme.field, in: Circle())
+                    .overlay(Circle().stroke(TimiaTheme.border.opacity(0.5)))
             }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
+            .buttonStyle(.plain)
             .accessibilityLabel("打开空间页面")
 
             Button {
@@ -236,12 +242,12 @@ struct ScheduleHomeView: View {
                 onOpenAccount()
             } label: {
                 Text(user.initials)
-                    .font(.subheadline.bold())
+                    .font(.caption.bold())
                     .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 32, height: 32)
                     .background(TimiaTheme.primary.gradient, in: Circle())
-                    .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
-                    .shadow(color: TimiaTheme.shadow, radius: 8, y: 3)
+                    .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 1.5))
+                    .shadow(color: TimiaTheme.shadow, radius: 4, y: 2)
             }
             .accessibilityLabel("打开我的页面")
         }
@@ -377,7 +383,7 @@ struct ScheduleHomeView: View {
     }
 
     private var bottomControls: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             HStack(spacing: 2) {
                 modeButton(.todo, symbol: "checklist")
                 modeButton(.calendar, symbol: "calendar")
@@ -403,17 +409,26 @@ struct ScheduleHomeView: View {
 
             HStack(spacing: 8) {
                 if contentMode == .stickyNote {
-                    // Sticky-note mode: voice button pinned to the right edge
-                    // of the toolbar, no surrounding white pill — the
-                    // surrounding white pill only makes sense for the
-                    // multi-element natural-language input row.
-                    HStack(spacing: 0) {
+                    HStack(spacing: 8) {
                         Spacer(minLength: 0)
+                        Button {
+                            isStickyNoteEditorPresented = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 38, height: 38)
+                                .background(TimiaTheme.primary, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("添加便利贴")
+
                         StickyNoteVoiceLauncher(
                             session: session,
                             draft: stickyDraft
                         )
                     }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 } else {
                     HStack(spacing: 8) {
                         Button {
@@ -427,9 +442,9 @@ struct ScheduleHomeView: View {
                             )
                         } label: {
                             Image(systemName: "plus")
-                                .font(.body.weight(.semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.secondary)
-                                .frame(width: 28, height: 42)
+                                .frame(width: 28, height: 32)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -437,6 +452,7 @@ struct ScheduleHomeView: View {
 
                         TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
                             .lineLimit(1...3)
+                            .frame(height: 32)
                             .focused($isNaturalLanguageInputFocused)
                             .submitLabel(.send)
                             .onSubmit {
@@ -450,14 +466,16 @@ struct ScheduleHomeView: View {
                         } label: {
                             Group {
                                 if isParsing {
-                                    ProgressView().tint(.white)
+                                    ProgressView()
+                                        .controlSize(.small)
+                                        .tint(.white)
                                 } else {
                                     Image(systemName: "arrow.up")
-                                        .font(.body.bold())
+                                        .font(.subheadline.bold())
                                 }
                             }
                             .foregroundStyle(.white)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 32, height: 32)
                             .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
                         }
                         .disabled(!canParse)
@@ -465,9 +483,9 @@ struct ScheduleHomeView: View {
                     }
                     .padding(.leading, 12)
                     .padding(.trailing, 5)
-                    .padding(.vertical, 5)
-                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 20))
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(TimiaTheme.border.opacity(0.6)))
+                    .padding(.vertical, 3)
+                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 19))
+                    .overlay(RoundedRectangle(cornerRadius: 19).stroke(TimiaTheme.border.opacity(0.6)))
                 }
             }
             .frame(maxWidth: .infinity)

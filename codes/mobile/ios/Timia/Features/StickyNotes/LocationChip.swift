@@ -34,11 +34,11 @@ struct LocationChip: View {
             .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.5)))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(snapshot == nil ? "未设置位置" : "已记录位置")
+        .accessibilityLabel(snapshot == nil ? "未设置地点" : "已记录地点")
     }
 
     private var label: String {
-        guard let s = snapshot else { return "添加位置" }
+        guard let s = snapshot else { return "地点" }
         if let name = s.name, !name.isEmpty { return name }
         return String(format: "📍 (%.4f, %.4f)", s.lat, s.lng)
     }

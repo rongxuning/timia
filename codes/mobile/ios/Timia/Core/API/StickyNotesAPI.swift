@@ -75,7 +75,7 @@ struct StickyNotesAPI: Sendable {
         )
     }
 
-    func latestUnconvertedParse(noteId: String) async throws -> StickyNoteAIParse? {
+    func latestParse(noteId: String) async throws -> StickyNoteAIParse? {
         let result: [StickyNoteAIParse] = try await client.request(
             "/sticky-notes/\(noteId)/parses",
             method: "GET",
