@@ -79,6 +79,14 @@ const TASK_MEMBER_FIELD_HEAD_CLASS = "flex h-6 items-center gap-2 min-w-0";
 const TASK_MEMBER_CHIPS_ROW_CLASS =
   "flex h-6 min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:thin]";
 
+type RepeatKind = "none" | "daily" | "weekly" | "monthly";
+
+const REPEAT_OPTIONS: { value: Exclude<RepeatKind, "none">; label: string }[] = [
+  { value: "daily", label: "每天" },
+  { value: "weekly", label: "每周" },
+  { value: "monthly", label: "每月" },
+];
+
 function buildRepliesByParentId(flat: ItemComment[]) {
   const m = new Map<string, ItemComment[]>();
   for (const c of flat) {
@@ -232,6 +240,7 @@ export function TaskDrawerWithComments({
   const [editAssigneeUserId, setEditAssigneeUserId] = useState("");
   const [editParticipantUserIds, setEditParticipantUserIds] = useState<string[]>([]);
   const [editLocation, setEditLocation] = useState("");
+  const [editRepeat, setEditRepeat] = useState<RepeatKind>("none");
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -505,6 +514,7 @@ export function TaskDrawerWithComments({
     setEditAssigneeUserId(assigneeId);
     setEditParticipantUserIds((it.participants ?? []).map((p) => p.id));
     setEditLocation(it.location ?? "");
+    setEditRepeat("none");
     setAssigneeSearchQuery("");
     setParticipantSearchQuery("");
     setParticipantStagingIds([]);
@@ -528,6 +538,7 @@ export function TaskDrawerWithComments({
     setEditAssigneeUserId("");
     setEditParticipantUserIds([]);
     setEditLocation(initialCreateLocation ?? "");
+    setEditRepeat("none");
     setEditError(null);
     setItemLoading(false);
     setComments([]);
@@ -777,6 +788,7 @@ export function TaskDrawerWithComments({
               start_at: startIso,
               end_at: endIso,
               completed_at: completedIso,
+              repeat: editRepeat,
               ...peoplePayload,
             }),
           },
@@ -797,6 +809,7 @@ export function TaskDrawerWithComments({
           end_at: endIso,
           completed_at: completedIso,
           version: drawerItem.version,
+          repeat: editRepeat,
           ...peoplePayload,
         };
         if (ownershipChanged) {
@@ -1351,6 +1364,70 @@ export function TaskDrawerWithComments({
                         required
                       />
                     </div>
+                  </div>
+                  <div className="flex flex-col items-start space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant">重复</label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={editRepeat !== "none"}
+                      aria-label="是否重复"
+                      onClick={() =>
+                        setEditRepeat(editRepeat === "none" ? "daily" : "none")
+                      }
+                      disabled={editLoading}
+                      className={
+                        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-4 focus-visible:ring-primary/20 " +
+                        (editRepeat !== "none"
+                          ? "bg-primary"
+                          : "bg-surface-container-lowest border border-border-subtle") +
+                        (editLoading ? " opacity-50 cursor-not-allowed" : "")
+                      }
+                    >
+                      <span
+                        className={
+                          "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform " +
+                          (editRepeat !== "none" ? "translate-x-5" : "translate-x-0.5")
+                        }
+                      />
+                    </button>
+                    {editRepeat !== "none" && (
+                      <div className="space-y-2">
+                        <div
+                          className="flex flex-wrap gap-2"
+                          role="radiogroup"
+                          aria-label="重复频率"
+                        >
+                          {REPEAT_OPTIONS.map((opt) => {
+                            const selected = editRepeat === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                onClick={() => setEditRepeat(opt.value)}
+                                disabled={editLoading}
+                                className={
+                                  "h-9 px-4 rounded-full text-caption font-medium transition-colors border " +
+                                  (selected
+                                    ? "bg-primary text-on-primary border-primary"
+                                    : "bg-surface-bright text-on-surface-variant border-border-subtle hover:bg-surface-container-low") +
+                                  (editLoading ? " opacity-50 cursor-not-allowed" : "")
+                                }
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-caption text-on-surface-variant/80">
+                          {variant === "edit"
+                            ? "将以本任务为模板,创建一组新的重复任务;已有副本不会同步修改。"
+                            : "将按所选频率在本周期内创建一组独立任务,各副本之间互不关联。"}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   {editStatus === "done" ? (
                     <div className="space-y-2">

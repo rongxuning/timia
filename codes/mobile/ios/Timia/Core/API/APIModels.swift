@@ -329,6 +329,23 @@ struct ItemPayload: Encodable, Sendable {
     let assigneeUserId: String?
     let participantUserIds: [String]
     let location: String?
+    let repeatKind: String
+
+    private enum CodingKeys: String, CodingKey {
+        case title
+        case body
+        case color
+        case status
+        case priority
+        case startAt
+        case endAt
+        case completedAt
+        case details
+        case assigneeUserId
+        case participantUserIds
+        case location
+        case repeatKind = "repeat"
+    }
 }
 
 struct ItemUpdatePayload: Encodable, Sendable {
@@ -347,6 +364,7 @@ struct ItemUpdatePayload: Encodable, Sendable {
     let location: String?
     let targetWorkspaceId: String?
     let targetProjectId: String?
+    let repeatKind: String?
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -364,6 +382,7 @@ struct ItemUpdatePayload: Encodable, Sendable {
         case location
         case targetWorkspaceId
         case targetProjectId
+        case repeatKind = "repeat"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -391,6 +410,11 @@ struct ItemUpdatePayload: Encodable, Sendable {
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(targetWorkspaceId, forKey: .targetWorkspaceId)
         try container.encodeIfPresent(targetProjectId, forKey: .targetProjectId)
+        if let repeatKind {
+            try container.encode(repeatKind, forKey: .repeatKind)
+        } else {
+            try container.encodeNil(forKey: .repeatKind)
+        }
     }
 }
 
