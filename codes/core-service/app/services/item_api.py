@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -32,6 +33,61 @@ def resolve_item_completed_at(
     if completed_at_was_set:
         return requested_completed_at or timestamp
     return current_completed_at or timestamp
+
+
+def materialize_repeat_occurrences(
+    *,
+    start_at: datetime,
+    end_at: datetime | None,
+    repeat: str,
+) -> list[tuple[datetime, datetime | None]]:
+    """Generate (start_at, end_at) pairs for occurrence copies, excluding the primary.
+
+    Calendar semantics (Mon-Sun week, Jan-Dec year, China convention):
+    - "none" or no start_at: empty list
+    - "daily": remaining days in the same Mon-Sun week, excluding the start date
+    - "weekly": remaining same-weekday dates in the same calendar month
+    - "monthly": remaining same-day occurrences within the same calendar year;
+      if the target day does not exist in a month, roll forward to the last day
+      of that month
+
+    Cross-day events preserve the original duration; end_at shifts by the same
+    offset. Returned datetimes keep the original tzinfo.
+    """
+    if repeat in (None, "none") or start_at is None:
+        return []
+    if repeat not in ("daily", "weekly", "monthly"):
+        return []
+
+    duration = (end_at - start_at) if end_at is not None else None
+    tz = start_at.tzinfo
+    base_date = start_at.date()
+    hh, mm, ss, us = start_at.hour, start_at.minute, start_at.second, start_at.microsecond
+
+    next_dates: list[date] = []
+    if repeat == "daily":
+        # base_date.weekday(): 0=Mon, 6=Sun. Remaining days = 6 - weekday.
+        for offset in range(1, 6 - base_date.weekday() + 1):
+            next_dates.append(base_date + timedelta(days=offset))
+    elif repeat == "weekly":
+        year, month = base_date.year, base_date.month
+        last_day = monthrange(year, month)[1]
+        target_wd = base_date.weekday()
+        for day in range(base_date.day + 1, last_day + 1):
+            d = date(year, month, day)
+            if d.weekday() == target_wd:
+                next_dates.append(d)
+    elif repeat == "monthly":
+        for m in range(base_date.month + 1, 13):
+            last_day = monthrange(base_date.year, m)[1]
+            next_dates.append(date(base_date.year, m, min(base_date.day, last_day)))
+
+    out: list[tuple[datetime, datetime | None]] = []
+    for d in next_dates:
+        new_start = datetime(d.year, d.month, d.day, hh, mm, ss, us, tzinfo=tz)
+        new_end = (new_start + duration) if duration is not None else None
+        out.append((new_start, new_end))
+    return out
 
 
 def dedupe_uuid_preserve_order(ids: list[uuid.UUID]) -> list[uuid.UUID]:

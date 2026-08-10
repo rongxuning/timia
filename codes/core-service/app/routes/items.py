@@ -15,6 +15,7 @@ from app.services.activity import log_activity
 from app.services.item_api import (
     apply_item_transfer,
     build_item_out,
+    materialize_repeat_occurrences,
     parse_assignee_id,
     parse_participant_ids,
     parse_transfer_target,
@@ -31,6 +32,44 @@ def _get_project(db: Session, workspace_id: uuid.UUID, project_id: uuid.UUID) ->
     if not p or p.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project_not_found")
     return p
+
+
+def _new_item_from_template(
+    *,
+    workspace_id: uuid.UUID,
+    project_id: uuid.UUID,
+    creator_id: uuid.UUID,
+    assignee_id: uuid.UUID | None,
+    participant_ids: list[uuid.UUID],
+    title: str,
+    body: str | None,
+    color: str,
+    status: str,
+    priority: str,
+    start_at: datetime | None,
+    end_at: datetime | None,
+    details: str | None,
+    location: str | None,
+) -> Item:
+    """Construct an Item from a snapshot of fields. Copies are independent rows."""
+    return Item(
+        workspace_id=workspace_id,
+        project_id=project_id,
+        title=title,
+        body=body,
+        color=color,
+        status=status,
+        priority=priority,
+        start_at=start_at,
+        end_at=end_at,
+        completed_at=None,  # copies start fresh; never inherit completion time
+        details=details,
+        created_by_user_id=creator_id,
+        assignee_user_id=assignee_id,
+        participant_user_ids=list(participant_ids),
+        location=location,
+        version=1,
+    )
 
 
 @router.get("", response_model=list[ItemOut])
@@ -80,9 +119,16 @@ def create_item(
         now=datetime.now(timezone.utc),
     )
 
-    i = Item(
+    repeat = payload.repeat or "none"
+    if repeat not in ("none", "daily", "weekly", "monthly"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_repeat")
+
+    i = _new_item_from_template(
         workspace_id=workspace_id,
         project_id=project_id,
+        creator_id=user.id,
+        assignee_id=assignee_id,
+        participant_ids=participant_ids,
         title=payload.title,
         body=payload.body,
         color=payload.color.upper(),
@@ -90,16 +136,40 @@ def create_item(
         priority=(payload.priority or "1"),
         start_at=payload.start_at,
         end_at=payload.end_at,
-        completed_at=completed_at,
         details=payload.details,
-        created_by_user_id=user.id,
-        assignee_user_id=assignee_id,
-        participant_user_ids=participant_ids,
         location=loc,
-        version=1,
     )
+    i.completed_at = completed_at
     db.add(i)
     db.flush()
+
+    repeat_occurrences: list[Item] = []
+    if repeat != "none" and payload.start_at is not None:
+        for occ_start, occ_end in materialize_repeat_occurrences(
+            start_at=payload.start_at,
+            end_at=payload.end_at,
+            repeat=repeat,
+        ):
+            occ = _new_item_from_template(
+                workspace_id=workspace_id,
+                project_id=project_id,
+                creator_id=user.id,
+                assignee_id=assignee_id,
+                participant_ids=participant_ids,
+                title=payload.title,
+                body=payload.body,
+                color=payload.color.upper(),
+                status=payload.status,
+                priority=(payload.priority or "1"),
+                start_at=occ_start,
+                end_at=occ_end,
+                details=payload.details,
+                location=loc,
+            )
+            db.add(occ)
+            repeat_occurrences.append(occ)
+        db.flush()
+
     log_activity(
         db,
         workspace_id=workspace_id,
@@ -107,7 +177,12 @@ def create_item(
         entity_type="item",
         entity_id=i.id,
         action="create",
-        metadata={"title": i.title, "project_id": str(project_id)},
+        metadata={
+            "title": i.title,
+            "project_id": str(project_id),
+            "repeat": repeat,
+            "occurrence_count": len(repeat_occurrences),
+        },
     )
     db.commit()
     return build_item_out(db, i)
@@ -258,6 +333,54 @@ def update_item(
         "workspace_id": str(i.workspace_id),
         "project_id": str(i.project_id),
     }
+
+    # Repeat: when payload.repeat is daily/weekly/monthly, materialize a fresh
+    # batch of occurrences using the post-update fields as the template. The
+    # current row is updated; copies are independent rows with no shared
+    # linkage. Existing copies (if any) are untouched.
+    if "repeat" in fields_set and payload.repeat not in (None, "none") and i.start_at is not None:
+        if payload.repeat not in ("daily", "weekly", "monthly"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_repeat")
+        occurrence_count = 0
+        for occ_start, occ_end in materialize_repeat_occurrences(
+            start_at=i.start_at,
+            end_at=i.end_at,
+            repeat=payload.repeat,
+        ):
+            occ = _new_item_from_template(
+                workspace_id=i.workspace_id,
+                project_id=i.project_id,
+                creator_id=user.id,
+                assignee_id=i.assignee_user_id,
+                participant_ids=list(i.participant_user_ids or []),
+                title=i.title,
+                body=i.body,
+                color=i.color,
+                status=i.status,
+                priority=i.priority,
+                start_at=occ_start,
+                end_at=occ_end,
+                details=i.details,
+                location=i.location,
+            )
+            db.add(occ)
+            occurrence_count += 1
+        db.flush()
+        if occurrence_count:
+            log_activity(
+                db,
+                workspace_id=i.workspace_id,
+                actor_user_id=user.id,
+                entity_type="item",
+                entity_id=i.id,
+                action="repeat_materialize",
+                metadata={
+                    "project_id": str(i.project_id),
+                    "template_item_id": str(i.id),
+                    "repeat": payload.repeat,
+                    "occurrence_count": occurrence_count,
+                },
+            )
 
     if transferred:
         log_activity(

@@ -60,6 +60,7 @@ struct TaskEditorView: View {
     @State private var startDate = Date()
     @State private var endDate = Date().addingTimeInterval(3600)
     @State private var completedDate = Date()
+    @State private var repeatKind: String = "none"
     @State private var comments: [TaskComment] = []
     @State private var newComment = ""
     @State private var version = 1
@@ -168,10 +169,11 @@ struct TaskEditorView: View {
                     .onSubmit { focusedField = .body }
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 Text("正文")
                     .fixedSize()
                     .frame(width: 40, alignment: .leading)
+                    .padding(.top, 11)
                 TextField("请输入正文", text: $bodyText, axis: .vertical)
                     .lineLimit(2...8)
                     .multilineTextAlignment(.leading)
@@ -245,6 +247,37 @@ struct TaskEditorView: View {
             }
             .onChange(of: endDate) { _, _ in focusedField = nil }
             .onChange(of: completedDate) { _, _ in focusedField = nil }
+
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(
+                    "重复",
+                    isOn: Binding(
+                        get: { repeatKind != "none" },
+                        set: { enabled in
+                            focusedField = nil
+                            if enabled {
+                                if repeatKind == "none" { repeatKind = "daily" }
+                            } else {
+                                repeatKind = "none"
+                            }
+                        }
+                    )
+                )
+                if repeatKind != "none" {
+                    Picker("频率", selection: $repeatKind) {
+                        Text("每天").tag("daily")
+                        Text("每周").tag("weekly")
+                        Text("每月").tag("monthly")
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: repeatKind) { _, _ in focusedField = nil }
+                    Text(isEditing
+                         ? "将以本任务为模板,创建一组新的重复任务;已有副本不会同步修改。"
+                         : "将按所选频率在本周期内创建一组独立任务,各副本之间互不关联。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if let response = naturalLanguageResponse {
                 Section("置信度") {
@@ -455,6 +488,7 @@ struct TaskEditorView: View {
         if let date = Self.parse(task.startAt) { startDate = date }
         if let date = Self.parse(task.endAt) { endDate = date }
         if let date = Self.parse(task.completedAt) { completedDate = date }
+        repeatKind = "none"
     }
 
     private func prepareNaturalLanguage(_ response: NaturalLanguageParseResponse) async {
@@ -673,7 +707,8 @@ struct TaskEditorView: View {
                     participantUserIds: Array(participantUserIds).sorted(),
                     location: location.nilIfBlank,
                     targetWorkspaceId: ownershipChanged ? workspaceId : nil,
-                    targetProjectId: ownershipChanged ? projectId : nil
+                    targetProjectId: ownershipChanged ? projectId : nil,
+                    repeatKind: repeatKind == "none" ? nil : repeatKind
                 )
                 _ = try await session.api.request(
                     "/workspaces/\(task.workspaceId)/projects/\(task.projectId)/items/\(task.id)",
@@ -696,7 +731,8 @@ struct TaskEditorView: View {
             details: details.nilIfBlank,
             assigneeUserId: assigneeUserId.nilIfBlank,
             participantUserIds: Array(participantUserIds).sorted(),
-            location: location.nilIfBlank
+            location: location.nilIfBlank,
+            repeatKind: repeatKind
         )
     }
 

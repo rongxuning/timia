@@ -1,6 +1,10 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+RepeatKind = Literal["none", "daily", "weekly", "monthly"]
 
 
 class UserBrief(BaseModel):
@@ -21,6 +25,7 @@ class ItemCreate(BaseModel):
     assignee_user_id: str | None = None
     participant_user_ids: list[str] = Field(default_factory=list)
     location: str | None = None
+    repeat: RepeatKind = "none"
 
 
 class ItemUpdate(BaseModel):
@@ -39,6 +44,7 @@ class ItemUpdate(BaseModel):
     location: str | None = None
     target_workspace_id: str | None = None
     target_project_id: str | None = None
+    repeat: RepeatKind | None = None
 
 
 class ItemOut(BaseModel):
