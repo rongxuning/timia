@@ -141,7 +141,6 @@ struct VoiceRecordingOverlay: View {
         if recognizer == nil {
             recognizer = StickyNoteSpeechRecognizer()
         }
-        guard let recognizer else { return }
 
         let auth = await SpeechPermissionManager.shared.requestIfNeeded()
         guard auth == .authorized else {
@@ -167,16 +166,15 @@ struct VoiceRecordingOverlay: View {
             return
         }
 
-        let recognizer = recognizer
-        recognizer.onPartial = { text in
+        self.recognizer?.onPartial = { (text: String) in
             Task { @MainActor in transcript = text }
         }
-        recognizer.onFinal = { [self] text in
+        self.recognizer?.onFinal = { [self] (text: String) in
             hasCommitted = true
-            recognizer.stopRecording()
+            self.recognizer?.stopRecording()
             commit(text)
         }
-        recognizer.onError = { err in
+        self.recognizer?.onError = { (err: Error) in
             Task { @MainActor in
                 statusMsg = err.localizedDescription
                 statusIsError = true
@@ -184,7 +182,7 @@ struct VoiceRecordingOverlay: View {
         }
 
         do {
-            try recognizer.start()
+            try self.recognizer?.start()
             didStart = true
         } catch {
             statusMsg = error.localizedDescription

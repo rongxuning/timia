@@ -101,9 +101,12 @@ struct StickyNoteView: View {
         dismissKeyboard()
         isEditorPresented = false
 
-        // Mark as pending parse in the model immediately.
+        // Optimistic update: write new title/content AND mark parse as
+        // pending so the card reflects the user's edits immediately.
         if let note = model.notes.first(where: { $0.id == editingNoteID }) {
             var updated = note
+            updated.title = title
+            updated.content = finalContent
             updated.latestParse = StickyNoteAIParse(
                 id: UUID().uuidString,
                 stickyNoteId: editingNoteID,
@@ -126,7 +129,10 @@ struct StickyNoteView: View {
         draft.isSaving = false
 
         do {
-            let updated = try await api.update(
+            // api.update returns the note with the *old* latestParse (since
+            // the parse is triggered separately). Don't `model.replace` it
+            // here — that would clobber the optimistic .pending state.
+            _ = try await api.update(
                 id: editingNoteID,
                 payload: StickyNoteUpdatePayload(
                     title: title,
@@ -134,8 +140,14 @@ struct StickyNoteView: View {
                     locationName: draft.location?.name
                 )
             )
-            model.replace(updated)
             let parse = try await api.triggerParse(id: editingNoteID)
+            // Update the note with the freshly triggered (pending) parse
+            // so polling/UI see the latest server-side state.
+            if let note = model.notes.first(where: { $0.id == editingNoteID }) {
+                var updated = note
+                updated.latestParse = parse
+                model.replace(updated)
+            }
             await pollParse(noteId: editingNoteID, initialParse: parse)
         } catch {
             // Silent — the card will stay in whatever parse state it had.
