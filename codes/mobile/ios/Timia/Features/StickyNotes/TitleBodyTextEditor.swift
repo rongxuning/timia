@@ -55,17 +55,16 @@ struct TitleBodyTextEditor: UIViewRepresentable {
         guard let textView = uiView as? PlaceholderTextView else { return }
         let isComposing = uiView.markedTextRange != nil
         if !isComposing {
-            if textView.isShowingPlaceholder && !text.isEmpty {
-                // User started typing — hide placeholder and set real text.
-                textView.hidePlaceholder(setText: text)
-            } else if !textView.isShowingPlaceholder && text.isEmpty {
-                // Text was cleared — show placeholder.
-                textView.showPlaceholder(title: titlePlaceholder, body: bodyPlaceholder)
-            } else if !textView.isShowingPlaceholder && textView.text != text {
-                // Normal text update from binding.
+            // Sync binding → text view when not currently showing placeholder.
+            // The placeholder state is managed only by:
+            //   - makeUIView (initial show)
+            //   - textViewDidBeginEditing (hide on first tap)
+            //   - textViewDidEndEditing (re-show if user finished empty)
+            // We do NOT re-show the placeholder here, otherwise typing into
+            // the placeholder would leave the placeholder text behind.
+            if !textView.isShowingPlaceholder && textView.text != text {
                 textView.text = text
             }
-            // Always re-apply style to the real content.
             if !textView.isShowingPlaceholder {
                 applyAttributes(to: textView)
             }

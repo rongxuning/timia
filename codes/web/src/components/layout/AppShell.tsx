@@ -77,6 +77,7 @@ function FloatingButtons({
   const previousPathnameRef = useRef(pathname);
 
   function openTaskFromStickyNote(noteId: string, prefill: TaskCreatePrefill) {
+    console.info("[sticky-note] openTaskFromStickyNote", { noteId, parseId: prefill.parseId });
     pendingConvertPrefillRef.current = prefill;
     setPendingConvertNoteId(noteId);
     const { noteId: _noteId, parseId: _parseId, ...createPrefill } = prefill;
@@ -167,12 +168,23 @@ function GlobalTaskCreateDrawer({
       initialCreateTitle={initialTitle}
       initialCreateBody={initialBody}
       initialCreateLocation={initialLocation}
-      onTaskCreated={async (ctx) => {
-        if (pendingConvertNoteId) {
-          // 必须 await：保证后台 link API 写入完成后再关闭抽屉，
-          // 否则用户快速重开便利贴 modal 时，refreshList 会拉到旧数据
-          await onStickyNoteConverted(pendingConvertNoteId, ctx.item.id, ctx.workspaceId, ctx.projectId);
-        }
+      onTaskCreated={(ctx) => {
+        // 派发全局事件，由 AppShell 统一处理便利贴 link。
+        // 这样 schedule/项目页等用自己 TaskDrawerWithComments 的页面也能复用。
+        console.info("[sticky-note] GlobalDrawer.onTaskCreated → dispatch app:task-created", {
+          itemId: ctx.item.id,
+          workspaceId: ctx.workspaceId,
+          projectId: ctx.projectId,
+        });
+        window.dispatchEvent(
+          new CustomEvent("app:task-created", {
+            detail: {
+              itemId: ctx.item.id,
+              workspaceId: ctx.workspaceId,
+              projectId: ctx.projectId,
+            },
+          }),
+        );
         close();
       }}
     />
@@ -187,6 +199,8 @@ export function AppShell({ children }: AppShellProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [pendingConvertNoteId, setPendingConvertNoteId] = useState<string | null>(null);
+  const pendingConvertNoteIdRef = useRef<string | null>(null);
+  pendingConvertNoteIdRef.current = pendingConvertNoteId;
   const pendingConvertPrefillRef = useRef<TaskCreatePrefill | null>(null);
   const pendingTaskContextRef = useRef<{
     noteId: string;
@@ -276,6 +290,24 @@ export function AppShell({ children }: AppShellProps) {
     }
     window.addEventListener("sticky-note-open-task", onOpenTask);
     return () => window.removeEventListener("sticky-note-open-task", onOpenTask);
+  }, []);
+
+  // 监听全局 task-created 事件，统一处理便利贴 link。
+  // schedule/项目页等有自己的 TaskDrawerWithComments 实例，
+  // 它们创建任务后 dispatch 这个事件，AppShell 统一收口。
+  useEffect(() => {
+    function onAppTaskCreated(e: Event) {
+      const { itemId, workspaceId, projectId } = (e as CustomEvent<{
+        itemId: string;
+        workspaceId: string;
+        projectId: string;
+      }>).detail;
+      const noteId = pendingConvertNoteIdRef.current;
+      if (!noteId) return;
+      void handleStickyNoteConverted(noteId, itemId, workspaceId, projectId);
+    }
+    window.addEventListener("app:task-created", onAppTaskCreated);
+    return () => window.removeEventListener("app:task-created", onAppTaskCreated);
   }, []);
 
   useEffect(() => {

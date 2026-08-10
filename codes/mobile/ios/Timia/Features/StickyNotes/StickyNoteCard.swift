@@ -36,6 +36,9 @@ struct StickyNoteCard: View {
     @State private var convertedProjectId: String = ""
 
     private var displayStatus: StickyNoteDisplayStatus {
+        // Optimistic: show "AI 解析中" as soon as a parse is triggered,
+        // even before the server returns a pending status.
+        if isParsing { return .parsing }
         guard let parse = latestParse else { return .awaitingParse }
         switch parse.parseStatus {
         case .pending:

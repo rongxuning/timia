@@ -82,10 +82,19 @@ final class StickyNoteLocationManager: NSObject, CLLocationManagerDelegate {
     private var continuation: CheckedContinuation<StickyNoteLocationSnapshot, Error>?
     private var timeoutTask: Task<Void, Never>?
 
+    var authorizationStatus: CLAuthorizationStatus { manager.authorizationStatus }
+
     override init() {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+    }
+
+    /// Ask the system to present the permission dialog. No-op if the
+    /// user has already responded.
+    func requestAuthorizationIfNeeded() {
+        guard manager.authorizationStatus == .notDetermined else { return }
+        manager.requestAlwaysAuthorization()
     }
 
     func requestCurrent() async throws -> StickyNoteLocationSnapshot {
@@ -93,6 +102,12 @@ final class StickyNoteLocationManager: NSObject, CLLocationManagerDelegate {
         // set of options including "使用App或小组件".
         if manager.authorizationStatus == .notDetermined {
             manager.requestAlwaysAuthorization()
+        }
+        // If the system permission dialog is still up, the status stays
+        // .notDetermined until the user responds. Wait for the auth change
+        // callback before bailing.
+        if manager.authorizationStatus == .notDetermined {
+            try await waitForAuthorizationChange()
         }
         guard manager.authorizationStatus == .authorizedWhenInUse
             || manager.authorizationStatus == .authorizedAlways else {
@@ -111,6 +126,20 @@ final class StickyNoteLocationManager: NSObject, CLLocationManagerDelegate {
                 }
             }
         }
+    }
+
+    /// Suspend until the user responds to the system permission dialog.
+    private func waitForAuthorizationChange() async throws {
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+        if manager.authorizationStatus != .notDetermined { return }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        if manager.authorizationStatus != .notDetermined { return }
+        // Polling fallback — the CL callback might not be wired for this case.
+        for _ in 0..<60 {
+            try await Task.sleep(nanoseconds: 250_000_000)
+            if manager.authorizationStatus != .notDetermined { return }
+        }
+        throw LocError.timedOut
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {

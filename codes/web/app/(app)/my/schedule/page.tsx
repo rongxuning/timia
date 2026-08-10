@@ -101,7 +101,17 @@ export default function MySchedulePage() {
     setTaskDrawerProjectId("");
   }
 
-  async function handleTaskCreated(_ctx: TaskDrawerSaveContext) {
+  async function handleTaskCreated(ctx: TaskDrawerSaveContext) {
+    // 派发全局事件，让 AppShell 统一处理便利贴 link（schedule 页用自己的 TaskDrawerWithComments）
+    window.dispatchEvent(
+      new CustomEvent("app:task-created", {
+        detail: {
+          itemId: ctx.item.id,
+          workspaceId: ctx.workspaceId,
+          projectId: ctx.projectId,
+        },
+      }),
+    );
     closeTaskCreate();
     setScheduleRefreshNonce((n) => n + 1);
   }

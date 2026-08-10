@@ -774,19 +774,20 @@ private struct TaskAssigneeSelectionView: View {
     @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: String
+    @State private var localSelection: String = ""
+    @State private var didHydrate = false
     @State private var searchText = ""
 
     var body: some View {
         List {
             ForEach(filteredUsers) { user in
                 Button {
-                    selection = user.userId
-                    dismiss()
+                    localSelection = user.userId
                 } label: {
-                    TaskMemberOptionRow(user: user, isSelected: selection == user.userId)
+                    TaskMemberOptionRow(user: user, isSelected: localSelection == user.userId)
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(selection == user.userId ? .isSelected : [])
+                .accessibilityAddTraits(localSelection == user.userId ? .isSelected : [])
             }
         }
         .navigationTitle("选择负责人")
@@ -794,10 +795,26 @@ private struct TaskAssigneeSelectionView: View {
         .searchable(text: $searchText, prompt: "搜索姓名或邮箱")
         .scrollDismissesKeyboard(.interactively)
         .keyboardDoneToolbar { dismissSearch() }
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("完成") {
+                    selection = localSelection
+                    dismiss()
+                }
+            }
+        }
         .overlay {
             if filteredUsers.isEmpty, !searchText.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
+        }
+        .onAppear {
+            guard !didHydrate else { return }
+            localSelection = selection
+            didHydrate = true
         }
     }
 
@@ -807,30 +824,44 @@ private struct TaskAssigneeSelectionView: View {
 }
 
 private struct TaskParticipantsSelectionView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: Set<String>
+    @State private var localSelection: Set<String> = []
+    @State private var didHydrate = false
     @State private var searchText = ""
 
     var body: some View {
         List(filteredUsers) { user in
             Button {
-                if selection.contains(user.userId) {
-                    selection.remove(user.userId)
+                if localSelection.contains(user.userId) {
+                    localSelection.remove(user.userId)
                 } else {
-                    selection.insert(user.userId)
+                    localSelection.insert(user.userId)
                 }
             } label: {
-                TaskMemberOptionRow(user: user, isSelected: selection.contains(user.userId))
+                TaskMemberOptionRow(user: user, isSelected: localSelection.contains(user.userId))
             }
             .buttonStyle(.plain)
-            .accessibilityAddTraits(selection.contains(user.userId) ? .isSelected : [])
+            .accessibilityAddTraits(localSelection.contains(user.userId) ? .isSelected : [])
         }
         .navigationTitle("选择成员")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "搜索姓名或邮箱")
         .scrollDismissesKeyboard(.interactively)
         .keyboardDoneToolbar { dismissSearch() }
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("完成") {
+                    selection = localSelection
+                    dismiss()
+                }
+            }
+        }
         .overlay {
             if filteredUsers.isEmpty {
                 ContentUnavailableView(
@@ -839,6 +870,11 @@ private struct TaskParticipantsSelectionView: View {
                     description: Text(searchText.isEmpty ? "当前项目没有其他可选成员" : "请尝试其他姓名或邮箱")
                 )
             }
+        }
+        .onAppear {
+            guard !didHydrate else { return }
+            localSelection = selection
+            didHydrate = true
         }
     }
 

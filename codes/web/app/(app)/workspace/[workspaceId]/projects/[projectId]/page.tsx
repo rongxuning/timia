@@ -122,6 +122,16 @@ export default function ProjectPage() {
   }
 
   async function handleTaskCreated(ctx: TaskDrawerSaveContext) {
+    // 派发全局事件，让 AppShell 统一处理便利贴 link
+    window.dispatchEvent(
+      new CustomEvent("app:task-created", {
+        detail: {
+          itemId: ctx.item.id,
+          workspaceId: ctx.workspaceId,
+          projectId: ctx.projectId,
+        },
+      }),
+    );
     closeTaskCreate();
     if (ctx.projectId !== projectId) return;
     bumpSchedule();

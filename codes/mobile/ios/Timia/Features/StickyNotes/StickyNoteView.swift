@@ -33,13 +33,6 @@ struct StickyNoteView: View {
         .task {
             await model.refresh(api: api)
         }
-        .fileImporter(
-            isPresented: $showingPicker,
-            allowedContentTypes: [.image, .movie, .audio, .pdf, .data],
-            allowsMultipleSelection: true
-        ) { result in
-            handleFileImport(result)
-        }
         .sheet(isPresented: $isEditorPresented, onDismiss: resetEditorState) {
             NavigationStack {
                 StickyNoteInputView(
@@ -66,6 +59,13 @@ struct StickyNoteView: View {
                             isEditorPresented = false
                         }
                     }
+                }
+                .fileImporter(
+                    isPresented: $showingPicker,
+                    allowedContentTypes: [.image, .movie, .audio, .pdf, .data],
+                    allowsMultipleSelection: true
+                ) { result in
+                    handleFileImport(result)
                 }
             }
             .presentationDetents([.large])
@@ -330,11 +330,20 @@ struct StickyNoteView: View {
 
     private func requestLocation() async {
         locationError = nil
+        // If the user hasn't been asked yet, just trigger the system
+        // permission dialog and return — the request will resume once
+        // they respond (via locationManagerDidChangeAuthorization).
+        let status = locationManager.authorizationStatus
+        if status == .notDetermined {
+            locationManager.requestAuthorizationIfNeeded()
+            return
+        }
         do {
             let snapshot = try await locationManager.requestCurrent()
             draft.location = snapshot
         } catch {
-            locationError = error.localizedDescription
+            // Don't surface a red error after the user just denied; the
+            // system dialog itself is the feedback.
         }
     }
 }

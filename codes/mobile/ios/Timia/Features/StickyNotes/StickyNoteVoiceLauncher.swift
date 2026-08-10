@@ -1,14 +1,5 @@
 import SwiftUI
 
-// MARK: - Observable wrapper for recognizer
-
-/// Tiny ObservableObject wrapper so we can use @StateObject with the
-/// non-ObservableObject recognizer class.
-@MainActor
-final class RecognizerBox: ObservableObject {
-    let recognizer = StickyNoteSpeechRecognizer()
-}
-
 /// Voice recording button for sticky-note mode.
 ///
 /// Tap mic → mic becomes a red square stop button + a floating glass
@@ -69,8 +60,9 @@ struct StickyNoteVoiceLauncher: View {
 /// Displays a glass-effect circle with breathing animation.
 struct VoiceRecordingOverlay: View {
     @ObservedObject var draft: StickyNoteDraftStore
-    @StateObject private var recognizerBox = RecognizerBox()
-    @StateObject private var permissions = SpeechPermissionManager.shared
+    /// Lazily initialised in `.task` so the `@MainActor` recognizer init
+    /// never runs from a non-isolated context (which would crash).
+    @State private var recognizer: StickyNoteSpeechRecognizer?
     @State private var transcript: String = ""
     @State private var statusMsg: String? = nil
     @State private var statusIsError: Bool = false
@@ -135,16 +127,23 @@ struct VoiceRecordingOverlay: View {
         .onDisappear {
             if !hasCommitted {
                 if didStart {
-                    recognizerBox.recognizer.stopRecording()
+                    recognizer?.stopRecording()
                 } else {
-                    recognizerBox.recognizer.cancel()
+                    recognizer?.cancel()
                 }
             }
         }
     }
 
     private func prepareAndStart() async {
-        let auth = await permissions.requestIfNeeded()
+        // Lazily create the recognizer here (main-actor context) so its
+        // @MainActor init never runs from a non-isolated place.
+        if recognizer == nil {
+            recognizer = StickyNoteSpeechRecognizer()
+        }
+        guard let recognizer else { return }
+
+        let auth = await SpeechPermissionManager.shared.requestIfNeeded()
         guard auth == .authorized else {
             statusMsg = "需要麦克风权限（设置 → Timia）"
             statusIsError = true
@@ -168,7 +167,7 @@ struct VoiceRecordingOverlay: View {
             return
         }
 
-        let recognizer = recognizerBox.recognizer
+        let recognizer = recognizer
         recognizer.onPartial = { text in
             Task { @MainActor in transcript = text }
         }
