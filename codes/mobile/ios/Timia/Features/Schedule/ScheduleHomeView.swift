@@ -97,6 +97,12 @@ struct ScheduleHomeView: View {
                                 Task { await loadVisibleContent(force: true) }
                             }
                         )
+                        .onChange(of: stickyDraft.voiceInputCompleted) { _, completed in
+                            if completed {
+                                isStickyNoteEditorPresented = true
+                                stickyDraft.voiceInputCompleted = false
+                            }
+                        }
                     } else if contentMode == .todo {
                         TodoScheduleView(
                             columns: todoColumns,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch, type ApiError } from "@/lib/api";
 
@@ -40,6 +40,7 @@ export default function DatabaseTableDataPage() {
   const [data, setData] = useState<DbTablesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +67,13 @@ export default function DatabaseTableDataPage() {
     void load();
   }, [load]);
 
+  const filteredTables = useMemo(() => {
+    if (!data) return [];
+    const q = filter.trim().toLowerCase();
+    if (!q) return data.tables;
+    return data.tables.filter((t) => t.name.toLowerCase().includes(q));
+  }, [data, filter]);
+
   return (
     <main className="min-h-screen px-container-padding py-8">
       <div className="max-w-container-max mx-auto space-y-4xl">
@@ -73,7 +81,7 @@ export default function DatabaseTableDataPage() {
           <div className="space-y-xs">
             <h1 className="font-section-heading text-section-heading text-text-primary">数据库表数据</h1>
             <p className="text-body text-text-secondary">
-              各表当前数据预览（每表最多 200 行，按创建时间倒序）。用户表的密码列为掩码。需开启 API 的{" "}
+              各表当前数据预览（每表最多 200 行，按创建时间倒序）。密码 / refresh-token / 设备公钥 / challenge nonce 已掩码。需开启 API 的{" "}
               <code className="rounded bg-surface-container-high px-1 py-0.5 text-small">ENABLE_DEV_DB_TABLES</code>{" "}
               配置。
             </p>
@@ -105,6 +113,26 @@ export default function DatabaseTableDataPage() {
           </div>
         </div>
 
+        {data ? (
+          <div className="flex flex-wrap items-center gap-sm">
+            <div className="relative flex-1 min-w-[16rem]">
+              <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-text-secondary">
+                search
+              </span>
+              <input
+                type="text"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={`筛选表名（共 ${data.tables.length} 张）`}
+                className="w-full rounded-lg border border-border-subtle bg-surface py-sm pl-8 pr-md text-small text-text-primary placeholder:text-text-secondary focus:border-primary focus:outline-none"
+              />
+            </div>
+            <span className="text-small text-text-secondary">
+              {filteredTables.length} / {data.tables.length} 张表
+            </span>
+          </div>
+        ) : null}
+
         {error ? (
           <div className="rounded-xl border border-error-container bg-error-container/10 p-4 text-small text-error">
             {error}
@@ -115,7 +143,7 @@ export default function DatabaseTableDataPage() {
           <div className="text-small text-text-secondary">加载中…</div>
         ) : null}
 
-        {data?.tables.map((table) => (
+        {filteredTables.map((table) => (
           <section key={table.name} className="space-y-md">
             <div className="flex items-baseline gap-sm">
               <h2 className="font-subsection-heading text-subsection-heading text-text-primary">{table.name}</h2>

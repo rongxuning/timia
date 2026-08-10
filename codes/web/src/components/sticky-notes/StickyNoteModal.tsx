@@ -115,7 +115,8 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
     };
   }, []);
 
-  // 监听任务创建完成事件，更新便利贴状态为"已转化"
+  // 监听任务创建完成事件，写入 converted_item_id（statusOf 用 converted_item_id 判断是否 converted，
+  // 不依赖 parse_status；refreshList 拉回的后台数据不会覆盖这个字段）
   useEffect(() => {
     function onConverted(e: Event) {
       const { noteId, itemId } = (e as CustomEvent<{ noteId: string; itemId: string }>).detail;
@@ -128,7 +129,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
                   ? {
                       ...note,
                       latest_parse: note.latest_parse
-                        ? { ...note.latest_parse, parse_status: "converted" as StickyNoteAIParseOut["parse_status"], converted_item_id: itemId }
+                        ? { ...note.latest_parse, converted_item_id: itemId }
                         : null,
                     }
                   : note,
@@ -213,7 +214,37 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       const token = getTokenOrThrow();
       const data = await listStickyNotes(token, { limit: 50 });
       if (!isActiveRequest()) return;
-      setList(data);
+      // 与本地状态合并：保留本地已有的 converted_item_id，
+      // 避免在 link API 写入完成前 refreshList 抢盖乐观更新
+      setList((prev) => {
+        if (!prev) return data;
+        const prevConvertedById = new Map<string, string>();
+        for (const note of prev.items) {
+          if (note.latest_parse?.converted_item_id) {
+            prevConvertedById.set(note.id, note.latest_parse.converted_item_id);
+          }
+        }
+        const mergedItems = data.items.map((note) => {
+          const localConverted = prevConvertedById.get(note.id);
+          if (
+            localConverted &&
+            !note.latest_parse?.converted_item_id
+          ) {
+            return {
+              ...note,
+              latest_parse: note.latest_parse
+                ? { ...note.latest_parse, converted_item_id: localConverted }
+                : null,
+            };
+          }
+          return note;
+        });
+        console.info("[sticky-note] refreshList merged", {
+          prevConverted: prevConvertedById.size,
+          serverCount: data.items.length,
+        });
+        return { ...data, items: mergedItems };
+      });
       for (const note of data.items) {
         if (note.latest_parse?.parse_status === "pending") {
           void pollParse(note.id, note.latest_parse);
@@ -392,6 +423,8 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
     }
     const draft = parse.draft;
     onConvertToTask(noteId, {
+      noteId,
+      parseId: parse.id,
       title: draft.title || note?.title?.trim() || "",
       body: draft.body ?? note?.content ?? "",
       status: draft.status ?? "todo",

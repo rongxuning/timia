@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { apiFetch, bootstrapSession, type ApiError } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import { convertStickyNoteToTask } from "@/lib/api/sticky-notes";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   getMeClientSnapshot,
@@ -65,17 +66,20 @@ function pageOwnsTaskCreateDrawer(pathname: string) {
 function FloatingButtons({
   pathname,
   setPendingConvertNoteId,
+  pendingConvertPrefillRef,
 }: {
   pathname: string;
   setPendingConvertNoteId: (noteId: string | null) => void;
+  pendingConvertPrefillRef: React.MutableRefObject<TaskCreatePrefill | null>;
 }) {
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const { openCreate, close: closeTaskCreate } = useTaskCreateDrawer();
   const previousPathnameRef = useRef(pathname);
 
   function openTaskFromStickyNote(noteId: string, prefill: TaskCreatePrefill) {
+    pendingConvertPrefillRef.current = prefill;
     setPendingConvertNoteId(noteId);
-    const { noteId: _noteId, ...createPrefill } = prefill;
+    const { noteId: _noteId, parseId: _parseId, ...createPrefill } = prefill;
     openCreate(createPrefill);
     setStickyNoteOpen(false);
   }
@@ -163,9 +167,11 @@ function GlobalTaskCreateDrawer({
       initialCreateTitle={initialTitle}
       initialCreateBody={initialBody}
       initialCreateLocation={initialLocation}
-      onTaskCreated={(ctx) => {
+      onTaskCreated={async (ctx) => {
         if (pendingConvertNoteId) {
-          onStickyNoteConverted(pendingConvertNoteId, ctx.item.id, ctx.workspaceId, ctx.projectId);
+          // 必须 await：保证后台 link API 写入完成后再关闭抽屉，
+          // 否则用户快速重开便利贴 modal 时，refreshList 会拉到旧数据
+          await onStickyNoteConverted(pendingConvertNoteId, ctx.item.id, ctx.workspaceId, ctx.projectId);
         }
         close();
       }}
@@ -181,6 +187,7 @@ export function AppShell({ children }: AppShellProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [pendingConvertNoteId, setPendingConvertNoteId] = useState<string | null>(null);
+  const pendingConvertPrefillRef = useRef<TaskCreatePrefill | null>(null);
   const pendingTaskContextRef = useRef<{
     noteId: string;
     itemId: string;
@@ -223,17 +230,38 @@ export function AppShell({ children }: AppShellProps) {
   const isAdmin = isSystemAdmin(me?.system_role);
   const ownsTaskCreateDrawer = pageOwnsTaskCreateDrawer(pathname);
 
-  const handleStickyNoteConverted = (
+  const handleStickyNoteConverted = async (
     noteId: string,
     itemId: string,
     workspaceId: string,
     projectId: string,
   ) => {
+    // 调用后台 API 写入 converted_item_id，statusOf 依赖此字段判断 converted 状态
+    const prefill = pendingConvertPrefillRef.current;
+    const parseId = prefill?.parseId;
+    console.info("[sticky-note] convert.start", { noteId, parseId, itemId, workspaceId, projectId });
+    if (parseId) {
+      try {
+        await convertStickyNoteToTask(getAccessToken() ?? "", noteId, {
+          parse_id: parseId,
+          workspace_id: workspaceId,
+          project_id: projectId,
+          field_overrides: {},
+          item_id: itemId,
+        });
+        console.info("[sticky-note] convert.ok", { noteId, parseId, itemId });
+      } catch (err) {
+        console.error("[sticky-note] convert.failed", err, { noteId, parseId, itemId });
+      }
+    } else {
+      console.warn("[sticky-note] convert.skipped (no parseId)", { noteId, itemId });
+    }
     // 存储 workspace/project 映射，供后续打开编辑时使用
     pendingTaskContextRef.current = { noteId, itemId, workspaceId, projectId };
     window.dispatchEvent(
       new CustomEvent("sticky-note-converted", { detail: { noteId, itemId, workspaceId, projectId } }),
     );
+    pendingConvertPrefillRef.current = null;
     setPendingConvertNoteId(null);
   };
 
@@ -287,6 +315,7 @@ export function AppShell({ children }: AppShellProps) {
           <FloatingButtons
             pathname={pathname}
             setPendingConvertNoteId={setPendingConvertNoteId}
+            pendingConvertPrefillRef={pendingConvertPrefillRef}
           />
         )}
       </div>

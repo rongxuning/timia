@@ -2,16 +2,17 @@ import Foundation
 import AVFoundation
 import Speech
 
-/// Wraps ``SFSpeechRecognizer`` for the sticky-note voice button.
+/// Shared singleton for the sticky-note voice recognizer.
 ///
 /// v1 contract:
 ///   * ``requiresOnDeviceRecognition == true`` — no audio leaves the device.
 ///   * v1 only supports Chinese (zh-CN).
 ///   * Audio buffers are streamed via ``SFSpeechAudioBufferRecognitionRequest``
-///     and never written to disk. After ``stop()`` the engine is torn down
-///     and the audio buffer is released.
+///     and never written to disk.
 @MainActor
 final class StickyNoteSpeechRecognizer {
+    static let shared = StickyNoteSpeechRecognizer()
+
     enum RecognizerError: LocalizedError {
         case onDeviceNotSupported
         case engineFailedToStart(String)
@@ -38,28 +39,28 @@ final class StickyNoteSpeechRecognizer {
 
     private(set) var isRunning = false
 
-    /// Begin streaming microphone audio into the recognizer.
-    func start() throws {
-        guard !isRunning else { return }
-        let availability = OnDeviceSupportChecker.check()
-        guard availability == .available else {
-            throw RecognizerError.onDeviceNotSupported
+    private var setupAudioSession: Bool {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            return true
+        } catch {
+            return false
         }
+    }
+
+    private func beginRecognition() {
         guard let recognizer = SFSpeechRecognizer(locale: OnDeviceSupportChecker.locale) else {
-            throw RecognizerError.recognizerUnavailable
+            onError?(RecognizerError.recognizerUnavailable)
+            return
         }
 
-        // Cancel any prior task
         recognitionTask?.cancel()
         recognitionTask = nil
 
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
-
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        // Hard guarantee: never go to the cloud.
         request.requiresOnDeviceRecognition = true
         if #available(iOS 16, *) {
             request.addsPunctuation = true
@@ -76,7 +77,8 @@ final class StickyNoteSpeechRecognizer {
         do {
             try audioEngine.start()
         } catch {
-            throw RecognizerError.engineFailedToStart(error.localizedDescription)
+            onError?(RecognizerError.engineFailedToStart(error.localizedDescription))
+            return
         }
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
@@ -100,9 +102,38 @@ final class StickyNoteSpeechRecognizer {
         isRunning = true
     }
 
+    /// Start recording. Used by ``StickyNoteVoiceLauncher``.
+    /// Errors are delivered via ``onError`` callback (non-throwing).
+    func startRecording() {
+        guard !isRunning else { return }
+        guard setupAudioSession else {
+            onError?(RecognizerError.engineFailedToStart("audio session setup failed"))
+            return
+        }
+        let availability = OnDeviceSupportChecker.check()
+        guard availability == .available else {
+            onError?(RecognizerError.onDeviceNotSupported)
+            return
+        }
+        beginRecognition()
+    }
+
+    /// Start recording. Throws on failure. Used by ``RecordingOverlay``.
+    func start() throws {
+        guard !isRunning else { return }
+        guard setupAudioSession else {
+            throw RecognizerError.engineFailedToStart("audio session setup failed")
+        }
+        let availability = OnDeviceSupportChecker.check()
+        guard availability == .available else {
+            throw RecognizerError.onDeviceNotSupported
+        }
+        beginRecognition()
+    }
+
     /// Stop streaming and let the recognizer finalize. The ``onFinal`` callback
     /// is invoked when the final result arrives (usually within a few hundred ms).
-    func stop() {
+    func stopRecording() {
         recognitionRequest?.endAudio()
         audioEngine.stop()
         // Defer cleanup until onFinal / onError fires — see callback.

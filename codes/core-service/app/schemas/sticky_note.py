@@ -181,12 +181,18 @@ class StickyNoteConvertRequest(BaseModel):
     workspace/project list, or chosen one manually). The convenience endpoint
     falls back to the user's most-recently-active workspace if these are
     omitted *and* the request is shaped via the auto-fallback path.
+
+    If ``item_id`` is provided, the endpoint will NOT create a new item — it
+    simply marks the parse as pointing at the given existing item. This is the
+    "link" path used when the task drawer creates the item first and the
+    sticky note is just recording the relationship.
     """
 
     parse_id: str
     workspace_id: str
     project_id: str
     field_overrides: dict[str, Any] = Field(default_factory=dict)
+    item_id: str | None = None
 
 
 class StickyNoteConvertResponse(BaseModel):

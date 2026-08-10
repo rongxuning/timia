@@ -37,6 +37,7 @@ const commentPath = {
   comment_id: "uuid (path)",
 };
 const userPath = { user_id: "uuid (path)" };
+const stickyNotePath = { note_id: "uuid (path)" };
 
 /** 与 codes/core-service 中 FastAPI 路由对齐；前端「是否使用」由源码扫描 apiFetch 得到 */
 export const API_CATALOG: ApiCatalogEntry[] = [
@@ -86,6 +87,39 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "我的日程仪表盘",
     requestJson: { headers: authBearer, query: null, jsonBody: null },
     responseJson: { display_name: "string", health_percent: "number | null", task_total: "number" },
+  },
+  {
+    method: "POST",
+    path: "/views/schedule/natural-language/parse",
+    name: "自然语言 → 任务草稿（AI 解析）",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: {
+        text: "string (max 2000)",
+        timezone: "string (IANA, default Asia/Shanghai)",
+        reference_time: "string (iso datetime, client now)",
+        selected_date: "string (YYYY-MM-DD)? — optional anchor for relative dates",
+      },
+    },
+    responseJson: {
+      title: "string",
+      body: "string | null",
+      start_at: "string (iso datetime) | null",
+      end_at: "string (iso datetime) | null",
+      all_day: "boolean",
+      status: '"todo" | "doing" | "done" | "archived"',
+      priority: '"1" | "2" | "3" | "4"',
+      location: "string | null",
+      workspace_name: "string | null",
+      project_name: "string | null",
+      assignee_name: "string | null",
+      participant_names: "string[]",
+      recurrence_text: "string | null",
+      assumptions: "string[]",
+      missing_fields: "string[]",
+      ambiguities: "string[]",
+    },
   },
   {
     method: "GET",
@@ -273,6 +307,176 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       display_name: "string",
       system_role: "admin | user",
     },
+  },
+
+  // ---------- Mobile (iOS) auth ----------
+  // Mobile auth uses device-attested challenges + Ed25519 signatures (no cookies,
+  // no bearer-only model). Audience is settings.mobile_jwt_audience; web bearer
+  // tokens are NOT interchangeable with mobile access tokens.
+  {
+    method: "POST",
+    path: "/auth/mobile/devices/challenge",
+    name: "请求设备 challenge（注册 / 登录 / 换设备）",
+    requestJson: {
+      headers: null,
+      query: null,
+      jsonBody: { installation_id: "string (16-64 chars)", purpose: '"register" | "login" | "exchange"' },
+    },
+    responseJson: { challenge_id: "uuid", nonce: "string", expires_at: "string (iso datetime)" },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/devices/register",
+    name: "注册 iOS 设备公钥（绑定 installation_id）",
+    requestJson: {
+      headers: null,
+      query: null,
+      jsonBody: {
+        installation_id: "string",
+        challenge_id: "uuid",
+        nonce: "string (32-256 chars)",
+        public_key: "string (Ed25519, 80-256 chars)",
+        signature: "string (64-256 chars, signs registration_message)",
+        device_name: "string?",
+        os_version: "string?",
+        app_version: "string?",
+      },
+    },
+    responseJson: { device_id: "uuid", installation_id: "string" },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/login/password",
+    name: "iOS 密码登录（设备签名 + challenge）",
+    requestJson: {
+      headers: null,
+      query: null,
+      jsonBody: {
+        email: "string (email)",
+        password: "string",
+        installation_id: "string",
+        challenge_id: "uuid",
+        nonce: "string",
+        signature: "string (signs login_message)",
+      },
+    },
+    responseJson: {
+      access_token: "string (mobile audience)",
+      token_type: "string (default bearer)",
+      expires_in: "number (seconds)",
+      refresh_token: "string",
+      refresh_token_expires_at: "string (iso datetime)",
+      session_id: "uuid",
+    },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/token/exchange",
+    name: "用 web access token 换取 mobile token（已登录用户新装 App）",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: {
+        installation_id: "string",
+        challenge_id: "uuid",
+        nonce: "string",
+        signature: "string (signs exchange_message)",
+      },
+    },
+    responseJson: {
+      access_token: "string (mobile audience)",
+      token_type: "string (default bearer)",
+      expires_in: "number (seconds)",
+      refresh_token: "string",
+      refresh_token_expires_at: "string (iso datetime)",
+      session_id: "uuid",
+    },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/token/refresh/challenge",
+    name: "请求 mobile 刷新 challenge",
+    requestJson: {
+      headers: null,
+      query: null,
+      jsonBody: { installation_id: "string", session_id: "uuid (current mobile session id)" },
+    },
+    responseJson: { challenge_id: "uuid", nonce: "string", expires_at: "string (iso datetime)" },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/token/refresh",
+    name: "刷新 mobile access token（设备签名 + 双代轮换）",
+    requestJson: {
+      headers: null,
+      query: null,
+      jsonBody: {
+        session_id: "uuid",
+        installation_id: "string",
+        refresh_token: "string",
+        request_id: "string (16-64 chars, idempotency key)",
+        challenge_id: "uuid",
+        nonce: "string",
+        signature: "string",
+      },
+    },
+    responseJson: {
+      access_token: "string (mobile audience)",
+      token_type: "string (default bearer)",
+      expires_in: "number (seconds)",
+      refresh_token: "string (rotated)",
+      refresh_token_expires_at: "string (iso datetime)",
+      session_id: "uuid",
+    },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/logout",
+    name: "退出当前 mobile 会话",
+    requestJson: { headers: { Authorization: "Bearer <mobile_access_token>" }, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
+  },
+  {
+    method: "POST",
+    path: "/auth/mobile/logout-all",
+    name: "退出该用户所有 mobile 会话",
+    requestJson: { headers: { Authorization: "Bearer <mobile_access_token>" }, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
+  },
+  {
+    method: "GET",
+    path: "/auth/mobile/sessions",
+    name: "当前用户活跃 mobile 会话列表",
+    requestJson: { headers: { Authorization: "Bearer <mobile_access_token>" }, query: null, jsonBody: null },
+    responseJson: {
+      type: "array",
+      items: {
+        id: "uuid",
+        installation_id: "string",
+        device_name: "string | null",
+        platform: '"ios"',
+        os_version: "string | null",
+        app_version: "string | null",
+        login_provider: "string (password | legacy_exchange)",
+        created_at: "string (iso datetime)",
+        last_used_at: "string (iso datetime)",
+        idle_expires_at: "string (iso datetime)",
+        absolute_expires_at: "string (iso datetime)",
+        is_current: "boolean",
+      },
+    },
+  },
+  {
+    method: "DELETE",
+    path: "/auth/mobile/sessions/{session_id}",
+    name: "吊销指定 mobile 会话",
+    requestJson: {
+      headers: { Authorization: "Bearer <mobile_access_token>" },
+      pathParams: { session_id: "uuid (path)" },
+      query: null,
+      jsonBody: null,
+    },
+    responseJson: { httpStatus: 204, jsonBody: null },
   },
 
   {
@@ -677,6 +881,18 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     },
     responseJson: { httpStatus: 204, jsonBody: null },
   },
+  {
+    method: "PATCH",
+    path: "/workspaces/{workspace_id}/projects/{project_id}/favorite",
+    name: "收藏或取消收藏项目",
+    requestJson: {
+      headers: authBearer,
+      pathParams: workspaceProjectPath,
+      query: null,
+      jsonBody: { is_favorite: "boolean" },
+    },
+    responseJson: { project_id: "string (uuid)", is_favorite: "boolean" },
+  },
 
   {
     method: "GET",
@@ -884,6 +1100,108 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "删除评论",
     requestJson: { headers: authBearer, pathParams: commentPath, query: null, jsonBody: null },
     responseJson: { httpStatus: 204, jsonBody: null },
+  },
+
+  // ---------- Sticky notes (mobile, owner-scoped) ----------
+  // All endpoints require Bearer token. Read/write gated by owner_user_id;
+  // any other-user id returns 404 to avoid existence leaks. Notes are
+  // append-only except for title / content / location_name.
+  {
+    method: "GET",
+    path: "/sticky-notes",
+    name: "便签列表（仅当前用户）",
+    requestJson: {
+      headers: authBearer,
+      query: { limit: "number (1-100, default 20)", cursor: "string?", include_archived: "boolean (default false)" },
+      jsonBody: null,
+    },
+    responseJson: { items: "StickyNoteOut[]", next_cursor: "string | null" },
+  },
+  {
+    method: "POST",
+    path: "/sticky-notes",
+    name: "创建便签",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: {
+        title: "string? (max 200)",
+        content: "string (1-10000, stripped)",
+        recorded_at: "string (iso datetime)? — defaults to server now",
+        timezone: "string (IANA, default Asia/Shanghai)",
+        location: "StickyNoteLocationIn? — { lat, lng, accuracy_m?, name?, source }",
+        attachments: "StickyNoteAttachmentIn[] (max 9)",
+        auto_parse: "boolean (default false) — trigger AI parse inline",
+      },
+    },
+    responseJson: "StickyNoteOut",
+  },
+  {
+    method: "GET",
+    path: "/sticky-notes/{note_id}",
+    name: "便签详情",
+    requestJson: { headers: authBearer, pathParams: stickyNotePath, query: null, jsonBody: null },
+    responseJson: "StickyNoteOut",
+  },
+  {
+    method: "PATCH",
+    path: "/sticky-notes/{note_id}",
+    name: "更新便签（仅 title / content / location_name）",
+    requestJson: {
+      headers: authBearer,
+      pathParams: stickyNotePath,
+      query: null,
+      jsonBody: { title: "string? (max 200)", content: "string? (1-10000)", location_name: "string? (max 500)" },
+    },
+    responseJson: "StickyNoteOut",
+  },
+  {
+    method: "DELETE",
+    path: "/sticky-notes/{note_id}",
+    name: "归档便签（软删除）",
+    requestJson: { headers: authBearer, pathParams: stickyNotePath, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
+  },
+  {
+    method: "POST",
+    path: "/sticky-notes/{note_id}/ai-parse",
+    name: "触发便签 AI 解析（创建一条 parse 记录）",
+    requestJson: { headers: authBearer, pathParams: stickyNotePath, query: null, jsonBody: null },
+    responseJson: "StickyNoteAIParseOut",
+  },
+  {
+    method: "GET",
+    path: "/sticky-notes/{note_id}/parses",
+    name: "便签 AI 解析历史",
+    requestJson: {
+      headers: authBearer,
+      pathParams: stickyNotePath,
+      query: { latest: "boolean (default false) — return only the latest parse" },
+      jsonBody: null,
+    },
+    responseJson: { type: "array", items: "StickyNoteAIParseOut" },
+  },
+  {
+    method: "POST",
+    path: "/sticky-notes/{note_id}/convert",
+    name: "将便签（已解析）落地为真实任务",
+    requestJson: {
+      headers: authBearer,
+      pathParams: stickyNotePath,
+      query: null,
+      jsonBody: {
+        parse_id: "uuid (the parse to convert)",
+        workspace_id: "uuid",
+        project_id: "uuid",
+        field_overrides: "object — patch draft fields before creating the item",
+        item_id: "uuid? — if set, do not create; just link parse → existing item",
+      },
+    },
+    responseJson: {
+      item: "ItemOut",
+      sticky_note: "StickyNoteOut",
+      parse: "StickyNoteAIParseOut",
+    },
   },
 
   {

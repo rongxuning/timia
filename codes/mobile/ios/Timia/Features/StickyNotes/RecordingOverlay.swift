@@ -10,7 +10,7 @@ import SwiftUI
 struct RecordingOverlay: View {
     @ObservedObject var draft: StickyNoteDraftStore
     @StateObject private var permissions = SpeechPermissionManager.shared
-    @State private var recognizer = StickyNoteSpeechRecognizer()
+    private var recognizer: StickyNoteSpeechRecognizer { StickyNoteSpeechRecognizer.shared }
     @State private var partialText: String = ""
     @State private var statusMessage: String? = nil
     @State private var statusIsError: Bool = false
@@ -136,9 +136,9 @@ struct RecordingOverlay: View {
 
     /// Called by parent on release of the long-press. We commit if we
     /// managed to start, otherwise just dismiss.
-    func stop() {
+    func stopRecording() {
         if didStart {
-            recognizer.stop()
+            recognizer.stopRecording()
         } else {
             onCancel()
         }

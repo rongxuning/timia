@@ -2279,6 +2279,8 @@ export interface components {
             field_overrides?: {
                 [key: string]: unknown;
             };
+            /** Item Id (link path: mark parse as pointing at existing item, do not create) */
+            item_id?: string;
         };
         /** StickyNoteConvertResponse */
         StickyNoteConvertResponse: {

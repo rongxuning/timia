@@ -14,7 +14,25 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.deps import get_db
-from app.models import ActivityLog, Comment, Item, Project, ProjectFavorite, ProjectMember, User, Workspace, WorkspaceMember
+from app.models import (
+    ActivityLog,
+    AuthChallenge,
+    AuthIdentity,
+    Comment,
+    Item,
+    MobileDevice,
+    MobileSession,
+    Project,
+    ProjectFavorite,
+    ProjectMember,
+    StickyNote,
+    StickyNoteAIParse,
+    StickyNoteAttachment,
+    User,
+    WebSession,
+    Workspace,
+    WorkspaceMember,
+)
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 
@@ -43,7 +61,17 @@ def _orm_row_dict(model_cls: type, row: Any) -> dict[str, Any]:
     for col in mapper.mapper.column_attrs:
         key = col.key
         val = getattr(row, key)
+        # 始终掩码敏感字段（密码、refresh token hash、设备公钥）
         if model_cls is User and key == "password_hash":
+            out[key] = "***"
+        elif model_cls in (WebSession, MobileSession) and key in {
+            "refresh_token_hash",
+            "previous_refresh_token_hash",
+        }:
+            out[key] = "***"
+        elif model_cls is MobileDevice and key == "public_key":
+            out[key] = "***"
+        elif model_cls is AuthChallenge and key == "nonce_hash":
             out[key] = "***"
         else:
             out[key] = _serialize_value(val)
@@ -51,15 +79,27 @@ def _orm_row_dict(model_cls: type, row: Any) -> dict[str, Any]:
 
 
 _TABLE_ORDER: list[tuple[str, type]] = [
+    # 身份与会话
     ("users", User),
+    ("auth_identities", AuthIdentity),
+    ("auth_challenges", AuthChallenge),
+    ("web_sessions", WebSession),
+    ("mobile_devices", MobileDevice),
+    ("mobile_sessions", MobileSession),
+    # 工作空间 / 项目
     ("workspaces", Workspace),
     ("workspace_members", WorkspaceMember),
     ("projects", Project),
     ("project_members", ProjectMember),
     ("project_favorites", ProjectFavorite),
+    # 任务 / 评论 / 活动
     ("items", Item),
     ("comments", Comment),
     ("activity_log", ActivityLog),
+    # 便利贴
+    ("sticky_notes", StickyNote),
+    ("sticky_note_attachments", StickyNoteAttachment),
+    ("sticky_note_ai_parses", StickyNoteAIParse),
 ]
 
 _ROW_LIMIT = 200

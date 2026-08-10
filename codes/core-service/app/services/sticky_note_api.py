@@ -374,6 +374,73 @@ def convert_sticky_note_to_item(
     if not project or project.workspace_id != workspace_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_project")
 
+    # ── Link path ────────────────────────────────────────────────────────
+    # If the caller already created the item (e.g. via the task drawer),
+    # just mark the parse as pointing at that item. No new item, no
+    # duplicate. Caller must own the item.
+    if payload.item_id:
+        import logging
+        logger = logging.getLogger("sticky_note.link")
+        logger.info(
+            "link.start note_id=%s parse_id=%s item_id=%s workspace_id=%s project_id=%s",
+            note_id, parse.id, payload.item_id, workspace_id, project_id,
+        )
+        existing = db.get(Item, uuid.UUID(payload.item_id))
+        if (
+            not existing
+            or existing.workspace_id != workspace_id
+            or existing.project_id != project_id
+        ):
+            logger.warning(
+                "link.item_not_in_workspace item_id=%s existing_ws=%s req_ws=%s existing_proj=%s req_proj=%s",
+                payload.item_id,
+                existing.workspace_id if existing else None,
+                workspace_id,
+                existing.project_id if existing else None,
+                project_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="item_not_in_workspace",
+            )
+        # Verify ownership via workspace member.
+        is_member = db.scalar(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user.id,
+            )
+        )
+        if not is_member and existing.created_by_user_id != user.id:
+            logger.warning("link.item_not_owned item_id=%s user_id=%s", payload.item_id, user.id)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="item_not_owned",
+            )
+        parse.converted_item_id = existing.id
+        parse.converted_at = datetime.now(timezone.utc)
+        note.converted_count = (note.converted_count or 0) + 1
+        log_activity(
+            db,
+            workspace_id=workspace_id,
+            actor_user_id=user.id,
+            entity_type="item",
+            entity_id=existing.id,
+            action="link_from_sticky_note",
+            metadata={
+                "from_sticky_note_id": str(note.id),
+                "from_sticky_note_parse_id": str(parse.id),
+            },
+        )
+        db.commit()
+        db.refresh(note)
+        db.refresh(parse)
+        logger.info(
+            "link.ok note_id=%s parse_id=%s converted_item_id=%s",
+            note_id, parse.id, parse.converted_item_id,
+        )
+        return existing, note, parse
+    # ── Create path (legacy) ─────────────────────────────────────────────
+
     # Build ItemCreate from parse + overrides.
     draft = (parse.draft_json or {}) if isinstance(parse.draft_json, dict) else {}
     overrides = payload.field_overrides or {}

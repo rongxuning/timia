@@ -11,6 +11,7 @@ import type { PriorityKey, StatusKey } from "@/types/api/views/schedule";
 
 export type TaskCreatePrefill = {
   noteId?: string;
+  parseId?: string;
   status?: StatusKey;
   priority?: PriorityKey;
   startAt?: string;

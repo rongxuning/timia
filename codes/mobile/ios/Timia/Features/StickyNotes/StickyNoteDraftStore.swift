@@ -41,6 +41,9 @@ final class StickyNoteDraftStore: ObservableObject {
     @Published var location: StickyNoteLocationSnapshot? = nil
     @Published var isSaving: Bool = false
     @Published var lastError: String? = nil
+    /// Set to true by the voice launcher when STT completes so the parent
+    /// view knows to open the editor sheet.
+    @Published var voiceInputCompleted: Bool = false
 
     /// Convenience — the (title, content) split of ``combined``.
     var splitTitleContent: (title: String?, content: String) {

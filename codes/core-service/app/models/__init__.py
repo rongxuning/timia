@@ -9,6 +9,7 @@ from app.models.sticky_note import (
     StickyNoteAttachment,
 )
 from app.models.user import User
+from app.models.web_auth import WebSession
 from app.models.workspace import Workspace, WorkspaceMember
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "StickyNoteAIParse",
     "StickyNoteAttachment",
     "User",
+    "WebSession",
     "Workspace",
     "WorkspaceMember",
 ]
