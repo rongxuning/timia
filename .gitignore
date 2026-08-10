@@ -13,6 +13,7 @@ codes/core-service/.ruff_cache/
 codes/core-service/.mypy_cache/
 codes/core-service/.env
 
+node_modules/
 codes/web/node_modules/
 codes/web/.next/
 codes/web/.env.local
