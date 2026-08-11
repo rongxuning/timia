@@ -340,7 +340,6 @@ export function CalendarTimelineColumn({
                       <CalendarTaskCardLines
                         item={block.item}
                         showProjectContext={showProjectContext}
-                        crossesDay={block.crossesDay}
                         titleClassName={titleClassName}
                         metaClassName={metaClassName}
                         previewStartAtIso={previewStartAtIso}
