@@ -1,5 +1,5 @@
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
-import { formatScheduleDateTime, pad2 } from "./taskUtils.ts";
+import { formatScheduleDateTime, pad2 } from "./taskUtils";
 
 export const DAY_TIMELINE_HOUR_HEIGHT_PX = 96;
 export const DAY_TIMELINE_HEIGHT_PX = 24 * DAY_TIMELINE_HOUR_HEIGHT_PX;
