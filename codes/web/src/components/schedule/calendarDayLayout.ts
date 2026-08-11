@@ -1,9 +1,9 @@
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
-import { formatScheduleDateTime, pad2 } from "./taskUtils";
+import { CALENDAR_TASK_CARD_HEIGHT_PX, formatScheduleDateTime, pad2 } from "./taskUtils.ts";
 
-export const DAY_TIMELINE_HOUR_HEIGHT_PX = 48;
+export const DAY_TIMELINE_HOUR_HEIGHT_PX = 96;
 export const DAY_TIMELINE_HEIGHT_PX = 24 * DAY_TIMELINE_HOUR_HEIGHT_PX;
-/** 极短 segment 的最小高度（防御性，与旧 MIN_BLOCK_HEIGHT_PX 行为一致） */
+/** 极短 segment 的最小高度（防御性）；整卡最短高度由 CALENDAR_TASK_CARD_HEIGHT_PX 在渲染层保证 */
 const MIN_SEGMENT_HEIGHT_PX = 18;
 
 /** 日历日视图内的一个渲染片段：阶梯矩形的一个台阶 */

@@ -54,8 +54,10 @@ export function taskLabelStripeColor(color: string | null | undefined, fallback:
   return normalized;
 }
 
+/** 日历任务卡片固定高度（px），月/周/日视图统一 */
+export const CALENDAR_TASK_CARD_HEIGHT_PX = 72;
 /** 日历任务条单行高度（px），与 gridAutoRows 一致 */
-export const CALENDAR_LANE_HEIGHT_PX = 64;
+export const CALENDAR_LANE_HEIGHT_PX = CALENDAR_TASK_CARD_HEIGHT_PX;
 export const CALENDAR_LANE_GAP_PX = 4;
 
 export function normalizePriority(p?: string | null): PriorityKey {
@@ -75,6 +77,18 @@ export function priorityBadgeClass(p?: string | null) {
   return "bg-red-100 text-red-700 ring-1 ring-red-200";
 }
 
+/** 日历任务卡片右侧展示的优先级文案：紧凑 + 中文语义。 */
+const PRIORITY_LABELS: Record<PriorityKey, string> = {
+  "1": "P1 默认",
+  "2": "P2 低",
+  "3": "P3 中",
+  "4": "P4 高",
+};
+
+export function priorityLabel(p?: string | null): string {
+  return PRIORITY_LABELS[normalizePriority(p)];
+}
+
 function formatMdHm(d: Date) {
   return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
@@ -87,19 +101,39 @@ function formatMdHmDash(d: Date) {
   return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${formatHm(d)}`;
 }
 
-/** 日历任务卡片：同一天 hh:mm-hh:mm，跨天 mm-dd hh:mm-mm-dd hh:mm */
+/**
+ * 日历任务卡片时间范围：
+ * - 同一天：`"09:00 - 10:30"`
+ * - 跨天：`"08-15 09:00 - 08-17 10:30"`（自动在两端补日期）
+ * - 缺 end_at：只显示开始时间，如 `"09:00"` 或 `"08-15 09:00"`
+ */
 export function formatScheduleTimeRange(startIso?: string | null, endIso?: string | null): string | null {
   if (!startIso) return null;
   const s = new Date(startIso);
   if (Number.isNaN(s.getTime())) return null;
-  const e = endIso ? new Date(endIso) : s;
-  if (Number.isNaN(e.getTime())) return formatHm(s);
+  const e = endIso ? new Date(endIso) : null;
+  const hasValidE = e != null && !Number.isNaN(e.getTime());
+
+  // 缺结束时间：只渲染开始
+  if (!hasValidE) {
+    const startDateKey = formatDateAnchor(s);
+    if (startDateKey === formatDateAnchor(new Date())) {
+      // 当天：只显时间
+      return formatHm(s);
+    }
+    return formatMdHmDash(s);
+  }
 
   const sameDay =
-    s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth() && s.getDate() === e.getDate();
+    s.getFullYear() === e!.getFullYear() && s.getMonth() === e!.getMonth() && s.getDate() === e!.getDate();
 
-  if (sameDay) return `${formatHm(s)}-${formatHm(e)}`;
-  return `${formatMdHmDash(s)}-${formatMdHmDash(e)}`;
+  if (sameDay) return `${formatHm(s)} - ${formatHm(e!)}`;
+  return `${formatMdHmDash(s)} - ${formatMdHmDash(e!)}`;
+}
+
+/** YYYY-MM-DD（与 calendarNav.formatDateAnchor 行为一致，但避免循环依赖） */
+function formatDateAnchor(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 export function formatScheduleDateTime(iso?: string | null): string | null {
@@ -120,18 +154,22 @@ export function formatScheduleRange(startIso?: string | null, endIso?: string | 
   return sameDay ? `${formatMdHm(s)}–${pad2(e.getHours())}:${pad2(e.getMinutes())}` : `${formatMdHm(s)}–${formatMdHm(e)}`;
 }
 
-/** 拖拽最小颗粒度：15 分钟对应的像素数（48px/h × 0.25h = 12px） */
+/** 拖拽最小颗粒度：15 分钟 */
 export const SNAP_MINUTES = 15;
-export const SNAP_MINUTES_PX = (SNAP_MINUTES / 60) * 48; // 12
+/** Default assumes day/week hour height 96; prefer passing hourHeight into snapYTo15Min. */
+export const SNAP_MINUTES_PX = (SNAP_MINUTES / 60) * 96;
 
 /**
  * 把鼠标 Y 坐标 snap 到 15 分钟整点，返回 float hour（0-24）。
- * 规则：round-to-nearest，0-23.75 之间；> 23.75 视为 24（但 Y 通常 < DAY_TIMELINE_HEIGHT_PX）
+ * 规则：round-to-nearest；Y < 0 视为 0，Y > 24h 视为 24。
+ *
+ * 用法：拖拽时把光标位置当成"卡片上边缘"用，所以 y 直接就是上边缘像素，
+ * 转换出的 float hour 即为"该上边缘对应的时间"。
  */
-export function snapYTo15Min(y: number, hourHeight = 48): number {
-  const totalMin = Math.round(y / SNAP_MINUTES_PX) * SNAP_MINUTES;
-  const hour = totalMin / 60;
-  return Math.max(0, Math.min(24, hour));
+export function snapYTo15Min(y: number, hourHeight = 96): number {
+  const pxPerSnap = (SNAP_MINUTES / 60) * hourHeight;
+  const totalMin = Math.round(y / pxPerSnap) * SNAP_MINUTES;
+  return Math.max(0, Math.min(24, totalMin / 60));
 }
 
 /** float hour (0-24) 格式化为 "HH:MM"，如 10.5 → "10:30" */
@@ -279,7 +317,6 @@ export function computeRescheduledRange(
   const start = new Date(y, m - 1, d, startH, startMin, 0, 0);
 
   // 计算 end：始终保留原 duration（包括跨日 duration）。
-  // 不再做"拖到 23 点截 23:59"的截断——那是过度防御，会把跨日任务错误截成单日。
   let end: Date | null = null;
   if (durationMs > 0) {
     end = new Date(start.getTime() + durationMs);
