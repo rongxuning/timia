@@ -61,24 +61,22 @@ export function SwimlaneKanban({
         {STATUSES.map((s) => (
           <div
             key={s.key}
-            className="flex items-center justify-between border-r border-border-subtle last:border-r-0"
+            className="flex items-center justify-between gap-2 border-r border-border-subtle px-3 py-2.5 last:border-r-0"
           >
-            <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${s.dotClass}`} />
-              <span className="text-overline">{s.label}</span>
-              <span className="text-caption text-neutral-muted">({byStatus[s.key].length})</span>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className={`h-2 w-2 shrink-0 rounded-full ${s.dotClass}`} />
+              <span className="truncate text-overline">{s.label}</span>
+              <span className="shrink-0 text-caption text-neutral-muted">({byStatus[s.key].length})</span>
             </div>
             {onCreateInColumn ? (
               <button
                 type="button"
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-lg"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-neutral-muted transition-colors hover:bg-surface-container-lowest hover:text-text-primary"
                 onClick={() => onCreateInColumn(s.key)}
-                title="添加任务"
+                title={`在${s.label}列添加任务`}
                 aria-label={`在${s.label}列添加任务`}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                </svg>
+                <span className="material-symbols-outlined text-[18px] leading-none">add</span>
               </button>
             ) : null}
           </div>

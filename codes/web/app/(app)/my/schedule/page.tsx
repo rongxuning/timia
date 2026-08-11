@@ -140,6 +140,7 @@ export default function MySchedulePage() {
             showAssigneeAvatar
             refreshNonce={scheduleRefreshNonce}
             onItemClick={openDrawer}
+            onCreateInColumn={(status) => openTaskCreate(status)}
             onCreateInPriority={openTaskCreateInPriority}
             onCreateOnDate={openTaskCreateOnDate}
             calendarFirst
