@@ -331,6 +331,106 @@ function findBlock(blocks: ReturnType<typeof layoutDayTimeline>, id: string) {
   }
 }
 
+// Case 11: 极多任务同时间 active（10 个 1h 任务同时）→ 各 10%
+{
+  const items = [];
+  for (let i = 0; i < 10; i++) {
+    items.push({ id: `t${i}`, startMin: 9 * 60, endMin: 10 * 60 });
+  }
+  const out = layoutDayTimeline(items);
+  // 所有事件宽度应相等且和为 100%
+  let totalWidth = 0;
+  for (const block of out) {
+    assert(approx(block.segments[0].widthPct, 10), `${block.item.id} = 10% (got ${block.segments[0].widthPct})`);
+    totalWidth += block.segments[0].widthPct;
+  }
+  assert(approx(totalWidth, 100, 0.5), `sum of widths = 100% (got ${totalWidth})`);
+}
+
+// Case 12: 极短任务（1 分钟）→ heightPx 被 clamp 到 MIN_SEGMENT_HEIGHT_PX=18
+{
+  const out = layoutDayTimeline([{ id: "tiny", startMin: 600, endMin: 601 }]);
+  const tiny = findBlock(out, "tiny")!;
+  // (601-600)/60 * 48 = 0.8px → clamp 到 18
+  assert(tiny.segments[0].heightPx === 18, `tiny event height clamped to 18 (got ${tiny.segments[0].heightPx})`);
+  assert(approx(tiny.segments[0].widthPct, 100), "tiny event = 100% (no other events)");
+}
+
+// Case 13: 整天任务（0-24h）→ 一个 segment 占全天
+{
+  const out = layoutDayTimeline([{ id: "allday", startMin: 0, endMin: 24 * 60 }]);
+  const a = findBlock(out, "allday")!;
+  assert(a.segments.length === 1, "allday = 1 segment");
+  assert(approx(a.segments[0].widthPct, 100), "allday = 100% width");
+  assert(approx(a.segments[0].heightPx, 24 * 48), `allday height = 24*48 = 1152 (got ${a.segments[0].heightPx})`);
+}
+
+// Case 14: 跨日事件在两端都能正常 clip（模拟 visible filter）
+//   在测试中，items 的 startMin/endMin 已经按 day 切好
+//   验证：当只剩 1 个 event 时（即使原始是跨日的），渲染正常
+{
+  // 模拟 day N：event 跨 22:00-02:00，在 day N 视图里只剩 22:00-24:00
+  const out = layoutDayTimeline([{ id: "cross", startMin: 22 * 60, endMin: 24 * 60 }]);
+  const c = findBlock(out, "cross")!;
+  assert(c.segments.length === 1, "cross-day same-day portion = 1 segment");
+  assert(approx(c.segments[0].heightPx, 2 * 48), `cross-day height = 2*48 = 96 (got ${c.segments[0].heightPx})`);
+  assert(approx(c.segments[0].widthPct, 100), "cross-day = 100% width (no other events)");
+}
+
+// Case 15: 同一任务有两个独立非连续区间（A 早上 9-10, 下午 14-15，B 中段 11-13）
+//   A: [0, 60], [240, 300] → 跨两个不连续区间，但都 active 时无 B → 各 100%
+//   B: [60, 180] 单独一段
+//   期望：A 有 2 个 segment，B 有 1 个
+{
+  const out = layoutDayTimeline([
+    { id: "a", startMin: 9 * 60, endMin: 10 * 60 },
+    { id: "b", startMin: 11 * 60, endMin: 13 * 60 },
+    { id: "a2", startMin: 14 * 60, endMin: 15 * 60 },
+  ]);
+  // 注：a 和 a2 是不同 id，所以是 3 个独立 block
+  assert(out.length === 3, `3 blocks (got ${out.length})`);
+}
+
+// Case 16: 验证最右边的 segment left + width = 100（不变量）
+//         因为算法保证 leftPct 累积到 100%
+{
+  const out = layoutDayTimeline([
+    { id: "a", startMin: 0, endMin: 60 },
+    { id: "b", startMin: 0, endMin: 60 },
+    { id: "c", startMin: 0, endMin: 60 },
+  ]);
+  // 找到 left + width = 100 的 segment
+  const last = out.find((b) => approx(b.segments[0].leftPct + b.segments[0].widthPct, 100, 0.5));
+  assert(!!last, "some event's right edge = 100%");
+}
+
+// Case 17: 一个事件被多个事件分段，且合并相邻同宽 segment
+//   A: 0-300 (300min), B: 0-60 (60min), C: 60-120 (60min), D: 120-300 (180min)
+//   breakpoints: 0, 60, 120, 300
+//   [0, 60]: A+B → A=300/360=83.3%, B=60/360=16.7%
+//   [60, 120]: A+C → A=300/360=83.3%, C=60/360=16.7%
+//   [120, 300]: A+D → A=300/480=62.5%, D=180/480=37.5%
+//   A 在 [0,60] 和 [60,120] 段都是 83.3% → 合并成一段
+//   所以 A 只有 2 个 segment
+{
+  const out = layoutDayTimeline([
+    { id: "a", startMin: 0, endMin: 300 },
+    { id: "b", startMin: 0, endMin: 60 },
+    { id: "c", startMin: 60, endMin: 120 },
+    { id: "d", startMin: 120, endMin: 300 },
+  ]);
+  const a = findBlock(out, "a")!;
+  assert(a.segments.length === 2, `A has 2 segments after merge (got ${a.segments.length})`);
+  assert(approx(a.segments[0].widthPct, 300 / 360 * 100, 0.5), `A[0,120]=83.3% (got ${a.segments[0].widthPct.toFixed(2)})`);
+  // 合并后 heightPx = (120-0)/60*48 = 96
+  assert(approx(a.segments[0].heightPx, 96), `merged height = 96 (got ${a.segments[0].heightPx})`);
+  assert(approx(a.segments[1].widthPct, 62.5, 0.5), `A[120,300]=62.5% (got ${a.segments[1].widthPct.toFixed(2)})`);
+  // 验证 D 也在 D 的位置
+  const d = findBlock(out, "d")!;
+  assert(d.segments.length === 1, "D has 1 segment");
+  assert(approx(d.segments[0].leftPct, 62.5, 0.5), `D left = 62.5% (got ${d.segments[0].leftPct.toFixed(2)})`);
+}
+
 // ---------- 输出 ----------
 console.log(`\n✅ passed: ${passed}`);
 console.log(`❌ failed: ${failed}`);
