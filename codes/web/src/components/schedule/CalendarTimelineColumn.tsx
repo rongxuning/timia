@@ -2,17 +2,14 @@
 
 import { type DragEvent } from "react";
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
-import { AssigneeAvatar } from "./AssigneeAvatar";
 import { calendarTaskTooltip } from "./CalendarTaskBar";
-import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
+import { CalendarTaskCard } from "./CalendarTaskCard";
 import type { DayTimelineBlock } from "./calendarDayLayout";
 import { DAY_TIMELINE_HEIGHT_PX, DAY_TIMELINE_HOUR_HEIGHT_PX } from "./calendarDayLayout";
-import { TaskStatusIcon } from "./TaskStatusIcon";
 import {
+  CALENDAR_TASK_CARD_HEIGHT_PX,
   computeRescheduledRange,
   formatFloatHour,
-  SNAP_MINUTES,
-  SNAP_MINUTES_PX,
   snapYTo15Min,
   taskCalendarColors,
   taskLabelStripeColor,
@@ -25,6 +22,7 @@ type Props = {
   onCompleteTask?: (itemId: string) => void;
   completingItemId?: string | null;
   showProjectContext?: boolean;
+  /** Kept for API stability; CalendarTaskCard always shows avatar/? */
   showAssigneeAvatar?: boolean;
   onDateBlankClick?: (dateKey: string, hour?: number) => void;
   compact?: boolean;
@@ -49,7 +47,7 @@ export function CalendarTimelineColumn({
   onCompleteTask,
   completingItemId = null,
   showProjectContext = true,
-  showAssigneeAvatar = false,
+  showAssigneeAvatar: _showAssigneeAvatar = false,
   onDateBlankClick,
   compact = false,
   bordered = false,
@@ -67,17 +65,17 @@ export function CalendarTimelineColumn({
   const gridColWidthPct = 100 / 7;
   const droppable = !!onDropDateTime;
 
+  function snapHourFromY(y: number): number {
+    return snapYTo15Min(y, DAY_TIMELINE_HOUR_HEIGHT_PX);
+  }
+
   function handleTimelineBlankClick(e: React.MouseEvent<HTMLElement>) {
     if (!onDateBlankClick) return;
-    if ((e.target as HTMLElement).closest("button")) return;
+    if ((e.target as HTMLElement).closest("[role='button']")) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const hour = Math.min(23, Math.max(0, Math.floor(y / DAY_TIMELINE_HOUR_HEIGHT_PX)));
     onDateBlankClick(dayKey, hour);
-  }
-
-  function snapHourFromY(y: number): number {
-    return snapYTo15Min(y, DAY_TIMELINE_HOUR_HEIGHT_PX);
   }
 
   function handleHourDragOver(e: DragEvent<HTMLButtonElement>, buttonHour: number) {
@@ -85,20 +83,22 @@ export function CalendarTimelineColumn({
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
-    // 按按钮内 Y 位置决定分钟（15min snap）
     const rect = e.currentTarget.getBoundingClientRect();
     const yInButton = e.clientY - rect.top;
-    const minuteInHour = Math.round(yInButton / SNAP_MINUTES_PX) * SNAP_MINUTES;
-    const hour = Math.min(24, Math.max(0, buttonHour + minuteInHour / 60));
+    const hour = Math.min(
+      24,
+      Math.max(
+        0,
+        snapYTo15Min(buttonHour * DAY_TIMELINE_HOUR_HEIGHT_PX + yInButton, DAY_TIMELINE_HOUR_HEIGHT_PX),
+      ),
+    );
     if (dragOverDateKey !== dayKey) onDragOverDateKeyChange?.(dayKey);
     if (dragOverHour !== hour) onDragOverHourChange?.(hour);
   }
 
   /**
    * 列级 dragover：覆盖 column-split 模式（周视图）下小时槽是 pointer-events-none 的情况。
-   * 此时整个列 div 才是真正的 drop target，hour 通过鼠标 Y 计算。
-   * 不要 skip 落在 button 上的情况——任务卡自己没有 onDragOver，需要冒泡到列处理。
-   * grid-slot 模式（日视图）下小时槽按钮有 stopPropagation 的 onDragOver，会优先于本 handler。
+   * 光标位置即"卡片上边缘"（dragstart 用 setDragImage(0,0) 锁住）。
    */
   function handleColumnDragOver(e: DragEvent<HTMLDivElement>) {
     if (!droppable) return;
@@ -127,7 +127,6 @@ export function CalendarTimelineColumn({
 
   function handleHourDragLeave(e: DragEvent<HTMLButtonElement>) {
     if (!droppable) return;
-    // 只在离开整个 hour 槽时清空（避免子元素冒泡触发）
     if (e.currentTarget !== e.target) return;
     if (dragOverDateKey === dayKey) onDragOverDateKeyChange?.(null);
     onDragOverHourChange?.(null);
@@ -139,8 +138,13 @@ export function CalendarTimelineColumn({
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     const yInButton = e.clientY - rect.top;
-    const minuteInHour = Math.round(yInButton / SNAP_MINUTES_PX) * SNAP_MINUTES;
-    const hour = Math.min(24, Math.max(0, buttonHour + minuteInHour / 60));
+    const hour = Math.min(
+      24,
+      Math.max(
+        0,
+        snapYTo15Min(buttonHour * DAY_TIMELINE_HOUR_HEIGHT_PX + yInButton, DAY_TIMELINE_HOUR_HEIGHT_PX),
+      ),
+    );
     const id = e.dataTransfer.getData("text/task-id") || dragItemId;
     onDragItemIdChange?.(null);
     onDragOverDateKeyChange?.(null);
@@ -148,9 +152,6 @@ export function CalendarTimelineColumn({
     if (!id) return;
     onDropDateTime(id, { dateKey: dayKey, hour });
   }
-
-  const titleClassName = compact ? "text-[10px]" : "text-[11px]";
-  const metaClassName = compact ? "text-[9px]" : "text-[10px]";
 
   return (
     <div
@@ -167,7 +168,11 @@ export function CalendarTimelineColumn({
       title={onDateBlankClick && !isGridSlot ? "点击空白处添加任务" : undefined}
     >
       {Array.from({ length: 24 }, (_, hour) => {
-        const isHovered = droppable && dragOverDateKey === dayKey && dragOverHour === hour;
+        const isHovered =
+          droppable &&
+          dragOverDateKey === dayKey &&
+          dragOverHour != null &&
+          Math.floor(dragOverHour) === hour;
         return (
           <button
             key={hour}
@@ -215,45 +220,12 @@ export function CalendarTimelineColumn({
           {emptyLabel}
         </div>
       ) : null}
-      {/* 拖拽落点指示器：
-          - 左端：时间 pill + 横线（贯穿全列），所有模式都显示
-          - 中部背景：column-split 模式（周视图）下用横条高亮 hover hour
-            （grid-slot 模式日视图下 hour 按钮自己高亮，本块不显示） */}
-      {droppable && dragOverDateKey === dayKey && dragOverHour != null ? (
-        <>
-          {/* 左端时间 pill + 横线 */}
-          <div
-            className="pointer-events-none absolute z-[3] flex items-center"
-            style={{
-              top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
-              left: 0,
-              right: 0,
-              height: 0,
-            }}
-          >
-            <div className="-translate-y-1/2 rounded-r-md bg-primary px-1.5 py-px text-[10px] font-semibold tabular-nums text-on-primary shadow">
-              {formatFloatHour(dragOverHour)}
-            </div>
-            <div className="-translate-y-1/2 ml-0 h-0.5 flex-1 bg-primary/50" />
-          </div>
-          {/* column-split 模式下的横向高亮（grid-slot 模式日视图下 hour 按钮自己高亮） */}
-          {droppable && !isGridSlot ? (
-            <div
-              className="pointer-events-none absolute left-0 right-0 z-[2] bg-primary/10"
-              style={{
-                top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
-                height: DAY_TIMELINE_HOUR_HEIGHT_PX,
-              }}
-            />
-          ) : null}
-        </>
-      ) : null}
+
       {blocks.map((block) => {
         if (block.segments.length === 0) return null;
         const c = taskCalendarColors(block.item.priority);
         const isDragging = dragItemId === block.item.id;
 
-        // 拖拽中且 hover 落点已确定 → 计算 preview 时间，传给卡片内显示
         const previewRange =
           isDragging && dragOverDateKey && dragOverHour != null
             ? computeRescheduledRange(
@@ -262,26 +234,20 @@ export function CalendarTimelineColumn({
                 dayKey,
               )
             : null;
-        const previewStartAtIso = previewRange?.startAt ?? null;
-        const previewEndAtIso = previewRange?.endAt ?? null;
 
-        // 整体 wrapper 的 bounding box：覆盖所有 segment 的范围
         const boxTop = Math.min(...block.segments.map((s) => s.topPx));
         const boxLeft = Math.min(...block.segments.map((s) => s.leftPct));
         const boxRight = Math.max(...block.segments.map((s) => s.leftPct + s.widthPct));
         const boxBottom = Math.max(...block.segments.map((s) => s.topPx + s.heightPx));
         const boxWidthPct = boxRight - boxLeft;
-        const boxHeightPx = boxBottom - boxTop;
-
-        // F 兜底：narrow segment 阈值（< 12% 全宽时只显时间，不显标题）
-        const NARROW_SEGMENT_PCT = 12;
+        const boxHeightPx = Math.max(boxBottom - boxTop, CALENDAR_TASK_CARD_HEIGHT_PX);
 
         return (
           <div
             key={`${dayKey}-${block.item.id}-wrap`}
             className={[
-              "absolute z-[1] rounded-lg border shadow-sm overflow-hidden",
-              droppable ? "cursor-grab" : "",
+              "absolute z-[1] overflow-hidden rounded-lg border p-0 text-left shadow-sm hover:brightness-[0.97] transition-[filter]",
+              droppable ? "cursor-grab active:cursor-grabbing" : "",
               isDragging ? "opacity-40" : "",
             ].join(" ")}
             style={{
@@ -302,6 +268,11 @@ export function CalendarTimelineColumn({
                 ? (e) => {
                     e.dataTransfer.effectAllowed = "move";
                     e.dataTransfer.setData("text/task-id", block.item.id);
+                    try {
+                      e.dataTransfer.setDragImage(e.currentTarget, 0, 0);
+                    } catch {
+                      // ignore setDragImage failures
+                    }
                     onDragItemIdChange(block.item.id);
                   }
                 : undefined
@@ -311,63 +282,46 @@ export function CalendarTimelineColumn({
             role="button"
             tabIndex={0}
           >
-            {block.segments.map((seg, segIdx) => {
-              const isNarrow = seg.widthPct < NARROW_SEGMENT_PCT;
-              return (
-                <div
-                  key={`${dayKey}-${block.item.id}-seg-${segIdx}`}
-                  className="absolute flex items-center"
-                  style={{
-                    top: seg.topPx - boxTop,
-                    height: seg.heightPx,
-                    left: `${seg.leftPct - boxLeft}%`,
-                    width: `${seg.widthPct}%`,
-                  }}
-                >
-                  <div
-                    className={[
-                      "flex min-h-0 min-w-0 flex-1 items-center gap-0.5 px-1 py-0.5 overflow-hidden",
-                      droppable ? "cursor-grab active:cursor-grabbing" : "",
-                    ].join(" ")}
-                  >
-                    <TaskStatusIcon
-                      size="compact"
-                      status={block.item.status}
-                      loading={completingItemId === block.item.id}
-                      onComplete={onCompleteTask ? () => onCompleteTask(block.item.id) : undefined}
-                    />
-                    {!isNarrow ? (
-                      <CalendarTaskCardLines
-                        item={block.item}
-                        showProjectContext={showProjectContext}
-                        titleClassName={titleClassName}
-                        metaClassName={metaClassName}
-                        previewStartAtIso={previewStartAtIso}
-                        previewEndAtIso={previewEndAtIso}
-                      />
-                    ) : (
-                      <span
-                        className={[
-                          titleClassName,
-                          "truncate",
-                          previewStartAtIso ? "text-primary font-semibold" : "",
-                        ].join(" ")}
-                      >
-                        {previewStartAtIso
-                          ? formatFloatHour(dragOverHour ?? 0)
-                          : block.startLabel}
-                      </span>
-                    )}
-                    {showAssigneeAvatar && block.item.assignee ? (
-                      <AssigneeAvatar displayName={block.item.assignee.display_name} size="compact" />
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
+            <CalendarTaskCard
+              item={block.item}
+              showProjectContext={showProjectContext}
+              completingItemId={completingItemId}
+              onCompleteTask={onCompleteTask}
+              compact={compact}
+              previewStartAtIso={previewRange ? previewRange.startAt : undefined}
+              previewEndAtIso={previewRange ? previewRange.endAt : undefined}
+            />
           </div>
         );
       })}
+
+      {droppable && dragOverDateKey === dayKey && dragOverHour != null ? (
+        <>
+          <div
+            className="pointer-events-none absolute z-[3] flex items-center"
+            style={{
+              top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
+              left: 0,
+              right: 0,
+              height: 0,
+            }}
+          >
+            <div className="-translate-y-1/2 rounded-r-md bg-primary px-1.5 py-px text-[10px] font-semibold tabular-nums text-on-primary shadow">
+              {formatFloatHour(dragOverHour)}
+            </div>
+            <div className="-translate-y-1/2 ml-0 h-0.5 flex-1 bg-primary/50" />
+          </div>
+          {!isGridSlot ? (
+            <div
+              className="pointer-events-none absolute left-0 right-0 z-[2] bg-primary/10"
+              style={{
+                top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
+                height: DAY_TIMELINE_HOUR_HEIGHT_PX / 4,
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

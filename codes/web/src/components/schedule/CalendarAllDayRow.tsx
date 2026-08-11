@@ -3,6 +3,7 @@
 import { type DragEvent } from "react";
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
 import { CalendarTaskBar } from "./CalendarTaskBar";
+import { CALENDAR_TASK_CARD_HEIGHT_PX } from "./taskUtils";
 
 type Props = {
   columns: Array<{ key: string; items: ScheduleTaskItem[] }>;
@@ -85,7 +86,11 @@ export function CalendarAllDayRow({
             onDrop={(e) => handleDrop(e, key)}
           >
             {items.map((item) => (
-              <div key={item.id} className="h-8 min-w-0">
+              <div
+                key={item.id}
+                className="min-w-0"
+                style={{ height: CALENDAR_TASK_CARD_HEIGHT_PX }}
+              >
                 <CalendarTaskBar
                   item={item}
                   showLabel

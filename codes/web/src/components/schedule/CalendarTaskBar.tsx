@@ -2,10 +2,12 @@
 
 import type { DragEvent } from "react";
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
-import { AssigneeAvatar } from "./AssigneeAvatar";
-import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
-import { TaskStatusIcon } from "./TaskStatusIcon";
-import { formatScheduleTimeRange, taskCalendarColors, taskLabelStripeColor } from "./taskUtils";
+import { CalendarTaskCard } from "./CalendarTaskCard";
+import {
+  formatScheduleTimeRange,
+  taskCalendarColors,
+  taskLabelStripeColor,
+} from "./taskUtils";
 
 export function calendarTaskTooltip(it: ScheduleTaskItem, showProjectContext: boolean) {
   const parts = [it.title];
@@ -23,6 +25,7 @@ type CalendarTaskBarProps = {
   roundLeft: boolean;
   roundRight: boolean;
   showProjectContext: boolean;
+  /** Kept for API stability; CalendarTaskCard always shows avatar/? */
   showAssigneeAvatar?: boolean;
   completingItemId?: string | null;
   onTaskClick: (it: ScheduleTaskItem) => void;
@@ -44,7 +47,7 @@ export function CalendarTaskBar({
   roundLeft,
   roundRight,
   showProjectContext,
-  showAssigneeAvatar = false,
+  showAssigneeAvatar: _showAssigneeAvatar = false,
   completingItemId = null,
   onTaskClick,
   onCompleteTask,
@@ -75,7 +78,8 @@ export function CalendarTaskBar({
       }
       onDragEnd={draggable && onDragEnd ? () => onDragEnd(item) : undefined}
       className={[
-        "flex h-full min-h-0 w-full items-center py-0.5 text-left text-[10px] px-1 min-w-0 border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm overflow-hidden",
+        "relative flex h-full min-h-0 w-full items-center text-left text-[10px] min-w-0 border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm overflow-hidden",
+        showLabel ? "p-0" : "px-1 py-0.5",
         draggable ? "cursor-grab active:cursor-grabbing" : "",
         isDragging ? "opacity-40" : "",
       ].join(" ")}
@@ -90,23 +94,13 @@ export function CalendarTaskBar({
       }}
     >
       {showLabel ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          <TaskStatusIcon
-            size="compact"
-            status={item.status}
-            loading={completingItemId === item.id}
-            onComplete={onCompleteTask ? () => onCompleteTask(item.id) : undefined}
-          />
-          <CalendarTaskCardLines
-            item={item}
-            showProjectContext={showProjectContext}
-            titleClassName={compact ? "text-[10px]" : "text-[11px]"}
-            metaClassName="text-[10px]"
-          />
-          {showAssigneeAvatar && item.assignee ? (
-            <AssigneeAvatar displayName={item.assignee.display_name} size="compact" />
-          ) : null}
-        </div>
+        <CalendarTaskCard
+          item={item}
+          showProjectContext={showProjectContext}
+          completingItemId={completingItemId}
+          onCompleteTask={onCompleteTask}
+          compact={compact}
+        />
       ) : (
         "\u00a0"
       )}
