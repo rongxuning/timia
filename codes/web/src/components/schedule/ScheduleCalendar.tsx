@@ -15,6 +15,7 @@ import {
 import { ScheduleCalendarDay } from "./ScheduleCalendarDay";
 import { ScheduleCalendarMonth } from "./ScheduleCalendarMonth";
 import { ScheduleCalendarWeek } from "./ScheduleCalendarWeek";
+import type { CalendarDropTarget } from "./ScheduleCalendar.types";
 
 export type ScheduleCalendarProps = {
   calendarMode: CalendarViewMode;
@@ -28,6 +29,15 @@ export type ScheduleCalendarProps = {
   showProjectContext?: boolean;
   showAssigneeAvatar?: boolean;
   onDateBlankClick?: (dateKey: string, hour?: number) => void;
+  /** 拖拽改期相关：与 PriorityQuadrants/SwimlaneKanban 共享 dragItemId 状态 */
+  dragItemId?: string | null;
+  dragOverDateKey?: string | null;
+  dragOverHour?: number | null;
+  reschedulingItemId?: string | null;
+  onDragItemIdChange?: (id: string | null) => void;
+  onDragOverDateKeyChange?: (key: string | null) => void;
+  onDragOverHourChange?: (hour: number | null) => void;
+  onDropDateTime?: (taskId: string, target: CalendarDropTarget) => void;
 };
 
 export function ScheduleCalendar({
@@ -42,6 +52,14 @@ export function ScheduleCalendar({
   showProjectContext = true,
   showAssigneeAvatar = false,
   onDateBlankClick,
+  dragItemId = null,
+  dragOverDateKey = null,
+  dragOverHour = null,
+  reschedulingItemId = null,
+  onDragItemIdChange,
+  onDragOverDateKeyChange,
+  onDragOverHourChange,
+  onDropDateTime,
 }: ScheduleCalendarProps) {
   function openDayView(dateKey: string) {
     onCalendarAnchorChange(parseDateAnchor(dateKey));
@@ -56,6 +74,14 @@ export function ScheduleCalendar({
     showAssigneeAvatar,
     onDateBlankClick,
     onDateHeaderClick: openDayView,
+    dragItemId,
+    dragOverDateKey,
+    dragOverHour,
+    onDragItemIdChange,
+    onDragOverDateKeyChange,
+    onDragOverHourChange,
+    onDropDateTime,
+    reschedulingItemId,
   };
   const displayedMode = calendar?.view ?? calendarMode;
   const calendarPending =

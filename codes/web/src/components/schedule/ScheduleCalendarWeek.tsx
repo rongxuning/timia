@@ -24,6 +24,13 @@ export function ScheduleCalendarWeek({
   showAssigneeAvatar = false,
   onDateBlankClick,
   onDateHeaderClick,
+  dragItemId = null,
+  dragOverDateKey = null,
+  dragOverHour = null,
+  onDragItemIdChange,
+  onDragOverDateKeyChange,
+  onDragOverHourChange,
+  onDropDateTime,
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
   const itemsByDay = useMemo(() => weekItemsByDayKey(week), [week]);
@@ -87,6 +94,11 @@ export function ScheduleCalendarWeek({
           completingItemId={completingItemId}
           showProjectContext={showProjectContext}
           showAssigneeAvatar={showAssigneeAvatar}
+          dragItemId={dragItemId}
+          dragOverDateKey={dragOverDateKey}
+          onDragItemIdChange={onDragItemIdChange}
+          onDragOverDateKeyChange={onDragOverDateKeyChange}
+          onDropDateTime={onDropDateTime}
         />
       </div>
       <div className="flex border-t border-border-subtle bg-surface pt-2">
@@ -107,6 +119,13 @@ export function ScheduleCalendarWeek({
                 onDateBlankClick={onDateBlankClick}
                 compact
                 bordered
+                dragItemId={dragItemId}
+                dragOverDateKey={dragOverDateKey}
+                dragOverHour={dragOverHour}
+                onDragItemIdChange={onDragItemIdChange}
+                onDragOverDateKeyChange={onDragOverDateKeyChange}
+                onDragOverHourChange={onDragOverHourChange}
+                onDropDateTime={onDropDateTime}
               />
             );
           })}

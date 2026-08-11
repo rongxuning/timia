@@ -175,6 +175,101 @@ export function countdownTargetForItem(it: ScheduleTaskItem): Date | null {
   return null;
 }
 
+/**
+ * 任务是否在当前 anchor 日覆盖整天（与 calendarDayLayout.itemCoversWholeDay 对齐）
+ * - 必须同时有 start_at 和 end_at
+ * - start_at 在当日 00:00 及之前；end_at 在次日 00:00 及之后（精度按分钟，允许 23:59 收尾）
+ */
+function itemCoversWholeDayLocal(item: ScheduleTaskItem, anchorKey: string): boolean {
+  if (!item.start_at || !item.end_at) return false;
+  const [y, m, d] = anchorKey.split("-").map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return false;
+  const dayStart = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+  const nextDayStart = new Date(y, m - 1, d + 1, 0, 0, 0, 0).getTime();
+  const startMs = new Date(item.start_at).getTime();
+  const endMs = new Date(item.end_at).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return false;
+  return startMs <= dayStart && endMs >= nextDayStart - 60_000;
+}
+
+/** 任务分类：calendar 里实际可见的只有"定时"和"全天"，"无 start_at"基本不出现（兜底用） */
+export type CalendarItemKind = "timed" | "all-day" | "no-start";
+
+export function classifyCalendarItem(item: ScheduleTaskItem, anchorKey: string): CalendarItemKind {
+  if (!item.start_at) return "no-start";
+  if (itemCoversWholeDayLocal(item, anchorKey)) return "all-day";
+  return "timed";
+}
+
+export type RescheduleDropTarget = {
+  /** 落点日期，YYYY-MM-DD（本地） */
+  dateKey: string;
+  /** 落点小时 0-23；null 表示"只改日期，保留原时分"（月视图日期格 / 周视图全天行） */
+  hour: number | null;
+};
+
+/**
+ * 给定原任务 + 落点，计算新的 start_at / end_at。
+ * - 定时任务（timed）：保留 duration；dropHour=null 保留时分，dropHour=整数则 snap 到整点
+ * - 全天任务（all-day）：保持整天；只改日期。dropHour=整数时拒绝（返回 null）
+ * - 无 start_at（兜底）：dateKey+null → 09:00-10:00；dateKey+hour → 该整点起 1h
+ *
+ * 返回 ISO 字符串（与后端 ItemUpdate 一致），失败返回 null。
+ */
+export function computeRescheduledRange(
+  item: ScheduleTaskItem,
+  target: RescheduleDropTarget,
+  anchorKey: string,
+): { startAt: string; endAt: string | null } | null {
+  const [y, m, d] = target.dateKey.split("-").map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  const kind = classifyCalendarItem(item, anchorKey);
+
+  if (kind === "all-day") {
+    if (target.hour != null) return null; // Q4: 全天任务不允许拖到小时槽
+    // 保持整天
+    const start = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const end = new Date(y, m - 1, d, 23, 59, 0, 0);
+    return { startAt: start.toISOString(), endAt: end.toISOString() };
+  }
+
+  if (kind === "no-start") {
+    // Q2: 落到 09:00-10:00
+    const startH = target.hour ?? 9;
+    const start = new Date(y, m - 1, d, startH, 0, 0, 0);
+    const end = target.hour != null
+      ? new Date(y, m - 1, d, startH + 1, 0, 0, 0)
+      : new Date(y, m - 1, d, 10, 0, 0, 0);
+    return { startAt: start.toISOString(), endAt: end.toISOString() };
+  }
+
+  // timed: 保留 duration，按"结束时间顺延"原话处理
+  const origStart = new Date(item.start_at!);
+  if (Number.isNaN(origStart.getTime())) return null;
+  const origEnd = item.end_at ? new Date(item.end_at) : null;
+  const hasOrigEnd = origEnd != null && !Number.isNaN(origEnd.getTime());
+  const durationMs = hasOrigEnd ? origEnd!.getTime() - origStart.getTime() : 0;
+
+  const startH = target.hour ?? origStart.getHours();
+  const startMin = target.hour != null ? 0 : origStart.getMinutes();
+  const start = new Date(y, m - 1, d, startH, startMin, 0, 0);
+
+  // 计算 end：始终保留原 duration（包括跨日 duration）。
+  // 不再做"拖到 23 点截 23:59"的截断——那是过度防御，会把跨日任务错误截成单日。
+  let end: Date | null = null;
+  if (durationMs > 0) {
+    end = new Date(start.getTime() + durationMs);
+  } else if (item.end_at && !hasOrigEnd) {
+    // 原本 end_at 是无效值（防御性），保留 null
+    end = null;
+  }
+  // 注意：即使 durationMs <= 0 也不返回 end 为 start 的相同值——这种情况实际不应发生
+  return {
+    startAt: start.toISOString(),
+    endAt: end ? end.toISOString() : null,
+  };
+}
+
 const MS_PER_DAY = 86_400_000;
 const COUNTDOWN_GREEN_MIN_MS = 3 * MS_PER_DAY;
 const COUNTDOWN_BLUE_MIN_MS = 7 * MS_PER_DAY;

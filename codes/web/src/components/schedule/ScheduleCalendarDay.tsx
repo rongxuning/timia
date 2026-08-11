@@ -20,6 +20,13 @@ export function ScheduleCalendarDay({
   showProjectContext = true,
   showAssigneeAvatar = false,
   onDateBlankClick,
+  dragItemId = null,
+  dragOverDateKey = null,
+  dragOverHour = null,
+  onDragItemIdChange,
+  onDragOverDateKeyChange,
+  onDragOverHourChange,
+  onDropDateTime,
 }: Props) {
   const { allDayItems, timedItems } = splitDayItems(day.items, day.key);
   const blocks = layoutDayTimeline(timedItems, day.key);
@@ -44,6 +51,11 @@ export function ScheduleCalendarDay({
             {weekdayLabel(day.key)}
           </div>
         </div>
+        {/*
+          日视图里全天任务没法改日期也不能改时间（Q4：保持整天仅能改日期），
+          所以全天行不接 onDropDateTime → CalendarAllDayRow 内部 droppable=false，
+          任务条自然不可拖。
+        */}
         <CalendarAllDayRow
           columns={[{ key: day.key, items: allDayItems }]}
           onTaskClick={onTaskClick}
@@ -67,6 +79,13 @@ export function ScheduleCalendarDay({
           compact
           laneLayout="grid-slot"
           emptyLabel={blocks.length === 0 ? emptyLabel : undefined}
+          dragItemId={dragItemId}
+          dragOverDateKey={dragOverDateKey}
+          dragOverHour={dragOverHour}
+          onDragItemIdChange={onDragItemIdChange}
+          onDragOverDateKeyChange={onDragOverDateKeyChange}
+          onDragOverHourChange={onDragOverHourChange}
+          onDropDateTime={onDropDateTime}
         />
       </div>
     </div>

@@ -21,8 +21,15 @@ export function ScheduleCalendarMonth({
   showAssigneeAvatar = false,
   onDateBlankClick,
   onDateHeaderClick,
+  dragItemId = null,
+  dragOverDateKey = null,
+  onDragItemIdChange,
+  onDragOverDateKeyChange,
+  onDropDateTime,
+  reschedulingItemId = null,
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
+  const draggable = !!onDragItemIdChange;
 
   return (
     <div className="flex flex-col">
@@ -38,16 +45,19 @@ export function ScheduleCalendarMonth({
             <div className="grid grid-cols-7 shrink-0">
               {week.days.map(({ key, day, in_month }, di) => {
                 const isToday = key === todayKey;
+                const isDragOver = draggable && dragOverDateKey === key;
                 return (
                   <div
                     key={key}
                     className={[
                       "min-h-7 border-r border-b border-border-subtle px-1.5 py-1",
                       di === 0 ? "border-l border-border-subtle" : "",
-                      in_month ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted opacity-60",
+                      in_month ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted",
                       isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "",
                       "last:border-r-0",
                       onDateHeaderClick ? "cursor-pointer hover:bg-primary/5 transition-colors" : "",
+                      isDragOver ? "bg-primary/15" : "",
+                      !in_month ? (isDragOver ? "" : "opacity-60") : "",
                     ].join(" ")}
                     onClick={onDateHeaderClick ? () => onDateHeaderClick(key) : undefined}
                     title={onDateHeaderClick ? "查看日视图" : undefined}
@@ -91,6 +101,14 @@ export function ScheduleCalendarMonth({
                       completingItemId={completingItemId}
                       onTaskClick={onTaskClick}
                       onCompleteTask={onCompleteTask}
+                      draggable={draggable && seg.item.status !== "archived" && seg.item.id !== reschedulingItemId}
+                      onDragStart={
+                        onDragItemIdChange
+                          ? (it) => onDragItemIdChange(it.id)
+                          : undefined
+                      }
+                      onDragEnd={onDragItemIdChange ? () => onDragItemIdChange(null) : undefined}
+                      isDragging={dragItemId === seg.item.id}
                     />
                   </div>
                 ))}
@@ -98,6 +116,10 @@ export function ScheduleCalendarMonth({
               <CalendarDateBlankColumns
                 dateKeys={week.days.map((d) => d.key)}
                 onDateBlankClick={onDateBlankClick}
+                dragItemId={dragItemId}
+                dragOverDateKey={dragOverDateKey}
+                onDragOverDateKeyChange={onDragOverDateKeyChange}
+                onDropDateTime={onDropDateTime}
               />
             </div>
           </div>
