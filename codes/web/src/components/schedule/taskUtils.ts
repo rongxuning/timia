@@ -77,17 +77,30 @@ export function priorityBadgeClass(p?: string | null) {
   return "bg-red-100 text-red-700 ring-1 ring-red-200";
 }
 
-/** 日历任务卡片右侧展示的优先级文案：紧凑 + 中文语义。 */
+/** 全站优先级展示文案（1→低 … 4→紧急）。 */
 const PRIORITY_LABELS: Record<PriorityKey, string> = {
-  "1": "P1 默认",
-  "2": "P2 低",
-  "3": "P3 中",
-  "4": "P4 高",
+  "1": "低",
+  "2": "中",
+  "3": "高",
+  "4": "紧急",
 };
 
 export function priorityLabel(p?: string | null): string {
   return PRIORITY_LABELS[normalizePriority(p)];
 }
+
+/** 优先级选项（任务抽屉 / 选择器共用）。 */
+export const PRIORITY_OPTIONS: Array<{
+  value: PriorityKey;
+  label: string;
+  hint: string;
+  accentClass: string;
+}> = [
+  { value: "1", label: PRIORITY_LABELS["1"], hint: "低优先级", accentClass: "bg-blue-500" },
+  { value: "2", label: PRIORITY_LABELS["2"], hint: "中优先级", accentClass: "bg-green-500" },
+  { value: "3", label: PRIORITY_LABELS["3"], hint: "高优先级", accentClass: "bg-yellow-500" },
+  { value: "4", label: PRIORITY_LABELS["4"], hint: "紧急优先级", accentClass: "bg-red-500" },
+];
 
 function formatMdHm(d: Date) {
   return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;

@@ -1,6 +1,7 @@
 "use client";
 
 import type { StickyNoteAIParseOut } from "@/lib/api/sticky-notes";
+import { priorityLabel } from "@/components/schedule/taskUtils";
 
 type Props = {
   parse: StickyNoteAIParseOut;
@@ -14,13 +15,6 @@ const STATUS_LABEL: Record<string, string> = {
   doing: "进行中",
   done: "已完成",
   archived: "已归档",
-};
-
-const PRIORITY_LABEL: Record<string, string> = {
-  "1": "P1 · 低",
-  "2": "P2",
-  "3": "P3",
-  "4": "P4 · 高",
 };
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -84,7 +78,7 @@ export function StickyNoteDraftPreview({
           </dd>
           <dt className="text-text-secondary">优先级</dt>
           <dd className="text-text-primary">
-            {PRIORITY_LABEL[draft.priority] ?? draft.priority}
+            {priorityLabel(draft.priority)}
           </dd>
           {draft.location && (
             <>

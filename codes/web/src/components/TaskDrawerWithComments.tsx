@@ -11,6 +11,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { fetchMyProjects, fetchMyWorkspaces, type ProjectOption, type WorkspaceOption } from "@/lib/api/workspaces";
 import { fetchItemDetail, fetchTaskDrawerContext } from "@/lib/api/task-views";
+import { PRIORITY_OPTIONS } from "@/components/schedule/taskUtils";
 
 export type TaskUserBrief = {
   id: string;
@@ -64,12 +65,12 @@ const TASK_STATUS_OPTIONS: SystemSelectOption[] = [
   { value: "archived", label: "已归档", hint: "任务不再活跃", accentClass: "bg-zinc-500" },
 ];
 
-const TASK_PRIORITY_OPTIONS: SystemSelectOption[] = [
-  { value: "1", label: "P1 · 低", hint: "低优先级", accentClass: "bg-blue-500" },
-  { value: "2", label: "P2", hint: "一般优先级", accentClass: "bg-green-500" },
-  { value: "3", label: "P3", hint: "较高优先级", accentClass: "bg-yellow-500" },
-  { value: "4", label: "P4 · 高", hint: "最高优先级", accentClass: "bg-red-500" },
-];
+const TASK_PRIORITY_OPTIONS: SystemSelectOption[] = PRIORITY_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+  hint: o.hint,
+  accentClass: o.accentClass,
+}));
 
 const TASK_MEMBER_CHIP_CLASS =
   "inline-flex h-6 max-w-full min-w-0 shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-surface-bright pl-2 pr-0.5 text-caption leading-none text-text-primary";

@@ -7,15 +7,16 @@ import {
   countdownBadgeClass,
   countdownTargetForItem,
   formatRemainDHM,
+  priorityLabel,
   taskCalendarColors,
   taskLabelStripeColor,
 } from "./taskUtils";
 
 const QUADRANTS = [
-  { p: "1" as const, title: "P1（低）", colorClass: "bg-blue-50 border-blue-100", dotClass: "bg-blue-500" },
-  { p: "2" as const, title: "P2", colorClass: "bg-green-50 border-green-100", dotClass: "bg-green-500" },
-  { p: "3" as const, title: "P3", colorClass: "bg-yellow-50 border-yellow-100", dotClass: "bg-yellow-500" },
-  { p: "4" as const, title: "P4（高）", colorClass: "bg-red-50 border-red-100", dotClass: "bg-red-500" },
+  { p: "1" as const, title: priorityLabel("1"), colorClass: "bg-blue-50 border-blue-100", dotClass: "bg-blue-500" },
+  { p: "2" as const, title: priorityLabel("2"), colorClass: "bg-green-50 border-green-100", dotClass: "bg-green-500" },
+  { p: "3" as const, title: priorityLabel("3"), colorClass: "bg-yellow-50 border-yellow-100", dotClass: "bg-yellow-500" },
+  { p: "4" as const, title: priorityLabel("4"), colorClass: "bg-red-50 border-red-100", dotClass: "bg-red-500" },
 ];
 
 export type PriorityQuadrantsProps = {

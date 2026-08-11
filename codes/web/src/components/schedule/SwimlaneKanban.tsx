@@ -4,8 +4,8 @@ import type { ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
 import { AssigneeAvatar } from "./AssigneeAvatar";
 import {
   formatScheduleRange,
-  normalizePriority,
   priorityBadgeClass,
+  priorityLabel,
   STATUSES,
   taskCalendarColors,
   taskLabelStripeColor,
@@ -141,7 +141,7 @@ export function SwimlaneKanban({
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] font-bold ${priorityBadgeClass(it.priority)}`}
                     >
-                      P{normalizePriority(it.priority)}
+                      {priorityLabel(it.priority)}
                     </span>
                     {showProjectContext ? (
                       <span
