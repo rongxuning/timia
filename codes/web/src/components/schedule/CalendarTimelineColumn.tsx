@@ -8,7 +8,15 @@ import { CalendarTaskCardLines } from "./CalendarTaskCardLines";
 import type { DayTimelineBlock } from "./calendarDayLayout";
 import { DAY_TIMELINE_HEIGHT_PX, DAY_TIMELINE_HOUR_HEIGHT_PX } from "./calendarDayLayout";
 import { TaskStatusIcon } from "./TaskStatusIcon";
-import { taskCalendarColors, taskLabelStripeColor } from "./taskUtils";
+import {
+  computeRescheduledRange,
+  formatFloatHour,
+  SNAP_MINUTES,
+  SNAP_MINUTES_PX,
+  snapYTo15Min,
+  taskCalendarColors,
+  taskLabelStripeColor,
+} from "./taskUtils";
 
 type Props = {
   dayKey: string;
@@ -68,11 +76,20 @@ export function CalendarTimelineColumn({
     onDateBlankClick(dayKey, hour);
   }
 
-  function handleHourDragOver(e: DragEvent<HTMLButtonElement>, hour: number) {
+  function snapHourFromY(y: number): number {
+    return snapYTo15Min(y, DAY_TIMELINE_HOUR_HEIGHT_PX);
+  }
+
+  function handleHourDragOver(e: DragEvent<HTMLButtonElement>, buttonHour: number) {
     if (!droppable) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
+    // 按按钮内 Y 位置决定分钟（15min snap）
+    const rect = e.currentTarget.getBoundingClientRect();
+    const yInButton = e.clientY - rect.top;
+    const minuteInHour = Math.round(yInButton / SNAP_MINUTES_PX) * SNAP_MINUTES;
+    const hour = Math.min(24, Math.max(0, buttonHour + minuteInHour / 60));
     if (dragOverDateKey !== dayKey) onDragOverDateKeyChange?.(dayKey);
     if (dragOverHour !== hour) onDragOverHourChange?.(hour);
   }
@@ -89,7 +106,7 @@ export function CalendarTimelineColumn({
     e.dataTransfer.dropEffect = "move";
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const hour = Math.min(23, Math.max(0, Math.floor(y / DAY_TIMELINE_HOUR_HEIGHT_PX)));
+    const hour = snapHourFromY(y);
     if (dragOverDateKey !== dayKey) onDragOverDateKeyChange?.(dayKey);
     if (dragOverHour !== hour) onDragOverHourChange?.(hour);
   }
@@ -99,7 +116,7 @@ export function CalendarTimelineColumn({
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const hour = Math.min(23, Math.max(0, Math.floor(y / DAY_TIMELINE_HOUR_HEIGHT_PX)));
+    const hour = snapHourFromY(y);
     const id = e.dataTransfer.getData("text/task-id") || dragItemId;
     onDragItemIdChange?.(null);
     onDragOverDateKeyChange?.(null);
@@ -116,10 +133,14 @@ export function CalendarTimelineColumn({
     onDragOverHourChange?.(null);
   }
 
-  function handleHourDrop(e: DragEvent<HTMLButtonElement>, hour: number) {
+  function handleHourDrop(e: DragEvent<HTMLButtonElement>, buttonHour: number) {
     if (!droppable || !onDropDateTime) return;
     e.preventDefault();
     e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const yInButton = e.clientY - rect.top;
+    const minuteInHour = Math.round(yInButton / SNAP_MINUTES_PX) * SNAP_MINUTES;
+    const hour = Math.min(24, Math.max(0, buttonHour + minuteInHour / 60));
     const id = e.dataTransfer.getData("text/task-id") || dragItemId;
     onDragItemIdChange?.(null);
     onDragOverDateKeyChange?.(null);
@@ -194,22 +215,55 @@ export function CalendarTimelineColumn({
           {emptyLabel}
         </div>
       ) : null}
-      {/* 拖拽落点指示器：column-split 模式（周视图）下没有可交互的小时槽，
-          用这个绝对定位的横条在 hover hour 处显示。grid-slot 模式（日视图）下
-          hour 按钮自己高亮，本指示器自动不显示。 */}
-      {droppable && !isGridSlot && dragOverDateKey === dayKey && dragOverHour != null ? (
-        <div
-          className="pointer-events-none absolute left-0 right-0 z-[2] bg-primary/15 border-t border-b border-primary/30"
-          style={{
-            top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
-            height: DAY_TIMELINE_HOUR_HEIGHT_PX,
-          }}
-        />
+      {/* 拖拽落点指示器：
+          - 左端：时间 pill + 横线（贯穿全列），所有模式都显示
+          - 中部背景：column-split 模式（周视图）下用横条高亮 hover hour
+            （grid-slot 模式日视图下 hour 按钮自己高亮，本块不显示） */}
+      {droppable && dragOverDateKey === dayKey && dragOverHour != null ? (
+        <>
+          {/* 左端时间 pill + 横线 */}
+          <div
+            className="pointer-events-none absolute z-[3] flex items-center"
+            style={{
+              top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
+              left: 0,
+              right: 0,
+              height: 0,
+            }}
+          >
+            <div className="-translate-y-1/2 rounded-r-md bg-primary px-1.5 py-px text-[10px] font-semibold tabular-nums text-on-primary shadow">
+              {formatFloatHour(dragOverHour)}
+            </div>
+            <div className="-translate-y-1/2 ml-0 h-0.5 flex-1 bg-primary/50" />
+          </div>
+          {/* column-split 模式下的横向高亮（grid-slot 模式日视图下 hour 按钮自己高亮） */}
+          {droppable && !isGridSlot ? (
+            <div
+              className="pointer-events-none absolute left-0 right-0 z-[2] bg-primary/10"
+              style={{
+                top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
+                height: DAY_TIMELINE_HOUR_HEIGHT_PX,
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
       {blocks.map((block) => {
         if (block.segments.length === 0) return null;
         const c = taskCalendarColors(block.item.priority);
         const isDragging = dragItemId === block.item.id;
+
+        // 拖拽中且 hover 落点已确定 → 计算 preview 时间，传给卡片内显示
+        const previewRange =
+          isDragging && dragOverDateKey && dragOverHour != null
+            ? computeRescheduledRange(
+                block.item,
+                { dateKey: dragOverDateKey, hour: dragOverHour },
+                dayKey,
+              )
+            : null;
+        const previewStartAtIso = previewRange?.startAt ?? null;
+        const previewEndAtIso = previewRange?.endAt ?? null;
 
         // 整体 wrapper 的 bounding box：覆盖所有 segment 的范围
         const boxTop = Math.min(...block.segments.map((s) => s.topPx));
@@ -289,10 +343,20 @@ export function CalendarTimelineColumn({
                         crossesDay={block.crossesDay}
                         titleClassName={titleClassName}
                         metaClassName={metaClassName}
+                        previewStartAtIso={previewStartAtIso}
+                        previewEndAtIso={previewEndAtIso}
                       />
                     ) : (
-                      <span className={titleClassName + " truncate"}>
-                        {block.startLabel}
+                      <span
+                        className={[
+                          titleClassName,
+                          "truncate",
+                          previewStartAtIso ? "text-primary font-semibold" : "",
+                        ].join(" ")}
+                      >
+                        {previewStartAtIso
+                          ? formatFloatHour(dragOverHour ?? 0)
+                          : block.startLabel}
                       </span>
                     )}
                     {showAssigneeAvatar && block.item.assignee ? (

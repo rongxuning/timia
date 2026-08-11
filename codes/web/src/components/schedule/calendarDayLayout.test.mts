@@ -4,6 +4,23 @@
 // ---------- 复制的工具函数（与 calendarDayLayout.ts 保持一致） ----------
 const DAY_TIMELINE_HOUR_HEIGHT_PX = 48;
 const MIN_SEGMENT_HEIGHT_PX = 18;
+const SNAP_MINUTES = 15;
+const SNAP_MINUTES_PX = (SNAP_MINUTES / 60) * 48; // 12
+
+function snapYTo15Min(y: number, hourHeight = 48): number {
+  const totalMin = Math.round(y / SNAP_MINUTES_PX) * SNAP_MINUTES;
+  return Math.max(0, Math.min(24, totalMin / 60));
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function formatFloatHour(hour: number): string {
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  return `${pad2(h)}:${pad2(m)}`;
+}
 
 type VisibleItem = {
   item: { id: string };
@@ -429,6 +446,39 @@ function findBlock(blocks: ReturnType<typeof layoutDayTimeline>, id: string) {
   const d = findBlock(out, "d")!;
   assert(d.segments.length === 1, "D has 1 segment");
   assert(approx(d.segments[0].leftPct, 62.5, 0.5), `D left = 62.5% (got ${d.segments[0].leftPct.toFixed(2)})`);
+}
+
+// ---------- 15min snap helpers ----------
+
+// Case 18: snapYTo15Min 边界
+{
+  // Y=0 → hour 0
+  assert(approx(snapYTo15Min(0), 0), "snapY(0)=0");
+  // Y=12 (15min) → hour 0.25
+  assert(approx(snapYTo15Min(12), 0.25), "snapY(12)=0.25");
+  // Y=24 (30min) → hour 0.5
+  assert(approx(snapYTo15Min(24), 0.5), "snapY(24)=0.5");
+  // Y=36 (45min) → hour 0.75
+  assert(approx(snapYTo15Min(36), 0.75), "snapY(36)=0.75");
+  // Y=48 (1h) → hour 1
+  assert(approx(snapYTo15Min(48), 1), "snapY(48)=1");
+  // Y=6 (7.5min) → round to 0 (closer to 0 than 15min)
+  assert(approx(snapYTo15Min(6), 0), "snapY(6)=0 (round down)");
+  // Y=18 (22.5min) → round to 30min
+  assert(approx(snapYTo15Min(18), 0.5), "snapY(18)=0.5 (round to 30min)");
+  // 边界 clamp: 大 Y → cap at 24
+  assert(approx(snapYTo15Min(48 * 30), 24), "snapY(48*30) clamped to 24");
+  assert(approx(snapYTo15Min(-10), 0), "snapY(-10) clamped to 0");
+}
+
+// Case 19: formatFloatHour
+{
+  assert(formatFloatHour(0) === "00:00", `0 → 00:00 (got ${formatFloatHour(0)})`);
+  assert(formatFloatHour(9) === "09:00", `9 → 09:00 (got ${formatFloatHour(9)})`);
+  assert(formatFloatHour(9.5) === "09:30", `9.5 → 09:30 (got ${formatFloatHour(9.5)})`);
+  assert(formatFloatHour(10.25) === "10:15", `10.25 → 10:15 (got ${formatFloatHour(10.25)})`);
+  assert(formatFloatHour(10.75) === "10:45", `10.75 → 10:45 (got ${formatFloatHour(10.75)})`);
+  assert(formatFloatHour(23.75) === "23:45", `23.75 → 23:45 (got ${formatFloatHour(23.75)})`);
 }
 
 // ---------- 输出 ----------

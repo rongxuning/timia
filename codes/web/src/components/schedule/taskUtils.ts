@@ -120,6 +120,27 @@ export function formatScheduleRange(startIso?: string | null, endIso?: string | 
   return sameDay ? `${formatMdHm(s)}–${pad2(e.getHours())}:${pad2(e.getMinutes())}` : `${formatMdHm(s)}–${formatMdHm(e)}`;
 }
 
+/** 拖拽最小颗粒度：15 分钟对应的像素数（48px/h × 0.25h = 12px） */
+export const SNAP_MINUTES = 15;
+export const SNAP_MINUTES_PX = (SNAP_MINUTES / 60) * 48; // 12
+
+/**
+ * 把鼠标 Y 坐标 snap 到 15 分钟整点，返回 float hour（0-24）。
+ * 规则：round-to-nearest，0-23.75 之间；> 23.75 视为 24（但 Y 通常 < DAY_TIMELINE_HEIGHT_PX）
+ */
+export function snapYTo15Min(y: number, hourHeight = 48): number {
+  const totalMin = Math.round(y / SNAP_MINUTES_PX) * SNAP_MINUTES;
+  const hour = totalMin / 60;
+  return Math.max(0, Math.min(24, hour));
+}
+
+/** float hour (0-24) 格式化为 "HH:MM"，如 10.5 → "10:30" */
+export function formatFloatHour(hour: number): string {
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  return `${pad2(h)}:${pad2(m)}`;
+}
+
 export function toLocalDatetimeInputValue(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -234,11 +255,13 @@ export function computeRescheduledRange(
   }
 
   if (kind === "no-start") {
-    // Q2: 落到 09:00-10:00
-    const startH = target.hour ?? 9;
-    const start = new Date(y, m - 1, d, startH, 0, 0, 0);
+    // Q2: 落到 09:00-10:00（target.hour 为 null 时）或 1 小时整段（target.hour 有值时）
+    // target.hour 现在支持 float（15min snap）
+    const startH = target.hour != null ? Math.floor(target.hour) : 9;
+    const startM = target.hour != null ? Math.round((target.hour - startH) * 60) : 0;
+    const start = new Date(y, m - 1, d, startH, startM, 0, 0);
     const end = target.hour != null
-      ? new Date(y, m - 1, d, startH + 1, 0, 0, 0)
+      ? new Date(y, m - 1, d, startH + 1, startM, 0, 0)
       : new Date(y, m - 1, d, 10, 0, 0, 0);
     return { startAt: start.toISOString(), endAt: end.toISOString() };
   }
@@ -250,8 +273,9 @@ export function computeRescheduledRange(
   const hasOrigEnd = origEnd != null && !Number.isNaN(origEnd.getTime());
   const durationMs = hasOrigEnd ? origEnd!.getTime() - origStart.getTime() : 0;
 
-  const startH = target.hour ?? origStart.getHours();
-  const startMin = target.hour != null ? 0 : origStart.getMinutes();
+  // target.hour 为 null 时保留原时分；为 float 时拆出 hour+minute（15min snap）
+  const startH = target.hour != null ? Math.floor(target.hour) : origStart.getHours();
+  const startMin = target.hour != null ? Math.round((target.hour - startH) * 60) : origStart.getMinutes();
   const start = new Date(y, m - 1, d, startH, startMin, 0, 0);
 
   // 计算 end：始终保留原 duration（包括跨日 duration）。
@@ -263,7 +287,6 @@ export function computeRescheduledRange(
     // 原本 end_at 是无效值（防御性），保留 null
     end = null;
   }
-  // 注意：即使 durationMs <= 0 也不返回 end 为 start 的相同值——这种情况实际不应发生
   return {
     startAt: start.toISOString(),
     endAt: end ? end.toISOString() : null,
