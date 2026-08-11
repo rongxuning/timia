@@ -62,14 +62,14 @@ Introduce one shared constant, e.g. `CALENDAR_TASK_CARD_HEIGHT_PX` (target **`72
 
 ### New
 
-- **`CalendarTaskCard.tsx`** — sole card face: status, four lines, avatar/`?`, priority, padding/gutters. Props cover `item`, completion loading/handler, `showProjectContext`, optional preview times, and chrome needed by month (rounding / left stripe handled by outer wrapper or passed through).
+- **`CalendarTaskCard.tsx`** — sole **inner** card face: status, four lines, avatar/`?`, priority, padding/gutters. It does **not** own the outer `button`, colors, border radius, or left stripe. Props: `item`, completion loading/handler, `showProjectContext`, optional preview times, optional `compact` typography.
 
 ### Thin / adjust
 
-- **`CalendarTaskBar`** — month / all-day outer `button` (drag, radius, color stripe); renders `CalendarTaskCard` when `showLabel`; blank continuation when not.
-- **`CalendarTimelineColumn`** — positioned `button` only; replace inline status/lines/avatar/priority with `CalendarTaskCard`.
+- **`CalendarTaskBar`** — month / all-day outer `button` (drag, radius, priority colors, left stripe); renders `CalendarTaskCard` when `showLabel`; blank continuation when not.
+- **`CalendarTimelineColumn`** — keeps the absolutely positioned outer `button` (drag, colors, stripe, block geometry); inner content becomes `CalendarTaskCard` only.
 - **`CalendarTaskCardLines`** — four fixed slots only; drop “跨天” fifth row; keep equal-height empty placeholders.
-- **`AssigneeAvatar`** (or card wrapper) — support no-assignee `?` placeholder at compact size.
+- **`AssigneeAvatar`** — add optional empty/`?` placeholder at compact size (preferred over a one-off div in the card).
 - **`taskUtils` / `calendarDayLayout`** — shared card height; hour height `96`; min block = card height; snap px tied to hour height.
 
 ### Unchanged
