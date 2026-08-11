@@ -3,14 +3,23 @@ import { formatScheduleDateTime, pad2 } from "./taskUtils";
 
 export const DAY_TIMELINE_HOUR_HEIGHT_PX = 48;
 export const DAY_TIMELINE_HEIGHT_PX = 24 * DAY_TIMELINE_HOUR_HEIGHT_PX;
-const MIN_BLOCK_HEIGHT_PX = 28;
+/** 极短 segment 的最小高度（防御性，与旧 MIN_BLOCK_HEIGHT_PX 行为一致） */
+const MIN_SEGMENT_HEIGHT_PX = 18;
 
-export type DayTimelineBlock = {
-  item: ScheduleTaskItem;
-  lane: number;
-  laneCount: number;
+/** 日历日视图内的一个渲染片段：阶梯矩形的一个台阶 */
+export type DayTimelineSegment = {
   topPx: number;
   heightPx: number;
+  /** 0-100，列内 left 百分比 */
+  leftPct: number;
+  /** 0-100，列内 width 百分比 */
+  widthPct: number;
+};
+
+/** 日历日视图内的一个任务块；一个 item 可能对应多个 segments（阶梯） */
+export type DayTimelineBlock = {
+  item: ScheduleTaskItem;
+  segments: DayTimelineSegment[];
   crossesDay: boolean;
   startLabel: string;
   endLabel: string;
@@ -68,7 +77,7 @@ function minutesFromDayStart(ms: number, anchorKey: string): number {
   return Math.max(0, Math.min(24 * 60, (ms - dayStart) / 60000));
 }
 
-function itemCrossesDay(it: ScheduleTaskItem, anchorKey: string, startMs: number, endMs: number): boolean {
+function itemCrossesDay(it: ScheduleTaskItem, anchorKey: string): boolean {
   if (!it.start_at) return false;
   const start = new Date(it.start_at);
   const end = it.end_at ? new Date(it.end_at) : start;
@@ -79,76 +88,97 @@ function itemCrossesDay(it: ScheduleTaskItem, anchorKey: string, startMs: number
   return start.getTime() < dayStart || end.getTime() > dayEnd;
 }
 
-type RawBlock = {
+type VisibleItem = {
   item: ScheduleTaskItem;
-  topPx: number;
-  heightPx: number;
   startMin: number;
   endMin: number;
-  crossesDay: boolean;
-  startLabel: string;
-  endLabel: string;
+  duration: number;
 };
 
-function placeOverlapGroup(group: RawBlock[]): DayTimelineBlock[] {
-  const lanes: Array<Array<{ startMin: number; endMin: number }>> = [];
-  const placed: DayTimelineBlock[] = [];
+/**
+ * 核心布局算法：sweep line + duration 比例分栏（方案 B）。
+ *
+ * 设计要点：
+ * 1. 收集所有 task 的 start/end 时间点作为 breakpoints
+ * 2. 在每两个相邻 breakpoint 之间的稳定区间内，找到所有 active 的任务
+ * 3. active 任务按 startMin 升序（稳定 tiebreak：endMin 降序，更长的优先）
+ *    横向分配 = duration / totalActiveDuration * 100%
+ * 4. 每个任务在每个稳定区间内得到一个 segment，相邻位置相同的 segment 合并
+ * 5. 一个任务可能产生多个 segment（阶梯），因为它的 left/width 会在
+ *    "其他任务进/出"时发生变化
+ */
+function computeSegments(visible: VisibleItem[]): Map<string, DayTimelineSegment[]> {
+  const byItemId = new Map<string, DayTimelineSegment[]>();
+  if (visible.length === 0) return byItemId;
 
-  for (const block of group) {
-    let laneIdx = 0;
-    while (true) {
-      const lane = lanes[laneIdx] ?? [];
-      const conflict = lane.some(
-        (x) => !(block.endMin <= x.startMin || block.startMin >= x.endMin),
-      );
-      if (!conflict) {
-        if (!lanes[laneIdx]) lanes[laneIdx] = [];
-        lanes[laneIdx].push({ startMin: block.startMin, endMin: block.endMin });
-        placed.push({
-          item: block.item,
-          lane: laneIdx,
-          laneCount: 1,
-          topPx: block.topPx,
-          heightPx: block.heightPx,
-          crossesDay: block.crossesDay,
-          startLabel: block.startLabel,
-          endLabel: block.endLabel,
-        });
-        break;
-      }
-      laneIdx += 1;
+  // 1. breakpoints
+  const breakpointsSet = new Set<number>();
+  for (const v of visible) {
+    breakpointsSet.add(v.startMin);
+    breakpointsSet.add(v.endMin);
+  }
+  const breakpoints = Array.from(breakpointsSet).sort((a, b) => a - b);
+
+  // 2. 遍历稳定区间
+  for (let i = 0; i < breakpoints.length - 1; i++) {
+    const tStart = breakpoints[i];
+    const tEnd = breakpoints[i + 1];
+    if (tEnd <= tStart) continue;
+
+    // active set：startMin <= tStart && endMin >= tEnd
+    const active = visible.filter((v) => v.startMin <= tStart && v.endMin >= tEnd);
+    if (active.length === 0) continue;
+
+    const totalDuration = active.reduce((sum, v) => sum + v.duration, 0);
+    // 稳定排序：startMin 升序；同 start 时 endMin 降序（长的优先）
+    const sortedActive = [...active].sort(
+      (a, b) => a.startMin - b.startMin || b.endMin - a.endMin,
+    );
+
+    let leftPct = 0;
+    for (const v of sortedActive) {
+      const widthPct =
+        totalDuration > 0 ? (v.duration / totalDuration) * 100 : 100 / active.length;
+      const segs = byItemId.get(v.item.id) ?? [];
+      segs.push({
+        topPx: (tStart / 60) * DAY_TIMELINE_HOUR_HEIGHT_PX,
+        heightPx: ((tEnd - tStart) / 60) * DAY_TIMELINE_HOUR_HEIGHT_PX,
+        leftPct,
+        widthPct,
+      });
+      byItemId.set(v.item.id, segs);
+      leftPct += widthPct;
     }
   }
 
-  const laneCount = Math.max(1, lanes.length);
-  return placed.map((block) => ({ ...block, laneCount }));
+  // 3. 合并相邻同位置的 segment（节省 DOM 节点）
+  for (const [id, segs] of byItemId) {
+    const merged: DayTimelineSegment[] = [];
+    for (const seg of segs) {
+      const last = merged[merged.length - 1];
+      if (last && last.leftPct === seg.leftPct && last.widthPct === seg.widthPct) {
+        last.heightPx += seg.heightPx;
+      } else {
+        merged.push({ ...seg });
+      }
+    }
+    byItemId.set(id, merged);
+  }
+
+  return byItemId;
 }
 
-function splitIntoOverlapGroups(blocks: RawBlock[]): RawBlock[][] {
-  const groups: RawBlock[][] = [];
-  let currentGroup: RawBlock[] = [];
-  let currentGroupEndMin = -Infinity;
-
-  for (const block of blocks) {
-    // Intervals that only touch at the boundary do not overlap, so they start
-    // separate groups and can each use the full available width.
-    if (currentGroup.length > 0 && block.startMin >= currentGroupEndMin) {
-      groups.push(currentGroup);
-      currentGroup = [];
-      currentGroupEndMin = -Infinity;
-    }
-    currentGroup.push(block);
-    currentGroupEndMin = Math.max(currentGroupEndMin, block.endMin);
-  }
-
-  if (currentGroup.length > 0) groups.push(currentGroup);
-  return groups;
+/** 防御性：如果某个 segment 计算出的 heightPx 太小，给个最小高度（不修改原数据语义） */
+function ensureMinHeight(seg: DayTimelineSegment): DayTimelineSegment {
+  return seg.heightPx < MIN_SEGMENT_HEIGHT_PX
+    ? { ...seg, heightPx: MIN_SEGMENT_HEIGHT_PX }
+    : seg;
 }
 
 export function layoutDayTimeline(items: ScheduleTaskItem[], anchorKey: string): DayTimelineBlock[] {
   const { startMs: dayStart, endMs: dayEnd } = dayBounds(anchorKey);
-  const raw: RawBlock[] = [];
 
+  const visible: VisibleItem[] = [];
   for (const item of items) {
     if (!item.start_at) continue;
     const start = new Date(item.start_at);
@@ -157,26 +187,29 @@ export function layoutDayTimeline(items: ScheduleTaskItem[], anchorKey: string):
 
     const visibleStartMs = Math.max(start.getTime(), dayStart);
     const visibleEndMs = Math.min(end.getTime(), dayEnd);
-    if (visibleEndMs < visibleStartMs) continue;
+    if (visibleEndMs <= visibleStartMs) continue;
 
     const startMin = minutesFromDayStart(visibleStartMs, anchorKey);
     let endMin = minutesFromDayStart(visibleEndMs, anchorKey);
     if (endMin <= startMin) endMin = Math.min(startMin + 15, 24 * 60);
-    const topPx = (startMin / 60) * DAY_TIMELINE_HOUR_HEIGHT_PX;
-    const heightPx = Math.max(MIN_BLOCK_HEIGHT_PX, ((endMin - startMin) / 60) * DAY_TIMELINE_HOUR_HEIGHT_PX);
-
-    raw.push({
+    visible.push({
       item,
-      topPx,
-      heightPx,
       startMin,
       endMin,
-      crossesDay: itemCrossesDay(item, anchorKey, start.getTime(), end.getTime()),
-      startLabel: formatScheduleDateTime(item.start_at) ?? "—",
-      endLabel: formatScheduleDateTime(item.end_at ?? item.start_at) ?? "—",
+      duration: endMin - startMin,
     });
   }
 
-  raw.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
-  return splitIntoOverlapGroups(raw).flatMap(placeOverlapGroup);
+  const segmentsByItemId = computeSegments(visible);
+
+  return visible.map((v) => {
+    const segs = (segmentsByItemId.get(v.item.id) ?? []).map(ensureMinHeight);
+    return {
+      item: v.item,
+      segments: segs,
+      crossesDay: itemCrossesDay(v.item, anchorKey),
+      startLabel: formatScheduleDateTime(v.item.start_at) ?? "—",
+      endLabel: formatScheduleDateTime(v.item.end_at ?? v.item.start_at) ?? "—",
+    };
+  });
 }

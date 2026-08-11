@@ -194,15 +194,54 @@ export function CalendarTimelineColumn({
           {emptyLabel}
         </div>
       ) : null}
+      {/* 拖拽落点指示器：column-split 模式（周视图）下没有可交互的小时槽，
+          用这个绝对定位的横条在 hover hour 处显示。grid-slot 模式（日视图）下
+          hour 按钮自己高亮，本指示器自动不显示。 */}
+      {droppable && !isGridSlot && dragOverDateKey === dayKey && dragOverHour != null ? (
+        <div
+          className="pointer-events-none absolute left-0 right-0 z-[2] bg-primary/15 border-t border-b border-primary/30"
+          style={{
+            top: dragOverHour * DAY_TIMELINE_HOUR_HEIGHT_PX,
+            height: DAY_TIMELINE_HOUR_HEIGHT_PX,
+          }}
+        />
+      ) : null}
       {blocks.map((block) => {
+        if (block.segments.length === 0) return null;
         const c = taskCalendarColors(block.item.priority);
-        const widthPct = isGridSlot ? gridColWidthPct : 100 / block.laneCount;
-        const leftPct = isGridSlot ? block.lane * gridColWidthPct : block.lane * widthPct;
         const isDragging = dragItemId === block.item.id;
+
+        // 整体 wrapper 的 bounding box：覆盖所有 segment 的范围
+        const boxTop = Math.min(...block.segments.map((s) => s.topPx));
+        const boxLeft = Math.min(...block.segments.map((s) => s.leftPct));
+        const boxRight = Math.max(...block.segments.map((s) => s.leftPct + s.widthPct));
+        const boxBottom = Math.max(...block.segments.map((s) => s.topPx + s.heightPx));
+        const boxWidthPct = boxRight - boxLeft;
+        const boxHeightPx = boxBottom - boxTop;
+
+        // F 兜底：narrow segment 阈值（< 12% 全宽时只显时间，不显标题）
+        const NARROW_SEGMENT_PCT = 12;
+
         return (
-          <button
-            key={`${dayKey}-${block.item.id}-${block.lane}`}
-            type="button"
+          <div
+            key={`${dayKey}-${block.item.id}-wrap`}
+            className={[
+              "absolute z-[1] rounded-lg border shadow-sm overflow-hidden",
+              droppable ? "cursor-grab" : "",
+              isDragging ? "opacity-40" : "",
+            ].join(" ")}
+            style={{
+              top: boxTop,
+              height: boxHeightPx,
+              left: `calc(${boxLeft}% + 2px)`,
+              width: `calc(${boxWidthPct}% - 4px)`,
+              backgroundColor: c.bg,
+              color: c.fg,
+              borderColor: c.border,
+              borderLeftColor: taskLabelStripeColor(block.item.color, c.border),
+              borderLeftWidth: compact ? 3 : 4,
+            }}
+            title={calendarTaskTooltip(block.item, showProjectContext)}
             draggable={droppable && !!onDragItemIdChange}
             onDragStart={
               droppable && onDragItemIdChange
@@ -214,44 +253,56 @@ export function CalendarTimelineColumn({
                 : undefined
             }
             onDragEnd={onDragItemIdChange ? () => onDragItemIdChange(null) : undefined}
-            className={[
-              "absolute z-[1] flex items-center overflow-hidden rounded-lg border px-1 py-0.5 text-left shadow-sm hover:brightness-[0.97] transition-[filter]",
-              droppable ? "cursor-grab active:cursor-grabbing" : "",
-              isDragging ? "opacity-40" : "",
-            ].join(" ")}
-            style={{
-              top: block.topPx,
-              height: block.heightPx,
-              left: `calc(${leftPct}% + 2px)`,
-              width: `calc(${widthPct}% - 4px)`,
-              backgroundColor: c.bg,
-              color: c.fg,
-              borderColor: c.border,
-              borderLeftColor: taskLabelStripeColor(block.item.color, c.border),
-              borderLeftWidth: compact ? 3 : 4,
-            }}
-            title={calendarTaskTooltip(block.item, showProjectContext)}
             onClick={() => onTaskClick(block.item)}
+            role="button"
+            tabIndex={0}
           >
-            <div className="flex min-h-0 min-w-0 flex-1 items-center gap-0.5">
-              <TaskStatusIcon
-                size="compact"
-                status={block.item.status}
-                loading={completingItemId === block.item.id}
-                onComplete={onCompleteTask ? () => onCompleteTask(block.item.id) : undefined}
-              />
-              <CalendarTaskCardLines
-                item={block.item}
-                showProjectContext={showProjectContext}
-                crossesDay={block.crossesDay}
-                titleClassName={titleClassName}
-                metaClassName={metaClassName}
-              />
-              {showAssigneeAvatar && block.item.assignee ? (
-                <AssigneeAvatar displayName={block.item.assignee.display_name} size="compact" />
-              ) : null}
-            </div>
-          </button>
+            {block.segments.map((seg, segIdx) => {
+              const isNarrow = seg.widthPct < NARROW_SEGMENT_PCT;
+              return (
+                <div
+                  key={`${dayKey}-${block.item.id}-seg-${segIdx}`}
+                  className="absolute flex items-center"
+                  style={{
+                    top: seg.topPx - boxTop,
+                    height: seg.heightPx,
+                    left: `${seg.leftPct - boxLeft}%`,
+                    width: `${seg.widthPct}%`,
+                  }}
+                >
+                  <div
+                    className={[
+                      "flex min-h-0 min-w-0 flex-1 items-center gap-0.5 px-1 py-0.5 overflow-hidden",
+                      droppable ? "cursor-grab active:cursor-grabbing" : "",
+                    ].join(" ")}
+                  >
+                    <TaskStatusIcon
+                      size="compact"
+                      status={block.item.status}
+                      loading={completingItemId === block.item.id}
+                      onComplete={onCompleteTask ? () => onCompleteTask(block.item.id) : undefined}
+                    />
+                    {!isNarrow ? (
+                      <CalendarTaskCardLines
+                        item={block.item}
+                        showProjectContext={showProjectContext}
+                        crossesDay={block.crossesDay}
+                        titleClassName={titleClassName}
+                        metaClassName={metaClassName}
+                      />
+                    ) : (
+                      <span className={titleClassName + " truncate"}>
+                        {block.startLabel}
+                      </span>
+                    )}
+                    {showAssigneeAvatar && block.item.assignee ? (
+                      <AssigneeAvatar displayName={block.item.assignee.display_name} size="compact" />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         );
       })}
     </div>
