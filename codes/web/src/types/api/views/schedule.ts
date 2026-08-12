@@ -54,15 +54,30 @@ export type CalendarDayDetailView = {
   items: ScheduleTaskItem[];
 };
 
+export type CalendarHeatDayView = {
+  key: string;
+  task_count: number;
+};
+
+export type CalendarMonthSummaryView = {
+  month: number;
+  task_count: number;
+  todo_count: number;
+  done_count: number;
+  days: CalendarHeatDayView[];
+};
+
 export type ScheduleCalendarView = {
-  view: "month" | "week" | "day";
+  view: "year" | "month" | "week" | "day";
   anchor: string;
   month: string | null;
+  year?: number | null;
   weeks: CalendarWeekView[];
+  months?: CalendarMonthSummaryView[];
   day: CalendarDayDetailView | null;
 };
 
-export type CalendarViewMode = "day" | "week" | "month";
+export type CalendarViewMode = "day" | "week" | "month" | "year";
 
 export type ScheduleSwimlaneView = {
   columns: Record<StatusKey, ScheduleTaskItem[]>;
