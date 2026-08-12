@@ -78,6 +78,8 @@ private struct ScheduleTaskCard: View {
             Text(task.title)
                 .font(.system(size: fontSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(appearance.foreground.opacity(isMuted ? 0.55 : 1))
+                .strikethrough(task.status == "done" || task.status == "archived")
+                .opacity(task.status == "done" || task.status == "archived" ? 0.7 : 1)
                 .lineLimit(lineLimit)
                 .frame(
                     maxWidth: .infinity,

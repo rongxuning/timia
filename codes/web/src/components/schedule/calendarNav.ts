@@ -1,11 +1,12 @@
 import { pad2 } from "./taskUtils";
 
-export type CalendarViewMode = "day" | "week" | "month";
+export type CalendarViewMode = "day" | "week" | "month" | "year";
 
 export const CALENDAR_VIEW_MODES: Array<{ key: CalendarViewMode; label: string }> = [
   { key: "day", label: "日" },
   { key: "week", label: "周" },
   { key: "month", label: "月" },
+  { key: "year", label: "年" },
 ];
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
@@ -64,6 +65,9 @@ export function shiftCalendarAnchor(anchor: Date, mode: CalendarViewMode, delta:
   if (mode === "week") {
     return new Date(base.getFullYear(), base.getMonth(), base.getDate() + delta * 7);
   }
+  if (mode === "year") {
+    return new Date(base.getFullYear() + delta, base.getMonth(), base.getDate());
+  }
   const targetMonth = new Date(base.getFullYear(), base.getMonth() + delta, 1);
   const day = Math.min(base.getDate(), daysInMonth(targetMonth.getFullYear(), targetMonth.getMonth()));
   return new Date(targetMonth.getFullYear(), targetMonth.getMonth(), day);
@@ -76,6 +80,9 @@ function formatMonthDay(d: Date, withYear: boolean) {
 
 export function calendarTitle(anchor: Date, mode: CalendarViewMode): string {
   const base = startOfDay(anchor);
+  if (mode === "year") {
+    return `${base.getFullYear()}年`;
+  }
   if (mode === "month") {
     return `${base.getFullYear()}年${base.getMonth() + 1}月`;
   }
@@ -91,11 +98,13 @@ export function calendarTitle(anchor: Date, mode: CalendarViewMode): string {
 export function calendarNavStepLabel(mode: CalendarViewMode): string {
   if (mode === "day") return "上一天 / 下一天";
   if (mode === "week") return "上一周 / 下一周";
+  if (mode === "year") return "上一年 / 下一年";
   return "上个月 / 下个月";
 }
 
 export function calendarTodayLabel(mode: CalendarViewMode): string {
   if (mode === "day") return "今天";
   if (mode === "week") return "本周";
+  if (mode === "year") return "今年";
   return "本月";
 }
