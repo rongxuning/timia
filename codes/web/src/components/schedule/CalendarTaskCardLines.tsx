@@ -35,10 +35,18 @@ export function CalendarTaskCardLines({
   const endIso = previewEndAtIso !== undefined ? previewEndAtIso : item.end_at;
   const timeRangeLabel = formatScheduleTimeRange(startIso, endIso);
   const isPreviewing = previewStartAtIso !== undefined || previewEndAtIso !== undefined;
+  const titleStruck = item.status === "done" || item.status === "archived";
 
   return (
     <div className="flex min-w-0 flex-1 flex-col justify-start gap-px leading-none">
-      <div className={`truncate font-bold leading-tight ${titleClassName}`}>{item.title}</div>
+      <div
+        className={[
+          `truncate font-bold leading-tight ${titleClassName}`,
+          titleStruck ? "line-through opacity-70" : "",
+        ].join(" ")}
+      >
+        {item.title}
+      </div>
       {showProjectContext ? (
         <div className={`truncate leading-tight text-neutral-muted/90 ${metaClassName}`}>
           {item.workspace_name} / {item.project_name}
