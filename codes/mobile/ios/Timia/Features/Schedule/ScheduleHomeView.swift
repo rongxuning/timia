@@ -57,7 +57,7 @@ struct ScheduleHomeView: View {
 
     @EnvironmentObject private var session: AppSession
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var contentMode: ContentMode = .calendar
+    @State private var contentMode: ContentMode = .todo
     @State private var range: CalendarRange = .day
     @State private var selectedDate = Date()
     @State private var stickyDraft = StickyNoteDraftStore()

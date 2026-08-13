@@ -22,6 +22,8 @@ final class TimiaUITests: XCTestCase {
         let todoModeButton = app.buttons["Todo 模式"]
         XCTAssertTrue(todoModeButton.waitForExistence(timeout: 2))
         XCTAssertEqual(todoModeButton.frame.midY, input.frame.midY, accuracy: 6)
+        XCTAssertTrue(element("todo-section-today", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-this-week", in: app).waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["日"].exists)
 
         let directCreateButton = app.buttons["新建任务"]
@@ -36,6 +38,10 @@ final class TimiaUITests: XCTestCase {
         app.buttons["取消"].tap()
         XCTAssertTrue(input.waitForExistence(timeout: 3))
 
+        app.buttons["日历模式"].tap()
+        XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
+        app.buttons["日"].tap()
+        XCTAssertFalse(app.buttons["日"].exists)
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-day", app: app)
 
@@ -106,6 +112,9 @@ final class TimiaUITests: XCTestCase {
         login.tap()
         XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
 
+        app.buttons["日历模式"].tap()
+        XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
+        app.buttons["日"].tap()
         XCTAssertTrue(element("calendar-day-timeline", in: app).waitForExistence(timeout: 4))
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.70)).tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
