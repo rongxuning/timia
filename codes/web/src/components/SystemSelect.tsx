@@ -10,6 +10,16 @@ export type SystemSelectOption = {
   accentClass?: string;
 };
 
+export type SystemSelectTriggerState = {
+  open: boolean;
+  disabled: boolean;
+  loading: boolean;
+  selected: SystemSelectOption | null;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  toggle: () => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+};
+
 type Props = {
   label: string;
   value: string | null;
@@ -22,6 +32,8 @@ type Props = {
   searchPlaceholder?: string;
   emptyText?: string;
   showAccent?: boolean;
+  hideLabel?: boolean;
+  renderTrigger?: (state: SystemSelectTriggerState) => React.ReactNode;
 };
 
 type MenuPosition = {
@@ -44,6 +56,8 @@ export function SystemSelect({
   searchPlaceholder = "搜索…",
   emptyText = "暂无可选项",
   showAccent = true,
+  hideLabel = false,
+  renderTrigger,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -130,6 +144,11 @@ export function SystemSelect({
   function closePanel() {
     setOpen(false);
     setQuery("");
+  }
+
+  function toggle() {
+    if (open) closePanel();
+    else openPanel();
   }
 
   function pick(option: SystemSelectOption) {
@@ -300,46 +319,63 @@ export function SystemSelect({
         )
       : null;
 
+  const triggerState: SystemSelectTriggerState = {
+    open,
+    disabled,
+    loading,
+    selected,
+    triggerRef,
+    toggle,
+    onKeyDown: handleTriggerKeyDown,
+  };
+
   return (
     <div ref={rootRef} className="space-y-2">
-      <div className="text-sm font-medium text-on-surface-variant" id={`${uid}-label`}>
-        {label}
-      </div>
-      <button
-        ref={triggerRef}
-        type="button"
-        role="combobox"
-        aria-labelledby={`${uid}-label`}
-        aria-controls={`${uid}-options`}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-activedescendant={open ? `${uid}-option-${activeIndex}` : undefined}
-        className="flex w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-left text-body outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={() => (open ? closePanel() : openPanel())}
-        onKeyDown={handleTriggerKeyDown}
-        disabled={disabled || loading}
-      >
-        {showAccent ? (
+      {hideLabel ? null : (
+        <div className="text-sm font-medium text-on-surface-variant" id={`${uid}-label`}>
+          {label}
+        </div>
+      )}
+      {renderTrigger ? (
+        renderTrigger(triggerState)
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          role="combobox"
+          aria-labelledby={hideLabel ? undefined : `${uid}-label`}
+          aria-label={hideLabel ? label : undefined}
+          aria-controls={`${uid}-options`}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-activedescendant={open ? `${uid}-option-${activeIndex}` : undefined}
+          className="flex w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-left text-body outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={toggle}
+          onKeyDown={handleTriggerKeyDown}
+          disabled={disabled || loading}
+        >
+          {showAccent ? (
+            <span
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                selected?.accentClass ?? "bg-zinc-300"
+              }`}
+            />
+          ) : null}
           <span
-            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-              selected?.accentClass ?? "bg-zinc-300"
+            className={`min-w-0 flex-1 truncate ${selected ? "text-text-primary" : "text-neutral-muted"}`}
+          >
+            {loading ? "加载中…" : selected?.label ?? placeholder}
+          </span>
+          <span
+            className={`material-symbols-outlined shrink-0 text-[18px] text-neutral-muted transition-transform duration-200 ${
+              open ? "rotate-180" : ""
             }`}
-          />
-        ) : null}
-        <span
-          className={`min-w-0 flex-1 truncate ${selected ? "text-text-primary" : "text-neutral-muted"}`}
-        >
-          {loading ? "加载中…" : selected?.label ?? placeholder}
-        </span>
-        <span
-          className={`material-symbols-outlined shrink-0 text-[18px] text-neutral-muted transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
-          aria-hidden
-        >
-          expand_more
-        </span>
-      </button>
+            aria-hidden
+          >
+            expand_more
+          </span>
+        </button>
+      )}
       {menu}
     </div>
   );
