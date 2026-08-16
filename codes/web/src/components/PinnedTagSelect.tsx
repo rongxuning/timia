@@ -107,6 +107,8 @@ export function PinnedTagSelect({
       <div className="flex flex-wrap items-center gap-2">
         {loading ? (
           <span className="text-small text-neutral-muted">加载中…</span>
+        ) : options.length === 0 ? (
+          emptyText ? <span className="text-small text-neutral-muted">{emptyText}</span> : null
         ) : (
           tiles.map((row) => {
             const selected = row.id === value;
@@ -115,7 +117,7 @@ export function PinnedTagSelect({
                 key={row.id}
                 type="button"
                 aria-pressed={selected}
-                className={`inline-flex h-8 max-w-[9rem] items-center rounded-full border px-3 text-small outline-none transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`inline-flex h-8 max-w-[9rem] items-center rounded-full border px-3 text-small outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50 ${
                   selected
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border-subtle bg-surface-bright text-text-primary"
@@ -128,7 +130,7 @@ export function PinnedTagSelect({
             );
           })
         )}
-        {options.length > 5 ? (
+        {!loading && options.length > 5 ? (
           <SystemSelect
             label={label}
             value={value}

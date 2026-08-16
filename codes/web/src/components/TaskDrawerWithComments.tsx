@@ -477,6 +477,7 @@ export function TaskDrawerWithComments({
     if (nextWorkspaceId === selectedWorkspaceId) return;
     setSelectedWorkspaceId(nextWorkspaceId);
     setSelectedProjectId("");
+    setProjectOptions([]);
     setEditParticipantUserIds([]);
     setEditAssigneeUserId("");
     setOwnershipError(null);
