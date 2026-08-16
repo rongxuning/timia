@@ -34,13 +34,23 @@ router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 @router.get("", response_model=list[WorkspaceOut])
 def list_workspaces(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    rows = db.scalars(
-        select(Workspace)
+    rows = db.execute(
+        select(Workspace, WorkspaceMember.is_favorite)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
         .where(WorkspaceMember.user_id == user.id, WorkspaceMember.status == "active")
         .order_by(WorkspaceMember.is_favorite.desc(), Workspace.created_at.desc())
     ).all()
-    return [WorkspaceOut(id=str(w.id), name=w.name, description=w.description, color=w.color) for w in rows]
+    return [
+        WorkspaceOut(
+            id=str(w.id),
+            name=w.name,
+            description=w.description,
+            color=w.color,
+            created_at=w.created_at,
+            is_favorite=is_favorite,
+        )
+        for w, is_favorite in rows
+    ]
 
 
 @router.get("/cards", response_model=list[WorkspaceCardOut])

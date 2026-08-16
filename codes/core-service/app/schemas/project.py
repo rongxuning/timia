@@ -33,6 +33,7 @@ class ProjectOut(BaseModel):
     color: str = "#FFFFFF"
     archived: bool
     created_at: datetime
+    is_favorite: bool = False
     created_by_user_id: str | None = None
     created_by_display_name: str | None = None
     """True when the current user may rename/archive/delete the project or manage its members."""

@@ -20,6 +20,7 @@ from app.schemas.project import (
 from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.services.activity import log_activity
 from app.services.project_api import apply_project_transfer, parse_project_transfer_target
+from app.services.project_sort import sort_projects_favorite_then_created
 from app.services.permissions import (
     PROJECT_OWNER,
     accessible_project_ids,
@@ -66,6 +67,7 @@ def _project_out(
     *,
     creators: dict[uuid.UUID, User],
     can_manage: bool,
+    is_favorite: bool = False,
 ) -> ProjectOut:
     creator = creators.get(p.created_by_user_id) if p.created_by_user_id else None
     return ProjectOut(
@@ -76,6 +78,7 @@ def _project_out(
         color=p.color,
         archived=p.archived,
         created_at=p.created_at,
+        is_favorite=is_favorite,
         created_by_user_id=str(p.created_by_user_id) if p.created_by_user_id else None,
         created_by_display_name=creator.display_name if creator else None,
         can_manage=can_manage,
@@ -96,6 +99,19 @@ def list_projects(
             return []
         q = q.where(Project.id.in_(allowed))
     rows = db.scalars(q).all()
+    favorite_ids = (
+        set(
+            db.scalars(
+                select(ProjectFavorite.project_id).where(
+                    ProjectFavorite.project_id.in_([p.id for p in rows]),
+                    ProjectFavorite.user_id == user.id,
+                )
+            ).all()
+        )
+        if rows
+        else set()
+    )
+    rows = sort_projects_favorite_then_created(rows, favorite_ids)
     creator_ids = {p.created_by_user_id for p in rows if p.created_by_user_id}
     creators: dict[uuid.UUID, User] = {}
     if creator_ids:
@@ -106,6 +122,7 @@ def list_projects(
             p,
             creators=creators,
             can_manage=user_can_manage_project(db, workspace_id, p.id, user),
+            is_favorite=p.id in favorite_ids,
         )
         for p in rows
     ]
