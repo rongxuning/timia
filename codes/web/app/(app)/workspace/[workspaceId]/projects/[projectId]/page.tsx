@@ -149,7 +149,7 @@ export default function ProjectPage() {
   async function handleDropOnUndated(taskId: string) {
     const fromDrag = draggingItemRef.current?.id === taskId ? draggingItemRef.current : null;
     const item = fromDrag ?? (undatedItems ?? []).find((entry) => entry.id === taskId) ?? null;
-    if (!item || item.project_id !== projectId || !canClearScheduleByDrop(item)) return;
+    if (!item || !token || item.project_id !== projectId || !canClearScheduleByDrop(item)) return;
     try {
       await apiFetch(`/workspaces/${item.workspace_id}/projects/${item.project_id}/items/${item.id}`, {
         method: "PATCH",

@@ -148,7 +148,7 @@ export default function MySchedulePage() {
   async function handleDropOnUndated(taskId: string) {
     const fromDrag = draggingItemRef.current?.id === taskId ? draggingItemRef.current : null;
     const item = fromDrag ?? (undatedItems ?? []).find((entry) => entry.id === taskId) ?? null;
-    if (!item || !canClearScheduleByDrop(item)) return;
+    if (!item || !token || !canClearScheduleByDrop(item)) return;
     try {
       await apiFetch(`/workspaces/${item.workspace_id}/projects/${item.project_id}/items/${item.id}`, {
         method: "PATCH",
