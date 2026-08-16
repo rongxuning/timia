@@ -3,9 +3,11 @@ import type {
   CalendarViewMode,
   MyScheduleDashboardView,
   ScheduleCalendarView,
+  ScheduleOverdueView,
   SchedulePriorityView,
   ScheduleScopeParams,
   ScheduleSwimlaneView,
+  ScheduleUndatedView,
 } from "@/types/api/views/schedule";
 
 function formatDateAnchor(d: Date): string {
@@ -47,6 +49,22 @@ export function fetchScheduleSwimlane(token: string, params: ScheduleScopeParams
 
 export function fetchSchedulePriority(token: string, params: ScheduleScopeParams): Promise<SchedulePriorityView> {
   return apiFetch<SchedulePriorityView>(`/views/schedule/priority?${scopeQuery(params)}`, { token });
+}
+
+export function fetchScheduleUndated(token: string, params: ScheduleScopeParams): Promise<ScheduleUndatedView> {
+  return apiFetch<ScheduleUndatedView>(`/views/schedule/undated?${scopeQuery(params)}`, { token });
+}
+
+export function fetchScheduleOverdue(
+  token: string,
+  params: ScheduleScopeParams,
+  options: { timezone?: string; limit?: number; offset?: number } = {},
+): Promise<ScheduleOverdueView> {
+  const q = new URLSearchParams(scopeQuery(params));
+  q.set("timezone", options.timezone ?? calendarTimeZone());
+  if (options.limit != null) q.set("limit", String(options.limit));
+  if (options.offset != null) q.set("offset", String(options.offset));
+  return apiFetch<ScheduleOverdueView>(`/views/schedule/overdue?${q.toString()}`, { token });
 }
 
 export function fetchMyScheduleDashboard(token: string): Promise<MyScheduleDashboardView> {

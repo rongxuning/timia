@@ -87,6 +87,16 @@ export type SchedulePriorityView = {
   quadrants: Record<PriorityKey, ScheduleTaskItem[]>;
 };
 
+export type ScheduleUndatedView = {
+  items: ScheduleTaskItem[];
+};
+
+export type ScheduleOverdueView = {
+  items: ScheduleTaskItem[];
+  total: number;
+  has_more: boolean;
+};
+
 export type ScheduleDashboardStats = {
   task_total: number;
   todo_count: number;

@@ -21,6 +21,8 @@ export function ScheduleCalendarDayHeader({
   completingItemId,
   showProjectContext = true,
   showAssigneeAvatar = false,
+  dragItemId = null,
+  onDragItemIdChange,
 }: Pick<
   Props,
   | "day"
@@ -29,6 +31,8 @@ export function ScheduleCalendarDayHeader({
   | "completingItemId"
   | "showProjectContext"
   | "showAssigneeAvatar"
+  | "dragItemId"
+  | "onDragItemIdChange"
 >) {
   const { allDayItems } = splitDayItems(day.items, day.key);
   const dayOfMonth = parseDateAnchor(day.key).getDate();
@@ -49,9 +53,7 @@ export function ScheduleCalendarDayHeader({
         </div>
       </div>
       {/*
-        日视图里全天任务没法改日期也不能改时间（Q4：保持整天仅能改日期），
-        所以全天行不接 onDropDateTime → CalendarAllDayRow 内部 droppable=false，
-        任务条自然不可拖。
+        日视图全天行仍不接 onDropDateTime（不能改期），但任务条可拖出到待添加任务。
       */}
       <CalendarAllDayRow
         columns={[{ key: day.key, items: allDayItems }]}
@@ -60,6 +62,8 @@ export function ScheduleCalendarDayHeader({
         completingItemId={completingItemId}
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}
+        dragItemId={dragItemId}
+        onDragItemIdChange={onDragItemIdChange}
       />
     </>
   );
@@ -97,6 +101,8 @@ export function ScheduleCalendarDay({
             completingItemId={completingItemId}
             showProjectContext={showProjectContext}
             showAssigneeAvatar={showAssigneeAvatar}
+            dragItemId={dragItemId}
+            onDragItemIdChange={onDragItemIdChange}
           />
         </div>
       ) : null}

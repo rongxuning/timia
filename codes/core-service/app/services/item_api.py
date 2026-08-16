@@ -35,6 +35,22 @@ def resolve_item_completed_at(
     return current_completed_at or timestamp
 
 
+def validate_item_schedule_range(start_at: datetime | None, end_at: datetime | None) -> None:
+    """Allow both times to be omitted; reject inverted ranges when both are set."""
+    if start_at is not None and end_at is not None and end_at < start_at:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_time_range")
+
+
+def validate_undated_item_status(
+    start_at: datetime | None,
+    end_at: datetime | None,
+    item_status: str,
+) -> None:
+    """Undated tasks cannot leave 未开始 (todo)."""
+    if start_at is None and end_at is None and item_status != "todo":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="undated_requires_todo")
+
+
 def materialize_repeat_occurrences(
     *,
     start_at: datetime,

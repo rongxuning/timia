@@ -3,17 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
-import { ProjectDashboardCards } from "@/components/project/ProjectDashboardCards";
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
-import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
+import { UndatedTaskList } from "@/components/schedule/UndatedTaskList";
 import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
-import { ProjectModal, type ProjectModalSuccessMeta } from "@/components/ProjectModal";
 import { useTaskCreateDrawer } from "@/components/layout/TaskCreateDrawerContext";
-import { fetchProjectDashboard } from "@/lib/api/project-views";
+import { fetchScheduleUndated } from "@/lib/api/schedule-views";
+import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import type { ProjectDashboardView } from "@/types/api/views/project";
 import type { PriorityKey, ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
 import { localDatetimeRangeFromDateKey } from "@/components/schedule/taskUtils";
+import { canClearScheduleByDrop, listProjectUndatedTasks } from "@/components/schedule/undatedTasks";
 
 export default function ProjectPage() {
   const router = useRouter();
@@ -21,13 +20,14 @@ export default function ProjectPage() {
   const { workspaceId, projectId } = params;
   const token = useMemo(() => getToken(), []);
 
-  const [dashboard, setDashboard] = useState<ProjectDashboardView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [undatedItems, setUndatedItems] = useState<ScheduleTaskItem[] | null>(null);
   const [scheduleRefreshNonce, setScheduleRefreshNonce] = useState(0);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [taskDrawerItemId, setTaskDrawerItemId] = useState<string | null>(null);
   const [taskDrawerVersion, setTaskDrawerVersion] = useState(0);
-  const [editProjectOpen, setEditProjectOpen] = useState(false);
+  const [undatedDragItemId, setUndatedDragItemId] = useState<string | null>(null);
+  const [draggingItem, setDraggingItem] = useState<ScheduleTaskItem | null>(null);
+  const draggingItemRef = useRef<ScheduleTaskItem | null>(null);
   const taskLeftCurrentProjectRef = useRef(false);
   const {
     open: taskCreateOpen,
@@ -49,27 +49,20 @@ export default function ProjectPage() {
 
   const bumpSchedule = useCallback(() => setScheduleRefreshNonce((n) => n + 1), []);
 
-  const reloadDashboard = useCallback(async () => {
-    if (!token) return;
-    const data = await fetchProjectDashboard(token, workspaceId, projectId);
-    setDashboard(data);
-    primeWorkspaceNameForBreadcrumb(data.workspace_id, data.workspace_name);
-    primeProjectNameForBreadcrumb(workspaceId, data.project_id, data.name);
-  }, [token, workspaceId, projectId]);
-
   useEffect(() => {
     if (!token) {
       router.push("/login");
-      return;
     }
-    setError(null);
-    reloadDashboard().catch((e: { message?: string }) => setError(e?.message ?? "加载失败"));
-  }, [router, token, reloadDashboard]);
+  }, [router, token]);
 
   useEffect(() => {
-    if (scheduleRefreshNonce === 0 || !token) return;
-    reloadDashboard().catch(() => undefined);
-  }, [scheduleRefreshNonce, token, reloadDashboard]);
+    if (!token) return;
+    fetchScheduleUndated(token, scope)
+      .then((data) => setUndatedItems(listProjectUndatedTasks(data.items, projectId)))
+      .catch(() => setUndatedItems([]));
+  }, [token, scope, projectId, scheduleRefreshNonce]);
+
+  if (!token) return null;
 
   function openTaskCreate(
     status: StatusKey = "todo",
@@ -110,7 +103,6 @@ export default function ProjectPage() {
     setTaskDrawerItemId(null);
     if (shouldRefresh) {
       bumpSchedule();
-      void reloadDashboard();
     }
   }
 
@@ -118,11 +110,9 @@ export default function ProjectPage() {
     const leftCurrentProject = ctx.projectId !== projectId || ctx.workspaceId !== workspaceId;
     taskLeftCurrentProjectRef.current = leftCurrentProject;
     bumpSchedule();
-    await reloadDashboard();
   }
 
   async function handleTaskCreated(ctx: TaskDrawerSaveContext) {
-    // 派发全局事件，让 AppShell 统一处理便利贴 link
     window.dispatchEvent(
       new CustomEvent("app:task-created", {
         detail: {
@@ -135,36 +125,77 @@ export default function ProjectPage() {
     closeTaskCreate();
     if (ctx.projectId !== projectId) return;
     bumpSchedule();
-    await reloadDashboard();
   }
 
   async function handleTaskDrawerDeleted(_deletedId: string) {
     closeTaskDrawer();
     bumpSchedule();
-    await reloadDashboard();
+  }
+
+  function updateDraggingItem(item: ScheduleTaskItem | null) {
+    if (item) draggingItemRef.current = item;
+    setDraggingItem(item);
+  }
+
+  function handleUndatedDragItemIdChange(id: string | null) {
+    setUndatedDragItemId(id);
+    if (id == null) {
+      setDraggingItem(null);
+      return;
+    }
+    updateDraggingItem((undatedItems ?? []).find((entry) => entry.id === id) ?? null);
+  }
+
+  async function handleDropOnUndated(taskId: string) {
+    const fromDrag = draggingItemRef.current?.id === taskId ? draggingItemRef.current : null;
+    const item = fromDrag ?? (undatedItems ?? []).find((entry) => entry.id === taskId) ?? null;
+    if (!item || item.project_id !== projectId || !canClearScheduleByDrop(item)) return;
+    try {
+      await apiFetch(`/workspaces/${item.workspace_id}/projects/${item.project_id}/items/${item.id}`, {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ version: item.version, start_at: null, end_at: null }),
+      });
+      draggingItemRef.current = null;
+      setDraggingItem(null);
+      bumpSchedule();
+    } catch {
+      // 失败时保持日历原状；下次拖放可再试
+    }
   }
 
   return (
-    <PageMain className="!px-3" fullWidth>
-      {error && (
-        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
-          {error}
-        </div>
-      )}
-
-      <div className="grid items-start gap-lg lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside id="project-detail-status-panel" className="self-start lg:sticky lg:top-lg">
-          <ProjectDashboardCards
-            dashboard={dashboard}
-            workspaceId={workspaceId}
-            projectId={projectId}
-            onEditProject={dashboard?.can_manage ? () => setEditProjectOpen(true) : undefined}
+    <PageMain
+      className="!px-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[&>div]:flex lg:[&>div]:min-h-0 lg:[&>div]:flex-1 lg:[&>div]:flex-col"
+      fullWidth
+    >
+      <div className="grid items-start gap-lg lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
+        <aside
+          id="project-detail-undated-panel"
+          className="flex min-h-0 flex-col lg:h-full lg:overflow-hidden"
+        >
+          <UndatedTaskList
+            items={undatedItems}
+            onItemClick={openDrawer}
+            onAddTask={() => {
+              setTaskDrawerOpen(false);
+              setTaskDrawerItemId(null);
+              openCreate({ status: "todo", startAt: "", endAt: "" });
+            }}
+            onDragItemIdChange={handleUndatedDragItemIdChange}
+            canAcceptDrop={
+              draggingItem != null &&
+              draggingItem.project_id === projectId &&
+              canClearScheduleByDrop(draggingItem)
+            }
+            onDropTaskId={handleDropOnUndated}
+            showProjectContext={false}
           />
         </aside>
 
-        <div className="min-w-0">
+        <div className="min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
           <ScheduleBoard
-            token={token!}
+            token={token}
             scope={scope}
             showProjectContext={false}
             showAssigneeAvatar
@@ -173,35 +204,15 @@ export default function ProjectPage() {
             onCreateInColumn={openTaskCreate}
             onCreateInPriority={openTaskCreateInPriority}
             onCreateOnDate={openTaskCreateOnDate}
+            extraItems={undatedItems ?? []}
+            extraDragItemId={undatedDragItemId}
+            onDraggingItemChange={updateDraggingItem}
+            onTasksMutated={bumpSchedule}
             calendarFirst
             simplifiedSectionHeaders
           />
         </div>
       </div>
-
-      <ProjectModal
-        open={editProjectOpen && !!dashboard?.can_manage}
-        onClose={() => setEditProjectOpen(false)}
-        workspaceId={workspaceId}
-        token={token}
-        mode="edit"
-        projectId={projectId}
-        initialName={dashboard?.name ?? ""}
-        initialDescription={dashboard?.description}
-        initialColor={dashboard?.color ?? "#FFFFFF"}
-        onSuccess={(project, meta?: ProjectModalSuccessMeta) => {
-          setEditProjectOpen(false);
-          if (meta?.workspaceChanged && project.workspace_id !== workspaceId) {
-            if (meta.workspaceName) {
-              primeWorkspaceNameForBreadcrumb(project.workspace_id, meta.workspaceName);
-            }
-            primeProjectNameForBreadcrumb(project.workspace_id, project.id, project.name);
-            router.replace(`/workspace/${project.workspace_id}/projects/${project.id}`);
-            return;
-          }
-          void reloadDashboard();
-        }}
-      />
 
       <TaskDrawerWithComments
         open={taskDrawerOpen && !!taskDrawerItemId}

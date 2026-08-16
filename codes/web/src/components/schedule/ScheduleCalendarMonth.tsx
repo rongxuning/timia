@@ -1,5 +1,6 @@
 "use client";
 
+import { type DragEvent } from "react";
 import type { CalendarWeekView } from "@/types/api/views/schedule";
 import { CalendarDateBlankColumns } from "./CalendarDateBlankColumns";
 import { CalendarTaskBar } from "./CalendarTaskBar";
@@ -30,6 +31,30 @@ export function ScheduleCalendarMonth({
 }: Props) {
   const todayKey = dayKeyLocal(new Date());
   const draggable = !!onDragItemIdChange;
+  const droppable = !!onDropDateTime;
+
+  function handleDateKeyDragOver(e: DragEvent<HTMLElement>, key: string) {
+    if (!droppable) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverDateKey !== key) onDragOverDateKeyChange?.(key);
+  }
+
+  function handleDateKeyDragLeave(e: DragEvent<HTMLElement>) {
+    if (!droppable) return;
+    if (e.currentTarget !== e.target) return;
+    onDragOverDateKeyChange?.(null);
+  }
+
+  function handleDateKeyDrop(e: DragEvent<HTMLElement>, key: string) {
+    if (!droppable || !onDropDateTime) return;
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/task-id") || dragItemId;
+    onDragItemIdChange?.(null);
+    onDragOverDateKeyChange?.(null);
+    if (!id) return;
+    onDropDateTime(id, { dateKey: key, hour: null });
+  }
 
   return (
     <div className="flex flex-col">
@@ -60,6 +85,9 @@ export function ScheduleCalendarMonth({
                       !in_month ? (isDragOver ? "" : "opacity-60") : "",
                     ].join(" ")}
                     onClick={onDateHeaderClick ? () => onDateHeaderClick(key) : undefined}
+                    onDragOver={droppable ? (e) => handleDateKeyDragOver(e, key) : undefined}
+                    onDragLeave={droppable ? handleDateKeyDragLeave : undefined}
+                    onDrop={droppable ? (e) => handleDateKeyDrop(e, key) : undefined}
                     title={onDateHeaderClick ? "查看日视图" : undefined}
                   >
                     <div className="flex min-w-0 items-center justify-between gap-1">

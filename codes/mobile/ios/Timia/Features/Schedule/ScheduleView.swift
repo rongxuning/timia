@@ -18,33 +18,34 @@ private struct ScheduleTaskAppearance {
 
     init(task: ScheduleTask, colorScheme: ColorScheme) {
         let palette = Self.priorityPalette(task.priority, colorScheme: colorScheme)
-        background = palette.background
-        foreground = palette.foreground
-        header = Self.customColor(task.color) ?? palette.header
+        let isCompleted = isCalendarTaskCompleted(task.status)
+        background = Color(hex: isCompleted ? desaturateHex(palette.background) : palette.background)
+        foreground = Color(hex: palette.foreground)
+        header = Self.customColor(task.color) ?? Color(hex: palette.header)
     }
 
     private static func priorityPalette(
         _ priority: String?,
         colorScheme: ColorScheme
-    ) -> (background: Color, foreground: Color, header: Color) {
+    ) -> (background: String, foreground: String, header: String) {
         let isDark = colorScheme == .dark
         switch priority?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "2", "medium":
             return isDark
-                ? (Color(hex: "#123D26"), Color(hex: "#86EFAC"), Color(hex: "#22C55E"))
-                : (Color(hex: "#DCFCE7"), Color(hex: "#166534"), Color(hex: "#22C55E"))
+                ? ("#123D26", "#86EFAC", "#22C55E")
+                : ("#DCFCE7", "#166534", "#22C55E")
         case "3", "high":
             return isDark
-                ? (Color(hex: "#422F08"), Color(hex: "#FDE68A"), Color(hex: "#EAB308"))
-                : (Color(hex: "#FEF9C3"), Color(hex: "#854D0E"), Color(hex: "#EAB308"))
+                ? ("#422F08", "#FDE68A", "#EAB308")
+                : ("#FEF9C3", "#854D0E", "#EAB308")
         case "4", "urgent":
             return isDark
-                ? (Color(hex: "#4A1618"), Color(hex: "#FCA5A5"), Color(hex: "#EF4444"))
-                : (Color(hex: "#FEE2E2"), Color(hex: "#991B1B"), Color(hex: "#EF4444"))
+                ? ("#4A1618", "#FCA5A5", "#EF4444")
+                : ("#FEE2E2", "#991B1B", "#EF4444")
         default:
             return isDark
-                ? (Color(hex: "#172554"), Color(hex: "#93C5FD"), Color(hex: "#3B82F6"))
-                : (Color(hex: "#DBEAFE"), Color(hex: "#1E40AF"), Color(hex: "#3B82F6"))
+                ? ("#172554", "#93C5FD", "#3B82F6")
+                : ("#DBEAFE", "#1E40AF", "#3B82F6")
         }
     }
 
@@ -69,6 +70,7 @@ private struct ScheduleTaskCard: View {
 
     var body: some View {
         let appearance = ScheduleTaskAppearance(task: task, colorScheme: colorScheme)
+        let isCompleted = isCalendarTaskCompleted(task.status)
 
         VStack(alignment: .leading, spacing: 0) {
             Rectangle()
@@ -78,8 +80,8 @@ private struct ScheduleTaskCard: View {
             Text(task.title)
                 .font(.system(size: fontSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(appearance.foreground.opacity(isMuted ? 0.55 : 1))
-                .strikethrough(task.status == "done" || task.status == "archived")
-                .opacity(task.status == "done" || task.status == "archived" ? 0.7 : 1)
+                .thickStrikethrough(isCompleted)
+                .opacity(isCompleted ? 0.7 : 1)
                 .lineLimit(lineLimit)
                 .frame(
                     maxWidth: .infinity,
@@ -89,7 +91,13 @@ private struct ScheduleTaskCard: View {
                 .padding(.horizontal, 3)
                 .padding(.vertical, 2)
         }
-        .background(appearance.background.opacity(isMuted ? 0.38 : 1))
+        .background {
+            CalendarCompletedCardFill(
+                color: appearance.background.opacity(isMuted ? 0.38 : 1),
+                isCompleted: isCompleted,
+                cornerRadius: 4
+            )
+        }
         .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }

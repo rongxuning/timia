@@ -221,6 +221,12 @@ struct ScheduleColumns: Decodable, Sendable {
     let hasMore: [String: Bool]
 }
 
+struct ScheduleOverdue: Decodable, Sendable {
+    let items: [ScheduleTask]
+    let total: Int
+    let hasMore: Bool
+}
+
 struct ScheduleQuadrants: Decodable, Sendable {
     let quadrants: [String: [ScheduleTask]]
 }

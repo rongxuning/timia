@@ -247,4 +247,20 @@ final class APIModelsTests: XCTestCase {
         XCTAssertEqual(lanes["day-one-b"], .init(index: 0, count: 1))
         XCTAssertEqual(lanes["day-two-a"], .init(index: 0, count: 1))
     }
+
+    func testScheduleOverdueDecodesPagedIncompleteTasks() throws {
+        let json = """
+        {
+          "items": [],
+          "total": 2,
+          "has_more": true
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let value = try decoder.decode(ScheduleOverdue.self, from: Data(json.utf8))
+        XCTAssertEqual(value.total, 2)
+        XCTAssertTrue(value.hasMore)
+        XCTAssertTrue(value.items.isEmpty)
+    }
 }

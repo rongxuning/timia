@@ -31,6 +31,14 @@ export type ScheduleBoardProps = {
   /** 使用“日历、优先级、泳道图”的纵向展示顺序。 */
   calendarFirst?: boolean;
   simplifiedSectionHeaders?: boolean;
+  /** 日历拖放时额外可查找的任务（如左侧待添加任务） */
+  extraItems?: ScheduleTaskItem[];
+  /** 从日历外拖起的任务 id（待添加列表），作为 drop 的 dataTransfer 兜底 */
+  extraDragItemId?: string | null;
+  /** 日历改期成功后回调（用于刷新待添加列表等） */
+  onTasksMutated?: () => void;
+  /** 日历内拖起的任务（用于待添加区域接收 drop） */
+  onDraggingItemChange?: (item: ScheduleTaskItem | null) => void;
 };
 
 function findTaskItem(
@@ -38,6 +46,7 @@ function findTaskItem(
   priority: ReturnType<typeof useScheduleViews>["priority"],
   calendar: ScheduleCalendarView | null,
   itemId: string,
+  extraItems: ScheduleTaskItem[] = [],
 ): ScheduleTaskItem | null {
   if (swimlane) {
     for (const list of Object.values(swimlane.columns)) {
@@ -62,7 +71,7 @@ function findTaskItem(
       }
     }
   }
-  return null;
+  return extraItems.find((x) => x.id === itemId) ?? null;
 }
 
 export function ScheduleBoard({
@@ -77,6 +86,10 @@ export function ScheduleBoard({
   refreshNonce = 0,
   calendarFirst = false,
   simplifiedSectionHeaders = false,
+  extraItems = [],
+  extraDragItemId = null,
+  onTasksMutated,
+  onDraggingItemChange,
 }: ScheduleBoardProps) {
   const {
     calendarMode,
@@ -133,6 +146,13 @@ export function ScheduleBoard({
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (extraDragItemId == null && dragItemId == null) {
+      setDragOverDateKey(null);
+      setDragOverHour(null);
+    }
+  }, [extraDragItemId, dragItemId]);
+
   const itemsByPriority = useMemo(
     () =>
       priority?.quadrants ?? {
@@ -173,7 +193,7 @@ export function ScheduleBoard({
   }
 
   async function updateTaskPriority(itemId: string, newPriority: PriorityKey) {
-    const current = findTaskItem(swimlane, priority, calendar, itemId);
+    const current = findTaskItem(swimlane, priority, calendar, itemId, extraItems);
     if (!current) return;
     try {
       await apiFetch(patchPath(current), {
@@ -189,7 +209,7 @@ export function ScheduleBoard({
   }
 
   async function toggleTaskCompletion(itemId: string) {
-    const current = findTaskItem(swimlane, priority, calendar, itemId);
+    const current = findTaskItem(swimlane, priority, calendar, itemId, extraItems);
     if (!current) return;
     if (current.status === "archived") return;
     const markAsDone = current.status !== "done";
@@ -210,7 +230,7 @@ export function ScheduleBoard({
     newStatus: StatusKey,
     completedAt?: string | null,
   ) {
-    const current = findTaskItem(swimlane, priority, calendar, itemId);
+    const current = findTaskItem(swimlane, priority, calendar, itemId, extraItems);
     if (!current) return;
     if ((current.status as StatusKey) === newStatus) return;
     try {
@@ -261,6 +281,7 @@ export function ScheduleBoard({
         }),
       });
       await reloadAll();
+      onTasksMutated?.();
     } catch (e: unknown) {
       const apiErr = e as { status?: number; message?: string } | null;
       // #2：版本冲突用轻量 toast，不挤占顶部红条
@@ -268,6 +289,7 @@ export function ScheduleBoard({
         showToast("任务已被他人修改，已为你刷新到最新版本");
         // 静默 reload 一次，避免日历上残留过期数据
         await reloadAll();
+        onTasksMutated?.();
       } else {
         const msg = apiErr?.message ?? "改期失败";
         setError(msg);
@@ -281,7 +303,7 @@ export function ScheduleBoard({
 
   function handleCalendarDrop(taskId: string, target: CalendarDropTarget) {
     setDragItemId(null);
-    const current = findTaskItem(swimlane, priority, calendar, taskId);
+    const current = findTaskItem(swimlane, priority, calendar, taskId, extraItems);
     if (!current) return;
     void rescheduleTask(current, target);
   }
@@ -291,7 +313,10 @@ export function ScheduleBoard({
     if (id === null) {
       setDragOverDateKey(null);
       setDragOverHour(null);
+      onDraggingItemChange?.(null);
+      return;
     }
+    onDraggingItemChange?.(findTaskItem(swimlane, priority, calendar, id, extraItems));
   }
 
   if (loading && !calendar) {
@@ -331,7 +356,7 @@ export function ScheduleBoard({
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}
         onDateBlankClick={onCreateOnDate}
-        dragItemId={dragItemId}
+        dragItemId={dragItemId ?? extraDragItemId}
         dragOverDateKey={dragOverDateKey}
         dragOverHour={dragOverHour}
         onDragItemIdChange={handleCalendarDragItemIdChange}

@@ -12,8 +12,10 @@ from app.schemas.views.schedule import (
     NaturalLanguageParseOut,
     NaturalLanguageParseRequest,
     ScheduleCalendarViewOut,
+    ScheduleOverdueViewOut,
     SchedulePriorityViewOut,
     ScheduleSwimlaneViewOut,
+    ScheduleUndatedViewOut,
 )
 from app.services.natural_language_schedule import (
     NaturalLanguageConfigurationError,
@@ -31,8 +33,10 @@ from app.services.views.schedule_items import (
 from app.services.views.schedule_layout import (
     DEFAULT_CALENDAR_TIMEZONE,
     build_calendar_view,
+    build_overdue_view,
     build_priority_view,
     build_swimlane_view,
+    build_undated_view,
 )
 
 router = APIRouter(prefix="/views/schedule", tags=["views-schedule"])
@@ -132,6 +136,7 @@ def schedule_swimlane_view(
     limit: int = Query(10, ge=1, le=50),
     offset: int = Query(0, ge=0),
     completed_limit: int = Query(5, ge=1, le=20),
+    active_limit: int | None = Query(None, ge=1, le=50),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -143,6 +148,7 @@ def schedule_swimlane_view(
         limit=limit,
         offset=offset,
         completed_limit=completed_limit,
+        active_limit=active_limit,
     )
 
 
@@ -157,6 +163,48 @@ def schedule_priority_view(
     resolved = _resolve_scope(scope, workspace_id, project_id)
     items = list_schedule_items(db, user, resolved)
     return build_priority_view(items)
+
+
+@router.get("/undated", response_model=ScheduleUndatedViewOut)
+def schedule_undated_view(
+    scope: str = Query("me", pattern="^(me|project)$"),
+    workspace_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    resolved = _resolve_scope(scope, workspace_id, project_id)
+    items = list_schedule_items(db, user, resolved)
+    return build_undated_view(items)
+
+
+@router.get("/overdue", response_model=ScheduleOverdueViewOut)
+def schedule_overdue_view(
+    scope: str = Query("me", pattern="^(me|project)$"),
+    workspace_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    timezone_name: str = Query(
+        DEFAULT_CALENDAR_TIMEZONE,
+        alias="timezone",
+        min_length=1,
+        max_length=100,
+    ),
+    limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    resolved = _resolve_scope(scope, workspace_id, project_id)
+    items = list_schedule_items(db, user, resolved)
+    try:
+        return build_overdue_view(
+            items,
+            timezone_name=timezone_name,
+            limit=limit,
+            offset=offset,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.get("/dashboard", response_model=MyScheduleDashboardOut)

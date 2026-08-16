@@ -124,6 +124,7 @@ struct TaskGroupHeader: View {
     let symbol: String
     let count: Int
     let color: Color
+    var hint: String? = nil
 
     var body: some View {
         HStack(spacing: 7) {
@@ -134,6 +135,12 @@ struct TaskGroupHeader: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(color)
+
+            if let hint {
+                Text(hint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 

@@ -1,4 +1,5 @@
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
+import { calendarStatusRank, compareCalendarItems } from "./calendarItemSort";
 import { formatScheduleDateTime, pad2 } from "./taskUtils";
 
 export const DAY_TIMELINE_HOUR_HEIGHT_PX = 96;
@@ -63,6 +64,9 @@ export function splitDayItems(items: ScheduleTaskItem[], anchorKey: string) {
     }
     (itemCoversWholeDay(item, anchorKey) ? allDayItems : timedItems).push(item);
   }
+
+  allDayItems.sort(compareCalendarItems);
+  timedItems.sort(compareCalendarItems);
 
   return { allDayItems, timedItems };
 }
@@ -130,9 +134,13 @@ function computeSegments(visible: VisibleItem[]): Map<string, DayTimelineSegment
     if (active.length === 0) continue;
 
     const totalDuration = active.reduce((sum, v) => sum + v.duration, 0);
-    // 稳定排序：startMin 升序；同 start 时 endMin 降序（长的优先）
+    // 状态优先，同状态再按 startMin 升序、更长任务优先
     const sortedActive = [...active].sort(
-      (a, b) => a.startMin - b.startMin || b.endMin - a.endMin,
+      (a, b) =>
+        calendarStatusRank(a.item.status) - calendarStatusRank(b.item.status) ||
+        a.startMin - b.startMin ||
+        b.endMin - a.endMin ||
+        compareCalendarItems(a.item, b.item),
     );
 
     let leftPct = 0;

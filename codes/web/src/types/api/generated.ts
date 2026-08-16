@@ -886,6 +886,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/views/schedule/undated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule Undated View */
+        get: operations["schedule_undated_view_views_schedule_undated_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/schedule/overdue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule Overdue View */
+        get: operations["schedule_overdue_view_views_schedule_overdue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/views/schedule/dashboard": {
         parameters: {
             query?: never;
@@ -2119,6 +2153,21 @@ export interface components {
             /** Health Percent */
             health_percent: number | null;
         };
+        /** ScheduleOverdueViewOut */
+        ScheduleOverdueViewOut: {
+            /** Items */
+            items?: components["schemas"]["ScheduleTaskItemOut"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+        };
         /** SchedulePriorityViewOut */
         SchedulePriorityViewOut: {
             /** Quadrants */
@@ -2182,6 +2231,11 @@ export interface components {
             project_id: string;
             /** Project Name */
             project_name: string;
+        };
+        /** ScheduleUndatedViewOut */
+        ScheduleUndatedViewOut: {
+            /** Items */
+            items?: components["schemas"]["ScheduleTaskItemOut"][];
         };
         /** StickyNoteAIParseOut */
         StickyNoteAIParseOut: {
@@ -5216,6 +5270,7 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 completed_limit?: number;
+                active_limit?: number | null;
             };
             header?: {
                 authorization?: string | null;
@@ -5267,6 +5322,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchedulePriorityViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_undated_view_views_schedule_undated_get: {
+        parameters: {
+            query?: {
+                scope?: string;
+                workspace_id?: string | null;
+                project_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleUndatedViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_overdue_view_views_schedule_overdue_get: {
+        parameters: {
+            query?: {
+                scope?: string;
+                workspace_id?: string | null;
+                project_id?: string | null;
+                timezone?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOverdueViewOut"];
                 };
             };
             /** @description Validation Error */

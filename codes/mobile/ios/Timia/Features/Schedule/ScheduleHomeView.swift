@@ -5,26 +5,30 @@ private struct SchedulePriorityStyle {
     let foreground: Color
     let accent: Color
 
-    init(priority: String?, colorScheme: ColorScheme) {
+    init(task: ScheduleTask, colorScheme: ColorScheme) {
+        self.init(
+            priority: task.priority,
+            colorScheme: colorScheme,
+            isCompleted: isCalendarTaskCompleted(task.status)
+        )
+    }
+
+    init(priority: String?, colorScheme: ColorScheme, isCompleted: Bool = false) {
         let isDark = colorScheme == .dark
+        let palette: (background: String, foreground: String, accent: String)
         switch priority?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "2", "low":
-            background = Color(hex: isDark ? "#123D26" : "#DCFCE7")
-            foreground = Color(hex: isDark ? "#86EFAC" : "#15803D")
-            accent = Color(hex: "#22C55E")
+            palette = (isDark ? "#123D26" : "#DCFCE7", isDark ? "#86EFAC" : "#15803D", "#22C55E")
         case "3", "medium":
-            background = Color(hex: isDark ? "#422F08" : "#FEF9C3")
-            foreground = Color(hex: isDark ? "#FDE68A" : "#854D0E")
-            accent = Color(hex: "#EAB308")
+            palette = (isDark ? "#422F08" : "#FEF9C3", isDark ? "#FDE68A" : "#854D0E", "#EAB308")
         case "4", "high", "urgent":
-            background = Color(hex: isDark ? "#4A1618" : "#FEE2E2")
-            foreground = Color(hex: isDark ? "#FCA5A5" : "#B91C1C")
-            accent = Color(hex: "#EF4444")
+            palette = (isDark ? "#4A1618" : "#FEE2E2", isDark ? "#FCA5A5" : "#B91C1C", "#EF4444")
         default:
-            background = Color(hex: isDark ? "#172554" : "#DBEAFE")
-            foreground = Color(hex: isDark ? "#93C5FD" : "#1D4ED8")
-            accent = Color(hex: "#3B82F6")
+            palette = (isDark ? "#172554" : "#DBEAFE", isDark ? "#93C5FD" : "#1D4ED8", "#3B82F6")
         }
+        background = Color(hex: isCompleted ? desaturateHex(palette.background) : palette.background)
+        foreground = Color(hex: palette.foreground)
+        accent = Color(hex: palette.accent)
     }
 }
 
@@ -60,6 +64,7 @@ struct ScheduleHomeView: View {
     @State private var contentMode: ContentMode = .todo
     @State private var range: CalendarRange = .day
     @State private var selectedDate = Date()
+    @State private var dateStripStart = weekDaysContaining(Date()).first ?? Date()
     @State private var stickyDraft = StickyNoteDraftStore()
     @State private var isStickyNoteEditorPresented = false
     @State private var calendarData: ScheduleCalendar?
@@ -69,6 +74,9 @@ struct ScheduleHomeView: View {
     @State private var todoTotals: [String: Int] = [:]
     @State private var todoHasMore: [String: Bool] = [:]
     @State private var loadingTodoStatuses: Set<String> = []
+    @State private var overdueTasks: [ScheduleTask] = []
+    @State private var overdueHasMore = false
+    @State private var overdueTotal = 0
     @State private var updatingTodoTaskIds: Set<String> = []
     @State private var isLoading = false
     @State private var errorTip: String?
@@ -86,6 +94,17 @@ struct ScheduleHomeView: View {
 
             VStack(spacing: 0) {
                 header
+
+                if contentMode == .todo {
+                    DateStrip(
+                        selectedDate: selectedDate,
+                        onSelect: selectDate,
+                        visibleStart: dateStripStart,
+                        onVisibleStartChange: { dateStripStart = $0 }
+                    )
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 4)
+                }
 
                 Group {
                     if contentMode == .stickyNote {
@@ -105,12 +124,17 @@ struct ScheduleHomeView: View {
                         }
                     } else if contentMode == .todo {
                         TodoScheduleView(
+                            selectedDate: selectedDate,
                             columns: todoColumns,
-                            totals: todoTotals,
                             hasMore: todoHasMore,
+                            overdueTasks: overdueTasks,
+                            overdueHasMore: overdueHasMore,
                             loadingStatuses: loadingTodoStatuses,
                             onLoadMore: { status in
                                 Task { await loadMoreTodo(status) }
+                            },
+                            onLoadMoreOverdue: {
+                                Task { await loadMoreOverdue() }
                             },
                             updatingTaskIds: updatingTodoTaskIds,
                             onToggleCompletion: { task in
@@ -290,8 +314,10 @@ struct ScheduleHomeView: View {
                 DayScheduleView(
                     selectedDate: selectedDate,
                     daysByAnchor: cachedDaysByAnchor,
+                    stripStart: dateStripStart,
                     onSelectDate: selectDate,
                     onVisibleDate: selectVisibleDay,
+                    onStripStartChange: { dateStripStart = $0 },
                     onCreateTime: { createSelection = ScheduleCreateSelection(date: $0, hasExactTime: true) },
                     onTaskTap: { selectedTask = $0 }
                 )
@@ -299,7 +325,9 @@ struct ScheduleHomeView: View {
                 WeekScheduleView(
                     selectedDate: selectedDate,
                     weeksByAnchor: cachedWeeksByAnchor,
+                    stripStart: dateStripStart,
                     onVisibleWeek: selectVisibleWeek,
+                    onStripStartChange: { dateStripStart = $0 },
                     onCreateTime: { createSelection = ScheduleCreateSelection(date: $0, hasExactTime: true) },
                     onTaskTap: { selectedTask = $0 }
                 )
@@ -309,6 +337,7 @@ struct ScheduleHomeView: View {
                     weeksByMonth: cachedMonthWeeks,
                     onSelectDate: { date in
                         selectedDate = date
+                        revealDateOnStrip(date)
                         range = .day
                     },
                     onVisibleMonth: selectVisibleMonth,
@@ -539,6 +568,7 @@ struct ScheduleHomeView: View {
                     } else {
                         contentMode = .calendar
                         isRangePickerExpanded = true
+                        revealDateOnStrip(selectedDate)
                     }
                 } else {
                     contentMode = value
@@ -569,11 +599,11 @@ struct ScheduleHomeView: View {
             // 29pt rounded-bold style as the other modes.
             return ScheduleFormat.fullDateLabel(Date())
         }
-        if contentMode == .todo {
-            return ScheduleFormat.fullDateLabel(selectedDate)
-        }
         if contentMode == .calendar, range == .year {
             return "\(Calendar.current.component(.year, from: selectedDate))年"
+        }
+        if contentMode == .todo || (contentMode == .calendar && (range == .day || range == .week)) {
+            return dominantMonthTitle(for: dateStripDays(starting: dateStripStart))
         }
         return ScheduleFormat.monthTitle(selectedDate)
     }
@@ -590,6 +620,11 @@ struct ScheduleHomeView: View {
             calendarData = cachedCalendar(for: targetDate, range: newRange)
             range = newRange
         }
+        if newRange == .day {
+            revealDateOnStrip(targetDate)
+        } else if newRange == .week {
+            dateStripStart = dateStripStartForWeek(containing: targetDate)
+        }
     }
 
     private func selectDate(_ date: Date) {
@@ -597,11 +632,14 @@ struct ScheduleHomeView: View {
         guard !Calendar.current.isDate(date, inSameDayAs: selectedDate) else { return }
         withAnimation(.snappy(duration: 0.28)) {
             selectedDate = date
-            if let cached = cachedCalendar(for: date, range: range) {
+            if contentMode == .calendar, let cached = cachedCalendar(for: date, range: range) {
                 calendarData = cached
             }
         }
-        Task { await loadCalendar() }
+        revealDateOnStrip(date)
+        if contentMode == .calendar {
+            Task { await loadCalendar() }
+        }
     }
 
     private func shiftRange(_ direction: Int) {
@@ -649,6 +687,7 @@ struct ScheduleHomeView: View {
         }
 
         selectedDate = date
+        dateStripStart = dateStripStartForWeek(containing: date)
         if let cached = cachedCalendar(for: date, range: .week) {
             calendarData = cached
         }
@@ -662,10 +701,15 @@ struct ScheduleHomeView: View {
         }
 
         selectedDate = date
+        revealDateOnStrip(date)
         if let cached = cachedCalendar(for: date, range: .day) {
             calendarData = cached
         }
         Task { await loadCalendar() }
+    }
+
+    private func revealDateOnStrip(_ date: Date) {
+        dateStripStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
     }
 
     private func loadVisibleContent(force: Bool = false) async {
@@ -792,21 +836,40 @@ struct ScheduleHomeView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            let response = try await session.api.request(
+            async let swimlaneResponse = session.api.request(
                 "/views/schedule/swimlane",
-                query: [URLQueryItem(name: "scope", value: "me")],
+                query: [
+                    URLQueryItem(name: "scope", value: "me"),
+                    URLQueryItem(name: "active_limit", value: "5"),
+                    URLQueryItem(name: "completed_limit", value: "5")
+                ],
                 response: ScheduleColumns.self
             )
+            async let overdueResponse = session.api.request(
+                "/views/schedule/overdue",
+                query: [
+                    URLQueryItem(name: "scope", value: "me"),
+                    URLQueryItem(name: "timezone", value: TimeZone.current.identifier),
+                    URLQueryItem(name: "limit", value: "10"),
+                    URLQueryItem(name: "offset", value: "0")
+                ],
+                response: ScheduleOverdue.self
+            )
+            let response = try await swimlaneResponse
+            let overdue = try await overdueResponse
             todoColumns = response.columns
             todoTotals = response.totals
             todoHasMore = response.hasMore
+            overdueTasks = overdue.items
+            overdueHasMore = overdue.hasMore
+            overdueTotal = overdue.total
         } catch {
             showTip(error.localizedDescription)
         }
     }
 
     private func loadMoreTodo(_ status: String) async {
-        guard (status == "done" || status == "archived"),
+        guard ["todo", "doing", "done", "archived"].contains(status),
               todoHasMore[status] == true,
               !loadingTodoStatuses.contains(status) else {
             return
@@ -833,6 +896,31 @@ struct ScheduleHomeView: View {
             todoColumns[status] = existing
             todoTotals[status] = response.totals[status]
             todoHasMore[status] = response.hasMore[status]
+        } catch {
+            showTip(error.localizedDescription)
+        }
+    }
+
+    private func loadMoreOverdue() async {
+        guard overdueHasMore, !loadingTodoStatuses.contains("overdue") else { return }
+
+        loadingTodoStatuses.insert("overdue")
+        defer { loadingTodoStatuses.remove("overdue") }
+        do {
+            let response = try await session.api.request(
+                "/views/schedule/overdue",
+                query: [
+                    URLQueryItem(name: "scope", value: "me"),
+                    URLQueryItem(name: "timezone", value: TimeZone.current.identifier),
+                    URLQueryItem(name: "limit", value: "10"),
+                    URLQueryItem(name: "offset", value: String(overdueTasks.count))
+                ],
+                response: ScheduleOverdue.self
+            )
+            let existingIds = Set(overdueTasks.map(\.id))
+            overdueTasks.append(contentsOf: response.items.filter { !existingIds.contains($0.id) })
+            overdueHasMore = response.hasMore
+            overdueTotal = response.total
         } catch {
             showTip(error.localizedDescription)
         }
@@ -900,14 +988,30 @@ struct ScheduleHomeView: View {
         todoColumns[newStatus, default: []].insert(task, at: 0)
         todoTotals[oldStatus] = max((todoTotals[oldStatus] ?? 1) - 1, 0)
         todoTotals[newStatus] = (todoTotals[newStatus] ?? 0) + 1
+        syncOverdueTask(task)
     }
 
     private func replaceTodoTask(_ task: ScheduleTask) {
         for status in ["todo", "doing", "done", "archived"] {
             guard let index = todoColumns[status]?.firstIndex(where: { $0.id == task.id }) else { continue }
             todoColumns[status]?[index] = task
+            syncOverdueTask(task)
             return
         }
+        syncOverdueTask(task)
+    }
+
+    private func syncOverdueTask(_ task: ScheduleTask) {
+        let index = overdueTasks.firstIndex(where: { $0.id == task.id })
+        if isTodoTaskOverdue(task) {
+            if let index {
+                overdueTasks[index] = task
+            }
+            return
+        }
+        guard index != nil else { return }
+        overdueTasks.removeAll { $0.id == task.id }
+        overdueTotal = max(overdueTotal - 1, overdueTasks.count)
     }
 
     private func applyTodoResponse(_ response: ItemResponse, fallback: ScheduleTask) {
@@ -973,8 +1077,10 @@ private struct ScheduleCreateSelection: Identifiable {
 private struct DayScheduleView: View {
     let selectedDate: Date
     let daysByAnchor: [String: CalendarDayDetail]
+    let stripStart: Date
     let onSelectDate: (Date) -> Void
     let onVisibleDate: (Date) -> Void
+    let onStripStartChange: (Date) -> Void
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
 
@@ -986,16 +1092,20 @@ private struct DayScheduleView: View {
     init(
         selectedDate: Date,
         daysByAnchor: [String: CalendarDayDetail],
+        stripStart: Date,
         onSelectDate: @escaping (Date) -> Void,
         onVisibleDate: @escaping (Date) -> Void,
+        onStripStartChange: @escaping (Date) -> Void,
         onCreateTime: @escaping (Date) -> Void,
         onTaskTap: @escaping (ScheduleTask) -> Void
     ) {
         let startOfDay = Calendar.current.startOfDay(for: selectedDate)
         self.selectedDate = selectedDate
         self.daysByAnchor = daysByAnchor
+        self.stripStart = stripStart
         self.onSelectDate = onSelectDate
         self.onVisibleDate = onVisibleDate
+        self.onStripStartChange = onStripStartChange
         self.onCreateTime = onCreateTime
         self.onTaskTap = onTaskTap
         _anchorDay = State(initialValue: startOfDay)
@@ -1004,7 +1114,12 @@ private struct DayScheduleView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DateStrip(selectedDate: selectedDate, onSelect: onSelectDate)
+            DateStrip(
+                selectedDate: selectedDate,
+                onSelect: onSelectDate,
+                visibleStart: stripStart,
+                onVisibleStartChange: onStripStartChange
+            )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 4)
 
@@ -1152,7 +1267,9 @@ private struct DaySectionOffsetPreferenceKey: PreferenceKey {
 private struct WeekScheduleView: View {
     let selectedDate: Date
     let weeksByAnchor: [String: CalendarWeek]
+    let stripStart: Date
     let onVisibleWeek: (Date) -> Void
+    let onStripStartChange: (Date) -> Void
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
 
@@ -1164,14 +1281,18 @@ private struct WeekScheduleView: View {
     init(
         selectedDate: Date,
         weeksByAnchor: [String: CalendarWeek],
+        stripStart: Date,
         onVisibleWeek: @escaping (Date) -> Void,
+        onStripStartChange: @escaping (Date) -> Void,
         onCreateTime: @escaping (Date) -> Void,
         onTaskTap: @escaping (ScheduleTask) -> Void
     ) {
         let weekStart = ScheduleFormat.week(containing: selectedDate).first ?? selectedDate
         self.selectedDate = selectedDate
         self.weeksByAnchor = weeksByAnchor
+        self.stripStart = stripStart
         self.onVisibleWeek = onVisibleWeek
+        self.onStripStartChange = onStripStartChange
         self.onCreateTime = onCreateTime
         self.onTaskTap = onTaskTap
         _anchorWeek = State(initialValue: weekStart)
@@ -1180,7 +1301,7 @@ private struct WeekScheduleView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            WeekHeader(days: ScheduleFormat.week(containing: selectedDate))
+            PagedWeekHeader(visibleStart: stripStart, onVisibleStartChange: onStripStartChange)
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 0) {
@@ -1219,18 +1340,24 @@ private struct WeekScheduleView: View {
                     guard !hasPositionedInitialWeek else { return }
                     hasPositionedInitialWeek = true
                     await Task.yield()
-                    let weekKey = ScheduleFormat.weekKey(anchorWeek)
-                    let includesToday = ScheduleFormat.week(containing: anchorWeek)
-                        .contains(where: Calendar.current.isDateInToday)
-                    let targetHour = includesToday
-                        ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
-                        : 8
-                    proxy.scrollTo(weekKey, anchor: .top)
-                    try? await Task.sleep(for: .milliseconds(100))
-                    proxy.scrollTo("\(weekKey)-hour-\(targetHour)", anchor: .top)
-                    try? await Task.sleep(for: .milliseconds(180))
-                    reportedWeekKey = weekKey
+                    await scroll(to: anchorWeek, proxy: proxy, animated: false, pinToHour: true)
+                    reportedWeekKey = ScheduleFormat.weekKey(anchorWeek)
                     isTrackingVisibleWeek = true
+                }
+                .onChange(of: ScheduleFormat.weekKey(stripStart)) { _, newWeekKey in
+                    guard let target = weekTimelineTarget(
+                        stripStart: ScheduleFormat.date(newWeekKey) ?? stripStart,
+                        displayedDate: selectedDate
+                    ), ScheduleFormat.weekKey(target) != reportedWeekKey else {
+                        return
+                    }
+                    isTrackingVisibleWeek = false
+                    reportedWeekKey = ScheduleFormat.weekKey(target)
+                    onVisibleWeek(target)
+                    Task {
+                        await scroll(to: target, proxy: proxy, animated: true, pinToHour: false)
+                        isTrackingVisibleWeek = true
+                    }
                 }
                 .onPreferenceChange(WeekSectionOffsetPreferenceKey.self) { offsets in
                     guard isTrackingVisibleWeek,
@@ -1248,6 +1375,36 @@ private struct WeekScheduleView: View {
                 .accessibilityIdentifier("calendar-week-timeline")
             }
         }
+    }
+
+    private func scroll(to date: Date, proxy: ScrollViewProxy, animated: Bool, pinToHour: Bool) async {
+        let weekKey = ScheduleFormat.weekKey(date)
+        let positionWeek = {
+            proxy.scrollTo(weekKey, anchor: .top)
+        }
+        if animated {
+            withAnimation(.snappy(duration: 0.3)) { positionWeek() }
+        } else {
+            positionWeek()
+        }
+        guard pinToHour else {
+            try? await Task.sleep(for: .milliseconds(180))
+            return
+        }
+        let includesToday = ScheduleFormat.week(containing: date)
+            .contains(where: Calendar.current.isDateInToday)
+        let targetHour = includesToday
+            ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
+            : 8
+        try? await Task.sleep(for: .milliseconds(100))
+        if animated {
+            withAnimation(.snappy(duration: 0.3)) {
+                proxy.scrollTo("\(weekKey)-hour-\(targetHour)", anchor: .top)
+            }
+        } else {
+            proxy.scrollTo("\(weekKey)-hour-\(targetHour)", anchor: .top)
+        }
+        try? await Task.sleep(for: .milliseconds(180))
     }
 }
 
@@ -1313,32 +1470,174 @@ private struct WeekSectionOffsetPreferenceKey: PreferenceKey {
 private struct DateStrip: View {
     let selectedDate: Date
     let onSelect: (Date) -> Void
+    var visibleStart: Date? = nil
+    var onVisibleStartChange: ((Date) -> Void)? = nil
 
-    private var days: [Date] { ScheduleFormat.week(containing: selectedDate) }
+    var body: some View {
+        if let visibleStart, let onVisibleStartChange {
+            SlidingDateStrip(
+                selectedDate: selectedDate,
+                visibleStart: visibleStart,
+                onSelect: onSelect,
+                onVisibleStartChange: onVisibleStartChange
+            )
+        } else {
+            DateStripRow(days: weekDaysContaining(selectedDate), selectedDate: selectedDate, onSelect: onSelect)
+        }
+    }
+}
+
+private struct SlidingDateStrip: View {
+    let selectedDate: Date
+    let visibleStart: Date
+    let onSelect: (Date) -> Void
+    let onVisibleStartChange: (Date) -> Void
+
+    @State private var origin: Date
+
+    init(
+        selectedDate: Date,
+        visibleStart: Date,
+        onSelect: @escaping (Date) -> Void,
+        onVisibleStartChange: @escaping (Date) -> Void
+    ) {
+        self.selectedDate = selectedDate
+        self.visibleStart = visibleStart
+        self.onSelect = onSelect
+        self.onVisibleStartChange = onVisibleStartChange
+        _origin = State(initialValue: Calendar.current.startOfDay(for: visibleStart))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let spacing: CGFloat = 7
+            let dayWidth = max((geo.size.width - spacing * 6) / 7, 1)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: spacing) {
+                    ForEach(dayKeys, id: \.self) { key in
+                        DateStripDayCell(
+                            date: dateFromDayKey(key) ?? visibleStart,
+                            selectedDate: selectedDate,
+                            onSelect: onSelect
+                        )
+                        .frame(width: dayWidth, height: 50)
+                        .id(key)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+            .scrollPosition(id: visibleStartBinding)
+        }
+        .frame(height: 50)
+        .accessibilityIdentifier("week-date-strip")
+    }
+
+    private var dayKeys: [String] {
+        (-365...365).map { ScheduleFormat.dayKey(dateByAddingDays($0, to: origin)) }
+    }
+
+    private var visibleStartBinding: Binding<String?> {
+        Binding(
+            get: { ScheduleFormat.dayKey(visibleStart) },
+            set: { newKey in
+                guard let newKey,
+                      let date = dateFromDayKey(newKey),
+                      !Calendar.current.isDate(date, inSameDayAs: visibleStart) else { return }
+                onVisibleStartChange(Calendar.current.startOfDay(for: date))
+            }
+        )
+    }
+}
+
+private struct DateStripRow: View {
+    let days: [Date]
+    let selectedDate: Date
+    let onSelect: (Date) -> Void
 
     var body: some View {
         HStack(spacing: 7) {
             ForEach(days, id: \.self) { date in
-                let selected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
-                Button { onSelect(date) } label: {
-                    VStack(spacing: 5) {
-                        Text(ScheduleFormat.weekdayLetter(date))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
-                        Text(date, format: .dateTime.day())
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(selected ? .white : .primary)
-                    }
+                DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(selected ? Color.primary.opacity(0.78) : TimiaTheme.field, in: RoundedRectangle(cornerRadius: 14))
-                }
-                .accessibilityIdentifier(
-                    selected ? "calendar-selected-date" : "calendar-date-\(ScheduleFormat.dayKey(date))"
-                )
-                .accessibilityValue(ScheduleFormat.dayKey(date))
             }
         }
+    }
+}
+
+private struct DateStripDayCell: View {
+    let date: Date
+    let selectedDate: Date
+    let onSelect: (Date) -> Void
+
+    var body: some View {
+        let selected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
+        Button { onSelect(date) } label: {
+            VStack(spacing: 5) {
+                Text(ScheduleFormat.weekdayLetter(date))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
+                Text(date, format: .dateTime.day())
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(selected ? .white : .primary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(selected ? Color.primary.opacity(0.78) : TimiaTheme.field, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(
+            selected ? "calendar-selected-date" : "calendar-date-\(ScheduleFormat.dayKey(date))"
+        )
+        .accessibilityValue(ScheduleFormat.dayKey(date))
+    }
+}
+
+private struct PagedWeekHeader: View {
+    let visibleStart: Date
+    let onVisibleStartChange: (Date) -> Void
+
+    @State private var origin: Date
+
+    init(visibleStart: Date, onVisibleStartChange: @escaping (Date) -> Void) {
+        self.visibleStart = visibleStart
+        self.onVisibleStartChange = onVisibleStartChange
+        _origin = State(initialValue: dateStripStartForWeek(containing: visibleStart))
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 0) {
+                ForEach(weekKeys, id: \.self) { key in
+                    WeekHeader(days: dateStripDays(starting: dateFromDayKey(key) ?? visibleStart))
+                        .containerRelativeFrame(.horizontal)
+                        .id(key)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: visibleWeekBinding)
+        .frame(height: 44)
+        .accessibilityIdentifier("calendar-week-date-strip")
+    }
+
+    private var weekKeys: [String] {
+        (-52...52).map { ScheduleFormat.dayKey(dateByAddingDays($0 * 7, to: origin)) }
+    }
+
+    private var visibleWeekBinding: Binding<String?> {
+        Binding(
+            get: { ScheduleFormat.dayKey(dateStripStartForWeek(containing: visibleStart)) },
+            set: { newKey in
+                guard let newKey, let date = dateFromDayKey(newKey) else { return }
+                let weekStart = dateStripStartForWeek(containing: date)
+                let currentStart = dateStripStartForWeek(containing: visibleStart)
+                guard !Calendar.current.isDate(weekStart, inSameDayAs: currentStart) else { return }
+                onVisibleStartChange(weekStart)
+            }
+        )
     }
 }
 
@@ -1406,17 +1705,24 @@ private struct AllDayRow: View {
                         .frame(maxWidth: .infinity, minHeight: taskHeight, alignment: .leading)
                 } else {
                     ForEach(tasks) { task in
-                        let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
+                        let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
+                        let isCompleted = isCalendarTaskCompleted(task.status)
                         Button { onTaskTap(task) } label: {
                             Text(task.title)
                                 .font(.caption.weight(.semibold))
                                 .lineLimit(1)
-                                .strikethrough(task.status == "done" || task.status == "archived")
-                                .opacity(task.status == "done" || task.status == "archived" ? 0.7 : 1)
+                                .thickStrikethrough(isCompleted)
+                                .opacity(isCompleted ? 0.7 : 1)
                                 .foregroundStyle(style.foreground)
                                 .padding(.horizontal, 9)
                                 .frame(maxWidth: .infinity, minHeight: taskHeight, alignment: .leading)
-                                .background(style.background, in: RoundedRectangle(cornerRadius: 8))
+                                .background {
+                                    CalendarCompletedCardFill(
+                                        color: style.background,
+                                        isCompleted: isCompleted,
+                                        cornerRadius: 8
+                                    )
+                                }
                         }
                         .buttonStyle(.plain)
                     }
@@ -1471,20 +1777,24 @@ private struct WeekAllDayRow: View {
 
                     VStack(spacing: taskSpacing) {
                         ForEach(dayTasks) { task in
-                            let style = SchedulePriorityStyle(
-                                priority: task.priority,
-                                colorScheme: colorScheme
-                            )
+                            let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
+                            let isCompleted = isCalendarTaskCompleted(task.status)
                             Button { onTaskTap(task) } label: {
                                 Text(task.title)
                                     .lineLimit(1)
                                     .font(.system(size: 9, weight: .medium))
-                                    .strikethrough(task.status == "done" || task.status == "archived")
-                                    .opacity(task.status == "done" || task.status == "archived" ? 0.7 : 1)
+                                    .thickStrikethrough(isCompleted)
+                                    .opacity(isCompleted ? 0.7 : 1)
                                     .foregroundStyle(style.foreground)
                                     .padding(.horizontal, 3)
                                     .frame(maxWidth: .infinity, minHeight: taskHeight, alignment: .leading)
-                                    .background(style.background, in: RoundedRectangle(cornerRadius: 5))
+                                    .background {
+                                        CalendarCompletedCardFill(
+                                            color: style.background,
+                                            isCompleted: isCompleted,
+                                            cornerRadius: 5
+                                        )
+                                    }
                             }
                             .buttonStyle(.plain)
                         }
@@ -1686,7 +1996,9 @@ private struct TimelineGrid: View {
                 ForEach(tasks) { task in
                     if let placement = taskPlacements[task.id] {
                         let lane = overlapLanes[task.id] ?? TimelineOverlapLayout.Lane(index: 0, count: 1)
-                        let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
+                        let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
+                        let isCompleted = isCalendarTaskCompleted(task.status)
+                        let cornerRadius: CGFloat = days.count == 1 ? 16 : 7
                         let horizontalInset: CGFloat = days.count == 1 ? 9 : 2
                         let availableWidth = max(dayWidth - horizontalInset * 2, 1)
                         let laneGap: CGFloat = lane.count > 1 ? 3 : 0
@@ -1699,8 +2011,8 @@ private struct TimelineGrid: View {
                                 Text(task.title)
                                     .font(days.count == 1 ? .subheadline.weight(.semibold) : .caption2.weight(.semibold))
                                     .lineLimit(days.count == 1 ? 2 : 3)
-                                    .strikethrough(task.status == "done" || task.status == "archived")
-                                    .opacity(task.status == "done" || task.status == "archived" ? 0.7 : 1)
+                                    .thickStrikethrough(isCompleted)
+                                    .opacity(isCompleted ? 0.7 : 1)
                                 if days.count == 1 {
                                     Text(ScheduleFormat.timeRange(task))
                                         .font(.caption)
@@ -1710,7 +2022,13 @@ private struct TimelineGrid: View {
                             .foregroundStyle(style.foreground)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .padding(days.count == 1 ? 10 : 4)
-                            .background(style.background, in: RoundedRectangle(cornerRadius: days.count == 1 ? 16 : 7))
+                            .background {
+                                CalendarCompletedCardFill(
+                                    color: style.background,
+                                    isCompleted: isCompleted,
+                                    cornerRadius: cornerRadius
+                                )
+                            }
                             .overlay(alignment: .leading) {
                                 Capsule().fill(style.accent).frame(width: 3).padding(.vertical, 5)
                             }
@@ -1958,17 +2276,24 @@ private struct MonthDayCell: View {
             .accessibilityValue(isToday ? "今天" : day.key)
 
             ForEach(tasks.prefix(3)) { task in
-                let style = SchedulePriorityStyle(priority: task.priority, colorScheme: colorScheme)
+                let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
+                let isCompleted = isCalendarTaskCompleted(task.status)
                 Button { onTaskTap(task) } label: {
                     Text(task.title)
                         .font(.system(size: 9, weight: .medium))
                         .lineLimit(1)
-                        .strikethrough(task.status == "done" || task.status == "archived")
-                        .opacity(task.status == "done" || task.status == "archived" ? 0.7 : 1)
+                        .thickStrikethrough(isCompleted)
+                        .opacity(isCompleted ? 0.7 : 1)
                         .foregroundStyle(style.foreground)
                         .padding(.horizontal, 3)
                         .frame(maxWidth: .infinity, minHeight: 15, alignment: .leading)
-                        .background(style.background, in: RoundedRectangle(cornerRadius: 4))
+                        .background {
+                            CalendarCompletedCardFill(
+                                color: style.background,
+                                isCompleted: isCompleted,
+                                cornerRadius: 4
+                            )
+                        }
                 }
                 .buttonStyle(.plain)
             }
@@ -2212,11 +2537,14 @@ private struct TodoScheduleView: View {
     @State private var revealedTaskId: String?
     @State private var revealedEdge: TaskCardRevealEdge?
 
+    let selectedDate: Date
     let columns: [String: [ScheduleTask]]
-    let totals: [String: Int]
     let hasMore: [String: Bool]
+    let overdueTasks: [ScheduleTask]
+    let overdueHasMore: Bool
     let loadingStatuses: Set<String>
     let onLoadMore: (String) -> Void
+    let onLoadMoreOverdue: () -> Void
     let updatingTaskIds: Set<String>
     let onToggleCompletion: (ScheduleTask) -> Void
     let onStatusChange: (ScheduleTask, String) -> Void
@@ -2233,48 +2561,45 @@ private struct TodoScheduleView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                taskSection(
-                    id: "today",
-                    label: "今日",
-                    symbol: "sun.max.fill",
-                    color: TimiaTheme.primary,
-                    tasks: todayTasks,
-                    total: todayTasks.count
-                )
-
-                taskSection(
-                    id: "this-week",
-                    label: "本周",
-                    symbol: "calendar",
-                    color: Color(hex: "#3B82F6"),
-                    tasks: thisWeekTasks,
-                    total: thisWeekTasks.count
-                )
-
                 ForEach(statuses, id: \.id) { style in
-                    let tasks = columns[style.id] ?? []
+                    let tasks = dayTasks(for: style.id)
                     taskSection(
                         id: style.id,
                         label: style.label,
                         symbol: style.symbol,
                         color: style.color,
                         tasks: tasks,
-                        total: totals[style.id] ?? tasks.count,
+                        total: tasks.count,
                         loadMoreStatus: style.id
                     )
                 }
+
+                taskSection(
+                    id: "overdue",
+                    label: "逾期",
+                    hint: "（截止当天）",
+                    symbol: "exclamationmark.circle.fill",
+                    color: Color(hex: "#EF4444"),
+                    tasks: overdueTasks,
+                    total: overdueTasks.count,
+                    loadMoreStatus: "overdue"
+                )
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
         .background(TimiaTheme.canvas)
         .scrollDismissesKeyboard(.interactively)
+        .task(id: pagingTaskID) {
+            autoLoadMoreIfNeeded()
+        }
     }
 
     @ViewBuilder
     private func taskSection(
         id: String,
         label: String,
+        hint: String? = nil,
         symbol: String,
         color: Color,
         tasks: [ScheduleTask],
@@ -2286,16 +2611,22 @@ private struct TodoScheduleView: View {
                 title: label,
                 symbol: symbol,
                 count: total,
-                color: color
+                color: color,
+                hint: hint
             )
 
             ForEach(tasks) { task in
                 taskRow(task)
             }
 
-            if let status = loadMoreStatus, hasMore[status] == true {
+            let paging = paging(for: loadMoreStatus, visibleCount: tasks.count)
+            if paging.showsLoadMore, let status = loadMoreStatus {
                 Button {
-                    onLoadMore(status)
+                    if status == "overdue" {
+                        onLoadMoreOverdue()
+                    } else {
+                        onLoadMore(status)
+                    }
                 } label: {
                     HStack(spacing: 7) {
                         if loadingStatuses.contains(status) {
@@ -2303,8 +2634,7 @@ private struct TodoScheduleView: View {
                         } else {
                             Image(systemName: "chevron.down")
                         }
-                        let remaining = max(total - tasks.count, 0)
-                        Text("展开更多\(remaining > 0 ? "（剩余 \(remaining)）" : "")")
+                        Text("展开更多\(paging.remainingCount > 0 ? "（剩余 \(paging.remainingCount)）" : "")")
                     }
                     .font(.caption.weight(.semibold))
                     .frame(maxWidth: .infinity)
@@ -2317,10 +2647,17 @@ private struct TodoScheduleView: View {
             }
 
             if tasks.isEmpty {
-                Text("暂无任务")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .padding(.vertical, 6)
+                if loadMoreStatus.map({ loadingStatuses.contains($0) }) == true {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                } else {
+                    Text("暂无任务")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .padding(.vertical, 6)
+                }
             }
         }
         .padding(14)
@@ -2367,48 +2704,40 @@ private struct TodoScheduleView: View {
         )
     }
 
-    private var activeTasks: [ScheduleTask] {
-        (columns["todo"] ?? []) + (columns["doing"] ?? [])
+    private func dayTasks(for status: String) -> [ScheduleTask] {
+        (columns[status] ?? []).filter { taskCoversLocalDay($0, on: selectedDate) }
     }
 
-    private var todayTasks: [ScheduleTask] {
-        guard let today = Calendar.current.dateInterval(of: .day, for: Date()) else { return [] }
-        return sortedQuickTasks(activeTasks.filter { taskOverlaps($0, interval: today) })
-    }
-
-    private var thisWeekTasks: [ScheduleTask] {
-        let calendar = Calendar.current
-        guard let today = calendar.dateInterval(of: .day, for: Date()),
-              let week = calendar.dateInterval(of: .weekOfYear, for: Date()) else {
-            return []
+    private var pagingTaskID: String {
+        let day = ScheduleFormat.dayKey(selectedDate)
+        let parts = statuses.map { style in
+            "\(style.id):\(columns[style.id]?.count ?? 0):\(hasMore[style.id] == true)"
         }
-        return sortedQuickTasks(activeTasks.filter {
-            !taskOverlaps($0, interval: today) && taskOverlaps($0, interval: week)
-        })
+        return "\(day)|\(parts.joined(separator: ","))"
     }
 
-    private func sortedQuickTasks(_ tasks: [ScheduleTask]) -> [ScheduleTask] {
-        tasks.sorted {
-            let left = ScheduleFormat.parseISO($0.endAt)
-                ?? ScheduleFormat.parseISO($0.startAt)
-                ?? .distantFuture
-            let right = ScheduleFormat.parseISO($1.endAt)
-                ?? ScheduleFormat.parseISO($1.startAt)
-                ?? .distantFuture
-            return left == right ? $0.title < $1.title : left < right
+    private func paging(for status: String?, visibleCount: Int) -> TodoDaySectionPaging {
+        if status == "overdue" {
+            return TodoDaySectionPaging(
+                showsLoadMore: overdueHasMore,
+                remainingCount: 0,
+                shouldAutoLoadMore: false
+            )
         }
+        return todoDaySectionPaging(
+            visibleDayCount: visibleCount,
+            apiHasMore: status.map { hasMore[$0] == true } ?? false,
+            isLoading: status.map { loadingStatuses.contains($0) } ?? false
+        )
     }
 
-    private func taskOverlaps(_ task: ScheduleTask, interval: DateInterval) -> Bool {
-        let parsedStart = ScheduleFormat.parseISO(task.startAt)
-        let parsedEnd = ScheduleFormat.parseISO(task.endAt)
-        guard let start = parsedStart ?? parsedEnd else { return false }
-        let end = parsedEnd ?? parsedStart ?? start
-
-        if end > start {
-            return start < interval.end && end > interval.start
+    private func autoLoadMoreIfNeeded() {
+        for style in statuses {
+            let paging = paging(for: style.id, visibleCount: dayTasks(for: style.id).count)
+            if paging.shouldAutoLoadMore {
+                onLoadMore(style.id)
+            }
         }
-        return interval.contains(start)
     }
 }
 
@@ -2767,10 +3096,7 @@ private enum ScheduleFormat {
     }
 
     static func week(containing date: Date) -> [Date] {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: date)
-        let start = calendar.date(byAdding: .day, value: -(weekday - 1), to: calendar.startOfDay(for: date)) ?? date
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        weekDaysContaining(date)
     }
 
     static func weekKey(_ date: Date) -> String {

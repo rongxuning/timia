@@ -87,6 +87,16 @@ class SchedulePriorityViewOut(BaseModel):
     quadrants: dict[str, list[ScheduleTaskItemOut]]
 
 
+class ScheduleUndatedViewOut(BaseModel):
+    items: list[ScheduleTaskItemOut] = Field(default_factory=list)
+
+
+class ScheduleOverdueViewOut(BaseModel):
+    items: list[ScheduleTaskItemOut] = Field(default_factory=list)
+    total: int = 0
+    has_more: bool = False
+
+
 class ScheduleDashboardOut(BaseModel):
     task_total: int
     todo_count: int

@@ -22,8 +22,20 @@ final class TimiaUITests: XCTestCase {
         let todoModeButton = app.buttons["Todo 模式"]
         XCTAssertTrue(todoModeButton.waitForExistence(timeout: 2))
         XCTAssertEqual(todoModeButton.frame.midY, input.frame.midY, accuracy: 6)
-        XCTAssertTrue(element("todo-section-today", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(element("todo-section-this-week", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-todo", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-doing", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-overdue", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["（截止当天）"].exists)
+        XCTAssertFalse(element("todo-section-today", in: app).exists)
+        XCTAssertFalse(element("todo-section-this-week", in: app).exists)
+        XCTAssertTrue(app.buttons["calendar-selected-date"].waitForExistence(timeout: 2))
+        let todoHeader = app.staticTexts["calendar-header-title"]
+        XCTAssertTrue(todoHeader.waitForExistence(timeout: 2))
+        let todoHeaderValue = (todoHeader.value as? String) ?? todoHeader.label
+        XCTAssertNotNil(todoHeaderValue.range(of: #"^\d{4}年\d{2}月$"#, options: .regularExpression))
+        XCTAssertFalse(todoHeaderValue.contains("日"))
         XCTAssertFalse(app.buttons["日"].exists)
 
         let directCreateButton = app.buttons["新建任务"]
@@ -88,8 +100,31 @@ final class TimiaUITests: XCTestCase {
         app.buttons["Todo 模式"].tap()
         XCTAssertTrue(app.buttons["日历模式"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.buttons["日"].exists)
-        XCTAssertTrue(element("todo-section-today", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(element("todo-section-this-week", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-todo", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-doing", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-overdue", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(element("todo-section-today", in: app).exists)
+        XCTAssertFalse(element("todo-section-this-week", in: app).exists)
+        XCTAssertTrue(app.buttons["calendar-selected-date"].waitForExistence(timeout: 2))
+        let selectedBefore = app.buttons["calendar-selected-date"].value as? String
+        XCTAssertEqual(selectedBefore, dayKey(Date()))
+        let stripStart = weekStart(of: Date())
+        XCTAssertEqual(
+            app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
+            dominantMonthTitle(starting: stripStart)
+        )
+        element("week-date-strip", in: app).swipeLeft()
+        let shiftedStart = Calendar.current.date(byAdding: .day, value: 1, to: stripStart) ?? stripStart
+        let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
+        XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
+        XCTAssertTrue(element("calendar-date-\(dayKey(newLastDay))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForValue(
+            dominantMonthTitle(starting: shiftedStart),
+            on: app.descendants(matching: .any)["calendar-header-title"].firstMatch,
+            timeout: 3
+        ))
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-todo", app: app)
 
@@ -116,6 +151,24 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
         app.buttons["日"].tap()
         XCTAssertTrue(element("calendar-day-timeline", in: app).waitForExistence(timeout: 4))
+        XCTAssertTrue(element("week-date-strip", in: app).waitForExistence(timeout: 2))
+        let selectedBefore = app.buttons["calendar-selected-date"].value as? String
+        XCTAssertEqual(selectedBefore, dayKey(Date()))
+        let stripStart = weekStart(of: Date())
+        XCTAssertEqual(
+            app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
+            dominantMonthTitle(starting: stripStart)
+        )
+        element("week-date-strip", in: app).swipeLeft()
+        let shiftedStart = Calendar.current.date(byAdding: .day, value: 1, to: stripStart) ?? stripStart
+        let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
+        XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
+        XCTAssertTrue(element("calendar-date-\(dayKey(newLastDay))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForValue(
+            dominantMonthTitle(starting: shiftedStart),
+            on: app.descendants(matching: .any)["calendar-header-title"].firstMatch,
+            timeout: 3
+        ))
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.70)).tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         app.buttons["取消"].tap()
@@ -146,6 +199,24 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(todayInWeekHeader.waitForExistence(timeout: 3))
         XCTAssertEqual(todayInWeekHeader.value as? String, "今天")
         XCTAssertFalse(app.buttons["calendar-week-date-\(todayKey)"].exists)
+        let weekStripStart = weekStart(of: Date())
+        XCTAssertEqual(
+            app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
+            dominantMonthTitle(starting: weekStripStart)
+        )
+        element("calendar-week-date-strip", in: app).swipeLeft()
+        let nextWeekStart = Calendar.current.date(byAdding: .day, value: 7, to: weekStripStart) ?? weekStripStart
+        let nextWeekLast = Calendar.current.date(byAdding: .day, value: 6, to: nextWeekStart) ?? nextWeekStart
+        XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekLast))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("calendar-week-label-\(dayKey(nextWeekStart))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForValue(
+            dominantMonthTitle(starting: nextWeekStart),
+            on: app.descendants(matching: .any)["calendar-header-title"].firstMatch,
+            timeout: 3
+        ))
+        element("calendar-week-date-strip", in: app).swipeRight()
+        XCTAssertTrue(todayInWeekHeader.waitForExistence(timeout: 3))
+        XCTAssertTrue(element("calendar-week-label-\(dayKey(weekStripStart))", in: app).waitForExistence(timeout: 3))
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.90, dy: 0.70)).tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         app.buttons["取消"].tap()
@@ -244,6 +315,29 @@ final class TimiaUITests: XCTestCase {
         let predicate = NSPredicate(format: "value == %@", value)
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func weekStart(of date: Date) -> Date {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: date)
+        return calendar.date(
+            byAdding: .day,
+            value: -(weekday - 1),
+            to: calendar.startOfDay(for: date)
+        ) ?? date
+    }
+
+    private func dominantMonthTitle(starting start: Date) -> String {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: start)
+        let days = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        var counts: [String: Int] = [:]
+        for day in days {
+            let components = calendar.dateComponents([.year, .month], from: day)
+            let key = String(format: "%04d年%02d月", components.year ?? 0, components.month ?? 0)
+            counts[key, default: 0] += 1
+        }
+        return counts.max(by: { $0.value < $1.value })?.key ?? ""
     }
 
     private func dayKey(_ date: Date) -> String {

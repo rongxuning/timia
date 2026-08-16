@@ -15,13 +15,16 @@ from app.schemas.views.schedule import (
     CalendarSegmentOut,
     CalendarWeekOut,
     ScheduleCalendarViewOut,
+    ScheduleOverdueViewOut,
     SchedulePriorityViewOut,
     ScheduleSwimlaneViewOut,
     ScheduleTaskItemOut,
+    ScheduleUndatedViewOut,
 )
 
 STATUS_KEYS = ("todo", "doing", "done", "archived")
 PRIORITY_KEYS = ("1", "2", "3", "4")
+_CALENDAR_STATUS_RANK = {"todo": 0, "doing": 1, "done": 2, "archived": 3}
 CalendarViewKind = Literal["year", "month", "week", "day"]
 DEFAULT_CALENDAR_TIMEZONE = "Asia/Shanghai"
 UTC_CALENDAR_TIMEZONE = ZoneInfo("UTC")
@@ -68,6 +71,27 @@ def normalize_priority(p: str | None) -> str:
     if v == "high":
         return "4"
     return "1"
+
+
+def _calendar_status_rank(status: str | None) -> int:
+    return _CALENDAR_STATUS_RANK.get(status or "", 4)
+
+
+def _calendar_priority_rank(priority: str | None) -> int:
+    if priority in PRIORITY_KEYS:
+        return int(priority)
+    return 0
+
+
+def _calendar_display_sort_key(
+    item: ScheduleTaskItemOut,
+    calendar_timezone: ZoneInfo,
+) -> tuple[int, datetime, int]:
+    if item.start_at:
+        start = _in_calendar_timezone(item.start_at, calendar_timezone)
+    else:
+        start = datetime.max.replace(tzinfo=calendar_timezone)
+    return (_calendar_status_rank(item.status), start, -_calendar_priority_rank(item.priority))
 
 
 def _local_day_range_from_item(
@@ -231,7 +255,7 @@ def _build_month_weeks(
     for w in range(week_count):
         week_start = grid_start + timedelta(days=w * 7)
         week_out = _build_week_out(items, week_start, calendar_timezone, in_month=month)
-        # 月视图视觉顺序：先按本地时区起始时间升序，再按优先级降序。
+        # 月视图视觉顺序：状态（待办→进行中→已完成→已归档），再按本地起始时间升序、优先级降序。
         # 关键：前端月视图用 `gridRow: seg.lane + 1` 定位视觉行，
         #       所以必须**重分配 lane**才能改变视觉顺序（单纯重排 list 无效）。
         # 同时遵守 col range 不冲突的约束，避免视觉重叠。
@@ -247,26 +271,16 @@ def _reorder_segments_for_display(
 ) -> list[CalendarSegmentOut]:
     """
     月视图展示用排序 + 重分配 lane：
-    - 主：本地时区起始时间升序（无 start_at 的排最后）
-    - 次：priority 降序（4 > 3 > 2 > 1，None/未知排最后）
-    - 同 start_at + 同 priority：保持原顺序（stable sort）
+    - 主：status（todo → doing → done → archived，未知排最后）
+    - 次：本地时区起始时间升序（无 start_at 的排最后）
+    - 再次：priority 降序（4 > 3 > 2 > 1，None/未知排最后）
+    - 同 key：保持原顺序（stable sort）
     - 重新分配 lane：第一遍按 (col_start, -col_span) 排列时分配原始 lane；
       第二遍按 sort key 排列后，**first-fit** 重新分配 lane（仍遵守 col range 不冲突），
       保证跨列任务不与同列其他任务占同一 row。
     """
     def sort_key(seg: CalendarSegmentOut):
-        item = seg.item
-        if item.start_at:
-            start = _in_calendar_timezone(item.start_at, calendar_timezone)
-        else:
-            # 没有起始时间的放到最后
-            start = datetime.max.replace(tzinfo=calendar_timezone)
-        pri_raw = item.priority
-        if pri_raw in ("1", "2", "3", "4"):
-            pri_num = int(pri_raw)
-        else:
-            pri_num = 0
-        return (start, -pri_num)
+        return _calendar_display_sort_key(seg.item, calendar_timezone)
 
     # 保留每个 seg 在原始 segments 里的下标，作为 stable sort tiebreaker
     indexed = list(enumerate(segments))
@@ -341,12 +355,7 @@ def _build_day_detail(
     calendar_timezone: ZoneInfo,
 ) -> CalendarDayDetailOut:
     day_items = [it for it in items if _item_covers_day(it, day, calendar_timezone)]
-    day_items.sort(
-        key=lambda x: (
-            x.start_at.timestamp() if x.start_at else 0,
-            x.title or "",
-        )
-    )
+    day_items.sort(key=lambda x: _calendar_display_sort_key(x, calendar_timezone))
     weekday = (day.weekday() + 1) % 7
     return CalendarDayDetailOut(key=_day_key(day), weekday=weekday, items=day_items)
 
@@ -476,6 +485,7 @@ def build_swimlane_view(
     limit: int = 10,
     offset: int = 0,
     completed_limit: int = 5,
+    active_limit: int | None = None,
 ) -> ScheduleSwimlaneViewOut:
     grouped: dict[str, list[ScheduleTaskItemOut]] = {k: [] for k in STATUS_KEYS}
     for it in items:
@@ -498,10 +508,68 @@ def build_swimlane_view(
         columns[task_status] = grouped[task_status][start : start + size]
         has_more[task_status] = start + len(columns[task_status]) < totals[task_status]
     else:
-        columns["todo"] = grouped["todo"]
-        columns["doing"] = grouped["doing"]
+        if active_limit is None:
+            columns["todo"] = grouped["todo"]
+            columns["doing"] = grouped["doing"]
+        else:
+            size = max(active_limit, 1)
+            for key in ("todo", "doing"):
+                columns[key] = grouped[key][:size]
+                has_more[key] = len(columns[key]) < totals[key]
         for key in ("done", "archived"):
             columns[key] = grouped[key][: max(completed_limit, 1)]
             has_more[key] = len(columns[key]) < totals[key]
 
     return ScheduleSwimlaneViewOut(columns=columns, totals=totals, has_more=has_more)
+
+
+def is_undated_item(item: ScheduleTaskItemOut) -> bool:
+    return item.start_at is None and item.end_at is None
+
+
+def build_undated_view(items: list[ScheduleTaskItemOut]) -> ScheduleUndatedViewOut:
+    return ScheduleUndatedViewOut(items=[item for item in items if is_undated_item(item)])
+
+
+def _item_deadline(item: ScheduleTaskItemOut) -> datetime | None:
+    return item.end_at or item.start_at
+
+
+def is_overdue_item(
+    item: ScheduleTaskItemOut,
+    *,
+    today: date,
+    calendar_timezone: ZoneInfo,
+) -> bool:
+    if item.status not in {"todo", "doing"}:
+        return False
+    deadline = _item_deadline(item)
+    if deadline is None:
+        return False
+    return _in_calendar_timezone(deadline, calendar_timezone).date() < today
+
+
+def build_overdue_view(
+    items: list[ScheduleTaskItemOut],
+    *,
+    timezone_name: str = DEFAULT_CALENDAR_TIMEZONE,
+    now: datetime | None = None,
+    limit: int = 10,
+    offset: int = 0,
+) -> ScheduleOverdueViewOut:
+    calendar_timezone = resolve_calendar_timezone(timezone_name)
+    current = now or datetime.now(datetime_timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=datetime_timezone.utc)
+    today = current.astimezone(calendar_timezone).date()
+    overdue = [item for item in items if is_overdue_item(item, today=today, calendar_timezone=calendar_timezone)]
+    distant = datetime.max.replace(tzinfo=datetime_timezone.utc)
+    overdue.sort(key=lambda item: (_item_deadline(item) or distant, item.id))
+    start = max(offset, 0)
+    size = max(limit, 1)
+    page = overdue[start : start + size]
+    return ScheduleOverdueViewOut(
+        items=page,
+        total=len(overdue),
+        has_more=start + len(page) < len(overdue),
+    )

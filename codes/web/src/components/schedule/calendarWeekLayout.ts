@@ -1,4 +1,5 @@
 import type { CalendarWeekView, ScheduleTaskItem } from "@/types/api/views/schedule";
+import { compareCalendarItems } from "./calendarItemSort";
 
 /** 从周视图 segments 按天聚合任务（跨天任务会出现在所覆盖的每一天） */
 export function weekItemsByDayKey(week: CalendarWeekView): Map<string, ScheduleTaskItem[]> {
@@ -20,11 +21,7 @@ export function weekItemsByDayKey(week: CalendarWeekView): Map<string, ScheduleT
   const result = new Map<string, ScheduleTaskItem[]>();
   for (const [key, map] of byDay) {
     const items = Array.from(map.values());
-    items.sort(
-      (a, b) =>
-        (a.start_at ? new Date(a.start_at).getTime() : 0) - (b.start_at ? new Date(b.start_at).getTime() : 0) ||
-        (a.title ?? "").localeCompare(b.title ?? "", "zh-CN"),
-    );
+    items.sort(compareCalendarItems);
     result.set(key, items);
   }
   return result;

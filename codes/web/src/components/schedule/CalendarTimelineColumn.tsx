@@ -11,6 +11,7 @@ import {
   computeRescheduledRange,
   formatFloatHour,
   snapYTo15Min,
+  calendarTaskSurfaceStyle,
   taskCalendarColors,
   taskLabelStripeColor,
 } from "./taskUtils";
@@ -224,6 +225,7 @@ export function CalendarTimelineColumn({
       {blocks.map((block) => {
         if (block.segments.length === 0) return null;
         const c = taskCalendarColors(block.item.priority);
+        const surface = calendarTaskSurfaceStyle(c, block.item.status);
         const isDragging = dragItemId === block.item.id;
 
         const previewRange =
@@ -255,9 +257,7 @@ export function CalendarTimelineColumn({
               height: boxHeightPx,
               left: `calc(${boxLeft}% + 2px)`,
               width: `calc(${boxWidthPct}% - 4px)`,
-              backgroundColor: c.bg,
-              color: c.fg,
-              borderColor: c.border,
+              ...surface,
               borderLeftColor: taskLabelStripeColor(block.item.color, c.border),
               borderLeftWidth: compact ? 3 : 4,
             }}
@@ -268,6 +268,7 @@ export function CalendarTimelineColumn({
                 ? (e) => {
                     e.dataTransfer.effectAllowed = "move";
                     e.dataTransfer.setData("text/task-id", block.item.id);
+                    e.dataTransfer.setData("text/plain", block.item.id);
                     try {
                       e.dataTransfer.setDragImage(e.currentTarget, 0, 0);
                     } catch {

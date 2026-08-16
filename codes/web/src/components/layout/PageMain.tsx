@@ -10,7 +10,9 @@ export type PageMainProps = {
 export function PageMain({ children, className = "", fullWidth = false }: PageMainProps) {
   return (
     <main className={`px-lg py-lg ${className}`.trim()}>
-      <div className={fullWidth ? "w-full" : "max-w-container-max mx-auto"}>{children}</div>
+      <div className={`${fullWidth ? "w-full" : "max-w-container-max mx-auto"} h-full min-h-0`}>
+        {children}
+      </div>
     </main>
   );
 }

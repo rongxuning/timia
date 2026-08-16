@@ -4,7 +4,13 @@ import pytest
 
 from app.schemas.views.schedule import ScheduleTaskItemOut
 from app.services.views.schedule_items import _count_dashboard, _count_quick_view, parse_anchor
-from app.services.views.schedule_layout import build_calendar_view, build_priority_view, build_swimlane_view
+from app.services.views.schedule_layout import (
+    build_calendar_view,
+    build_overdue_view,
+    build_priority_view,
+    build_swimlane_view,
+    build_undated_view,
+)
 
 
 def _item(**kwargs) -> ScheduleTaskItemOut:
@@ -37,6 +43,30 @@ def test_build_swimlane_groups_by_status():
     assert len(view.columns["todo"]) == 1
     assert len(view.columns["doing"]) == 1
     assert view.totals["todo"] == 1
+    assert view.has_more["todo"] is False
+    assert view.has_more["doing"] is False
+
+
+def test_build_swimlane_pages_active_tasks_when_limited():
+    items = [_item(id=f"todo-{index}", status="todo") for index in range(8)]
+    items.extend(_item(id=f"doing-{index}", status="doing") for index in range(3))
+
+    initial = build_swimlane_view(items, active_limit=5)
+    assert [item.id for item in initial.columns["todo"]] == [
+        "todo-0",
+        "todo-1",
+        "todo-2",
+        "todo-3",
+        "todo-4",
+    ]
+    assert len(initial.columns["doing"]) == 3
+    assert initial.totals["todo"] == 8
+    assert initial.has_more["todo"] is True
+    assert initial.has_more["doing"] is False
+
+    next_page = build_swimlane_view(items, task_status="todo", offset=5, limit=5)
+    assert [item.id for item in next_page.columns["todo"]] == ["todo-5", "todo-6", "todo-7"]
+    assert next_page.has_more["todo"] is False
 
 
 def test_build_swimlane_collapses_and_pages_completed_tasks():
@@ -220,6 +250,133 @@ def test_build_calendar_rejects_invalid_timezone():
         )
 
 
+def test_calendar_month_lanes_order_by_status_then_time_then_priority():
+    day = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    items = [
+        _item(
+            id="archived",
+            status="archived",
+            priority="4",
+            start_at=day.replace(hour=8),
+            end_at=day.replace(hour=9),
+        ),
+        _item(
+            id="done",
+            status="done",
+            priority="4",
+            start_at=day.replace(hour=8),
+            end_at=day.replace(hour=9),
+        ),
+        _item(
+            id="doing-late",
+            status="doing",
+            priority="4",
+            start_at=day.replace(hour=11),
+            end_at=day.replace(hour=12),
+        ),
+        _item(
+            id="doing-early-low",
+            status="doing",
+            priority="1",
+            start_at=day.replace(hour=9),
+            end_at=day.replace(hour=10),
+        ),
+        _item(
+            id="doing-early-high",
+            status="doing",
+            priority="4",
+            start_at=day.replace(hour=9),
+            end_at=day.replace(hour=10),
+        ),
+        _item(
+            id="todo",
+            status="todo",
+            priority="1",
+            start_at=day.replace(hour=16),
+            end_at=day.replace(hour=17),
+        ),
+    ]
+    view = build_calendar_view(
+        items,
+        view="month",
+        anchor=parse_anchor("2026-06-15"),
+        timezone_name="UTC",
+    )
+    lanes = {
+        seg.item.id: seg.lane
+        for week in view.weeks
+        for seg in week.segments
+    }
+    assert lanes["todo"] < lanes["doing-early-high"]
+    assert lanes["doing-early-high"] < lanes["doing-early-low"]
+    assert lanes["doing-early-low"] < lanes["doing-late"]
+    assert lanes["doing-late"] < lanes["done"]
+    assert lanes["done"] < lanes["archived"]
+
+
+def test_calendar_day_items_order_by_status_then_time_then_priority():
+    day = datetime(2026, 6, 15, tzinfo=timezone.utc)
+    items = [
+        _item(
+            id="archived",
+            status="archived",
+            priority="4",
+            start_at=day.replace(hour=8),
+            end_at=day.replace(hour=9),
+        ),
+        _item(
+            id="done",
+            status="done",
+            priority="4",
+            start_at=day.replace(hour=8),
+            end_at=day.replace(hour=9),
+        ),
+        _item(
+            id="doing-late",
+            status="doing",
+            priority="4",
+            start_at=day.replace(hour=11),
+            end_at=day.replace(hour=12),
+        ),
+        _item(
+            id="doing-early-low",
+            status="doing",
+            priority="1",
+            start_at=day.replace(hour=9),
+            end_at=day.replace(hour=10),
+        ),
+        _item(
+            id="doing-early-high",
+            status="doing",
+            priority="4",
+            start_at=day.replace(hour=9),
+            end_at=day.replace(hour=10),
+        ),
+        _item(
+            id="todo",
+            status="todo",
+            priority="1",
+            start_at=day.replace(hour=16),
+            end_at=day.replace(hour=17),
+        ),
+    ]
+    view = build_calendar_view(
+        items,
+        view="day",
+        anchor=parse_anchor("2026-06-15"),
+        timezone_name="UTC",
+    )
+    assert view.day is not None
+    assert [row.id for row in view.day.items] == [
+        "todo",
+        "doing-early-high",
+        "doing-early-low",
+        "doing-late",
+        "done",
+        "archived",
+    ]
+
+
 def test_count_dashboard_health():
     stats = _count_dashboard([_item(status="done"), _item(id="i2", status="todo")])
     assert stats["health_percent"] == 50
@@ -257,3 +414,105 @@ def test_count_quick_view_today_overdue_and_week():
     assert stats["today_todo_count"] == 1
     assert stats["overdue_count"] == 1
     assert stats["due_this_week_count"] == 2
+
+
+def test_build_undated_view_lists_only_tasks_missing_both_times():
+    undated = _item(id="undated", start_at=None, end_at=None)
+    start_only = _item(id="start-only", start_at=datetime(2026, 6, 11, 9, 0, tzinfo=timezone.utc), end_at=None)
+    end_only = _item(id="end-only", start_at=None, end_at=datetime(2026, 6, 11, 18, 0, tzinfo=timezone.utc))
+    dated = _item(id="dated")
+
+    view = build_undated_view([undated, start_only, end_only, dated])
+    assert [item.id for item in view.items] == ["undated"]
+
+
+def test_build_undated_view_for_project_scope_excludes_other_projects():
+    this_undated = _item(id="this-undated", project_id="p1", start_at=None, end_at=None)
+    other_undated = _item(id="other-undated", project_id="p2", start_at=None, end_at=None)
+    this_dated = _item(id="this-dated", project_id="p1")
+    # list_schedule_items(project) already scopes rows; compose the same way here.
+    scoped = [item for item in [this_undated, other_undated, this_dated] if item.project_id == "p1"]
+    view = build_undated_view(scoped)
+    assert [item.id for item in view.items] == ["this-undated"]
+
+
+def test_build_calendar_excludes_undated_tasks():
+    undated = _item(id="undated", start_at=None, end_at=None)
+    dated = _item(id="dated")
+    view = build_calendar_view([undated, dated], view="day", anchor=parse_anchor("2026-06-11"))
+    assert view.day is not None
+    assert [item.id for item in view.day.items] == ["dated"]
+    week = build_calendar_view([undated, dated], view="week", anchor=parse_anchor("2026-06-11"))
+    assert all(seg.item.id != "undated" for week_out in week.weeks for seg in week_out.segments)
+
+
+def test_build_overdue_view_uses_calendar_day_cutoff_in_timezone():
+    now = datetime(2026, 8, 17, 3, 0, tzinfo=timezone.utc)  # 11:00 in Asia/Shanghai
+    yesterday = _item(
+        id="yesterday",
+        status="todo",
+        start_at=datetime(2026, 8, 16, 7, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 8, 16, 7, 0, tzinfo=timezone.utc),
+    )
+    today_local = _item(
+        id="today",
+        status="doing",
+        start_at=datetime(2026, 8, 16, 16, 0, tzinfo=timezone.utc),  # 2026-08-17 00:00 +08
+        end_at=datetime(2026, 8, 16, 17, 0, tzinfo=timezone.utc),
+    )
+    start_only_yesterday = _item(
+        id="start-only",
+        status="todo",
+        start_at=datetime(2026, 8, 16, 8, 0, tzinfo=timezone.utc),
+        end_at=None,
+    )
+    untimed = _item(id="untimed", status="todo", start_at=None, end_at=None)
+    done_yesterday = _item(
+        id="done",
+        status="done",
+        start_at=datetime(2026, 8, 16, 7, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 8, 16, 7, 0, tzinfo=timezone.utc),
+    )
+
+    view = build_overdue_view(
+        [today_local, yesterday, start_only_yesterday, untimed, done_yesterday],
+        timezone_name="Asia/Shanghai",
+        now=now,
+    )
+    assert [item.id for item in view.items] == ["yesterday", "start-only"]
+    assert view.total == 2
+    assert view.has_more is False
+
+
+def test_build_overdue_view_pages_oldest_deadline_first():
+    now = datetime(2026, 8, 17, 3, 0, tzinfo=timezone.utc)
+    items = [
+        _item(
+            id=f"overdue-{index}",
+            status="todo" if index % 2 == 0 else "doing",
+            start_at=datetime(2026, 8, 10 + index, 7, 0, tzinfo=timezone.utc),
+            end_at=datetime(2026, 8, 10 + index, 8, 0, tzinfo=timezone.utc),
+        )
+        for index in range(6)
+    ]
+
+    first_page = build_overdue_view(
+        items,
+        timezone_name="Asia/Shanghai",
+        now=now,
+        limit=2,
+        offset=0,
+    )
+    assert [item.id for item in first_page.items] == ["overdue-0", "overdue-1"]
+    assert first_page.total == 6
+    assert first_page.has_more is True
+
+    last_page = build_overdue_view(
+        items,
+        timezone_name="Asia/Shanghai",
+        now=now,
+        limit=2,
+        offset=4,
+    )
+    assert [item.id for item in last_page.items] == ["overdue-4", "overdue-5"]
+    assert last_page.has_more is False

@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
-import { ScheduleDashboardCards } from "@/components/dashboard/ScheduleDashboardCards";
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
+import { UndatedTaskList } from "@/components/schedule/UndatedTaskList";
 import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
-import { fetchMyScheduleDashboard } from "@/lib/api/schedule-views";
+import { fetchScheduleUndated } from "@/lib/api/schedule-views";
+import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { useTaskCreateDrawer } from "@/components/layout/TaskCreateDrawerContext";
 import type {
-  MyScheduleDashboardView,
   PriorityKey,
   ScheduleTaskItem,
   StatusKey,
 } from "@/types/api/views/schedule";
 import { localDatetimeRangeFromDateKey } from "@/components/schedule/taskUtils";
+import { canClearScheduleByDrop } from "@/components/schedule/undatedTasks";
 
 export default function MySchedulePage() {
   const router = useRouter();
@@ -23,8 +24,11 @@ export default function MySchedulePage() {
   const [token, setToken] = useState<string | null>(null);
 
   const scope = useMemo(() => ({ scope: "me" as const }), []);
-  const [dashboard, setDashboard] = useState<MyScheduleDashboardView | null>(null);
+  const [undatedItems, setUndatedItems] = useState<ScheduleTaskItem[] | null>(null);
   const [scheduleRefreshNonce, setScheduleRefreshNonce] = useState(0);
+  const [undatedDragItemId, setUndatedDragItemId] = useState<string | null>(null);
+  const [draggingItem, setDraggingItem] = useState<ScheduleTaskItem | null>(null);
+  const draggingItemRef = useRef<ScheduleTaskItem | null>(null);
 
   const {
     open: taskCreateOpen,
@@ -48,8 +52,10 @@ export default function MySchedulePage() {
 
   useEffect(() => {
     if (!token) return;
-    fetchMyScheduleDashboard(token).then(setDashboard).catch(() => setDashboard(null));
-  }, [token, scheduleRefreshNonce]);
+    fetchScheduleUndated(token, scope)
+      .then((data) => setUndatedItems(data.items))
+      .catch(() => setUndatedItems([]));
+  }, [token, scope, scheduleRefreshNonce]);
 
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [taskDrawerWorkspaceId, setTaskDrawerWorkspaceId] = useState("");
@@ -125,14 +131,65 @@ export default function MySchedulePage() {
     setScheduleRefreshNonce((n) => n + 1);
   }
 
+  function updateDraggingItem(item: ScheduleTaskItem | null) {
+    if (item) draggingItemRef.current = item;
+    setDraggingItem(item);
+  }
+
+  function handleUndatedDragItemIdChange(id: string | null) {
+    setUndatedDragItemId(id);
+    if (id == null) {
+      setDraggingItem(null);
+      return;
+    }
+    updateDraggingItem((undatedItems ?? []).find((entry) => entry.id === id) ?? null);
+  }
+
+  async function handleDropOnUndated(taskId: string) {
+    const fromDrag = draggingItemRef.current?.id === taskId ? draggingItemRef.current : null;
+    const item = fromDrag ?? (undatedItems ?? []).find((entry) => entry.id === taskId) ?? null;
+    if (!item || !canClearScheduleByDrop(item)) return;
+    try {
+      await apiFetch(`/workspaces/${item.workspace_id}/projects/${item.project_id}/items/${item.id}`, {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ version: item.version, start_at: null, end_at: null }),
+      });
+      draggingItemRef.current = null;
+      setDraggingItem(null);
+      setScheduleRefreshNonce((n) => n + 1);
+    } catch {
+      // 失败时保持日历原状；下次拖放可再试
+    }
+  }
+
   return (
-    <PageMain className="!px-3" fullWidth>
-      <div className="grid items-start gap-lg lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside id="my-schedule-status-panel" className="self-start lg:sticky lg:top-lg">
-          <ScheduleDashboardCards dashboard={dashboard} />
+    <PageMain
+      className="!px-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[&>div]:flex lg:[&>div]:min-h-0 lg:[&>div]:flex-1 lg:[&>div]:flex-col"
+      fullWidth
+    >
+      <div className="grid items-start gap-lg lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
+        <aside
+          id="my-schedule-undated-panel"
+          className="flex min-h-0 flex-col lg:h-full lg:overflow-hidden"
+        >
+          <UndatedTaskList
+            items={undatedItems}
+            onItemClick={openDrawer}
+            onAddTask={() => {
+              setTaskDrawerOpen(false);
+              setTaskDrawerItemId(null);
+              setTaskDrawerWorkspaceId("");
+              setTaskDrawerProjectId("");
+              openCreate({ status: "todo", startAt: "", endAt: "" });
+            }}
+            onDragItemIdChange={handleUndatedDragItemIdChange}
+            canAcceptDrop={draggingItem != null && canClearScheduleByDrop(draggingItem)}
+            onDropTaskId={handleDropOnUndated}
+          />
         </aside>
 
-        <div className="min-w-0">
+        <div className="min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
           <ScheduleBoard
             token={token}
             scope={scope}
@@ -143,6 +200,10 @@ export default function MySchedulePage() {
             onCreateInColumn={(status) => openTaskCreate(status)}
             onCreateInPriority={openTaskCreateInPriority}
             onCreateOnDate={openTaskCreateOnDate}
+            extraItems={undatedItems ?? []}
+            extraDragItemId={undatedDragItemId}
+            onDraggingItemChange={updateDraggingItem}
+            onTasksMutated={() => setScheduleRefreshNonce((n) => n + 1)}
             calendarFirst
             simplifiedSectionHeaders
           />

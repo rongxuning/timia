@@ -38,8 +38,9 @@ export function CalendarAllDayRow({
   onDropDateTime,
 }: Props) {
   const isWeek = columns.length === 7;
-  // 仅当多列（周视图）时启用 drop；日视图单列 = 拖动无意义
+  // 仅周视图多列时启用 drop（日视图全天行不能改期）。拖出仍允许，以便拖到待添加任务。
   const droppable = isWeek && !!onDropDateTime;
+  const sourceDraggable = !!onDragItemIdChange;
 
   function handleDragOver(e: DragEvent<HTMLDivElement>, key: string) {
     if (!droppable) return;
@@ -102,7 +103,7 @@ export function CalendarAllDayRow({
                   onTaskClick={onTaskClick}
                   onCompleteTask={onCompleteTask}
                   compact
-                  draggable={droppable && !!onDragItemIdChange}
+                  draggable={sourceDraggable && item.status !== "archived"}
                   onDragStart={
                     onDragItemIdChange
                       ? (it) => onDragItemIdChange(it.id)

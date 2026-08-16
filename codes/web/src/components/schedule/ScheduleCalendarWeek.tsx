@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type DragEvent } from "react";
 import type { CalendarWeekView } from "@/types/api/views/schedule";
 import { CalendarAllDayRow } from "./CalendarAllDayRow";
 import { CalendarTimelineColumn } from "./CalendarTimelineColumn";
@@ -45,6 +45,30 @@ export function ScheduleCalendarWeekHeader({
 }: Omit<Props, "showHeader">) {
   const todayKey = dayKeyLocal(new Date());
   const dayItems = useWeekDayItems(week);
+  const droppable = !!onDropDateTime;
+
+  function handleDateKeyDragOver(e: DragEvent<HTMLDivElement>, key: string) {
+    if (!droppable) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverDateKey !== key) onDragOverDateKeyChange?.(key);
+  }
+
+  function handleDateKeyDragLeave(e: DragEvent<HTMLDivElement>) {
+    if (!droppable) return;
+    if (e.currentTarget !== e.target) return;
+    onDragOverDateKeyChange?.(null);
+  }
+
+  function handleDateKeyDrop(e: DragEvent<HTMLDivElement>, key: string) {
+    if (!droppable || !onDropDateTime) return;
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/task-id") || dragItemId;
+    onDragItemIdChange?.(null);
+    onDragOverDateKeyChange?.(null);
+    if (!id) return;
+    onDropDateTime(id, { dateKey: key, hour: null });
+  }
 
   return (
     <>
@@ -53,6 +77,7 @@ export function ScheduleCalendarWeekHeader({
         <div className="grid min-w-0 flex-1 grid-cols-7">
           {week.days.map(({ key, day }) => {
             const isToday = key === todayKey;
+            const isDragOver = droppable && dragOverDateKey === key;
             return (
               <div
                 key={key}
@@ -61,8 +86,12 @@ export function ScheduleCalendarWeekHeader({
                   isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "bg-surface",
                   "last:border-r-0",
                   onDateHeaderClick ? "cursor-pointer hover:bg-primary/5 transition-colors" : "",
+                  isDragOver ? "bg-primary/15" : "",
                 ].join(" ")}
                 onClick={onDateHeaderClick ? () => onDateHeaderClick(key) : undefined}
+                onDragOver={droppable ? (e) => handleDateKeyDragOver(e, key) : undefined}
+                onDragLeave={droppable ? handleDateKeyDragLeave : undefined}
+                onDrop={droppable ? (e) => handleDateKeyDrop(e, key) : undefined}
                 title={onDateHeaderClick ? "查看日视图" : undefined}
               >
                 <div className="flex min-w-0 items-center justify-between gap-1">

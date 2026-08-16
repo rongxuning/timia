@@ -4,6 +4,7 @@ import type { DragEvent } from "react";
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
 import { CalendarTaskCard } from "./CalendarTaskCard";
 import {
+  calendarTaskSurfaceStyle,
   formatScheduleTimeRange,
   taskCalendarColors,
   taskLabelStripeColor,
@@ -58,6 +59,7 @@ export function CalendarTaskBar({
   isDragging = false,
 }: CalendarTaskBarProps) {
   const c = taskCalendarColors(item.priority);
+  const surface = calendarTaskSurfaceStyle(c, item.status);
   const radius =
     roundLeft && roundRight ? 8 : roundLeft ? "8px 0 0 8px" : roundRight ? "0 8px 8px 0" : 0;
 
@@ -72,6 +74,7 @@ export function CalendarTaskBar({
           ? (e) => {
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("text/task-id", item.id);
+              e.dataTransfer.setData("text/plain", item.id);
               onDragStart(item, e);
             }
           : undefined
@@ -84,9 +87,7 @@ export function CalendarTaskBar({
         isDragging ? "opacity-40" : "",
       ].join(" ")}
       style={{
-        backgroundColor: c.bg,
-        color: c.fg,
-        borderColor: c.border,
+        ...surface,
         borderLeftColor: taskLabelStripeColor(item.color, c.border),
         borderWidth: 1,
         borderLeftWidth: roundLeft ? 4 : 1,

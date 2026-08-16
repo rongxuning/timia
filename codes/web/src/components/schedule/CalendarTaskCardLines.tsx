@@ -44,6 +44,11 @@ export function CalendarTaskCardLines({
           `truncate font-bold leading-tight ${titleClassName}`,
           titleStruck ? "line-through opacity-70" : "",
         ].join(" ")}
+        style={
+          titleStruck
+            ? { textDecorationThickness: "2.5px", textDecorationSkipInk: "none" }
+            : undefined
+        }
       >
         {item.title}
       </div>

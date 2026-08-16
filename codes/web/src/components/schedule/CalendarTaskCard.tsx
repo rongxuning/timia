@@ -14,6 +14,7 @@ export type CalendarTaskCardProps = {
   compact?: boolean;
   previewStartAtIso?: string | null;
   previewEndAtIso?: string | null;
+  showStatusControl?: boolean;
 };
 
 export function CalendarTaskCard({
@@ -24,18 +25,21 @@ export function CalendarTaskCard({
   compact = false,
   previewStartAtIso,
   previewEndAtIso,
+  showStatusControl = true,
 }: CalendarTaskCardProps) {
   const titleClassName = compact ? "text-[10px]" : "text-[11px]";
   const metaClassName = compact ? "text-[9px]" : "text-[10px]";
 
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 items-start gap-1.5 p-1">
-      <TaskStatusIcon
-        size="compact"
-        status={item.status}
-        loading={completingItemId === item.id}
-        onComplete={onCompleteTask ? () => onCompleteTask(item.id) : undefined}
-      />
+      {showStatusControl ? (
+        <TaskStatusIcon
+          size="compact"
+          status={item.status}
+          loading={completingItemId === item.id}
+          onComplete={onCompleteTask ? () => onCompleteTask(item.id) : undefined}
+        />
+      ) : null}
       <div className="min-w-0 flex-1 pr-8">
         <CalendarTaskCardLines
           item={item}

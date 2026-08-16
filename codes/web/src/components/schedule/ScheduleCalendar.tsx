@@ -167,6 +167,8 @@ export function ScheduleCalendar({
               completingItemId={completingItemId}
               showProjectContext={showProjectContext}
               showAssigneeAvatar={showAssigneeAvatar}
+              dragItemId={dragItemId}
+              onDragItemIdChange={onDragItemIdChange}
             />
           </div>
         ) : null}

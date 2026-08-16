@@ -83,6 +83,31 @@ export const API_CATALOG: ApiCatalogEntry[] = [
   },
   {
     method: "GET",
+    path: "/views/schedule/undated",
+    name: "未确认启动时间（无开始结束时间）",
+    requestJson: { headers: authBearer, query: { scope: "me | project", workspace_id: "uuid?", project_id: "uuid?" }, jsonBody: null },
+    responseJson: { items: [] },
+  },
+  {
+    method: "GET",
+    path: "/views/schedule/overdue",
+    name: "逾期任务（截止当天，未开始/进行中）",
+    requestJson: {
+      headers: authBearer,
+      query: {
+        scope: "me | project",
+        workspace_id: "uuid?",
+        project_id: "uuid?",
+        timezone: "Asia/Shanghai?",
+        limit: "number?",
+        offset: "number?",
+      },
+      jsonBody: null,
+    },
+    responseJson: { items: [], total: 0, has_more: false },
+  },
+  {
+    method: "GET",
     path: "/views/schedule/dashboard",
     name: "我的日程仪表盘",
     requestJson: { headers: authBearer, query: null, jsonBody: null },

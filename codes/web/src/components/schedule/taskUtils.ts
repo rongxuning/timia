@@ -42,6 +42,105 @@ export function taskCalendarColors(p?: string | null): { bg: string; fg: string;
   return PRIORITY_CALENDAR_COLORS[normalizePriority(p)];
 }
 
+export function isSettledCalendarStatus(status?: string | null): boolean {
+  return status === "done" || status === "archived";
+}
+
+/** Completed calendar cards: keep hue, drop most saturation. */
+export function desaturateHex(hex: string, amount = 0.72): string {
+  const rgb = parseHexRgb(hex);
+  if (!rgb) return hex;
+  const clamped = clamp01(amount);
+  if (clamped === 0) return `#${hex.trim().replace("#", "").toUpperCase()}`;
+  const [hue, saturation, lightness] = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+  const next = hslToRgb(hue, saturation * (1 - clamped), lightness);
+  return rgbToHex(next[0], next[1], next[2]);
+}
+
+export const CALENDAR_COMPLETED_HATCH =
+  "repeating-linear-gradient(-45deg, transparent 0 4px, rgba(107,114,128,0.28) 4px 6px)";
+
+export function calendarTaskSurfaceStyle(
+  colors: { bg: string; fg: string; border: string },
+  status?: string | null,
+): {
+  backgroundColor: string;
+  backgroundImage?: string;
+  color: string;
+  borderColor: string;
+} {
+  if (!isSettledCalendarStatus(status)) {
+    return {
+      backgroundColor: colors.bg,
+      color: colors.fg,
+      borderColor: colors.border,
+    };
+  }
+  return {
+    backgroundColor: desaturateHex(colors.bg),
+    backgroundImage: CALENDAR_COMPLETED_HATCH,
+    color: colors.fg,
+    borderColor: colors.border,
+  };
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function parseHexRgb(hex: string): [number, number, number] | null {
+  const value = hex.trim().replace("#", "");
+  if (!/^[0-9A-Fa-f]{6}$/.test(value)) return null;
+  return [
+    parseInt(value.slice(0, 2), 16),
+    parseInt(value.slice(2, 4), 16),
+    parseInt(value.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b]
+    .map((channel) => Math.round(channel * 255)
+      .toString(16)
+      .padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`;
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const lightness = (max + min) / 2;
+  if (max === min) return [0, 0, lightness];
+  const delta = max - min;
+  const saturation =
+    lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+  let hue = 0;
+  if (max === red) hue = (green - blue) / delta + (green < blue ? 6 : 0);
+  else if (max === green) hue = (blue - red) / delta + 2;
+  else hue = (red - green) / delta + 4;
+  return [hue / 6, saturation, lightness];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  if (s === 0) return [l, l, l];
+  const hueToChannel = (p: number, q: number, t: number) => {
+    let wrapped = t;
+    if (wrapped < 0) wrapped += 1;
+    if (wrapped > 1) wrapped -= 1;
+    if (wrapped < 1 / 6) return p + (q - p) * 6 * wrapped;
+    if (wrapped < 1 / 2) return q;
+    if (wrapped < 2 / 3) return p + (q - p) * (2 / 3 - wrapped) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [hueToChannel(p, q, h + 1 / 3), hueToChannel(p, q, h), hueToChannel(p, q, h - 1 / 3)];
+}
+
 /**
  * 任务自定义颜色用于卡片左侧标签色条。
  * 白色是任务的默认值，直接显示会在白色卡片上消失，因此回退到当前视图的优先级边框色。
@@ -281,6 +380,26 @@ export type RescheduleDropTarget = {
 };
 
 /**
+ * 无时间任务拖到日历落点后的 start/end。
+ * - hour 为 null（月视图日期格 / 周视图全天行）：当天 09:00–10:00，与空白处新建一致
+ * - hour 为整点或 15 分钟 snap：从该时刻起 1 小时
+ */
+export function resolveUndatedDropRange(
+  target: RescheduleDropTarget,
+): { startAt: string; endAt: string } | null {
+  const [y, m, d] = target.dateKey.split("-").map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  const startH = target.hour != null ? Math.floor(target.hour) : 9;
+  const startM = target.hour != null ? Math.round((target.hour - startH) * 60) : 0;
+  const start = new Date(y, m - 1, d, startH, startM, 0, 0);
+  const end =
+    target.hour != null
+      ? new Date(y, m - 1, d, startH + 1, startM, 0, 0)
+      : new Date(y, m - 1, d, 10, 0, 0, 0);
+  return { startAt: start.toISOString(), endAt: end.toISOString() };
+}
+
+/**
  * 给定原任务 + 落点，计算新的 start_at / end_at。
  * - 定时任务（timed）：保留 duration；dropHour=null 保留时分，dropHour=整数则 snap 到整点
  * - 全天任务（all-day）：保持整天；只改日期。dropHour=整数时拒绝（返回 null）
@@ -306,15 +425,7 @@ export function computeRescheduledRange(
   }
 
   if (kind === "no-start") {
-    // Q2: 落到 09:00-10:00（target.hour 为 null 时）或 1 小时整段（target.hour 有值时）
-    // target.hour 现在支持 float（15min snap）
-    const startH = target.hour != null ? Math.floor(target.hour) : 9;
-    const startM = target.hour != null ? Math.round((target.hour - startH) * 60) : 0;
-    const start = new Date(y, m - 1, d, startH, startM, 0, 0);
-    const end = target.hour != null
-      ? new Date(y, m - 1, d, startH + 1, startM, 0, 0)
-      : new Date(y, m - 1, d, 10, 0, 0, 0);
-    return { startAt: start.toISOString(), endAt: end.toISOString() };
+    return resolveUndatedDropRange(target);
   }
 
   // timed: 保留 duration，按"结束时间顺延"原话处理

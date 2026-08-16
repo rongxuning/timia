@@ -21,6 +21,8 @@ from app.services.item_api import (
     parse_transfer_target,
     resolve_item_completed_at,
     validate_item_people,
+    validate_item_schedule_range,
+    validate_undated_item_status,
 )
 from app.services.permissions import require_project_content_access
 
@@ -109,6 +111,9 @@ def create_item(
     loc = (payload.location or "").strip() or None
     if loc and len(loc) > 500:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_too_long")
+
+    validate_item_schedule_range(payload.start_at, payload.end_at)
+    validate_undated_item_status(payload.start_at, payload.end_at, payload.status)
 
     completed_at = resolve_item_completed_at(
         current_status=None,
@@ -282,6 +287,8 @@ def update_item(
         i.start_at = payload.start_at
     if "end_at" in fields_set:
         i.end_at = payload.end_at
+    validate_item_schedule_range(i.start_at, i.end_at)
+    validate_undated_item_status(i.start_at, i.end_at, i.status)
     if "details" in fields_set:
         i.details = payload.details
 

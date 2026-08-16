@@ -23,7 +23,7 @@ function formatFloatHour(hour: number): string {
 }
 
 type VisibleItem = {
-  item: { id: string };
+  item: { id: string; status?: string };
   startMin: number;
   endMin: number;
   duration: number;
@@ -56,8 +56,13 @@ function computeSegments(visible: VisibleItem[]): Map<string, Segment[]> {
     if (active.length === 0) continue;
 
     const totalDuration = active.reduce((sum, v) => sum + v.duration, 0);
+    const statusRank = (status?: string) =>
+      status === "todo" ? 0 : status === "doing" ? 1 : status === "done" ? 2 : status === "archived" ? 3 : 4;
     const sortedActive = [...active].sort(
-      (a, b) => a.startMin - b.startMin || b.endMin - a.endMin,
+      (a, b) =>
+        statusRank(a.item.status) - statusRank(b.item.status) ||
+        a.startMin - b.startMin ||
+        b.endMin - a.endMin,
     );
 
     let leftPct = 0;
@@ -94,11 +99,11 @@ function computeSegments(visible: VisibleItem[]): Map<string, Segment[]> {
 }
 
 function layoutDayTimeline(
-  items: Array<{ id: string; startMin: number; endMin: number }>,
+  items: Array<{ id: string; startMin: number; endMin: number; status?: string }>,
 ) {
   const visible: VisibleItem[] = items
     .map((it) => ({
-      item: { id: it.id },
+      item: { id: it.id, status: it.status },
       startMin: it.startMin,
       endMin: it.endMin,
       duration: it.endMin - it.startMin,
@@ -182,6 +187,20 @@ function findBlock(blocks: ReturnType<typeof layoutDayTimeline>, id: string) {
   // a 在 b 前面（startMin 相同，endMin 相同 → 稳定排序中 a 仍在前）
   assert(approx(a.segments[0].leftPct, 0), "full overlap a → left=0");
   assert(approx(b.segments[0].leftPct, 50), "full overlap b → left=50");
+}
+
+// Case 4b: 重叠时状态优先——已完成更早开始，未完成仍在左侧
+{
+  const out = layoutDayTimeline([
+    { id: "done", startMin: 9 * 60, endMin: 11 * 60, status: "done" },
+    { id: "todo", startMin: 10 * 60, endMin: 11 * 60, status: "todo" },
+  ]);
+  const done = findBlock(out, "done")!;
+  const todo = findBlock(out, "todo")!;
+  const overlapDone = done.segments.find((s) => approx(s.topPx, (10 * 60) / 60 * 48, 0.5));
+  assert(!!overlapDone, "done has overlap segment at 10:00");
+  assert(approx(todo.segments[0].leftPct, 0), "todo stays left despite later start");
+  assert(overlapDone!.leftPct > todo.segments[0].leftPct, "done is to the right of todo");
 }
 
 // Case 5: 三个事件阶梯式重叠（A 跨越全程，B 中段，C 后段）

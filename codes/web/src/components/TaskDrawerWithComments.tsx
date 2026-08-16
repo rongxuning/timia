@@ -15,6 +15,7 @@ import { apiFetch } from "@/lib/api";
 import { fetchMyProjects, fetchMyWorkspaces, type ProjectOption, type WorkspaceOption } from "@/lib/api/workspaces";
 import { fetchItemDetail, fetchTaskDrawerContext } from "@/lib/api/task-views";
 import { PRIORITY_OPTIONS } from "@/components/schedule/taskUtils";
+import { resolveTaskScheduleTimes, validateUndatedTaskStatus } from "@/components/schedule/taskScheduleTimes";
 
 export type TaskUserBrief = {
   id: string;
@@ -761,14 +762,18 @@ export function TaskDrawerWithComments({
       setEditError("请输入任务标题");
       return;
     }
-    if (!editStartAt || !editEndAt) {
-      setEditError("开始时间和结束时间为必填");
+    const scheduleTimes = resolveTaskScheduleTimes(editStartAt, editEndAt);
+    if (!scheduleTimes.ok) {
+      setEditError(scheduleTimes.error);
       return;
     }
-    const startIso = new Date(editStartAt).toISOString();
-    const endIso = new Date(editEndAt).toISOString();
-    if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
-      setEditError("结束时间不能早于开始时间");
+    const undatedStatus = validateUndatedTaskStatus(
+      scheduleTimes.start_at,
+      scheduleTimes.end_at,
+      editStatus,
+    );
+    if (!undatedStatus.ok) {
+      setEditError(undatedStatus.error);
       return;
     }
     if (editStatus === "done" && !editCompletedAt) {
@@ -811,8 +816,8 @@ export function TaskDrawerWithComments({
               color: editColor,
               status: editStatus,
               priority: normalizePriority(editPriority),
-              start_at: startIso,
-              end_at: endIso,
+              start_at: scheduleTimes.start_at,
+              end_at: scheduleTimes.end_at,
               completed_at: completedIso,
               repeat: editRepeat,
               ...peoplePayload,
@@ -831,8 +836,8 @@ export function TaskDrawerWithComments({
           color: editColor,
           status: editStatus,
           priority: normalizePriority(editPriority),
-          start_at: startIso,
-          end_at: endIso,
+          start_at: scheduleTimes.start_at,
+          end_at: scheduleTimes.end_at,
           completed_at: completedIso,
           version: drawerItem.version,
           repeat: editRepeat,
@@ -1164,7 +1169,7 @@ export function TaskDrawerWithComments({
                       value={editStatus}
                       options={TASK_STATUS_OPTIONS}
                       onChange={handleStatusChange}
-                      disabled={editLoading}
+                      disabled={editLoading || (!editStartAt.trim() && !editEndAt.trim())}
                     />
                     <SystemSelect
                       label="优先级"
@@ -1184,9 +1189,14 @@ export function TaskDrawerWithComments({
                         type="datetime-local"
                         className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
                         value={editStartAt}
-                        onChange={(e) => setEditStartAt(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setEditStartAt(next);
+                          if (!next.trim() && !editEndAt.trim() && editStatus !== "todo") {
+                            handleStatusChange("todo");
+                          }
+                        }}
                         disabled={editLoading}
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -1198,12 +1208,18 @@ export function TaskDrawerWithComments({
                         type="datetime-local"
                         className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
                         value={editEndAt}
-                        onChange={(e) => setEditEndAt(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setEditEndAt(next);
+                          if (!editStartAt.trim() && !next.trim() && editStatus !== "todo") {
+                            handleStatusChange("todo");
+                          }
+                        }}
                         disabled={editLoading}
-                        required
                       />
                     </div>
                   </div>
+                  <p className="text-caption text-neutral-muted">开始与结束时间均可留空，任务会出现在未确认启动时间。</p>
                   <div className="flex flex-col items-start space-y-2">
                     <label className="text-sm font-medium text-on-surface-variant">重复</label>
                     <button
