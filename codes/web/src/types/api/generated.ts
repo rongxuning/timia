@@ -1323,6 +1323,12 @@ export interface components {
             participant_user_ids?: string[];
             /** Location */
             location?: string | null;
+            /**
+             * Repeat
+             * @default none
+             * @enum {string}
+             */
+            repeat: "none" | "daily" | "weekly" | "monthly";
         };
         /** ItemDetailCommentOut */
         ItemDetailCommentOut: {
@@ -1456,6 +1462,8 @@ export interface components {
             target_workspace_id?: string | null;
             /** Target Project Id */
             target_project_id?: string | null;
+            /** Repeat */
+            repeat?: ("none" | "daily" | "weekly" | "monthly") | null;
         };
         /** MeResponse */
         MeResponse: {
@@ -2006,6 +2014,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
             /** Created By User Id */
             created_by_user_id?: string | null;
             /** Created By Display Name */
@@ -2267,6 +2280,11 @@ export interface components {
          *     workspace/project list, or chosen one manually). The convenience endpoint
          *     falls back to the user's most-recently-active workspace if these are
          *     omitted *and* the request is shaped via the auto-fallback path.
+         *
+         *     If ``item_id`` is provided, the endpoint will NOT create a new item — it
+         *     simply marks the parse as pointing at the given existing item. This is the
+         *     "link" path used when the task drawer creates the item first and the
+         *     sticky note is just recording the relationship.
          */
         StickyNoteConvertRequest: {
             /** Parse Id */
@@ -2279,8 +2297,8 @@ export interface components {
             field_overrides?: {
                 [key: string]: unknown;
             };
-            /** Item Id (link path: mark parse as pointing at existing item, do not create) */
-            item_id?: string;
+            /** Item Id */
+            item_id?: string | null;
         };
         /** StickyNoteConvertResponse */
         StickyNoteConvertResponse: {
@@ -2821,6 +2839,11 @@ export interface components {
             color: string;
             /** Created At */
             created_at?: string | null;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
             /** Created By User Id */
             created_by_user_id?: string | null;
             /** Created By Display Name */

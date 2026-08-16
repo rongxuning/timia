@@ -5724,6 +5724,17 @@
               }
             ],
             "title": "Location"
+          },
+          "repeat": {
+            "type": "string",
+            "enum": [
+              "none",
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Repeat",
+            "default": "none"
           }
         },
         "type": "object",
@@ -6273,6 +6284,23 @@
               }
             ],
             "title": "Target Project Id"
+          },
+          "repeat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "daily",
+                  "weekly",
+                  "monthly"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repeat"
           }
         },
         "type": "object",
@@ -7596,6 +7624,11 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "default": false
+          },
           "created_by_user_id": {
             "anyOf": [
               {
@@ -8456,6 +8489,17 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Field Overrides"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
           }
         },
         "type": "object",
@@ -8465,7 +8509,7 @@
           "project_id"
         ],
         "title": "StickyNoteConvertRequest",
-        "description": "Finalize a parse into a real Item.\n\n``workspace_id`` / ``project_id`` are required (callers must have already\nmatched the AI's ``workspace_name`` / ``project_name`` against their own\nworkspace/project list, or chosen one manually). The convenience endpoint\nfalls back to the user's most-recently-active workspace if these are\nomitted *and* the request is shaped via the auto-fallback path."
+        "description": "Finalize a parse into a real Item.\n\n``workspace_id`` / ``project_id`` are required (callers must have already\nmatched the AI's ``workspace_name`` / ``project_name`` against their own\nworkspace/project list, or chosen one manually). The convenience endpoint\nfalls back to the user's most-recently-active workspace if these are\nomitted *and* the request is shaped via the auto-fallback path.\n\nIf ``item_id`` is provided, the endpoint will NOT create a new item — it\nsimply marks the parse as pointing at the given existing item. This is the\n\"link\" path used when the task drawer creates the item first and the\nsticky note is just recording the relationship."
       },
       "StickyNoteConvertResponse": {
         "properties": {
@@ -9910,6 +9954,11 @@
               }
             ],
             "title": "Created At"
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite",
+            "default": false
           },
           "created_by_user_id": {
             "anyOf": [
