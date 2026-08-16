@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { SystemSelect, type SystemSelectOption } from "@/components/SystemSelect";
+import { PinnedTagSelect } from "@/components/PinnedTagSelect";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
@@ -1062,29 +1063,33 @@ export function TaskDrawerWithComments({
                     <div className="text-overline text-zinc-500 tracking-wide">任务简介</div>
                   ) : null}
                   {ownershipError ? <p className="text-caption text-error">{ownershipError}</p> : null}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <SystemSelect
+                  <div className="space-y-3">
+                    <PinnedTagSelect
                       label="工作空间"
-                      placeholder="请选择工作空间"
                       searchable
                       searchPlaceholder="搜索工作空间…"
-                      options={workspaceOptions.map((w) => ({ value: w.id, label: w.name }))}
+                      options={workspaceOptions.map((w) => ({
+                        value: w.id,
+                        label: w.name,
+                        is_favorite: w.is_favorite,
+                        created_at: w.created_at,
+                      }))}
                       value={selectedWorkspaceId || null}
                       onChange={handleWorkspaceChange}
                       loading={workspacesLoading}
                       disabled={editLoading || itemLoading}
                       emptyText="暂无可用工作空间"
-                      showAccent={false}
                     />
-                    <SystemSelect
+                    <PinnedTagSelect
                       label="所属项目"
-                      placeholder="请选择所属项目"
                       searchable
                       searchPlaceholder="搜索所属项目…"
                       options={projectOptions.map((p) => ({
                         value: p.id,
                         label: p.name,
                         hint: p.description?.trim() || undefined,
+                        is_favorite: p.is_favorite,
+                        created_at: p.created_at,
                       }))}
                       value={selectedProjectId || null}
                       onChange={handleProjectChange}
@@ -1093,7 +1098,6 @@ export function TaskDrawerWithComments({
                       emptyText={
                         selectedWorkspaceId ? "该工作空间下暂无可选项目" : "请先选择工作空间"
                       }
-                      showAccent={false}
                     />
                   </div>
                   <div className="space-y-2">
