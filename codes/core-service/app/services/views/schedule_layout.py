@@ -486,7 +486,12 @@ def build_swimlane_view(
     offset: int = 0,
     completed_limit: int = 5,
     active_limit: int | None = None,
+    day: date | None = None,
+    timezone_name: str | None = None,
 ) -> ScheduleSwimlaneViewOut:
+    if day is not None:
+        calendar_timezone = resolve_calendar_timezone(timezone_name or DEFAULT_CALENDAR_TIMEZONE)
+        items = [item for item in items if _item_covers_day(item, day, calendar_timezone)]
     grouped: dict[str, list[ScheduleTaskItemOut]] = {k: [] for k in STATUS_KEYS}
     for it in items:
         key = it.status if it.status in grouped else "todo"
