@@ -89,7 +89,7 @@ export function SystemSelect({
     const availableAbove = rect.top - viewportPadding - gap;
     const placeAbove = availableBelow < 220 && availableAbove > availableBelow;
     const availableHeight = Math.max(140, placeAbove ? availableAbove : availableBelow);
-    const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+    const width = Math.min(Math.max(rect.width, 280), window.innerWidth - viewportPadding * 2);
     const left = Math.min(
       Math.max(viewportPadding, rect.left),
       window.innerWidth - viewportPadding - width,
