@@ -96,7 +96,13 @@ export function ProjectModal({
         if (cancelled) return;
         const ownerOptions: WorkspaceOption[] = cards
           .filter((c) => c.my_workspace_role === "owner")
-          .map((c) => ({ id: c.id, name: c.name, description: c.description }));
+          .map((c) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            is_favorite: Boolean(c.is_favorite),
+            created_at: c.created_at ?? "",
+          }));
         if (workspaceId && !ownerOptions.some((w) => w.id === workspaceId)) {
           const current = cards.find((c) => c.id === workspaceId);
           if (current) {
@@ -104,6 +110,8 @@ export function ProjectModal({
               id: current.id,
               name: current.name,
               description: current.description,
+              is_favorite: Boolean(current.is_favorite),
+              created_at: current.created_at ?? "",
             });
           }
         }
