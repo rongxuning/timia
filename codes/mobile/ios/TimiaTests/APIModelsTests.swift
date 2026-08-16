@@ -29,6 +29,27 @@ final class APIModelsTests: XCTestCase {
         XCTAssertEqual(value.todoCount, 3)
     }
 
+    func testProjectDecodesFavoriteFlagForTaskEditorTags() throws {
+        let json = """
+        {
+          "id": "project-1",
+          "workspace_id": "workspace-1",
+          "name": "iOS",
+          "description": "客户端",
+          "color": "#FFFFFF",
+          "archived": false,
+          "created_at": "2026-08-01T00:00:00Z",
+          "is_favorite": true,
+          "can_manage": true
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let value = try decoder.decode(Project.self, from: Data(json.utf8))
+        XCTAssertTrue(value.isFavorite)
+        XCTAssertEqual(value.createdAt, "2026-08-01T00:00:00Z")
+    }
+
     func testAPIErrorHasUserFacingMessage() {
         XCTAssertEqual(APIError.unauthorized.errorDescription, "登录已过期，请重新登录")
     }
@@ -127,7 +148,8 @@ final class APIModelsTests: XCTestCase {
                 participantUserIds: ["user-2", "user-3"],
                 location: nil,
                 targetWorkspaceId: "workspace-2",
-                targetProjectId: "project-2"
+                targetProjectId: "project-2",
+                repeatKind: nil
             )
         )
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])

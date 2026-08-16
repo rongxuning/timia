@@ -43,7 +43,7 @@ struct WorkspacesView: View {
         .refreshable { await load() }
         .task { await load() }
         .sheet(item: $formMode) { mode in
-            NavigationStack { WorkspaceFormView(mode: mode) { Task { await load() } } }
+            NavigationStack { WorkspaceFormView(mode: mode) { _ in Task { await load() } } }
         }
         .alert(
             "删除空间",
@@ -375,7 +375,7 @@ struct WorkspaceFormView: View {
     }
 
     let mode: Mode
-    let onSaved: () -> Void
+    let onSaved: (_ createdId: String?) -> Void
     @EnvironmentObject private var session: AppSession
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -440,11 +440,13 @@ struct WorkspaceFormView: View {
         do {
             switch mode {
             case .create:
-                _ = try await session.api.request("/workspaces", method: "POST", body: payload, response: WorkspaceResponse.self)
+                let created = try await session.api.request("/workspaces", method: "POST", body: payload, response: WorkspaceResponse.self)
+                onSaved(created.id)
             case let .edit(value):
                 _ = try await session.api.request("/workspaces/\(value.id)", method: "PATCH", body: payload, response: WorkspaceResponse.self)
+                onSaved(nil)
             }
-            onSaved(); dismiss()
+            dismiss()
         } catch { errorMessage = error.localizedDescription }
         isSaving = false
     }

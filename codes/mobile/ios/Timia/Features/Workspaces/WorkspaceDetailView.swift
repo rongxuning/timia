@@ -146,7 +146,7 @@ struct WorkspaceDetailView: View {
             Task { await loadDiscussions(reset: true) }
         }
         .task { await loadAll() }
-        .sheet(item: $projectForm) { mode in NavigationStack { ProjectFormView(workspaceId: workspace.id, mode: mode) { Task { await loadProjects() } } } }
+        .sheet(item: $projectForm) { mode in NavigationStack { ProjectFormView(workspaceId: workspace.id, mode: mode) { _ in Task { await loadProjects() } } } }
         .sheet(item: $selectedTask) { task in
             NavigationStack { TaskEditorView(mode: .edit(task)) { Task { await loadDiscussions(reset: true) } } }
         }
@@ -516,7 +516,7 @@ struct ProjectFormView: View {
     }
     let workspaceId: String
     let mode: Mode
-    let onSaved: () -> Void
+    let onSaved: (_ createdId: String?) -> Void
     @EnvironmentObject private var session: AppSession
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -573,10 +573,14 @@ struct ProjectFormView: View {
         let payload = ProjectPayload(name: name.trimmingCharacters(in: .whitespacesAndNewlines), description: description.isEmpty ? nil : description, color: color.uppercased())
         do {
             switch mode {
-            case .create: _ = try await session.api.request("/workspaces/\(workspaceId)/projects", method: "POST", body: payload, response: Project.self)
-            case let .edit(value): _ = try await session.api.request("/workspaces/\(workspaceId)/projects/\(value.id)", method: "PATCH", body: payload, response: Project.self)
+            case .create:
+                let created = try await session.api.request("/workspaces/\(workspaceId)/projects", method: "POST", body: payload, response: Project.self)
+                onSaved(created.id)
+            case let .edit(value):
+                _ = try await session.api.request("/workspaces/\(workspaceId)/projects/\(value.id)", method: "PATCH", body: payload, response: Project.self)
+                onSaved(nil)
             }
-            onSaved(); dismiss()
+            dismiss()
         } catch { errorMessage = error.localizedDescription }
     }
 }

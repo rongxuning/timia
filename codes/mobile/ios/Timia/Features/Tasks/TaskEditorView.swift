@@ -68,6 +68,9 @@ struct TaskEditorView: View {
     @State private var isDeleting = false
     @State private var isShowingDeleteConfirmation = false
     @State private var isPrepared = false
+    @State private var creatorDisplayName = ""
+    @State private var isCreatingWorkspace = false
+    @State private var isCreatingProject = false
     @State private var errorMessage: String?
     @FocusState private var focusedField: TaskEditorFocusField?
 
@@ -88,74 +91,43 @@ struct TaskEditorView: View {
 
     var body: some View {
         Form {
-            LabeledContent("空间") {
-                Picker("工作空间", selection: $workspaceId) {
-                    Text("请选择").tag("")
-                    ForEach(workspaces) { Text($0.name).tag($0.id) }
+            PinnedTagSelect(
+                title: "空间",
+                selection: $workspaceId,
+                items: workspaceTagItems,
+                emptyText: "暂无可用工作空间",
+                searchPlaceholder: "搜索工作空间",
+                onCreate: { isCreatingWorkspace = true }
+            )
+            .onChange(of: workspaceId) { oldValue, newValue in
+                guard oldValue != newValue else { return }
+                focusedField = nil
+                if isPrepared {
+                    projectId = ""
+                    memberOptions = []
+                    assigneeUserId = ""
+                    participantUserIds = []
                 }
-                .labelsHidden()
-                .disabled(isFixedCreate)
-                .onChange(of: workspaceId) { oldValue, newValue in
-                    guard oldValue != newValue else { return }
-                    focusedField = nil
-                    if isPrepared {
-                        projectId = ""
-                        memberOptions = []
-                        assigneeUserId = ""
-                        participantUserIds = []
-                    }
-                    Task { await loadProjects() }
-                }
+                Task { await loadProjects() }
             }
 
-            LabeledContent("项目") {
-                Picker("项目", selection: $projectId) {
-                    Text("请选择").tag("")
-                    ForEach(projects) { Text($0.name).tag($0.id) }
+            PinnedTagSelect(
+                title: "项目",
+                selection: $projectId,
+                items: projectTagItems,
+                emptyText: workspaceId.isEmpty ? "请先选择空间" : "该空间下暂无可选项目",
+                searchPlaceholder: "搜索项目",
+                onCreate: workspaceId.isEmpty ? nil : { isCreatingProject = true }
+            )
+            .onChange(of: projectId) { oldValue, newValue in
+                guard oldValue != newValue else { return }
+                focusedField = nil
+                if isPrepared {
+                    memberOptions = []
+                    assigneeUserId = ""
+                    participantUserIds = []
                 }
-                .labelsHidden()
-                .disabled(isFixedCreate)
-                .onChange(of: projectId) { oldValue, newValue in
-                    guard oldValue != newValue else { return }
-                    focusedField = nil
-                    if isPrepared {
-                        memberOptions = []
-                        assigneeUserId = ""
-                        participantUserIds = []
-                    }
-                    Task { await loadMemberOptions() }
-                }
-            }
-
-            NavigationLink {
-                TaskAssigneeSelectionView(
-                    users: memberOptions,
-                    selection: $assigneeUserId
-                )
-            } label: {
-                LabeledContent("负责人") {
-                    Text(assigneeDisplayName)
-                        .foregroundStyle(assigneeUserId.isEmpty ? .secondary : .primary)
-                        .lineLimit(1)
-                }
-            }
-            .disabled(projectId.isEmpty)
-
-            NavigationLink {
-                TaskParticipantsSelectionView(
-                    users: memberOptions.filter { $0.userId != assigneeUserId },
-                    selection: $participantUserIds
-                )
-            } label: {
-                LabeledContent("成员") {
-                    Text(participantDisplayText)
-                        .foregroundStyle(participantUserIds.isEmpty ? .secondary : .primary)
-                        .lineLimit(1)
-                }
-            }
-            .disabled(projectId.isEmpty)
-            .onChange(of: assigneeUserId) { _, newValue in
-                participantUserIds.remove(newValue)
+                Task { await loadMemberOptions() }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -181,17 +153,6 @@ struct TaskEditorView: View {
                     .focused($focusedField, equals: .body)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("地点")
-                    .fixedSize()
-                    .frame(width: 40, alignment: .leading)
-                TextField("请输入地点", text: $location)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .focused($focusedField, equals: .location)
-                    .submitLabel(.done)
-                    .onSubmit { focusedField = nil }
-            }
-
             TaskChoiceRow(
                 title: "优先级",
                 selection: $priority,
@@ -204,14 +165,6 @@ struct TaskEditorView: View {
                 options: taskStatusOptions,
                 onSelection: { focusedField = nil }
             )
-
-            ColorPicker("任务颜色", selection: Binding(
-                get: { Color(hex: color) },
-                set: {
-                    focusedField = nil
-                    color = $0.hexString ?? "#FFFFFF"
-                }
-            ))
 
             VStack(alignment: .leading, spacing: 12) {
                 DatePicker(
@@ -276,6 +229,63 @@ struct TaskEditorView: View {
                          : "将按所选频率在本周期内创建一组独立任务,各副本之间互不关联。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            ColorPicker("任务颜色", selection: Binding(
+                get: { Color(hex: color) },
+                set: {
+                    focusedField = nil
+                    color = $0.hexString ?? "#FFFFFF"
+                }
+            ))
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("地点")
+                    .fixedSize()
+                    .frame(width: 40, alignment: .leading)
+                TextField("请输入地点", text: $location)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .focused($focusedField, equals: .location)
+                    .submitLabel(.done)
+                    .onSubmit { focusedField = nil }
+            }
+
+            NavigationLink {
+                TaskAssigneeSelectionView(
+                    users: memberOptions,
+                    selection: $assigneeUserId
+                )
+            } label: {
+                LabeledContent("负责人") {
+                    Text(assigneeDisplayName)
+                        .foregroundStyle(assigneeUserId.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                }
+            }
+            .disabled(projectId.isEmpty)
+
+            NavigationLink {
+                TaskParticipantsSelectionView(
+                    users: memberOptions.filter { $0.userId != assigneeUserId },
+                    selection: $participantUserIds
+                )
+            } label: {
+                LabeledContent("成员") {
+                    Text(participantDisplayText)
+                        .foregroundStyle(participantUserIds.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                }
+            }
+            .disabled(projectId.isEmpty)
+            .onChange(of: assigneeUserId) { _, newValue in
+                participantUserIds.remove(newValue)
+            }
+
+            if isEditing {
+                LabeledContent("创建人") {
+                    Text(creatorDisplayName.isEmpty ? "—" : creatorDisplayName)
+                        .foregroundStyle(creatorDisplayName.isEmpty ? .secondary : .primary)
                 }
             }
 
@@ -407,11 +417,38 @@ struct TaskEditorView: View {
         } message: {
             Text("删除后无法恢复，请确认是否继续。")
         }
+        .sheet(isPresented: $isCreatingWorkspace) {
+            NavigationStack {
+                WorkspaceFormView(mode: .create) { createdId in
+                    Task { await loadWorkspaces(selecting: createdId) }
+                }
+            }
+        }
+        .sheet(isPresented: $isCreatingProject) {
+            NavigationStack {
+                ProjectFormView(workspaceId: workspaceId, mode: .create) { createdId in
+                    Task { await loadProjects(selecting: createdId) }
+                }
+            }
+        }
     }
 
-    private var isFixedCreate: Bool {
-        if case .createIn = mode { return true }
-        return false
+    private var workspaceTagItems: [PinnedTagItem] {
+        workspaces.map {
+            PinnedTagItem(id: $0.id, label: $0.name, isFavorite: $0.isFavorite, createdAt: $0.createdAt)
+        }
+    }
+
+    private var projectTagItems: [PinnedTagItem] {
+        projects.map {
+            PinnedTagItem(
+                id: $0.id,
+                label: $0.name,
+                hint: $0.description?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                isFavorite: $0.isFavorite,
+                createdAt: $0.createdAt
+            )
+        }
     }
 
     private var assigneeDisplayName: String {
@@ -485,6 +522,7 @@ struct TaskEditorView: View {
         assigneeUserId = task.assignee?.id ?? task.createdBy?.id ?? ""
         participantUserIds = Set((task.participants ?? []).map(\.id))
         mergeMemberBriefs([task.assignee, task.createdBy].compactMap { $0 } + (task.participants ?? []))
+        creatorDisplayName = task.createdBy?.displayName ?? ""
         if let date = Self.parse(task.startAt) { startDate = date }
         if let date = Self.parse(task.endAt) { endDate = date }
         if let date = Self.parse(task.completedAt) { completedDate = date }
@@ -602,14 +640,21 @@ struct TaskEditorView: View {
             ) == .orderedSame
     }
 
-    private func loadWorkspaces() async {
+    private func loadWorkspaces(selecting id: String? = nil) async {
         do {
-            workspaces = try await session.api.request("/workspaces/cards", response: [WorkspaceCard].self)
-            if workspaceId.isEmpty, let first = workspaces.first { workspaceId = first.id; await loadProjects() }
+            workspaces = sortFavoriteThenCreatedAt(
+                try await session.api.request("/workspaces/cards", response: [WorkspaceCard].self)
+            )
+            if let id, workspaces.contains(where: { $0.id == id }) {
+                workspaceId = id
+            } else if workspaceId.isEmpty, let first = workspaces.first {
+                workspaceId = first.id
+                await loadProjects()
+            }
         } catch { errorMessage = error.localizedDescription }
     }
 
-    private func loadProjects() async {
+    private func loadProjects(selecting id: String? = nil) async {
         guard !workspaceId.isEmpty else {
             projects = []
             projectId = ""
@@ -617,8 +662,14 @@ struct TaskEditorView: View {
             return
         }
         do {
-            projects = try await session.api.request("/workspaces/\(workspaceId)/projects", response: [Project].self)
-            if !projects.contains(where: { $0.id == projectId }) { projectId = projects.first?.id ?? "" }
+            projects = sortFavoriteThenCreatedAt(
+                try await session.api.request("/workspaces/\(workspaceId)/projects", response: [Project].self)
+            )
+            if let id, projects.contains(where: { $0.id == id }) {
+                projectId = id
+            } else if !projects.contains(where: { $0.id == projectId }) {
+                projectId = projects.first?.id ?? ""
+            }
             await loadMemberOptions()
         } catch { errorMessage = error.localizedDescription }
     }
@@ -684,6 +735,7 @@ struct TaskEditorView: View {
             assigneeUserId = detail.assignee?.id ?? detail.createdBy?.id ?? ""
             participantUserIds = Set((detail.participants ?? []).map(\.id))
             mergeMemberBriefs([detail.assignee, detail.createdBy].compactMap { $0 } + (detail.participants ?? []))
+            creatorDisplayName = detail.createdBy?.displayName ?? creatorDisplayName
         } catch { errorMessage = error.localizedDescription }
     }
 

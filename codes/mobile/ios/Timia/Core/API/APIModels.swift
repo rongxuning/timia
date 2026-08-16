@@ -273,6 +273,7 @@ struct Project: Codable, Identifiable, Hashable, Sendable {
     var color: String
     var archived: Bool
     let createdAt: String
+    var isFavorite: Bool
     var createdByUserId: String?
     var createdByDisplayName: String?
     var canManage: Bool
@@ -299,6 +300,7 @@ struct WorkspaceProjectCard: Decodable, Identifiable, Hashable, Sendable {
             color: color,
             archived: false,
             createdAt: createdAt,
+            isFavorite: isFavorite,
             createdByUserId: nil,
             createdByDisplayName: nil,
             canManage: canManage
