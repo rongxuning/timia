@@ -69,6 +69,56 @@ def test_build_swimlane_pages_active_tasks_when_limited():
     assert next_page.has_more["todo"] is False
 
 
+def test_build_swimlane_pages_todos_for_anchor_day_only():
+    shanghai = datetime(2026, 8, 17, 3, 0, tzinfo=timezone.utc)  # 11:00 Asia/Shanghai
+    other_day = datetime(2026, 8, 16, 3, 0, tzinfo=timezone.utc)
+    on_day = [
+        _item(
+            id=f"day-{index}",
+            status="todo",
+            start_at=shanghai,
+            end_at=shanghai.replace(hour=4),
+        )
+        for index in range(6)
+    ]
+    other = [
+        _item(
+            id=f"other-{index}",
+            status="todo",
+            start_at=other_day,
+            end_at=other_day.replace(hour=4),
+        )
+        for index in range(4)
+    ]
+
+    view = build_swimlane_view(
+        other + on_day,
+        active_limit=5,
+        day=parse_anchor("2026-08-17"),
+        timezone_name="Asia/Shanghai",
+    )
+    assert [item.id for item in view.columns["todo"]] == [
+        "day-0",
+        "day-1",
+        "day-2",
+        "day-3",
+        "day-4",
+    ]
+    assert view.totals["todo"] == 6
+    assert view.has_more["todo"] is True
+
+    next_page = build_swimlane_view(
+        other + on_day,
+        task_status="todo",
+        offset=5,
+        limit=5,
+        day=parse_anchor("2026-08-17"),
+        timezone_name="Asia/Shanghai",
+    )
+    assert [item.id for item in next_page.columns["todo"]] == ["day-5"]
+    assert next_page.has_more["todo"] is False
+
+
 def test_build_swimlane_collapses_and_pages_completed_tasks():
     items = [
         _item(

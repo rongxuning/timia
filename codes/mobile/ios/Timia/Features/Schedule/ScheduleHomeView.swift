@@ -126,6 +126,7 @@ struct ScheduleHomeView: View {
                         TodoScheduleView(
                             selectedDate: selectedDate,
                             columns: todoColumns,
+                            totals: todoTotals,
                             hasMore: todoHasMore,
                             overdueTasks: overdueTasks,
                             overdueHasMore: overdueHasMore,
@@ -639,6 +640,8 @@ struct ScheduleHomeView: View {
         revealDateOnStrip(date)
         if contentMode == .calendar {
             Task { await loadCalendar() }
+        } else if contentMode == .todo {
+            Task { await loadTodo() }
         }
     }
 
@@ -832,17 +835,45 @@ struct ScheduleHomeView: View {
         }
     }
 
+    private func swimlaneQuery(
+        for date: Date,
+        status: String? = nil,
+        offset: Int? = nil,
+        limit: Int? = nil,
+        activeLimit: Int? = nil,
+        completedLimit: Int? = nil
+    ) -> [URLQueryItem] {
+        var items = [
+            URLQueryItem(name: "scope", value: "me"),
+            URLQueryItem(name: "anchor", value: ScheduleFormat.dayKey(date)),
+            URLQueryItem(name: "timezone", value: TimeZone.current.identifier)
+        ]
+        if let status {
+            items.append(URLQueryItem(name: "status", value: status))
+        }
+        if let offset {
+            items.append(URLQueryItem(name: "offset", value: String(offset)))
+        }
+        if let limit {
+            items.append(URLQueryItem(name: "limit", value: String(limit)))
+        }
+        if let activeLimit {
+            items.append(URLQueryItem(name: "active_limit", value: String(activeLimit)))
+        }
+        if let completedLimit {
+            items.append(URLQueryItem(name: "completed_limit", value: String(completedLimit)))
+        }
+        return items
+    }
+
     private func loadTodo(force _: Bool = false) async {
+        let requestedDate = selectedDate
         isLoading = true
         defer { isLoading = false }
         do {
             async let swimlaneResponse = session.api.request(
                 "/views/schedule/swimlane",
-                query: [
-                    URLQueryItem(name: "scope", value: "me"),
-                    URLQueryItem(name: "active_limit", value: "5"),
-                    URLQueryItem(name: "completed_limit", value: "5")
-                ],
+                query: swimlaneQuery(for: requestedDate, activeLimit: 5, completedLimit: 5),
                 response: ScheduleColumns.self
             )
             async let overdueResponse = session.api.request(
@@ -850,13 +881,14 @@ struct ScheduleHomeView: View {
                 query: [
                     URLQueryItem(name: "scope", value: "me"),
                     URLQueryItem(name: "timezone", value: TimeZone.current.identifier),
-                    URLQueryItem(name: "limit", value: "10"),
+                    URLQueryItem(name: "limit", value: "5"),
                     URLQueryItem(name: "offset", value: "0")
                 ],
                 response: ScheduleOverdue.self
             )
             let response = try await swimlaneResponse
             let overdue = try await overdueResponse
+            guard Calendar.current.isDate(requestedDate, inSameDayAs: selectedDate) else { return }
             todoColumns = response.columns
             todoTotals = response.totals
             todoHasMore = response.hasMore
@@ -875,20 +907,22 @@ struct ScheduleHomeView: View {
             return
         }
 
+        let requestedDate = selectedDate
         loadingTodoStatuses.insert(status)
         defer { loadingTodoStatuses.remove(status) }
         do {
             let offset = todoColumns[status]?.count ?? 0
             let response = try await session.api.request(
                 "/views/schedule/swimlane",
-                query: [
-                    URLQueryItem(name: "scope", value: "me"),
-                    URLQueryItem(name: "status", value: status),
-                    URLQueryItem(name: "offset", value: String(offset)),
-                    URLQueryItem(name: "limit", value: "10")
-                ],
+                query: swimlaneQuery(
+                    for: requestedDate,
+                    status: status,
+                    offset: offset,
+                    limit: 5
+                ),
                 response: ScheduleColumns.self
             )
+            guard Calendar.current.isDate(requestedDate, inSameDayAs: selectedDate) else { return }
             let nextTasks = response.columns[status] ?? []
             var existing = todoColumns[status] ?? []
             let existingIds = Set(existing.map(\.id))
@@ -2536,9 +2570,11 @@ private struct TodoScheduleView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var revealedTaskId: String?
     @State private var revealedEdge: TaskCardRevealEdge?
+    @State private var revealedCounts: [String: Int] = [:]
 
     let selectedDate: Date
     let columns: [String: [ScheduleTask]]
+    let totals: [String: Int]
     let hasMore: [String: Bool]
     let overdueTasks: [ScheduleTask]
     let overdueHasMore: Bool
@@ -2562,14 +2598,16 @@ private struct TodoScheduleView: View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(statuses, id: \.id) { style in
-                    let tasks = dayTasks(for: style.id)
+                    let allTasks = dayTasks(for: style.id)
+                    let tasks = displayedTasks(allTasks, status: style.id)
                     taskSection(
                         id: style.id,
                         label: style.label,
                         symbol: style.symbol,
                         color: style.color,
                         tasks: tasks,
-                        total: tasks.count,
+                        total: max(allTasks.count, totals[style.id] ?? 0),
+                        visibleCount: allTasks.count,
                         loadMoreStatus: style.id
                     )
                 }
@@ -2580,8 +2618,9 @@ private struct TodoScheduleView: View {
                     hint: "（截止当天）",
                     symbol: "exclamationmark.circle.fill",
                     color: Color(hex: "#EF4444"),
-                    tasks: overdueTasks,
+                    tasks: displayedTasks(overdueTasks, status: "overdue"),
                     total: overdueTasks.count,
+                    visibleCount: overdueTasks.count,
                     loadMoreStatus: "overdue"
                 )
             }
@@ -2590,8 +2629,8 @@ private struct TodoScheduleView: View {
         }
         .background(TimiaTheme.canvas)
         .scrollDismissesKeyboard(.interactively)
-        .task(id: pagingTaskID) {
-            autoLoadMoreIfNeeded()
+        .onChange(of: ScheduleFormat.dayKey(selectedDate)) { _, _ in
+            revealedCounts = [:]
         }
     }
 
@@ -2604,6 +2643,7 @@ private struct TodoScheduleView: View {
         color: Color,
         tasks: [ScheduleTask],
         total: Int,
+        visibleCount: Int,
         loadMoreStatus: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -2619,14 +2659,10 @@ private struct TodoScheduleView: View {
                 taskRow(task)
             }
 
-            let paging = paging(for: loadMoreStatus, visibleCount: tasks.count)
+            let paging = paging(for: loadMoreStatus, visibleCount: visibleCount)
             if paging.showsLoadMore, let status = loadMoreStatus {
                 Button {
-                    if status == "overdue" {
-                        onLoadMoreOverdue()
-                    } else {
-                        onLoadMore(status)
-                    }
+                    revealMore(in: status, visibleCount: visibleCount)
                 } label: {
                     HStack(spacing: 7) {
                         if loadingStatuses.contains(status) {
@@ -2647,17 +2683,10 @@ private struct TodoScheduleView: View {
             }
 
             if tasks.isEmpty {
-                if loadMoreStatus.map({ loadingStatuses.contains($0) }) == true {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                } else {
-                    Text("暂无任务")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .padding(.vertical, 6)
-                }
+                Text("暂无任务")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.vertical, 6)
             }
         }
         .padding(14)
@@ -2708,34 +2737,31 @@ private struct TodoScheduleView: View {
         (columns[status] ?? []).filter { taskCoversLocalDay($0, on: selectedDate) }
     }
 
-    private var pagingTaskID: String {
-        let day = ScheduleFormat.dayKey(selectedDate)
-        let parts = statuses.map { style in
-            "\(style.id):\(columns[style.id]?.count ?? 0):\(hasMore[style.id] == true)"
-        }
-        return "\(day)|\(parts.joined(separator: ","))"
+    private func displayedTasks(_ tasks: [ScheduleTask], status: String) -> [ScheduleTask] {
+        let revealed = revealedCounts[status] ?? todoSectionPageSize
+        return Array(tasks.prefix(todoSectionDisplayedCount(visibleDayCount: tasks.count, revealedCount: revealed)))
     }
 
     private func paging(for status: String?, visibleCount: Int) -> TodoDaySectionPaging {
-        if status == "overdue" {
-            return TodoDaySectionPaging(
-                showsLoadMore: overdueHasMore,
-                remainingCount: 0,
-                shouldAutoLoadMore: false
-            )
-        }
+        let apiHasMore = status == "overdue"
+            ? overdueHasMore
+            : status.map { hasMore[$0] == true } ?? false
         return todoDaySectionPaging(
             visibleDayCount: visibleCount,
-            apiHasMore: status.map { hasMore[$0] == true } ?? false,
-            isLoading: status.map { loadingStatuses.contains($0) } ?? false
+            apiHasMore: apiHasMore,
+            isLoading: status.map { loadingStatuses.contains($0) } ?? false,
+            revealedCount: status.map { revealedCounts[$0] ?? todoSectionPageSize } ?? todoSectionPageSize
         )
     }
 
-    private func autoLoadMoreIfNeeded() {
-        for style in statuses {
-            let paging = paging(for: style.id, visibleCount: dayTasks(for: style.id).count)
-            if paging.shouldAutoLoadMore {
-                onLoadMore(style.id)
+    private func revealMore(in status: String, visibleCount: Int) {
+        let revealed = revealedCounts[status] ?? todoSectionPageSize
+        revealedCounts[status] = revealed + todoSectionPageSize
+        if visibleCount <= revealed {
+            if status == "overdue" {
+                onLoadMoreOverdue()
+            } else {
+                onLoadMore(status)
             }
         }
     }

@@ -5271,6 +5271,8 @@ export interface operations {
                 offset?: number;
                 completed_limit?: number;
                 active_limit?: number | null;
+                anchor?: string | null;
+                timezone?: string;
             };
             header?: {
                 authorization?: string | null;

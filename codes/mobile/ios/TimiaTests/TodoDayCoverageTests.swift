@@ -105,7 +105,18 @@ final class TodoDayCoverageTests: XCTestCase {
         XCTAssertEqual(filtered["archived"]?.map(\.id), [])
     }
 
-    func testHidesLoadMoreWhenVisibleDayIsEmptyEvenIfApiHasMore() {
+    func testHidesLoadMoreWhenVisibleDayHasFewerThanAPage() {
+        let paging = todoDaySectionPaging(
+            visibleDayCount: 1,
+            apiHasMore: true,
+            isLoading: false
+        )
+
+        XCTAssertFalse(paging.showsLoadMore)
+        XCTAssertFalse(paging.shouldAutoLoadMore)
+    }
+
+    func testDoesNotAutoLoadWhenVisibleDayIsEmpty() {
         let paging = todoDaySectionPaging(
             visibleDayCount: 0,
             apiHasMore: true,
@@ -113,8 +124,7 @@ final class TodoDayCoverageTests: XCTestCase {
         )
 
         XCTAssertFalse(paging.showsLoadMore)
-        XCTAssertEqual(paging.remainingCount, 0)
-        XCTAssertTrue(paging.shouldAutoLoadMore)
+        XCTAssertFalse(paging.shouldAutoLoadMore)
     }
 
     func testDoesNotAutoLoadWhileEmptyDayIsAlreadyLoading() {
@@ -128,16 +138,27 @@ final class TodoDayCoverageTests: XCTestCase {
         XCTAssertFalse(paging.shouldAutoLoadMore)
     }
 
-    func testShowsLoadMoreWithoutRemainingWhenVisibleDayHasItems() {
+    func testShowsLoadMoreAfterAFullPageWhenApiHasMore() {
         let paging = todoDaySectionPaging(
-            visibleDayCount: 2,
+            visibleDayCount: 5,
             apiHasMore: true,
             isLoading: false
         )
 
         XCTAssertTrue(paging.showsLoadMore)
-        XCTAssertEqual(paging.remainingCount, 0)
         XCTAssertFalse(paging.shouldAutoLoadMore)
+    }
+
+    func testShowsLoadMoreWhenLocalTasksExceedTheRevealedPage() {
+        let paging = todoDaySectionPaging(
+            visibleDayCount: 8,
+            apiHasMore: false,
+            isLoading: false,
+            revealedCount: 5
+        )
+
+        XCTAssertTrue(paging.showsLoadMore)
+        XCTAssertEqual(todoSectionDisplayedCount(visibleDayCount: 8, revealedCount: 5), 5)
     }
 
     func testHidesLoadMoreWhenApiHasNoMorePages() {
@@ -147,6 +168,10 @@ final class TodoDayCoverageTests: XCTestCase {
         )
         XCTAssertEqual(
             todoDaySectionPaging(visibleDayCount: 3, apiHasMore: false, isLoading: false),
+            TodoDaySectionPaging(showsLoadMore: false, remainingCount: 0, shouldAutoLoadMore: false)
+        )
+        XCTAssertEqual(
+            todoDaySectionPaging(visibleDayCount: 5, apiHasMore: false, isLoading: false),
             TodoDaySectionPaging(showsLoadMore: false, remainingCount: 0, shouldAutoLoadMore: false)
         )
     }

@@ -71,7 +71,22 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     method: "GET",
     path: "/views/schedule/swimlane",
     name: "日程泳道视图",
-    requestJson: { headers: authBearer, query: { scope: "me | project", workspace_id: "uuid?", project_id: "uuid?" }, jsonBody: null },
+    requestJson: {
+      headers: authBearer,
+      query: {
+        scope: "me | project",
+        workspace_id: "uuid?",
+        project_id: "uuid?",
+        status: "todo | doing | done | archived?",
+        limit: "number?",
+        offset: "number?",
+        completed_limit: "number?",
+        active_limit: "number?",
+        anchor: "YYYY-MM-DD?",
+        timezone: "IANA tz?",
+      },
+      jsonBody: null,
+    },
     responseJson: { columns: { todo: [], doing: [], done: [], archived: [] } },
   },
   {

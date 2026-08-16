@@ -33,15 +33,29 @@ struct TodoDaySectionPaging: Equatable {
     let shouldAutoLoadMore: Bool
 }
 
+let todoSectionPageSize = 5
+
+func todoSectionDisplayedCount(visibleDayCount: Int, revealedCount: Int) -> Int {
+    min(max(revealedCount, 0), max(visibleDayCount, 0))
+}
+
 func todoDaySectionPaging(
     visibleDayCount: Int,
     apiHasMore: Bool,
-    isLoading: Bool
+    isLoading: Bool,
+    revealedCount: Int = todoSectionPageSize
 ) -> TodoDaySectionPaging {
-    TodoDaySectionPaging(
-        showsLoadMore: apiHasMore && visibleDayCount > 0,
+    _ = isLoading
+    let displayedCount = todoSectionDisplayedCount(
+        visibleDayCount: visibleDayCount,
+        revealedCount: revealedCount
+    )
+    let hasUnrevealed = visibleDayCount > displayedCount
+    let filledPage = displayedCount >= todoSectionPageSize
+    return TodoDaySectionPaging(
+        showsLoadMore: hasUnrevealed || (filledPage && apiHasMore),
         remainingCount: 0,
-        shouldAutoLoadMore: apiHasMore && visibleDayCount == 0 && !isLoading
+        shouldAutoLoadMore: false
     )
 }
 

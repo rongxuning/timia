@@ -137,19 +137,37 @@ def schedule_swimlane_view(
     offset: int = Query(0, ge=0),
     completed_limit: int = Query(5, ge=1, le=20),
     active_limit: int | None = Query(None, ge=1, le=50),
+    anchor: str | None = None,
+    timezone_name: str = Query(
+        DEFAULT_CALENDAR_TIMEZONE,
+        alias="timezone",
+        min_length=1,
+        max_length=100,
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     resolved = _resolve_scope(scope, workspace_id, project_id)
     items = list_schedule_items(db, user, resolved)
-    return build_swimlane_view(
-        items,
-        task_status=task_status,
-        limit=limit,
-        offset=offset,
-        completed_limit=completed_limit,
-        active_limit=active_limit,
-    )
+    day = None
+    if anchor:
+        try:
+            day = parse_anchor(anchor)
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    try:
+        return build_swimlane_view(
+            items,
+            task_status=task_status,
+            limit=limit,
+            offset=offset,
+            completed_limit=completed_limit,
+            active_limit=active_limit,
+            day=day,
+            timezone_name=timezone_name,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.get("/priority", response_model=SchedulePriorityViewOut)
