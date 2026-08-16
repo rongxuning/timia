@@ -3,6 +3,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { SystemSelect, type SystemSelectOption } from "@/components/SystemSelect";
 import { PinnedTagSelect } from "@/components/PinnedTagSelect";
+import { ProjectModal, type ProjectModalResult } from "@/components/ProjectModal";
+import { WorkspaceModal } from "@/components/WorkspaceModal";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
@@ -249,6 +251,8 @@ export function TaskDrawerWithComments({
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState("");
   const [assigneePanelOpen, setAssigneePanelOpen] = useState(false);
   const [participantSearchQuery, setParticipantSearchQuery] = useState("");
@@ -266,7 +270,9 @@ export function TaskDrawerWithComments({
       deleteLoading ||
       deleteConfirmOpen ||
       assigneePanelOpen ||
-      participantPanelOpen,
+      participantPanelOpen ||
+      createWorkspaceOpen ||
+      createProjectOpen,
   });
   useEscapeDismiss({
     open: open && assigneePanelOpen,
@@ -488,6 +494,23 @@ export function TaskDrawerWithComments({
     setSelectedProjectId(nextProjectId);
     setEditParticipantUserIds([]);
     setOwnershipError(null);
+  }
+
+  function onWorkspaceCreated(workspace: WorkspaceOption) {
+    setWorkspaceOptions((prev) => [workspace, ...prev.filter((row) => row.id !== workspace.id)]);
+    handleWorkspaceChange(workspace.id);
+  }
+
+  function onProjectCreated(project: ProjectModalResult) {
+    const option: ProjectOption = {
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      is_favorite: false,
+      created_at: project.created_at ?? "",
+    };
+    setProjectOptions((prev) => [option, ...prev.filter((row) => row.id !== option.id)]);
+    handleProjectChange(option.id);
   }
 
   useEffect(() => {
@@ -1080,6 +1103,7 @@ export function TaskDrawerWithComments({
                       loading={workspacesLoading}
                       disabled={editLoading || itemLoading}
                       emptyText="暂无可用工作空间"
+                      onCreate={() => setCreateWorkspaceOpen(true)}
                     />
                     <PinnedTagSelect
                       label="所属项目"
@@ -1098,6 +1122,9 @@ export function TaskDrawerWithComments({
                       disabled={editLoading || itemLoading || !selectedWorkspaceId}
                       emptyText={
                         selectedWorkspaceId ? "该工作空间下暂无可选项目" : "请先选择工作空间"
+                      }
+                      onCreate={
+                        selectedWorkspaceId ? () => setCreateProjectOpen(true) : undefined
                       }
                     />
                   </div>
@@ -1122,6 +1149,161 @@ export function TaskDrawerWithComments({
                       className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none min-h-[120px] resize-none"
                       value={editBody}
                       onChange={(e) => setEditBody(e.target.value)}
+                      disabled={editLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
+                  {variant !== "create" ? (
+                    <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
+                  ) : null}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <SystemSelect
+                      label="状态"
+                      value={editStatus}
+                      options={TASK_STATUS_OPTIONS}
+                      onChange={handleStatusChange}
+                      disabled={editLoading}
+                    />
+                    <SystemSelect
+                      label="优先级"
+                      value={editPriority}
+                      options={TASK_PRIORITY_OPTIONS}
+                      onChange={setEditPriority}
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-start`}>
+                        开始时间
+                      </label>
+                      <input
+                        id={`${uid}-start`}
+                        type="datetime-local"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={editStartAt}
+                        onChange={(e) => setEditStartAt(e.target.value)}
+                        disabled={editLoading}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-end`}>
+                        结束时间
+                      </label>
+                      <input
+                        id={`${uid}-end`}
+                        type="datetime-local"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={editEndAt}
+                        onChange={(e) => setEditEndAt(e.target.value)}
+                        disabled={editLoading}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant">重复</label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={editRepeat !== "none"}
+                      aria-label="是否重复"
+                      onClick={() =>
+                        setEditRepeat(editRepeat === "none" ? "daily" : "none")
+                      }
+                      disabled={editLoading}
+                      className={
+                        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-4 focus-visible:ring-primary/20 " +
+                        (editRepeat !== "none"
+                          ? "bg-primary"
+                          : "bg-surface-container-lowest border border-border-subtle") +
+                        (editLoading ? " opacity-50 cursor-not-allowed" : "")
+                      }
+                    >
+                      <span
+                        className={
+                          "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform " +
+                          (editRepeat !== "none" ? "translate-x-5" : "translate-x-0.5")
+                        }
+                      />
+                    </button>
+                    {editRepeat !== "none" && (
+                      <div className="space-y-2">
+                        <div
+                          className="flex flex-wrap gap-2"
+                          role="radiogroup"
+                          aria-label="重复频率"
+                        >
+                          {REPEAT_OPTIONS.map((opt) => {
+                            const selected = editRepeat === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                onClick={() => setEditRepeat(opt.value)}
+                                disabled={editLoading}
+                                className={
+                                  "h-9 px-4 rounded-full text-caption font-medium transition-colors border " +
+                                  (selected
+                                    ? "bg-primary text-on-primary border-primary"
+                                    : "bg-surface-bright text-on-surface-variant border-border-subtle hover:bg-surface-container-low") +
+                                  (editLoading ? " opacity-50 cursor-not-allowed" : "")
+                                }
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-caption text-on-surface-variant/80">
+                          {variant === "edit"
+                            ? "将以本任务为模板,创建一组新的重复任务;已有副本不会同步修改。"
+                            : "将按所选频率在本周期内创建一组独立任务,各副本之间互不关联。"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {editStatus === "done" ? (
+                    <div className="space-y-2">
+                      <label
+                        className="text-sm font-medium text-on-surface-variant"
+                        htmlFor={`${uid}-completed`}
+                      >
+                        完成时间
+                      </label>
+                      <input
+                        id={`${uid}-completed`}
+                        type="datetime-local"
+                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                        value={editCompletedAt}
+                        onChange={(e) => setEditCompletedAt(e.target.value)}
+                        disabled={editLoading}
+                        required
+                      />
+                    </div>
+                  ) : null}
+                  <LabelColorPicker
+                    value={editColor}
+                    onChange={setEditColor}
+                    disabled={editLoading}
+                  />
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-location`}>
+                      地点
+                    </label>
+                    <input
+                      id={`${uid}-location`}
+                      type="text"
+                      maxLength={500}
+                      placeholder="例如：会议室 A、线上、客户现场…"
+                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
+                      value={editLocation}
+                      onChange={(e) => setEditLocation(e.target.value)}
                       disabled={editLoading}
                     />
                   </div>
@@ -1316,161 +1498,6 @@ export function TaskDrawerWithComments({
                   ) : null}
                 </div>
 
-                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
-                  {variant !== "create" ? (
-                    <div className="text-overline text-zinc-500 tracking-wide">任务详情</div>
-                  ) : null}
-                  <LabelColorPicker
-                    value={editColor}
-                    onChange={setEditColor}
-                    disabled={editLoading}
-                  />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <SystemSelect
-                      label="状态"
-                      value={editStatus}
-                      options={TASK_STATUS_OPTIONS}
-                      onChange={handleStatusChange}
-                      disabled={editLoading}
-                    />
-                    <SystemSelect
-                      label="优先级"
-                      value={editPriority}
-                      options={TASK_PRIORITY_OPTIONS}
-                      onChange={setEditPriority}
-                      disabled={editLoading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-start`}>
-                        开始时间
-                      </label>
-                      <input
-                        id={`${uid}-start`}
-                        type="datetime-local"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editStartAt}
-                        onChange={(e) => setEditStartAt(e.target.value)}
-                        disabled={editLoading}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-end`}>
-                        结束时间
-                      </label>
-                      <input
-                        id={`${uid}-end`}
-                        type="datetime-local"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editEndAt}
-                        onChange={(e) => setEditEndAt(e.target.value)}
-                        disabled={editLoading}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-start space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant">重复</label>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={editRepeat !== "none"}
-                      aria-label="是否重复"
-                      onClick={() =>
-                        setEditRepeat(editRepeat === "none" ? "daily" : "none")
-                      }
-                      disabled={editLoading}
-                      className={
-                        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-4 focus-visible:ring-primary/20 " +
-                        (editRepeat !== "none"
-                          ? "bg-primary"
-                          : "bg-surface-container-lowest border border-border-subtle") +
-                        (editLoading ? " opacity-50 cursor-not-allowed" : "")
-                      }
-                    >
-                      <span
-                        className={
-                          "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform " +
-                          (editRepeat !== "none" ? "translate-x-5" : "translate-x-0.5")
-                        }
-                      />
-                    </button>
-                    {editRepeat !== "none" && (
-                      <div className="space-y-2">
-                        <div
-                          className="flex flex-wrap gap-2"
-                          role="radiogroup"
-                          aria-label="重复频率"
-                        >
-                          {REPEAT_OPTIONS.map((opt) => {
-                            const selected = editRepeat === opt.value;
-                            return (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                role="radio"
-                                aria-checked={selected}
-                                onClick={() => setEditRepeat(opt.value)}
-                                disabled={editLoading}
-                                className={
-                                  "h-9 px-4 rounded-full text-caption font-medium transition-colors border " +
-                                  (selected
-                                    ? "bg-primary text-on-primary border-primary"
-                                    : "bg-surface-bright text-on-surface-variant border-border-subtle hover:bg-surface-container-low") +
-                                  (editLoading ? " opacity-50 cursor-not-allowed" : "")
-                                }
-                              >
-                                {opt.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <p className="text-caption text-on-surface-variant/80">
-                          {variant === "edit"
-                            ? "将以本任务为模板,创建一组新的重复任务;已有副本不会同步修改。"
-                            : "将按所选频率在本周期内创建一组独立任务,各副本之间互不关联。"}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  {editStatus === "done" ? (
-                    <div className="space-y-2">
-                      <label
-                        className="text-sm font-medium text-on-surface-variant"
-                        htmlFor={`${uid}-completed`}
-                      >
-                        完成时间
-                      </label>
-                      <input
-                        id={`${uid}-completed`}
-                        type="datetime-local"
-                        className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                        value={editCompletedAt}
-                        onChange={(e) => setEditCompletedAt(e.target.value)}
-                        disabled={editLoading}
-                        required
-                      />
-                    </div>
-                  ) : null}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-location`}>
-                      地点
-                    </label>
-                    <input
-                      id={`${uid}-location`}
-                      type="text"
-                      maxLength={500}
-                      placeholder="例如：会议室 A、线上、客户现场…"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editLocation}
-                      onChange={(e) => setEditLocation(e.target.value)}
-                      disabled={editLoading}
-                    />
-                  </div>
-                </div>
-
                 {editError && <div className="text-small text-error">{editError}</div>}
 
                 <div className="flex items-center justify-end gap-2 pt-2">
@@ -1622,6 +1649,20 @@ export function TaskDrawerWithComments({
           </div>
         </div>
       ) : null}
+      <WorkspaceModal
+        open={createWorkspaceOpen}
+        onClose={() => setCreateWorkspaceOpen(false)}
+        token={token}
+        onSuccess={onWorkspaceCreated}
+      />
+      <ProjectModal
+        open={createProjectOpen}
+        onClose={() => setCreateProjectOpen(false)}
+        workspaceId={selectedWorkspaceId}
+        token={token}
+        mode="create"
+        onSuccess={onProjectCreated}
+      />
     </div>
   );
 }

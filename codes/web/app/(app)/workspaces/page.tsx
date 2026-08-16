@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageMain } from "@/components/layout";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
 import { WorkspaceCardGrid } from "@/components/workspace";
+import { WorkspaceModal } from "@/components/WorkspaceModal";
 import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { fetchWorkspaceCards, updateWorkspaceFavorite } from "@/lib/api/workspace-views";
 import { apiFetch } from "@/lib/api";
@@ -20,11 +21,6 @@ export default function WorkspacesPage() {
   const [items, setItems] = useState<WorkspaceCardView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState("");
-  const [createDescription, setCreateDescription] = useState("");
-  const [createColor, setCreateColor] = useState("#FFFFFF");
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [createLoading, setCreateLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -38,11 +34,6 @@ export default function WorkspacesPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
 
-  useEscapeDismiss({
-    open: createOpen,
-    onDismiss: () => setCreateOpen(false),
-    disabled: createLoading,
-  });
   useEscapeDismiss({
     open: deleteOpen,
     onDismiss: () => setDeleteOpen(false),
@@ -75,40 +66,6 @@ export default function WorkspacesPage() {
       })
       .catch((e: { message?: string }) => setError(e?.message ?? "加载失败"));
   }, [router]);
-
-  async function onCreateWorkspace(e: React.FormEvent) {
-    e.preventDefault();
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    const name = createName.trim();
-    const description = createDescription.trim();
-    if (!name) {
-      setCreateError("请输入工作空间名称");
-      return;
-    }
-    setCreateError(null);
-    setCreateLoading(true);
-    try {
-      await apiFetch<Workspace>("/workspaces", {
-        method: "POST",
-        token,
-        body: JSON.stringify({ name, description: description || null, color: createColor }),
-      });
-      await reloadCards();
-      setCreateOpen(false);
-      setCreateName("");
-      setCreateDescription("");
-      setCreateColor("#FFFFFF");
-    } catch (err: unknown) {
-      const msg = err && typeof err === "object" && "message" in err ? String((err as { message: string }).message) : "创建失败";
-      setCreateError(msg);
-    } finally {
-      setCreateLoading(false);
-    }
-  }
 
   async function onDeleteWorkspace(workspace: WorkspaceCardView) {
     const token = getToken();
@@ -215,10 +172,7 @@ export default function WorkspacesPage() {
         cards={items}
         deletingId={deletingId}
         favoritingId={favoritingId}
-        onCreateClick={() => {
-          setCreateError(null);
-          setCreateOpen(true);
-        }}
+        onCreateClick={() => setCreateOpen(true)}
         onDeleteClick={(w) => {
           setDeleteError(null);
           setDeleteTarget(w);
@@ -228,46 +182,14 @@ export default function WorkspacesPage() {
         onEditClick={openEditWorkspace}
       />
 
-      {createOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !createLoading && setCreateOpen(false)} />
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm max-h-[calc(100vh-6rem)] overflow-auto">
-              <div className="font-semibold font-subhead">创建工作空间</div>
-              <form onSubmit={onCreateWorkspace} className="space-y-4">
-                <input
-                  className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="工作空间名称"
-                  disabled={createLoading}
-                />
-                <textarea
-                  className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md min-h-[96px] resize-none"
-                  value={createDescription}
-                  onChange={(e) => setCreateDescription(e.target.value)}
-                  placeholder="描述（可选）"
-                  disabled={createLoading}
-                />
-                <LabelColorPicker
-                  value={createColor}
-                  onChange={setCreateColor}
-                  disabled={createLoading}
-                />
-                {createError && <div className="text-small text-error">{createError}</div>}
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setCreateOpen(false)} disabled={createLoading}>
-                    取消
-                  </button>
-                  <button type="submit" className="rounded-xl bg-primary text-on-primary px-4 py-2" disabled={createLoading}>
-                    {createLoading ? "创建中…" : "创建"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <WorkspaceModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        token={getToken()}
+        onSuccess={() => {
+          void reloadCards();
+        }}
+      />
 
       {deleteOpen && deleteTarget && (
         <div className="fixed inset-0 z-50">

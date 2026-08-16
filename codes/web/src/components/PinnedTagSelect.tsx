@@ -22,6 +22,8 @@ type Props = {
   searchable?: boolean;
   searchPlaceholder?: string;
   emptyText?: string;
+  onCreate?: () => void;
+  createLabel?: string;
 };
 
 export function PinnedTagSelect({
@@ -34,6 +36,8 @@ export function PinnedTagSelect({
   searchable,
   searchPlaceholder,
   emptyText,
+  onCreate,
+  createLabel = "新建",
 }: Props) {
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const optionKey = options
@@ -89,14 +93,12 @@ export function PinnedTagSelect({
         aria-label={`更多${label}`}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-bright text-text-primary outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-8 shrink-0 items-center rounded-full border border-border-subtle bg-surface-bright px-3 text-small text-text-primary outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={toggle}
         onKeyDown={onKeyDown}
         disabled={triggerDisabled || triggerLoading}
       >
-        <span className="material-symbols-outlined text-[18px] leading-none" aria-hidden>
-          add
-        </span>
+        更多
       </button>
     );
   }
@@ -149,6 +151,19 @@ export function PinnedTagSelect({
             showAccent={false}
             renderTrigger={renderPlusTrigger}
           />
+        ) : null}
+        {!loading && onCreate ? (
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 text-small text-primary outline-none transition-all hover:border-primary focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={disabled}
+            onClick={onCreate}
+          >
+            <span className="material-symbols-outlined text-[16px] leading-none" aria-hidden>
+              add
+            </span>
+            {createLabel}
+          </button>
         ) : null}
       </div>
     </div>
