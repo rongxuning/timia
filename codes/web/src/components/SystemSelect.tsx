@@ -261,7 +261,8 @@ export function SystemSelect({
             <ul
               id={`${uid}-options`}
               role="listbox"
-              aria-labelledby={`${uid}-label`}
+              aria-labelledby={hideLabel ? undefined : `${uid}-label`}
+              aria-label={hideLabel ? label : undefined}
               className="min-h-0 overflow-y-auto"
             >
               {filteredOptions.length === 0 ? (
