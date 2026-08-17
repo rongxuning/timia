@@ -3012,6 +3012,890 @@
         }
       }
     },
+    "/plan-templates": {
+      "post": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Create Template",
+        "operationId": "create_template_plan_templates_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanTemplateCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanTemplateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-templates/{template_id}": {
+      "patch": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Patch Template",
+        "operationId": "patch_template_plan_templates__template_id__patch",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanTemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanTemplateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Delete Template",
+        "operationId": "delete_template_plan_templates__template_id__delete",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-templates/{template_id}/slots": {
+      "put": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Put Template Slots",
+        "operationId": "put_template_slots_plan_templates__template_id__slots_put",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanSlotPut"
+                },
+                "title": "Slots"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanSlotOut"
+                  },
+                  "title": "Response Put Template Slots Plan Templates  Template Id  Slots Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-templates/{template_id}/apply": {
+      "post": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Apply Template",
+        "operationId": "apply_template_plan_templates__template_id__apply_post",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanApplyRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-templates/{template_id}/subscribe": {
+      "post": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Subscribe Template",
+        "operationId": "subscribe_template_plan_templates__template_id__subscribe_post",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanSubscribeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSubscribeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-templates/{template_id}/comments": {
+      "get": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Get Template Comments",
+        "operationId": "get_template_comments_plan_templates__template_id__comments_get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanCommentOut"
+                  },
+                  "title": "Response Get Template Comments Plan Templates  Template Id  Comments Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Add Template Comment",
+        "operationId": "add_template_comment_plan_templates__template_id__comments_post",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCommentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-templates/{template_id}/comments/{comment_id}": {
+      "patch": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Patch Template Comment",
+        "operationId": "patch_template_comment_plan_templates__template_id__comments__comment_id__patch",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCommentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCommentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "plan-templates"
+        ],
+        "summary": "Remove Template Comment",
+        "operationId": "remove_template_comment_plan_templates__template_id__comments__comment_id__delete",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Template Id"
+            }
+          },
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Comment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-subscriptions/{subscription_id}/cancel": {
+      "post": {
+        "tags": [
+          "plan-subscriptions"
+        ],
+        "summary": "Cancel Plan Subscription",
+        "operationId": "cancel_plan_subscription_plan_subscriptions__subscription_id__cancel_post",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subscription Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-apply-runs/{run_id}/confirm": {
+      "post": {
+        "tags": [
+          "plan-apply-runs"
+        ],
+        "summary": "Confirm Plan Apply Run",
+        "operationId": "confirm_plan_apply_run_plan_apply_runs__run_id__confirm_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanConfirmRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-apply-runs/{run_id}/skip": {
+      "post": {
+        "tags": [
+          "plan-apply-runs"
+        ],
+        "summary": "Skip Plan Apply Run",
+        "operationId": "skip_plan_apply_run_plan_apply_runs__run_id__skip_post",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanApplyRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-notifications/{notification_id}/read": {
+      "post": {
+        "tags": [
+          "plan-notifications"
+        ],
+        "summary": "Read Plan Notification",
+        "operationId": "read_plan_notification_plan_notifications__notification_id__read_post",
+        "parameters": [
+          {
+            "name": "notification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Notification Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/workspaces/{workspace_id}/projects/{project_id}/items/{item_id}/comments": {
       "get": {
         "tags": [
@@ -5417,6 +6301,462 @@
         }
       }
     },
+    "/views/plans": {
+      "get": {
+        "tags": [
+          "views-plans"
+        ],
+        "summary": "List Plans",
+        "operationId": "list_plans_views_plans_get",
+        "parameters": [
+          {
+            "name": "tab",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "discover",
+              "title": "Tab"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "visibility",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Visibility"
+            }
+          },
+          {
+            "name": "creator_q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Creator Q"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "name": "period_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Kind"
+            }
+          },
+          {
+            "name": "usage_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Usage Kind"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/plans/imported": {
+      "get": {
+        "tags": [
+          "views-plans"
+        ],
+        "summary": "List Imported",
+        "operationId": "list_imported_views_plans_imported_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanImportedListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/plans/subscribed": {
+      "get": {
+        "tags": [
+          "views-plans"
+        ],
+        "summary": "List Subscribed",
+        "operationId": "list_subscribed_views_plans_subscribed_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanSubscribedListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/plans/{plan_id}": {
+      "get": {
+        "tags": [
+          "views-plans"
+        ],
+        "summary": "Plan Detail",
+        "operationId": "plan_detail_views_plans__plan_id__get",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plan Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/plan-notifications": {
+      "get": {
+        "tags": [
+          "views-plans"
+        ],
+        "summary": "Plan Notifications",
+        "operationId": "plan_notifications_views_plan_notifications_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanNotificationListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -7487,6 +8827,1384 @@
           "selected_date"
         ],
         "title": "NaturalLanguageParseRequest"
+      },
+      "PlanApplyRequest": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "project_id",
+          "period_start"
+        ],
+        "title": "PlanApplyRequest"
+      },
+      "PlanApplyRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "template_version": {
+            "type": "integer",
+            "title": "Template Version"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "skipped_slots": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Skipped Slots"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "template_id",
+          "template_version",
+          "workspace_id",
+          "project_id",
+          "source",
+          "period_start",
+          "period_kind",
+          "status",
+          "item_count",
+          "applied_at"
+        ],
+        "title": "PlanApplyRunOut"
+      },
+      "PlanCardOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "usage_kind": {
+            "type": "string",
+            "title": "Usage Kind"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/PlanCreatorOut"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "use_count": {
+            "type": "integer",
+            "title": "Use Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "usage_kind",
+          "period_kind",
+          "visibility",
+          "creator",
+          "use_count"
+        ],
+        "title": "PlanCardOut"
+      },
+      "PlanCommentCreate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "parent_comment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Comment Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "PlanCommentCreate"
+      },
+      "PlanCommentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "author_user_id": {
+            "type": "string",
+            "title": "Author User Id"
+          },
+          "author_display_name": {
+            "type": "string",
+            "title": "Author Display Name"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "parent_comment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Comment Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "author_user_id",
+          "author_display_name",
+          "body",
+          "created_at",
+          "parent_comment_id"
+        ],
+        "title": "PlanCommentOut"
+      },
+      "PlanCommentUpdate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "PlanCommentUpdate"
+      },
+      "PlanConfirmRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "template_version": {
+            "type": "integer",
+            "title": "Template Version"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "skipped_slots": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Skipped Slots"
+          },
+          "item_count": {
+            "type": "integer",
+            "title": "Item Count"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "template_updated": {
+            "type": "boolean",
+            "title": "Template Updated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "template_id",
+          "template_version",
+          "workspace_id",
+          "project_id",
+          "source",
+          "period_start",
+          "period_kind",
+          "status",
+          "item_count",
+          "applied_at"
+        ],
+        "title": "PlanConfirmRunOut"
+      },
+      "PlanCreatorOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "PlanCreatorOut"
+      },
+      "PlanDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "usage_kind": {
+            "type": "string",
+            "title": "Usage Kind"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/PlanCreatorOut"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "use_count": {
+            "type": "integer",
+            "title": "Use Count"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "creator_intro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Intro"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/PlanSlotOut"
+            },
+            "type": "array",
+            "title": "Slots"
+          },
+          "my_import_count": {
+            "type": "integer",
+            "title": "My Import Count"
+          },
+          "my_subscription": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanMySubscriptionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanPendingRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "usage_kind",
+          "period_kind",
+          "visibility",
+          "creator",
+          "use_count",
+          "description",
+          "creator_intro",
+          "my_import_count"
+        ],
+        "title": "PlanDetailOut"
+      },
+      "PlanImportedListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanImportedRowOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PlanImportedListOut"
+      },
+      "PlanImportedRowOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "usage_kind": {
+            "type": "string",
+            "title": "Usage Kind"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/PlanCreatorOut"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "use_count": {
+            "type": "integer",
+            "title": "Use Count"
+          },
+          "my_import_count": {
+            "type": "integer",
+            "title": "My Import Count"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PlanImportedRunOut"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "usage_kind",
+          "period_kind",
+          "visibility",
+          "creator",
+          "use_count",
+          "my_import_count"
+        ],
+        "title": "PlanImportedRowOut"
+      },
+      "PlanImportedRunOut": {
+        "properties": {
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanRunItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period_start",
+          "applied_at"
+        ],
+        "title": "PlanImportedRunOut"
+      },
+      "PlanListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanCardOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PlanListOut"
+      },
+      "PlanMySubscriptionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "workspace_name",
+          "project_id",
+          "project_name",
+          "timezone"
+        ],
+        "title": "PlanMySubscriptionOut"
+      },
+      "PlanNotificationListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanNotificationOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          },
+          "pending_runs": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPendingRunOut"
+            },
+            "type": "array",
+            "title": "Pending Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "unread_count"
+        ],
+        "title": "PlanNotificationListOut"
+      },
+      "PlanNotificationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          },
+          "subscription_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscription Id"
+          },
+          "apply_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apply Run Id"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          },
+          "pending_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanPendingRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "PlanNotificationOut"
+      },
+      "PlanPendingRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "template_version": {
+            "type": "integer",
+            "title": "Template Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "period_start",
+          "status",
+          "template_version"
+        ],
+        "title": "PlanPendingRunOut"
+      },
+      "PlanRunItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "deleted"
+        ],
+        "title": "PlanRunItemOut"
+      },
+      "PlanSlotOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "rel_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rel Month"
+          },
+          "rel_day": {
+            "type": "integer",
+            "title": "Rel Day"
+          },
+          "start_minute": {
+            "type": "integer",
+            "title": "Start Minute"
+          },
+          "end_minute": {
+            "type": "integer",
+            "title": "End Minute"
+          },
+          "all_day": {
+            "type": "boolean",
+            "title": "All Day"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "sort_index": {
+            "type": "integer",
+            "title": "Sort Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rel_month",
+          "rel_day",
+          "start_minute",
+          "end_minute",
+          "all_day",
+          "title",
+          "body",
+          "details",
+          "color",
+          "priority",
+          "location",
+          "sort_index"
+        ],
+        "title": "PlanSlotOut"
+      },
+      "PlanSlotPut": {
+        "properties": {
+          "rel_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rel Month"
+          },
+          "rel_day": {
+            "type": "integer",
+            "title": "Rel Day"
+          },
+          "start_minute": {
+            "type": "integer",
+            "title": "Start Minute"
+          },
+          "end_minute": {
+            "type": "integer",
+            "title": "End Minute"
+          },
+          "all_day": {
+            "type": "boolean",
+            "title": "All Day",
+            "default": false
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Color",
+            "default": "#FFFFFF"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority",
+            "default": "1"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "sort_index": {
+            "type": "integer",
+            "title": "Sort Index",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "rel_day",
+          "start_minute",
+          "end_minute",
+          "title"
+        ],
+        "title": "PlanSlotPut"
+      },
+      "PlanSubscribeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "imported_current_period": {
+            "type": "boolean",
+            "title": "Imported Current Period"
+          },
+          "apply_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanApplyRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "imported_current_period"
+        ],
+        "title": "PlanSubscribeOut"
+      },
+      "PlanSubscribeRequest": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "project_id",
+          "timezone"
+        ],
+        "title": "PlanSubscribeRequest"
+      },
+      "PlanSubscribedListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanSubscribedRowOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PlanSubscribedListOut"
+      },
+      "PlanSubscribedRowOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "usage_kind": {
+            "type": "string",
+            "title": "Usage Kind"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/PlanCreatorOut"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "use_count": {
+            "type": "integer",
+            "title": "Use Count"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/PlanSubscribedSegmentOut"
+            },
+            "type": "array",
+            "title": "Segments"
+          },
+          "pending_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanPendingRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "template_id",
+          "title",
+          "usage_kind",
+          "period_kind",
+          "visibility",
+          "creator",
+          "use_count",
+          "workspace_id",
+          "workspace_name",
+          "project_id",
+          "project_name"
+        ],
+        "title": "PlanSubscribedRowOut"
+      },
+      "PlanSubscribedSegmentOut": {
+        "properties": {
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/PlanImportedRunOut"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlanRunItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "started_at",
+          "ended_at"
+        ],
+        "title": "PlanSubscribedSegmentOut"
+      },
+      "PlanTemplateCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "creator_intro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Intro"
+          },
+          "usage_kind": {
+            "type": "string",
+            "title": "Usage Kind"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "usage_kind",
+          "period_kind",
+          "visibility"
+        ],
+        "title": "PlanTemplateCreate"
+      },
+      "PlanTemplateOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "creator_intro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Intro"
+          },
+          "usage_kind": {
+            "type": "string",
+            "title": "Usage Kind"
+          },
+          "period_kind": {
+            "type": "string",
+            "title": "Period Kind"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "use_count": {
+            "type": "integer",
+            "title": "Use Count"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_by_user_id": {
+            "type": "string",
+            "title": "Created By User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "creator_intro",
+          "usage_kind",
+          "period_kind",
+          "visibility",
+          "tags",
+          "use_count",
+          "version",
+          "created_by_user_id"
+        ],
+        "title": "PlanTemplateOut"
+      },
+      "PlanTemplateUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "creator_intro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Intro"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "title": "PlanTemplateUpdate"
       },
       "ProjectBrief": {
         "properties": {

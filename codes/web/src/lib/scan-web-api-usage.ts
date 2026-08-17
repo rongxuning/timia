@@ -41,7 +41,7 @@ function stringLiteralPath(raw: string): string {
 }
 
 function extractMethodFromOptionsSlice(rest: string): HttpMethod {
-  const m = /method\s*:\s*["'](GET|POST|PATCH|DELETE)["']/i.exec(rest);
+  const m = /method\s*:\s*["'](GET|POST|PUT|PATCH|DELETE)["']/i.exec(rest);
   if (m?.[1]) return m[1].toUpperCase() as HttpMethod;
   return "GET";
 }

@@ -677,6 +677,196 @@ export interface paths {
         patch: operations["update_item_workspaces__workspace_id__projects__project_id__items__item_id__patch"];
         trace?: never;
     };
+    "/plan-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Template */
+        post: operations["create_template_plan_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Template */
+        delete: operations["delete_template_plan_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Template */
+        patch: operations["patch_template_plan_templates__template_id__patch"];
+        trace?: never;
+    };
+    "/plan-templates/{template_id}/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Template Slots */
+        put: operations["put_template_slots_plan_templates__template_id__slots_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-templates/{template_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Template */
+        post: operations["apply_template_plan_templates__template_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-templates/{template_id}/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscribe Template */
+        post: operations["subscribe_template_plan_templates__template_id__subscribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-templates/{template_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Template Comments */
+        get: operations["get_template_comments_plan_templates__template_id__comments_get"];
+        put?: never;
+        /** Add Template Comment */
+        post: operations["add_template_comment_plan_templates__template_id__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-templates/{template_id}/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Template Comment */
+        delete: operations["remove_template_comment_plan_templates__template_id__comments__comment_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Template Comment */
+        patch: operations["patch_template_comment_plan_templates__template_id__comments__comment_id__patch"];
+        trace?: never;
+    };
+    "/plan-subscriptions/{subscription_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Plan Subscription */
+        post: operations["cancel_plan_subscription_plan_subscriptions__subscription_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-apply-runs/{run_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Plan Apply Run */
+        post: operations["confirm_plan_apply_run_plan_apply_runs__run_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-apply-runs/{run_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Skip Plan Apply Run */
+        post: operations["skip_plan_apply_run_plan_apply_runs__run_id__skip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-notifications/{notification_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read Plan Notification */
+        post: operations["read_plan_notification_plan_notifications__notification_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workspaces/{workspace_id}/projects/{project_id}/items/{item_id}/comments": {
         parameters: {
             query?: never;
@@ -1116,6 +1306,91 @@ export interface paths {
         };
         /** My Analytics */
         get: operations["my_analytics_views_me_analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Plans */
+        get: operations["list_plans_views_plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/plans/imported": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imported */
+        get: operations["list_imported_views_plans_imported_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/plans/subscribed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Subscribed */
+        get: operations["list_subscribed_views_plans_subscribed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/plans/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plan Detail */
+        get: operations["plan_detail_views_plans__plan_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/plan-notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plan Notifications */
+        get: operations["plan_notifications_views_plan_notifications_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1891,6 +2166,485 @@ export interface components {
              * Format: date
              */
             selected_date: string;
+        };
+        /** PlanApplyRequest */
+        PlanApplyRequest: {
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+        };
+        /** PlanApplyRunOut */
+        PlanApplyRunOut: {
+            /** Id */
+            id: string;
+            /** Template Id */
+            template_id: string;
+            /** Template Version */
+            template_version: number;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Project Id */
+            project_id: string;
+            /** Source */
+            source: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Status */
+            status: string;
+            /** Skipped Slots */
+            skipped_slots?: {
+                [key: string]: unknown;
+            }[];
+            /** Item Count */
+            item_count: number;
+            /** Applied At */
+            applied_at: string | null;
+        };
+        /** PlanCardOut */
+        PlanCardOut: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Usage Kind */
+            usage_kind: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Visibility */
+            visibility: string;
+            creator: components["schemas"]["PlanCreatorOut"];
+            /** Tags */
+            tags?: string[];
+            /** Use Count */
+            use_count: number;
+        };
+        /** PlanCommentCreate */
+        PlanCommentCreate: {
+            /** Body */
+            body: string;
+            /** Parent Comment Id */
+            parent_comment_id?: string | null;
+        };
+        /** PlanCommentOut */
+        PlanCommentOut: {
+            /** Id */
+            id: string;
+            /** Author User Id */
+            author_user_id: string;
+            /** Author Display Name */
+            author_display_name: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Parent Comment Id */
+            parent_comment_id: string | null;
+        };
+        /** PlanCommentUpdate */
+        PlanCommentUpdate: {
+            /** Body */
+            body: string;
+        };
+        /** PlanConfirmRunOut */
+        PlanConfirmRunOut: {
+            /** Id */
+            id: string;
+            /** Template Id */
+            template_id: string;
+            /** Template Version */
+            template_version: number;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Project Id */
+            project_id: string;
+            /** Source */
+            source: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Status */
+            status: string;
+            /** Skipped Slots */
+            skipped_slots?: {
+                [key: string]: unknown;
+            }[];
+            /** Item Count */
+            item_count: number;
+            /** Applied At */
+            applied_at: string | null;
+            /**
+             * Template Updated
+             * @default false
+             */
+            template_updated: boolean;
+        };
+        /** PlanCreatorOut */
+        PlanCreatorOut: {
+            /** Id */
+            id: string;
+            /** Display Name */
+            display_name: string;
+        };
+        /** PlanDetailOut */
+        PlanDetailOut: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Usage Kind */
+            usage_kind: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Visibility */
+            visibility: string;
+            creator: components["schemas"]["PlanCreatorOut"];
+            /** Tags */
+            tags?: string[];
+            /** Use Count */
+            use_count: number;
+            /** Description */
+            description: string | null;
+            /** Creator Intro */
+            creator_intro: string | null;
+            /** Slots */
+            slots?: components["schemas"]["PlanSlotOut"][];
+            /** My Import Count */
+            my_import_count: number;
+            my_subscription?: components["schemas"]["PlanMySubscriptionOut"] | null;
+            pending_run?: components["schemas"]["PlanPendingRunOut"] | null;
+        };
+        /** PlanImportedListOut */
+        PlanImportedListOut: {
+            /** Items */
+            items: components["schemas"]["PlanImportedRowOut"][];
+        };
+        /** PlanImportedRowOut */
+        PlanImportedRowOut: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Usage Kind */
+            usage_kind: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Visibility */
+            visibility: string;
+            creator: components["schemas"]["PlanCreatorOut"];
+            /** Tags */
+            tags?: string[];
+            /** Use Count */
+            use_count: number;
+            /** My Import Count */
+            my_import_count: number;
+            /** Runs */
+            runs?: components["schemas"]["PlanImportedRunOut"][];
+        };
+        /** PlanImportedRunOut */
+        PlanImportedRunOut: {
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Items */
+            items?: components["schemas"]["PlanRunItemOut"][];
+        };
+        /** PlanListOut */
+        PlanListOut: {
+            /** Items */
+            items: components["schemas"]["PlanCardOut"][];
+        };
+        /** PlanMySubscriptionOut */
+        PlanMySubscriptionOut: {
+            /** Id */
+            id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Project Id */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** PlanNotificationListOut */
+        PlanNotificationListOut: {
+            /** Items */
+            items: components["schemas"]["PlanNotificationOut"][];
+            /** Unread Count */
+            unread_count: number;
+            /** Pending Runs */
+            pending_runs?: components["schemas"]["PlanPendingRunOut"][];
+        };
+        /** PlanNotificationOut */
+        PlanNotificationOut: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Template Id */
+            template_id?: string | null;
+            /** Subscription Id */
+            subscription_id?: string | null;
+            /** Apply Run Id */
+            apply_run_id?: string | null;
+            /** Read At */
+            read_at?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
+            pending_run?: components["schemas"]["PlanPendingRunOut"] | null;
+        };
+        /** PlanPendingRunOut */
+        PlanPendingRunOut: {
+            /** Id */
+            id: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Status */
+            status: string;
+            /** Template Version */
+            template_version: number;
+        };
+        /** PlanRunItemOut */
+        PlanRunItemOut: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Deleted */
+            deleted: boolean;
+        };
+        /** PlanSlotOut */
+        PlanSlotOut: {
+            /** Id */
+            id: string;
+            /** Rel Month */
+            rel_month: number | null;
+            /** Rel Day */
+            rel_day: number;
+            /** Start Minute */
+            start_minute: number;
+            /** End Minute */
+            end_minute: number;
+            /** All Day */
+            all_day: boolean;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string | null;
+            /** Details */
+            details: string | null;
+            /** Color */
+            color: string;
+            /** Priority */
+            priority: string;
+            /** Location */
+            location: string | null;
+            /** Sort Index */
+            sort_index: number;
+        };
+        /** PlanSlotPut */
+        PlanSlotPut: {
+            /** Rel Month */
+            rel_month?: number | null;
+            /** Rel Day */
+            rel_day: number;
+            /** Start Minute */
+            start_minute: number;
+            /** End Minute */
+            end_minute: number;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Title */
+            title: string;
+            /** Body */
+            body?: string | null;
+            /** Details */
+            details?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: string;
+            /** Location */
+            location?: string | null;
+            /**
+             * Sort Index
+             * @default 0
+             */
+            sort_index: number;
+        };
+        /** PlanSubscribeOut */
+        PlanSubscribeOut: {
+            /** Id */
+            id: string;
+            /** Imported Current Period */
+            imported_current_period: boolean;
+            apply_run?: components["schemas"]["PlanApplyRunOut"] | null;
+        };
+        /** PlanSubscribeRequest */
+        PlanSubscribeRequest: {
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Timezone */
+            timezone: string;
+        };
+        /** PlanSubscribedListOut */
+        PlanSubscribedListOut: {
+            /** Items */
+            items: components["schemas"]["PlanSubscribedRowOut"][];
+        };
+        /** PlanSubscribedRowOut */
+        PlanSubscribedRowOut: {
+            /** Id */
+            id: string;
+            /** Template Id */
+            template_id: string;
+            /** Title */
+            title: string;
+            /** Usage Kind */
+            usage_kind: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Visibility */
+            visibility: string;
+            creator: components["schemas"]["PlanCreatorOut"];
+            /** Tags */
+            tags?: string[];
+            /** Use Count */
+            use_count: number;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Project Id */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /** Segments */
+            segments?: components["schemas"]["PlanSubscribedSegmentOut"][];
+            pending_run?: components["schemas"]["PlanPendingRunOut"] | null;
+        };
+        /** PlanSubscribedSegmentOut */
+        PlanSubscribedSegmentOut: {
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Ended At */
+            ended_at: string | null;
+            /** Runs */
+            runs?: components["schemas"]["PlanImportedRunOut"][];
+            /** Items */
+            items?: components["schemas"]["PlanRunItemOut"][];
+        };
+        /** PlanTemplateCreate */
+        PlanTemplateCreate: {
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /** Creator Intro */
+            creator_intro?: string | null;
+            /** Usage Kind */
+            usage_kind: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Visibility */
+            visibility: string;
+            /** Tags */
+            tags?: string[];
+        };
+        /** PlanTemplateOut */
+        PlanTemplateOut: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string | null;
+            /** Creator Intro */
+            creator_intro: string | null;
+            /** Usage Kind */
+            usage_kind: string;
+            /** Period Kind */
+            period_kind: string;
+            /** Visibility */
+            visibility: string;
+            /** Tags */
+            tags: string[];
+            /** Use Count */
+            use_count: number;
+            /** Version */
+            version: number;
+            /** Created By User Id */
+            created_by_user_id: string;
+        };
+        /** PlanTemplateUpdate */
+        PlanTemplateUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Creator Intro */
+            creator_intro?: string | null;
+            /** Visibility */
+            visibility?: string | null;
+            /** Tags */
+            tags?: string[] | null;
         };
         /** ProjectBrief */
         ProjectBrief: {
@@ -4739,6 +5493,488 @@ export interface operations {
             };
         };
     };
+    create_template_plan_templates_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanTemplateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_template_plan_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_template_plan_templates__template_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanTemplateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanTemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_template_slots_plan_templates__template_id__slots_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanSlotPut"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSlotOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_template_plan_templates__template_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanApplyRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscribe_template_plan_templates__template_id__subscribe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanSubscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSubscribeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_template_comments_plan_templates__template_id__comments_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCommentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_template_comment_plan_templates__template_id__comments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanCommentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_template_comment_plan_templates__template_id__comments__comment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_template_comment_plan_templates__template_id__comments__comment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanCommentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_plan_subscription_plan_subscriptions__subscription_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_plan_apply_run_plan_apply_runs__run_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanConfirmRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    skip_plan_apply_run_plan_apply_runs__run_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanApplyRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_plan_notification_plan_notifications__notification_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                notification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_comments_workspaces__workspace_id__projects__project_id__items__item_id__comments_get: {
         parameters: {
             query?: never;
@@ -5800,6 +7036,182 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyAnalyticsViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_plans_views_plans_get: {
+        parameters: {
+            query?: {
+                tab?: string;
+                q?: string | null;
+                visibility?: string | null;
+                creator_q?: string | null;
+                tag?: string[] | null;
+                period_kind?: string | null;
+                usage_kind?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imported_views_plans_imported_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanImportedListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subscribed_views_plans_subscribed_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanSubscribedListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_detail_views_plans__plan_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_notifications_views_plan_notifications_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanNotificationListOut"];
                 };
             };
             /** @description Validation Error */

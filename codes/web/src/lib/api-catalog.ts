@@ -1,4 +1,4 @@
-export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** 仅用于文档展示的 JSON 可序列化结构（字段值为类型说明字符串或嵌套对象） */
 export type ApiJsonShape = Record<string, unknown> | unknown[] | string | number | boolean | null;
@@ -38,6 +38,11 @@ const commentPath = {
 };
 const userPath = { user_id: "uuid (path)" };
 const stickyNotePath = { note_id: "uuid (path)" };
+const planPath = { plan_id: "uuid (path)" };
+const planTemplatePath = { template_id: "uuid (path)" };
+const planSubscriptionPath = { subscription_id: "uuid (path)" };
+const planApplyRunPath = { run_id: "uuid (path)" };
+const planNotificationPath = { notification_id: "uuid (path)" };
 
 /** 与 codes/core-service 中 FastAPI 路由对齐；前端「是否使用」由源码扫描 apiFetch 得到 */
 export const API_CATALOG: ApiCatalogEntry[] = [
@@ -245,6 +250,71 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "用户工作空间归属详情",
     requestJson: { headers: authBearer, query: null, jsonBody: null },
     responseJson: { user_id: "uuid", workspaces: "UserMembershipWorkspace[]" },
+  },
+  {
+    method: "GET",
+    path: "/views/plans",
+    name: "规划列表",
+    requestJson: {
+      headers: authBearer,
+      query: {
+        tab: "discover | created | imported | subscribed",
+        q: "string?",
+        visibility: "private | public?",
+        creator_q: "string?",
+        tag: "string[] (repeatable)?",
+        period_kind: "day | week | month | year?",
+        usage_kind: "one_shot | subscription?",
+        limit: "number (1-50, default 20)",
+        offset: "number (default 0)",
+      },
+      jsonBody: null,
+    },
+    responseJson: { items: "PlanCardOut[]" },
+  },
+  {
+    method: "GET",
+    path: "/views/plans/imported",
+    name: "已导入规划",
+    requestJson: {
+      headers: authBearer,
+      query: { limit: "number (1-50, default 20)", offset: "number (default 0)" },
+      jsonBody: null,
+    },
+    responseJson: { items: "PlanImportedListOut" },
+  },
+  {
+    method: "GET",
+    path: "/views/plans/subscribed",
+    name: "订阅中规划",
+    requestJson: {
+      headers: authBearer,
+      query: { limit: "number (1-50, default 20)", offset: "number (default 0)" },
+      jsonBody: null,
+    },
+    responseJson: { items: "PlanSubscribedListOut" },
+  },
+  {
+    method: "GET",
+    path: "/views/plans/{plan_id}",
+    name: "规划详情",
+    requestJson: { headers: authBearer, pathParams: planPath, query: null, jsonBody: null },
+    responseJson: "PlanDetailOut",
+  },
+  {
+    method: "GET",
+    path: "/views/plan-notifications",
+    name: "规划通知",
+    requestJson: {
+      headers: authBearer,
+      query: { limit: "number (1-50, default 20)", offset: "number (default 0)" },
+      jsonBody: null,
+    },
+    responseJson: {
+      items: "PlanNotificationOut[]",
+      unread_count: "number",
+      pending_runs: "PlanPendingRunOut[]",
+    },
   },
 
   {
@@ -1242,6 +1312,139 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       sticky_note: "StickyNoteOut",
       parse: "StickyNoteAIParseOut",
     },
+  },
+
+  // ---------- Plans (templates, apply/subscribe, comments, notifications) ----------
+  {
+    method: "POST",
+    path: "/plan-templates",
+    name: "创建规划模板",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: {
+        title: "string",
+        description: "string | null?",
+        creator_intro: "string | null?",
+        usage_kind: '"one_shot" | "subscription"',
+        period_kind: '"day" | "week" | "month" | "year"',
+        visibility: '"private" | "public"',
+        tags: "string[]?",
+      },
+    },
+    responseJson: "PlanTemplateOut",
+  },
+  {
+    method: "PATCH",
+    path: "/plan-templates/{template_id}",
+    name: "更新规划模板",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planTemplatePath,
+      query: null,
+      jsonBody: {
+        title: "string | null?",
+        description: "string | null?",
+        creator_intro: "string | null?",
+        visibility: '"private" | "public" | null?',
+        tags: "string[] | null?",
+      },
+    },
+    responseJson: "PlanTemplateOut",
+  },
+  {
+    method: "DELETE",
+    path: "/plan-templates/{template_id}",
+    name: "删除规划模板",
+    requestJson: { headers: authBearer, pathParams: planTemplatePath, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
+  },
+  {
+    method: "PUT",
+    path: "/plan-templates/{template_id}/slots",
+    name: "规划时段",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planTemplatePath,
+      query: null,
+      jsonBody: "PlanSlotPut[]",
+    },
+    responseJson: { type: "array", items: "PlanSlotOut" },
+  },
+  {
+    method: "POST",
+    path: "/plan-templates/{template_id}/apply",
+    name: "加入规划",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planTemplatePath,
+      query: null,
+      jsonBody: {
+        workspace_id: "uuid",
+        project_id: "uuid",
+        period_start: "string (YYYY-MM-DD)",
+      },
+    },
+    responseJson: "PlanApplyRunOut",
+  },
+  {
+    method: "POST",
+    path: "/plan-templates/{template_id}/subscribe",
+    name: "订阅规划",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planTemplatePath,
+      query: null,
+      jsonBody: { workspace_id: "uuid", project_id: "uuid", timezone: "string (IANA)" },
+    },
+    responseJson: { id: "uuid", imported_current_period: "boolean", apply_run: "PlanApplyRunOut | null" },
+  },
+  {
+    method: "GET",
+    path: "/plan-templates/{template_id}/comments",
+    name: "规划评论",
+    requestJson: { headers: authBearer, pathParams: planTemplatePath, query: null, jsonBody: null },
+    responseJson: { type: "array", items: "PlanCommentOut" },
+  },
+  {
+    method: "POST",
+    path: "/plan-templates/{template_id}/comments",
+    name: "发表规划评论",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planTemplatePath,
+      query: null,
+      jsonBody: { body: "string", parent_comment_id: "uuid | null?" },
+    },
+    responseJson: "PlanCommentOut",
+  },
+  {
+    method: "POST",
+    path: "/plan-subscriptions/{subscription_id}/cancel",
+    name: "取消订阅",
+    requestJson: { headers: authBearer, pathParams: planSubscriptionPath, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
+  },
+  {
+    method: "POST",
+    path: "/plan-apply-runs/{run_id}/confirm",
+    name: "确认批次",
+    requestJson: { headers: authBearer, pathParams: planApplyRunPath, query: null, jsonBody: null },
+    responseJson: "PlanConfirmRunOut",
+  },
+  {
+    method: "POST",
+    path: "/plan-apply-runs/{run_id}/skip",
+    name: "跳过批次",
+    requestJson: { headers: authBearer, pathParams: planApplyRunPath, query: null, jsonBody: null },
+    responseJson: "PlanApplyRunOut",
+  },
+  {
+    method: "POST",
+    path: "/plan-notifications/{notification_id}/read",
+    name: "规划通知已读",
+    requestJson: { headers: authBearer, pathParams: planNotificationPath, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
   },
 
   {
