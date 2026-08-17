@@ -205,6 +205,7 @@ cmd_poll() {
 cmd_install_cron() {
   local deploy_user="${DEPLOY_USER:-root}"
   local cron_file="/etc/cron.d/timia-deploy-poll"
+  local reminder_cron_file="/etc/cron.d/timia-plan-reminders"
 
   [[ "$(id -u)" -eq 0 ]] || { echo "Run as root: sudo $0 install-cron" >&2; exit 1; }
 
@@ -221,9 +222,22 @@ EOF
   touch /var/log/timia-deploy-poll.log
   chmod 644 /var/log/timia-deploy-poll.log
 
+  cat > "$reminder_cron_file" <<EOF
+# Timia: hourly plan subscription reminders
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 * * * * ${deploy_user} cd ${ROOT} && bash deploy/dc.sh exec -T core-service python -m app.jobs.plan_reminders >> /var/log/timia-plan-reminders.log 2>&1
+EOF
+
+  chmod 644 "$reminder_cron_file"
+  touch /var/log/timia-plan-reminders.log
+  chmod 644 /var/log/timia-plan-reminders.log
+
   echo "Installed ${cron_file}"
   echo "Log: tail -f /var/log/timia-deploy-poll.log"
   echo "Test: cd ${ROOT} && bash deploy/local.sh poll"
+  echo "Installed ${reminder_cron_file}"
+  echo "Log: tail -f /var/log/timia-plan-reminders.log"
 }
 
 case "${1:-deploy}" in
