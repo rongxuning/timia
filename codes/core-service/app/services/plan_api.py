@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models._mixins import utcnow
 from app.models.plan import (
     PlanApplyRun,
+    PlanComment,
     PlanNotification,
     PlanSlot,
     PlanSubscription,
@@ -19,6 +20,9 @@ from app.models.plan import (
 )
 from app.models.user import User
 from app.schemas.plan import (
+    PlanCommentCreate,
+    PlanCommentOut,
+    PlanCommentUpdate,
     PlanSlotOut,
     PlanSlotPut,
     PlanTemplateCreate,
@@ -142,17 +146,22 @@ def validate_slot(period_kind: str, slot: PlanSlotPut) -> None:
 
 
 def notify_active_subscribers(db: Session, template: PlanTemplate) -> None:
-    subscribers = db.execute(
-        select(PlanSubscription)
-        .join(
-            PlanSubscriptionSegment,
-            PlanSubscriptionSegment.subscription_id == PlanSubscription.id,
+    subscribers = (
+        db.execute(
+            select(PlanSubscription)
+            .join(
+                PlanSubscriptionSegment,
+                PlanSubscriptionSegment.subscription_id == PlanSubscription.id,
+            )
+            .where(
+                PlanSubscription.template_id == template.id,
+                PlanSubscriptionSegment.ended_at.is_(None),
+            )
         )
-        .where(
-            PlanSubscription.template_id == template.id,
-            PlanSubscriptionSegment.ended_at.is_(None),
-        )
-    ).scalars().unique().all()
+        .scalars()
+        .unique()
+        .all()
+    )
     seen: set[uuid.UUID] = set()
     for sub in subscribers:
         if sub.subscriber_user_id in seen:
@@ -305,4 +314,113 @@ def mark_notification_read(db: Session, user: User, notification_id: uuid.UUID) 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
     if note.read_at is None:
         note.read_at = utcnow()
+    db.commit()
+
+
+def build_comment_out(db: Session, comment: PlanComment) -> PlanCommentOut:
+    name = db.scalar(select(User.display_name).where(User.id == comment.author_user_id)) or ""
+    return PlanCommentOut(
+        id=str(comment.id),
+        author_user_id=str(comment.author_user_id),
+        author_display_name=name,
+        body=comment.body,
+        created_at=comment.created_at,
+        parent_comment_id=str(comment.parent_comment_id) if comment.parent_comment_id else None,
+    )
+
+
+def _visible_template(db: Session, template_id: uuid.UUID, user: User) -> PlanTemplate:
+    return require_plan_visible(db, db.get(PlanTemplate, template_id), user)
+
+
+def _require_comment_author(
+    db: Session, template_id: uuid.UUID, comment_id: uuid.UUID, user: User
+) -> PlanComment:
+    comment = db.get(PlanComment, comment_id)
+    if (
+        comment is None
+        or comment.template_id != template_id
+        or comment.deleted_at is not None
+        or comment.author_user_id != user.id
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    return comment
+
+
+def list_plan_comments(db: Session, user: User, template_id: uuid.UUID) -> list[PlanComment]:
+    _visible_template(db, template_id, user)
+    return list(
+        db.scalars(
+            select(PlanComment)
+            .where(
+                PlanComment.template_id == template_id,
+                PlanComment.deleted_at.is_(None),
+            )
+            .order_by(PlanComment.created_at.asc())
+        ).all()
+    )
+
+
+def create_plan_comment(
+    db: Session, user: User, template_id: uuid.UUID, payload: PlanCommentCreate
+) -> PlanComment:
+    template = _visible_template(db, template_id, user)
+    parent_id = payload.parent_comment_id
+    parent: PlanComment | None = None
+    if parent_id is not None:
+        parent = db.get(PlanComment, parent_id)
+        if parent is None or parent.template_id != template.id or parent.deleted_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="parent_comment_not_found"
+            )
+        if parent.parent_comment_id is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="cannot_reply_to_reply"
+            )
+    body = (payload.body or "").strip()
+    if not body:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_body")
+    comment = PlanComment(
+        template_id=template.id,
+        author_user_id=user.id,
+        body=body,
+        parent_comment_id=parent_id,
+    )
+    db.add(comment)
+    db.flush()
+    if parent is not None and parent.author_user_id != user.id:
+        db.add(
+            PlanNotification(
+                user_id=parent.author_user_id,
+                kind="comment_reply",
+                template_id=template.id,
+            )
+        )
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def update_plan_comment(
+    db: Session,
+    user: User,
+    template_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    payload: PlanCommentUpdate,
+) -> PlanComment:
+    comment = _require_comment_author(db, template_id, comment_id, user)
+    body = (payload.body or "").strip()
+    if not body:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_body")
+    comment.body = body
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def delete_plan_comment(
+    db: Session, user: User, template_id: uuid.UUID, comment_id: uuid.UUID
+) -> None:
+    comment = _require_comment_author(db, template_id, comment_id, user)
+    comment.deleted_at = utcnow()
     db.commit()

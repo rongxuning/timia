@@ -103,3 +103,21 @@ class PlanSubscribeOut(BaseModel):
 
 class PlanConfirmRunOut(PlanApplyRunOut):
     template_updated: bool = False
+
+
+class PlanCommentCreate(BaseModel):
+    body: str
+    parent_comment_id: UUID | None = None
+
+
+class PlanCommentUpdate(BaseModel):
+    body: str
+
+
+class PlanCommentOut(BaseModel):
+    id: str
+    author_user_id: str
+    author_display_name: str
+    body: str
+    created_at: datetime
+    parent_comment_id: str | None

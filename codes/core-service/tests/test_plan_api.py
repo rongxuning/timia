@@ -1428,3 +1428,244 @@ def test_imported_includes_subscription_applies():
         assert len(row["runs"][0]["items"]) >= 1
     finally:
         _cleanup_emails([email])
+
+
+def test_public_template_second_user_can_comment():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "visibility": "public"},
+            headers=_headers(owner_token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        r = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "写得很好"},
+            headers=_headers(other_token),
+        )
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["body"] == "写得很好"
+        assert body["parent_comment_id"] is None
+        listed = client.get(
+            f"/plan-templates/{template_id}/comments",
+            headers=_headers(other_token),
+        )
+        assert listed.status_code == 200, listed.text
+        assert len(listed.json()) == 1
+        assert listed.json()[0]["id"] == body["id"]
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_private_template_second_user_comment_returns_404():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(owner_token))
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        r = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "看不见"},
+            headers=_headers(other_token),
+        )
+        assert r.status_code == 404
+        assert r.json()["detail"] == "not_found"
+        listed = client.get(
+            f"/plan-templates/{template_id}/comments",
+            headers=_headers(other_token),
+        )
+        assert listed.status_code == 404
+        assert listed.json()["detail"] == "not_found"
+        owner_ok = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "作者自评"},
+            headers=_headers(owner_token),
+        )
+        assert owner_ok.status_code == 201, owner_ok.text
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_plan_comment_reply_notifies_parent_author():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "visibility": "public"},
+            headers=_headers(owner_token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        parent = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "顶层"},
+            headers=_headers(owner_token),
+        )
+        assert parent.status_code == 201, parent.text
+        parent_id = parent.json()["id"]
+        reply = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "回复", "parent_comment_id": parent_id},
+            headers=_headers(other_token),
+        )
+        assert reply.status_code == 201, reply.text
+        assert reply.json()["parent_comment_id"] == parent_id
+        db = next(get_db())
+        try:
+            owner = db.scalar(select(User).where(User.email == owner_email))
+            other = db.scalar(select(User).where(User.email == other_email))
+            assert owner is not None and other is not None
+            owner_id = owner.id
+            other_id = other.id
+            notes = list(
+                db.scalars(
+                    select(PlanNotification).where(PlanNotification.user_id == owner_id)
+                ).all()
+            )
+            assert len(notes) == 1
+            assert notes[0].kind == "comment_reply"
+            assert notes[0].template_id == uuid.UUID(template_id)
+        finally:
+            db.close()
+        self_reply = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "自回", "parent_comment_id": parent_id},
+            headers=_headers(owner_token),
+        )
+        assert self_reply.status_code == 201, self_reply.text
+        db = next(get_db())
+        try:
+            notes_after = list(
+                db.scalars(
+                    select(PlanNotification).where(PlanNotification.user_id == owner_id)
+                ).all()
+            )
+            assert len(notes_after) == 1
+            other_notes = list(
+                db.scalars(
+                    select(PlanNotification).where(PlanNotification.user_id == other_id)
+                ).all()
+            )
+            assert other_notes == []
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_plan_comment_patch_delete_author_only_and_hides_deleted():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "visibility": "public"},
+            headers=_headers(owner_token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        posted = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "原稿"},
+            headers=_headers(owner_token),
+        )
+        assert posted.status_code == 201, posted.text
+        comment_id = posted.json()["id"]
+        denied_patch = client.patch(
+            f"/plan-templates/{template_id}/comments/{comment_id}",
+            json={"body": "篡改"},
+            headers=_headers(other_token),
+        )
+        assert denied_patch.status_code == 404
+        assert denied_patch.json()["detail"] == "not_found"
+        patched = client.patch(
+            f"/plan-templates/{template_id}/comments/{comment_id}",
+            json={"body": "改过"},
+            headers=_headers(owner_token),
+        )
+        assert patched.status_code == 200, patched.text
+        assert patched.json()["body"] == "改过"
+        denied_delete = client.delete(
+            f"/plan-templates/{template_id}/comments/{comment_id}",
+            headers=_headers(other_token),
+        )
+        assert denied_delete.status_code == 404
+        assert denied_delete.json()["detail"] == "not_found"
+        deleted = client.delete(
+            f"/plan-templates/{template_id}/comments/{comment_id}",
+            headers=_headers(owner_token),
+        )
+        assert deleted.status_code == 204, deleted.text
+        listed = client.get(
+            f"/plan-templates/{template_id}/comments",
+            headers=_headers(owner_token),
+        )
+        assert listed.status_code == 200, listed.text
+        assert listed.json() == []
+        db = next(get_db())
+        try:
+            row = db.get(PlanComment, uuid.UUID(comment_id))
+            assert row is not None
+            assert row.deleted_at is not None
+        finally:
+            db.close()
+        empty = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "   "},
+            headers=_headers(owner_token),
+        )
+        assert empty.status_code == 400
+        assert empty.json()["detail"] == "empty_body"
+        parent = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "一层"},
+            headers=_headers(owner_token),
+        )
+        assert parent.status_code == 201, parent.text
+        child = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "二层", "parent_comment_id": parent.json()["id"]},
+            headers=_headers(other_token),
+        )
+        assert child.status_code == 201, child.text
+        nested = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "三层", "parent_comment_id": child.json()["id"]},
+            headers=_headers(owner_token),
+        )
+        assert nested.status_code == 400
+        assert nested.json()["detail"] == "cannot_reply_to_reply"
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_plan_comments_require_auth():
+    client = TestClient(app)
+    template_id = uuid.uuid4()
+    comment_id = uuid.uuid4()
+    assert client.get(f"/plan-templates/{template_id}/comments").status_code == 401
+    assert (
+        client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "x"},
+        ).status_code
+        == 401
+    )
+    assert (
+        client.patch(
+            f"/plan-templates/{template_id}/comments/{comment_id}",
+            json={"body": "x"},
+        ).status_code
+        == 401
+    )
+    assert client.delete(f"/plan-templates/{template_id}/comments/{comment_id}").status_code == 401

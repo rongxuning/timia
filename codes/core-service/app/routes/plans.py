@@ -9,6 +9,9 @@ from app.models.user import User
 from app.schemas.plan import (
     PlanApplyRequest,
     PlanApplyRunOut,
+    PlanCommentCreate,
+    PlanCommentOut,
+    PlanCommentUpdate,
     PlanConfirmRunOut,
     PlanSlotOut,
     PlanSlotPut,
@@ -19,12 +22,17 @@ from app.schemas.plan import (
     PlanTemplateUpdate,
 )
 from app.services.plan_api import (
+    build_comment_out,
     build_slot_out,
     build_template_out,
+    create_plan_comment,
     create_plan_template,
+    delete_plan_comment,
     delete_plan_template,
+    list_plan_comments,
     mark_notification_read,
     replace_slots,
+    update_plan_comment,
     update_plan_template,
 )
 from app.services.plan_apply import (
@@ -124,6 +132,56 @@ def subscribe_template(
         payload.project_id,
         payload.timezone,
     )
+
+
+@router.get("/{template_id}/comments", response_model=list[PlanCommentOut])
+def get_template_comments(
+    template_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    rows = list_plan_comments(db, user, template_id)
+    return [build_comment_out(db, row) for row in rows]
+
+
+@router.post(
+    "/{template_id}/comments",
+    response_model=PlanCommentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_template_comment(
+    template_id: uuid.UUID,
+    payload: PlanCommentCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    comment = create_plan_comment(db, user, template_id, payload)
+    return build_comment_out(db, comment)
+
+
+@router.patch("/{template_id}/comments/{comment_id}", response_model=PlanCommentOut)
+def patch_template_comment(
+    template_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    payload: PlanCommentUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    comment = update_plan_comment(db, user, template_id, comment_id, payload)
+    return build_comment_out(db, comment)
+
+
+@router.delete(
+    "/{template_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_template_comment(
+    template_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    delete_plan_comment(db, user, template_id, comment_id)
 
 
 @subscription_router.post("/{subscription_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
