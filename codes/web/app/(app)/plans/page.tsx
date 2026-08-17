@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageMain } from "@/components/layout";
 import { PlanList } from "@/components/plans/PlanList";
@@ -79,9 +80,17 @@ function PlansPageInner() {
   return (
     <PageMain className="!px-3" fullWidth>
       <div className="space-y-lg">
-        <div>
-          <h1 className="font-subhead text-subhead text-text-primary">规划</h1>
-          <p className="mt-1 text-small text-text-secondary">发现公开模板，或查看你创建、导入和订阅的规划</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-subhead text-subhead text-text-primary">规划</h1>
+            <p className="mt-1 text-small text-text-secondary">发现公开模板，或查看你创建、导入和订阅的规划</p>
+          </div>
+          <Link
+            href="/plans/new"
+            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-small text-on-primary"
+          >
+            创建规划
+          </Link>
         </div>
 
         {error && (

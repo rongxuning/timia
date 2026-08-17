@@ -1,26 +1,11 @@
 import Link from "next/link";
 import type { PlanCardOut } from "@/lib/api/plans";
-
-const USAGE_LABEL: Record<string, string> = {
-  one_shot: "加入",
-  subscription: "订阅",
-};
-
-const PERIOD_LABEL: Record<string, string> = {
-  day: "日",
-  week: "周",
-  month: "月",
-  year: "年",
-};
-
-const VISIBILITY_LABEL: Record<string, string> = {
-  private: "私有",
-  public: "公开",
-};
-
-function labelOf(map: Record<string, string>, value: string) {
-  return map[value] ?? value;
-}
+import {
+  PLAN_PERIOD_LABEL,
+  PLAN_USAGE_LABEL,
+  PLAN_VISIBILITY_LABEL,
+  planLabel,
+} from "./planLabels";
 
 export function PlanCard({ plan }: { plan: PlanCardOut }) {
   const tags = plan.tags ?? [];
@@ -34,11 +19,11 @@ export function PlanCard({ plan }: { plan: PlanCardOut }) {
         {plan.title}
       </h2>
       <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-caption text-text-secondary">
-        <span>{labelOf(USAGE_LABEL, plan.usage_kind)}</span>
+        <span>{planLabel(PLAN_USAGE_LABEL, plan.usage_kind)}</span>
         <span aria-hidden>·</span>
-        <span>{labelOf(PERIOD_LABEL, plan.period_kind)}</span>
+        <span>{planLabel(PLAN_PERIOD_LABEL, plan.period_kind)}</span>
         <span aria-hidden>·</span>
-        <span>{labelOf(VISIBILITY_LABEL, plan.visibility)}</span>
+        <span>{planLabel(PLAN_VISIBILITY_LABEL, plan.visibility)}</span>
       </p>
       <p className="mt-2 truncate text-caption text-text-secondary">
         {plan.creator.display_name}
