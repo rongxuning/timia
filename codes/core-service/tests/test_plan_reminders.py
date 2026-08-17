@@ -13,7 +13,7 @@ from app.db.deps import get_db
 from app.jobs.plan_reminders import run_plan_reminders
 from app.main import app
 from app.models.item import Item
-from app.models.plan import PlanApplyRun, PlanNotification
+from app.models.plan import PlanApplyRun, PlanNotification, PlanSubscription
 from app.services.plan_time import current_period_start
 from test_plan_api import (
     _cleanup_emails,
@@ -246,6 +246,117 @@ def test_closed_segment_is_not_scanned():
                 ).all()
             )
             assert pending == []
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_resubscribe_after_canceled_pending_schedules_next_period():
+    """Cancel then resubscribe the same week: canceled must not occupy next Sunday."""
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        body = _subscribe(client, token, template_id, workspace_id, project_id)
+        subscription_id = body["id"]
+        current_sunday = date.fromisoformat(body["apply_run"]["period_start"])
+        now = _saturday_2000(current_sunday)
+        next_sunday = current_sunday + timedelta(days=7)
+
+        first = _run_job(now)
+        assert first == {"pending_created": 1, "expired": 0}
+
+        canceled = client.post(
+            f"/plan-subscriptions/{subscription_id}/cancel",
+            headers=_headers(token),
+        )
+        assert canceled.status_code == 204, canceled.text
+
+        again = _subscribe(client, token, template_id, workspace_id, project_id)
+        assert again["id"] == subscription_id
+        assert again["imported_current_period"] is False
+
+        second = _run_job(now)
+        assert second == {"pending_created": 1, "expired": 0}
+
+        db = next(get_db())
+        try:
+            sid = uuid.UUID(subscription_id)
+            pending = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == sid,
+                        PlanApplyRun.status == "pending",
+                    )
+                ).all()
+            )
+            assert len(pending) == 1
+            assert pending[0].period_start == next_sunday
+            canceled_runs = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == sid,
+                        PlanApplyRun.status == "canceled",
+                        PlanApplyRun.period_start == next_sunday,
+                    )
+                ).all()
+            )
+            assert len(canceled_runs) == 1
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_invalid_timezone_on_one_subscription_does_not_abort_batch():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        good_template = _subscription_template_with_slot(client, token)
+        bad_template = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        good = _subscribe(client, token, good_template, workspace_id, project_id)
+        bad = _subscribe(client, token, bad_template, workspace_id, project_id)
+        current_sunday = date.fromisoformat(good["apply_run"]["period_start"])
+        now = _saturday_2000(current_sunday)
+        next_sunday = current_sunday + timedelta(days=7)
+
+        db = next(get_db())
+        try:
+            sub = db.get(PlanSubscription, uuid.UUID(bad["id"]))
+            assert sub is not None
+            sub.timezone = "Not/AZone"
+            db.commit()
+        finally:
+            db.close()
+
+        result = _run_job(now)
+
+        assert result["pending_created"] == 1
+        assert result["expired"] == 0
+        db = next(get_db())
+        try:
+            good_pending = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == uuid.UUID(good["id"]),
+                        PlanApplyRun.status == "pending",
+                    )
+                ).all()
+            )
+            assert len(good_pending) == 1
+            assert good_pending[0].period_start == next_sunday
+            bad_pending = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == uuid.UUID(bad["id"]),
+                        PlanApplyRun.status == "pending",
+                    )
+                ).all()
+            )
+            assert bad_pending == []
         finally:
             db.close()
     finally:

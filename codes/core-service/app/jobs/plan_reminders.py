@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from sqlalchemy import select
@@ -21,6 +22,10 @@ from app.services.plan_time import (
     upcoming_period_start,
 )
 
+logger = logging.getLogger(__name__)
+
+_OCCUPIED_STATUSES = frozenset({"applied", "pending", "skipped", "expired"})
+
 
 def run_plan_reminders(db: Session, now: datetime | None = None) -> dict:
     if now is None:
@@ -32,59 +37,106 @@ def run_plan_reminders(db: Session, now: datetime | None = None) -> dict:
         select(PlanSubscriptionSegment).where(PlanSubscriptionSegment.ended_at.is_(None))
     ).all()
     for segment in segments:
-        sub = db.get(PlanSubscription, segment.subscription_id)
-        if sub is None:
-            continue
-        template = db.get(PlanTemplate, sub.template_id)
-        if template is None:
-            continue
-        runs = list(
-            db.scalars(select(PlanApplyRun).where(PlanApplyRun.subscription_id == sub.id)).all()
-        )
-        existing = {run.period_start for run in runs}
-        period_start = upcoming_period_start(template.period_kind, now, sub.timezone, existing)
-        if in_reminder_window(period_start, now, sub.timezone):
-            try:
-                with db.begin_nested():
-                    run = PlanApplyRun(
-                        template_id=template.id,
-                        template_version=template.version,
-                        actor_user_id=sub.subscriber_user_id,
-                        workspace_id=sub.workspace_id,
-                        project_id=sub.project_id,
-                        source="subscription",
-                        subscription_id=sub.id,
-                        segment_id=segment.id,
-                        period_start=period_start,
-                        period_kind=template.period_kind,
-                        status="pending",
-                        skipped_slots=[],
-                    )
-                    db.add(run)
-                    db.flush()
-                    db.add(
-                        PlanNotification(
-                            user_id=sub.subscriber_user_id,
-                            kind="upcoming_period",
-                            template_id=template.id,
-                            subscription_id=sub.id,
-                            apply_run_id=run.id,
-                        )
-                    )
-                    db.flush()
-                pending_created += 1
-            except IntegrityError:
-                pass
-        for run in db.scalars(
-            select(PlanApplyRun).where(
-                PlanApplyRun.subscription_id == sub.id,
-                PlanApplyRun.status == "pending",
+        try:
+            with db.begin_nested():
+                pending_created += _create_pending_for_segment(db, segment, now)
+        except IntegrityError:
+            pass
+        except Exception:
+            logger.exception(
+                "plan reminder failed for subscription=%s segment=%s",
+                segment.subscription_id,
+                segment.id,
             )
-        ).all():
+        try:
+            with db.begin_nested():
+                expired += _expire_pending_for_segment(db, segment, now)
+        except Exception:
+            logger.exception(
+                "plan reminder expire failed for subscription=%s segment=%s",
+                segment.subscription_id,
+                segment.id,
+            )
+    return {"pending_created": pending_created, "expired": expired}
+
+
+def _create_pending_for_segment(
+    db: Session, segment: PlanSubscriptionSegment, now: datetime
+) -> int:
+    sub = db.get(PlanSubscription, segment.subscription_id)
+    if sub is None:
+        return 0
+    template = db.get(PlanTemplate, sub.template_id)
+    if template is None:
+        return 0
+    runs = list(
+        db.scalars(select(PlanApplyRun).where(PlanApplyRun.subscription_id == sub.id)).all()
+    )
+    existing = {run.period_start for run in runs if run.status in _OCCUPIED_STATUSES}
+    period_start = upcoming_period_start(template.period_kind, now, sub.timezone, existing)
+    if not in_reminder_window(period_start, now, sub.timezone):
+        return 0
+    try:
+        with db.begin_nested():
+            run = PlanApplyRun(
+                template_id=template.id,
+                template_version=template.version,
+                actor_user_id=sub.subscriber_user_id,
+                workspace_id=sub.workspace_id,
+                project_id=sub.project_id,
+                source="subscription",
+                subscription_id=sub.id,
+                segment_id=segment.id,
+                period_start=period_start,
+                period_kind=template.period_kind,
+                status="pending",
+                skipped_slots=[],
+            )
+            db.add(run)
+            db.flush()
+            db.add(
+                PlanNotification(
+                    user_id=sub.subscriber_user_id,
+                    kind="upcoming_period",
+                    template_id=template.id,
+                    subscription_id=sub.id,
+                    apply_run_id=run.id,
+                )
+            )
+            db.flush()
+        return 1
+    except IntegrityError:
+        return 0
+
+
+def _expire_pending_for_segment(
+    db: Session, segment: PlanSubscriptionSegment, now: datetime
+) -> int:
+    sub = db.get(PlanSubscription, segment.subscription_id)
+    if sub is None:
+        return 0
+    template = db.get(PlanTemplate, sub.template_id)
+    if template is None:
+        return 0
+    expired = 0
+    for run in db.scalars(
+        select(PlanApplyRun).where(
+            PlanApplyRun.subscription_id == sub.id,
+            PlanApplyRun.status == "pending",
+        )
+    ).all():
+        try:
             if pending_should_expire(template.period_kind, run.period_start, now, sub.timezone):
                 run.status = "expired"
                 expired += 1
-    return {"pending_created": pending_created, "expired": expired}
+        except Exception:
+            logger.exception(
+                "plan reminder expire failed for subscription=%s segment=%s run=%s",
+                sub.id,
+                segment.id,
+                run.id,
+            )
+    return expired
 
 
 def main() -> None:
