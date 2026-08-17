@@ -73,16 +73,22 @@ def _cleanup_emails(emails: list[str]) -> None:
             return
         user_ids = [u.id for u in users]
         templates = list(
-            db.scalars(select(PlanTemplate).where(PlanTemplate.created_by_user_id.in_(user_ids))).all()
+            db.scalars(
+                select(PlanTemplate).where(PlanTemplate.created_by_user_id.in_(user_ids))
+            ).all()
         )
         template_ids = [t.id for t in templates]
         if template_ids:
-            db.execute(delete(PlanNotification).where(PlanNotification.template_id.in_(template_ids)))
+            db.execute(
+                delete(PlanNotification).where(PlanNotification.template_id.in_(template_ids))
+            )
             db.execute(delete(PlanComment).where(PlanComment.template_id.in_(template_ids)))
             db.execute(delete(PlanApplyRun).where(PlanApplyRun.template_id.in_(template_ids)))
             sub_ids = list(
                 db.scalars(
-                    select(PlanSubscription.id).where(PlanSubscription.template_id.in_(template_ids))
+                    select(PlanSubscription.id).where(
+                        PlanSubscription.template_id.in_(template_ids)
+                    )
                 ).all()
             )
             if sub_ids:
@@ -115,6 +121,23 @@ def _cleanup_emails(emails: list[str]) -> None:
         db.commit()
     finally:
         db.close()
+
+
+def _workspace_and_project(client: TestClient, token: str) -> tuple[str, str]:
+    ws = client.post(
+        "/workspaces",
+        json={"name": "plan-apply-ws", "color": "#AABBCC"},
+        headers=_headers(token),
+    )
+    assert ws.status_code == 201, ws.text
+    workspace_id = ws.json()["id"]
+    pj = client.post(
+        f"/workspaces/{workspace_id}/projects",
+        json={"name": "plan-apply-pj"},
+        headers=_headers(token),
+    )
+    assert pj.status_code == 201, pj.text
+    return workspace_id, pj.json()["id"]
 
 
 def _slot(i: int = 0, **overrides) -> dict:
@@ -581,3 +604,276 @@ def test_close_template_subscriptions_ends_segment_and_cancels_pending_run():
             db.close()
     finally:
         _cleanup_emails([owner_email, sub_email])
+
+
+def test_apply_subscription_template_rejected():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+            headers=_headers(token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        workspace_id, project_id = _workspace_and_project(client, token)
+        r = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"] == "wrong_usage_kind"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_apply_week_creates_items_on_chosen_week():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        slots = client.put(
+            f"/plan-templates/{template_id}/slots",
+            json=[_slot(0, rel_day=1, start_minute=9 * 60, end_minute=10 * 60, title="周一晨练")],
+            headers=_headers(token),
+        )
+        assert slots.status_code == 200, slots.text
+        workspace_id, project_id = _workspace_and_project(client, token)
+
+        r = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["status"] == "applied"
+        assert body["item_count"] >= 1
+        assert body["period_start"] == "2026-08-16"
+
+        db = next(get_db())
+        try:
+            actor = db.scalar(select(User).where(User.email == email))
+            assert actor is not None
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert template is not None
+            assert template.use_count == 1
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert len(items) >= 1
+            for item in items:
+                assert item.status == "todo"
+                assert item.assignee_user_id == actor.id
+                assert item.created_by_user_id == actor.id
+                assert item.source_plan_template_id == uuid.UUID(template_id)
+                assert item.source_plan_slot_id is not None
+                assert item.source_plan_apply_run_id == uuid.UUID(body["id"])
+                assert not hasattr(item, "repeat")
+            logs = list(
+                db.scalars(
+                    select(ActivityLog).where(
+                        ActivityLog.workspace_id == uuid.UUID(workspace_id),
+                        ActivityLog.action == "apply_plan",
+                    )
+                ).all()
+            )
+            assert len(logs) == 1
+            assert logs[0].entity_type == "plan_apply_run"
+            assert logs[0].meta["template_id"] == template_id
+            assert logs[0].meta["item_count"] >= 1
+            assert logs[0].meta["period_start"] == "2026-08-16"
+        finally:
+            db.close()
+
+        again = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(token),
+        )
+        assert again.status_code == 409
+        assert again.json()["detail"] == "already_applied"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_apply_empty_template_rejected():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        workspace_id, project_id = _workspace_and_project(client, token)
+        r = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"] == "empty_template"
+        db = next(get_db())
+        try:
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert template is not None
+            assert template.use_count == 0
+            runs = list(
+                db.scalars(
+                    select(PlanApplyRun).where(PlanApplyRun.template_id == uuid.UUID(template_id))
+                ).all()
+            )
+            assert runs == []
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_apply_all_invalid_slots_is_empty_template():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "period_kind": "month"},
+            headers=_headers(token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        slots = client.put(
+            f"/plan-templates/{template_id}/slots",
+            json=[_slot(rel_day=31, start_minute=0, end_minute=60, title="31号")],
+            headers=_headers(token),
+        )
+        assert slots.status_code == 200, slots.text
+        workspace_id, project_id = _workspace_and_project(client, token)
+        r = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-02-01",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"] == "empty_template"
+        db = next(get_db())
+        try:
+            runs = list(
+                db.scalars(
+                    select(PlanApplyRun).where(PlanApplyRun.template_id == uuid.UUID(template_id))
+                ).all()
+            )
+            assert runs == []
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert items == []
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_apply_week_coerces_wednesday_to_sunday():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        slots = client.put(
+            f"/plan-templates/{template_id}/slots",
+            json=[_slot(0)],
+            headers=_headers(token),
+        )
+        assert slots.status_code == 200, slots.text
+        workspace_id, project_id = _workspace_and_project(client, token)
+        r = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-19",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["period_start"] == "2026-08-16"
+        again = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(token),
+        )
+        assert again.status_code == 409
+        assert again.json()["detail"] == "already_applied"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_apply_private_template_not_owner_returns_404():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(owner_token))
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        slots = client.put(
+            f"/plan-templates/{template_id}/slots",
+            json=[_slot(0)],
+            headers=_headers(owner_token),
+        )
+        assert slots.status_code == 200, slots.text
+        workspace_id, project_id = _workspace_and_project(client, other_token)
+        r = client.post(
+            f"/plan-templates/{template_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(other_token),
+        )
+        assert r.status_code == 404
+        assert r.json()["detail"] == "not_found"
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_apply_requires_auth():
+    client = TestClient(app)
+    r = client.post(
+        f"/plan-templates/{uuid.uuid4()}/apply",
+        json={
+            "workspace_id": str(uuid.uuid4()),
+            "project_id": str(uuid.uuid4()),
+            "period_start": "2026-08-16",
+        },
+    )
+    assert r.status_code == 401

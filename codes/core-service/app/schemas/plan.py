@@ -1,3 +1,7 @@
+from datetime import date, datetime
+from typing import Any
+from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 
@@ -62,3 +66,24 @@ class PlanTemplateOut(BaseModel):
     use_count: int
     version: int
     created_by_user_id: str
+
+
+class PlanApplyRequest(BaseModel):
+    workspace_id: UUID
+    project_id: UUID
+    period_start: date
+
+
+class PlanApplyRunOut(BaseModel):
+    id: str
+    template_id: str
+    template_version: int
+    workspace_id: str
+    project_id: str
+    source: str
+    period_start: date
+    period_kind: str
+    status: str
+    skipped_slots: list[dict[str, Any]] = Field(default_factory=list)
+    item_count: int
+    applied_at: datetime | None

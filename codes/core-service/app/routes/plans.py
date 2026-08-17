@@ -7,6 +7,8 @@ from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.plan import (
+    PlanApplyRequest,
+    PlanApplyRunOut,
     PlanSlotOut,
     PlanSlotPut,
     PlanTemplateCreate,
@@ -21,6 +23,7 @@ from app.services.plan_api import (
     replace_slots,
     update_plan_template,
 )
+from app.services.plan_apply import apply_one_shot, build_apply_run_out
 
 router = APIRouter(prefix="/plan-templates", tags=["plan-templates"])
 
@@ -64,3 +67,25 @@ def put_template_slots(
 ):
     rows = replace_slots(db, user, template_id, slots)
     return [build_slot_out(row) for row in rows]
+
+
+@router.post(
+    "/{template_id}/apply",
+    response_model=PlanApplyRunOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def apply_template(
+    template_id: uuid.UUID,
+    payload: PlanApplyRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    run = apply_one_shot(
+        db,
+        user,
+        template_id,
+        payload.workspace_id,
+        payload.project_id,
+        payload.period_start,
+    )
+    return build_apply_run_out(db, run)
