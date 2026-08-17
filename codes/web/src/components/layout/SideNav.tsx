@@ -7,6 +7,7 @@ import { fetchPlanNotifications } from "@/lib/api/plans";
 import { getToken, logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
+import { PLAN_BADGE_REFRESH_EVENT } from "@/components/plans/planEvents";
 import { NavItem } from "./NavItem";
 
 export type SideNavProps = {
@@ -27,17 +28,24 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
     const token = getToken();
     if (!token || !me) return;
     let cancelled = false;
-    fetchPlanNotifications(token)
-      .then((data) => {
-        if (cancelled) return;
-        const count = (data.unread_count ?? 0) + (data.pending_runs?.length ?? 0);
-        setPlanBadge(count > 0 ? count : undefined);
-      })
-      .catch(() => {
-        if (!cancelled) setPlanBadge(undefined);
-      });
+    function loadBadge() {
+      const current = getToken();
+      if (!current) return;
+      fetchPlanNotifications(current)
+        .then((data) => {
+          if (cancelled) return;
+          const count = (data.unread_count ?? 0) + (data.pending_runs?.length ?? 0);
+          setPlanBadge(count > 0 ? count : undefined);
+        })
+        .catch(() => {
+          if (!cancelled) setPlanBadge(undefined);
+        });
+    }
+    loadBadge();
+    window.addEventListener(PLAN_BADGE_REFRESH_EVENT, loadBadge);
     return () => {
       cancelled = true;
+      window.removeEventListener(PLAN_BADGE_REFRESH_EVENT, loadBadge);
     };
   }, [me]);
 

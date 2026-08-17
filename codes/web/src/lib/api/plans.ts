@@ -17,7 +17,12 @@ export type PlanListOut = components["schemas"]["PlanListOut"];
 export type PlanCardOut = components["schemas"]["PlanCardOut"];
 export type PlanDetailOut = components["schemas"]["PlanDetailOut"];
 export type PlanImportedListOut = components["schemas"]["PlanImportedListOut"];
+export type PlanImportedRowOut = components["schemas"]["PlanImportedRowOut"];
+export type PlanImportedRunOut = components["schemas"]["PlanImportedRunOut"];
+export type PlanRunItemOut = components["schemas"]["PlanRunItemOut"];
 export type PlanSubscribedListOut = components["schemas"]["PlanSubscribedListOut"];
+export type PlanSubscribedRowOut = components["schemas"]["PlanSubscribedRowOut"];
+export type PlanPendingRunOut = components["schemas"]["PlanPendingRunOut"];
 export type PlanNotificationListOut = components["schemas"]["PlanNotificationListOut"];
 export type PlanNotificationOut = components["schemas"]["PlanNotificationOut"];
 

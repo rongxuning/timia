@@ -9371,6 +9371,14 @@
             ],
             "title": "Applied At"
           },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/PlanRunItemOut"
@@ -9382,7 +9390,9 @@
         "type": "object",
         "required": [
           "period_start",
-          "applied_at"
+          "applied_at",
+          "workspace_id",
+          "project_id"
         ],
         "title": "PlanImportedRunOut"
       },

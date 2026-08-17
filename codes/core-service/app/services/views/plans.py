@@ -131,6 +131,8 @@ def _imported_run_out(
     return PlanImportedRunOut(
         period_start=run.period_start,
         applied_at=run.applied_at,
+        workspace_id=str(run.workspace_id),
+        project_id=str(run.project_id),
         items=items,
     )
 

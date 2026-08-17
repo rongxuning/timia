@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
+import { PlanApplyDialog } from "@/components/plans/PlanApplyDialog";
 import { PlanComments } from "@/components/plans/PlanComments";
 import { PlanDetailActions } from "@/components/plans/PlanDetailActions";
 import { PlanSlotEditor } from "@/components/plans/PlanSlotEditor";
+import { PlanSubscribeDialog } from "@/components/plans/PlanSubscribeDialog";
+import { dispatchPlanBadgeRefresh } from "@/components/plans/planEvents";
 import {
   PLAN_PERIOD_LABEL,
   PLAN_USAGE_LABEL,
@@ -15,7 +18,7 @@ import {
   planLabel,
 } from "@/components/plans/planLabels";
 import { slotOutToDraft } from "@/components/plans/planSlots";
-import { fetchPlanDetail, type PlanDetailOut } from "@/lib/api/plans";
+import { cancelPlanSubscription, fetchPlanDetail, type PlanDetailOut } from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 
@@ -27,16 +30,22 @@ export default function PlanDetailPage() {
   const [plan, setPlan] = useState<PlanDetailOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
-  useEffect(() => {
+  const loadPlan = useCallback((silent = false) => {
     const token = getToken();
     if (!token) {
       router.push("/login");
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     fetchPlanDetail(token, planId)
       .then((data) => {
         if (!cancelled) setPlan(data);
@@ -52,8 +61,31 @@ export default function PlanDetailPage() {
     };
   }, [planId, router]);
 
+  useEffect(() => loadPlan(), [loadPlan]);
+
+  const token = getToken();
   const isOwner = !!me?.id && me.id === plan?.creator.id;
   const slots = (plan?.slots ?? []).map(slotOutToDraft);
+
+  async function onCancelSubscribe() {
+    const subscriptionId = plan?.my_subscription?.id;
+    if (!token || !subscriptionId || cancelLoading) return;
+    setActionError(null);
+    setCancelLoading(true);
+    try {
+      await cancelPlanSubscription(token, subscriptionId);
+      dispatchPlanBadgeRefresh();
+      loadPlan(true);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: string }).message)
+          : "取消订阅失败";
+      setActionError(planApiMessage(message));
+    } finally {
+      setCancelLoading(false);
+    }
+  }
 
   return (
     <PageMain className="!px-3" fullWidth>
@@ -65,6 +97,12 @@ export default function PlanDetailPage() {
         {error ? (
           <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
+          </div>
+        ) : null}
+
+        {actionError ? (
+          <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+            {actionError}
           </div>
         ) : null}
 
@@ -109,7 +147,19 @@ export default function PlanDetailPage() {
                     编辑
                   </Link>
                 ) : null}
-                <PlanDetailActions usageKind={plan.usage_kind} mySubscription={plan.my_subscription} />
+                <PlanDetailActions
+                  usageKind={plan.usage_kind}
+                  mySubscription={plan.my_subscription}
+                  onJoin={() => {
+                    setActionError(null);
+                    setApplyOpen(true);
+                  }}
+                  onSubscribe={() => {
+                    setActionError(null);
+                    setSubscribeOpen(true);
+                  }}
+                  onCancelSubscribe={onCancelSubscribe}
+                />
               </div>
             </div>
 
@@ -130,6 +180,29 @@ export default function PlanDetailPage() {
             <PlanSlotEditor periodKind={plan.period_kind} slots={slots} readOnly />
 
             <PlanComments templateId={plan.id} />
+
+            {token ? (
+              <>
+                <PlanApplyDialog
+                  open={applyOpen}
+                  token={token}
+                  templateId={plan.id}
+                  periodKind={plan.period_kind}
+                  slotCount={plan.slots?.length ?? 0}
+                  onClose={() => setApplyOpen(false)}
+                  onSuccess={() => loadPlan(true)}
+                />
+                <PlanSubscribeDialog
+                  open={subscribeOpen}
+                  token={token}
+                  templateId={plan.id}
+                  periodKind={plan.period_kind}
+                  slotCount={plan.slots?.length ?? 0}
+                  onClose={() => setSubscribeOpen(false)}
+                  onSuccess={() => loadPlan(true)}
+                />
+              </>
+            ) : null}
           </>
         ) : null}
       </div>

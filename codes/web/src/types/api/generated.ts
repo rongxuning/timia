@@ -2373,6 +2373,10 @@ export interface components {
             period_start: string;
             /** Applied At */
             applied_at: string | null;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Project Id */
+            project_id: string;
             /** Items */
             items?: components["schemas"]["PlanRunItemOut"][];
         };

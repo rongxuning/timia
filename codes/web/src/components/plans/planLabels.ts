@@ -31,6 +31,14 @@ export function planApiMessage(message: string): string {
       return "最多 8 个标签";
     case "not_found":
       return "规划不存在或无权访问";
+    case "already_applied":
+      return "该周期已导入";
+    case "already_subscribed":
+      return "已订阅该规划";
+    case "empty_template":
+      return "模板没有可导入的时段";
+    case "wrong_usage_kind":
+      return "规划类型不匹配";
     default:
       return message;
   }

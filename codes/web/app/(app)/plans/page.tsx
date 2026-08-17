@@ -35,6 +35,12 @@ function PlansPageInner() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (tab === "imported" || tab === "subscribed") {
+      setItems([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     const token = getToken();
     if (!token) {
       router.push("/login");

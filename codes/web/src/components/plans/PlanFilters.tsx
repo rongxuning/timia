@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import Link from "next/link";
 
 export const PLAN_TABS = ["discover", "created", "imported", "subscribed"] as const;
 export type PlanTab = (typeof PLAN_TABS)[number];
@@ -99,6 +100,32 @@ export function planListSearchParams(tab: PlanTab, filters: PlanFilterValues): U
 export function planListHref(tab: PlanTab, filters: PlanFilterValues): string {
   const qs = planListSearchParams(tab, filters).toString();
   return qs ? `/plans?${qs}` : "/plans";
+}
+
+export function PlanTabBar({ tab, filters }: { tab: PlanTab; filters: PlanFilterValues }) {
+  return (
+    <div role="tablist" aria-label="规划列表" className="flex flex-wrap gap-1">
+      {PLAN_TABS.map((id) => {
+        const selected = tab === id;
+        return (
+          <Link
+            key={id}
+            role="tab"
+            aria-selected={selected}
+            href={planListHref(id, filters)}
+            scroll={false}
+            className={
+              selected
+                ? "rounded-lg bg-indigo-50 px-3 py-1.5 text-small font-medium text-indigo-700"
+                : "rounded-lg px-3 py-1.5 text-small font-medium text-text-secondary transition-colors hover:bg-gray-100"
+            }
+          >
+            {PLAN_TAB_LABELS[id]}
+          </Link>
+        );
+      })}
+    </div>
+  );
 }
 
 export type PlanFiltersProps = {
