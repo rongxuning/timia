@@ -296,35 +296,37 @@ def subscribe_plan(
             PlanSubscription.project_id == project_id,
         )
     )
-    if subscription is None:
-        subscription = PlanSubscription(
-            template_id=template.id,
-            subscriber_user_id=user.id,
-            workspace_id=workspace_id,
-            project_id=project_id,
-            timezone=timezone,
-        )
-        db.add(subscription)
-        db.flush()
-
-    if _open_segment(db, subscription.id) is not None:
+    if subscription is not None and _open_segment(db, subscription.id) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_subscribed")
-
-    subscription.timezone = timezone
-    segment = PlanSubscriptionSegment(
-        subscription_id=subscription.id,
-        started_at=utcnow(),
-        ended_at=None,
-    )
-    db.add(segment)
-    db.flush()
 
     clock = now if now is not None else datetime.now(dt_timezone.utc)
     period_start = current_period_start(template.period_kind, clock, timezone)
-    existing = _applied_run_for_period(db, subscription.id, period_start)
+    existing = (
+        _applied_run_for_period(db, subscription.id, period_start)
+        if subscription is not None
+        else None
+    )
     imported = existing is None
     run = existing
     try:
+        if subscription is None:
+            subscription = PlanSubscription(
+                template_id=template.id,
+                subscriber_user_id=user.id,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                timezone=timezone,
+            )
+            db.add(subscription)
+            db.flush()
+        subscription.timezone = timezone
+        segment = PlanSubscriptionSegment(
+            subscription_id=subscription.id,
+            started_at=utcnow(),
+            ended_at=None,
+        )
+        db.add(segment)
+        db.flush()
         if imported:
             run = PlanApplyRun(
                 template_id=template.id,
@@ -350,11 +352,11 @@ def subscribe_plan(
     except IntegrityError as error:
         db.rollback()
         orig = str(getattr(error, "orig", error))
-        if "uq_plan_subscription_one_open_segment" in orig:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="already_subscribed"
-            ) from error
-        if "uq_plan_apply_sub_applied" in orig:
+        if (
+            "uq_plan_subscription_one_open_segment" in orig
+            or "uq_plan_subscription_template_user_project" in orig
+            or "uq_plan_apply_sub_applied" in orig
+        ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="already_subscribed"
             ) from error
