@@ -1649,6 +1649,68 @@ def test_plan_comment_patch_delete_author_only_and_hides_deleted():
         _cleanup_emails([owner_email, other_email])
 
 
+def test_comment_mutate_requires_template_visibility_after_public_to_private():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "visibility": "public"},
+            headers=_headers(owner_token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        other_comment = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "旁观者"},
+            headers=_headers(other_token),
+        )
+        assert other_comment.status_code == 201, other_comment.text
+        other_comment_id = other_comment.json()["id"]
+        owner_comment = client.post(
+            f"/plan-templates/{template_id}/comments",
+            json={"body": "作者"},
+            headers=_headers(owner_token),
+        )
+        assert owner_comment.status_code == 201, owner_comment.text
+        owner_comment_id = owner_comment.json()["id"]
+        privatized = client.patch(
+            f"/plan-templates/{template_id}",
+            json={"visibility": "private"},
+            headers=_headers(owner_token),
+        )
+        assert privatized.status_code == 200, privatized.text
+        assert privatized.json()["visibility"] == "private"
+        denied_patch = client.patch(
+            f"/plan-templates/{template_id}/comments/{other_comment_id}",
+            json={"body": "仍想改"},
+            headers=_headers(other_token),
+        )
+        assert denied_patch.status_code == 404
+        assert denied_patch.json()["detail"] == "not_found"
+        denied_delete = client.delete(
+            f"/plan-templates/{template_id}/comments/{other_comment_id}",
+            headers=_headers(other_token),
+        )
+        assert denied_delete.status_code == 404
+        assert denied_delete.json()["detail"] == "not_found"
+        owner_patch = client.patch(
+            f"/plan-templates/{template_id}/comments/{owner_comment_id}",
+            json={"body": "仍可改"},
+            headers=_headers(owner_token),
+        )
+        assert owner_patch.status_code == 200, owner_patch.text
+        assert owner_patch.json()["body"] == "仍可改"
+        owner_delete = client.delete(
+            f"/plan-templates/{template_id}/comments/{owner_comment_id}",
+            headers=_headers(owner_token),
+        )
+        assert owner_delete.status_code == 204, owner_delete.text
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
 def test_plan_comments_require_auth():
     client = TestClient(app)
     template_id = uuid.uuid4()

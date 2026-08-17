@@ -408,6 +408,7 @@ def update_plan_comment(
     comment_id: uuid.UUID,
     payload: PlanCommentUpdate,
 ) -> PlanComment:
+    _visible_template(db, template_id, user)
     comment = _require_comment_author(db, template_id, comment_id, user)
     body = (payload.body or "").strip()
     if not body:
@@ -421,6 +422,7 @@ def update_plan_comment(
 def delete_plan_comment(
     db: Session, user: User, template_id: uuid.UUID, comment_id: uuid.UUID
 ) -> None:
+    _visible_template(db, template_id, user)
     comment = _require_comment_author(db, template_id, comment_id, user)
     comment.deleted_at = utcnow()
     db.commit()
