@@ -40,6 +40,10 @@ final class TimiaUITests: XCTestCase {
 
         let directCreateButton = app.buttons["新建任务"]
         XCTAssertTrue(directCreateButton.waitForExistence(timeout: 2))
+        XCTAssertLessThan(directCreateButton.frame.maxX, input.frame.minX)
+        XCTAssertEqual(directCreateButton.frame.midY, input.frame.midY, accuracy: 6)
+        XCTAssertEqual(directCreateButton.frame.width, 38, accuracy: 2)
+        XCTAssertEqual(directCreateButton.frame.height, 38, accuracy: 2)
         directCreateButton.tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["优先级"].exists)
@@ -51,6 +55,8 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 3))
 
         app.buttons["日历模式"].tap()
+        XCTAssertTrue(app.buttons["新建任务"].waitForExistence(timeout: 2))
+        XCTAssertLessThan(app.buttons["新建任务"].frame.maxX, input.frame.minX)
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
         app.buttons["日"].tap()
         XCTAssertFalse(app.buttons["日"].exists)

@@ -447,17 +447,9 @@ struct ScheduleHomeView: View {
                 if contentMode == .stickyNote {
                     HStack(spacing: 8) {
                         Spacer(minLength: 0)
-                        Button {
+                        plusCircleButton(accessibilityLabel: "添加便利贴") {
                             isStickyNoteEditorPresented = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(width: 38, height: 38)
-                                .background(TimiaTheme.primary, in: Circle())
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("添加便利贴")
 
                         StickyNoteVoiceLauncher(
                             session: session,
@@ -466,26 +458,18 @@ struct ScheduleHomeView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 } else {
-                    HStack(spacing: 8) {
-                        Button {
-                            dismissNaturalLanguageInput()
-                            withAnimation(.snappy(duration: 0.2)) {
-                                isRangePickerExpanded = false
-                            }
-                            createSelection = ScheduleCreateSelection(
-                                date: selectedDate,
-                                hasExactTime: false
-                            )
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 28, height: 32)
-                                .contentShape(Rectangle())
+                    plusCircleButton(accessibilityLabel: "新建任务") {
+                        dismissNaturalLanguageInput()
+                        withAnimation(.snappy(duration: 0.2)) {
+                            isRangePickerExpanded = false
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("新建任务")
+                        createSelection = ScheduleCreateSelection(
+                            date: selectedDate,
+                            hasExactTime: false
+                        )
+                    }
 
+                    HStack(spacing: 8) {
                         TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
                             .lineLimit(1...3)
                             .frame(height: 32)
@@ -557,6 +541,21 @@ struct ScheduleHomeView: View {
 
     private var canParse: Bool {
         !naturalLanguageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isParsing
+    }
+
+    private func plusCircleButton(
+        accessibilityLabel: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 38, height: 38)
+                .background(TimiaTheme.primary, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func modeButton(_ value: ContentMode, symbol: String) -> some View {
@@ -2107,6 +2106,21 @@ private struct CurrentTimeLine: View {
     }
 }
 
+private enum MonthDayMetrics {
+    static let visibleTaskCount = 5
+    static let dateSize: CGFloat = 28
+    static let taskHeight: CGFloat = 15
+    static let spacing: CGFloat = 3
+    static let tapBuffer: CGFloat = 12
+
+    static var rowHeight: CGFloat {
+        dateSize
+            + spacing
+            + CGFloat(visibleTaskCount) * taskHeight
+            + CGFloat(max(visibleTaskCount - 1, 0)) * spacing
+    }
+}
+
 private struct MonthScheduleView: View {
     let selectedDate: Date
     let weeksByMonth: [String: [CalendarWeek]]
@@ -2208,7 +2222,7 @@ private struct MonthScheduleView: View {
             LazyVGrid(columns: columns, spacing: 2) {
                 ForEach(0..<leadingBlanks, id: \.self) { index in
                     Color.clear
-                        .frame(height: 82)
+                        .frame(height: MonthDayMetrics.rowHeight)
                         .accessibilityHidden(true)
                         .id("\(key)-leading-\(index)")
                 }
@@ -2221,7 +2235,7 @@ private struct MonthScheduleView: View {
                                     onCreateDate: onCreateDate,
                                     onTaskTap: onTaskTap
                                 )
-                    .frame(height: 82)
+                    .frame(height: MonthDayMetrics.rowHeight)
                 }
             }
         }
@@ -2292,7 +2306,7 @@ private struct MonthDayCell: View {
     let onTaskTap: (ScheduleTask) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: MonthDayMetrics.spacing) {
             Button {
                 if let date = ScheduleFormat.date(day.key) { onSelectDate(date) }
             } label: {
@@ -2303,13 +2317,13 @@ private struct MonthDayCell: View {
                             ? Color.white
                             : day.inMonth ? Color.primary : Color.secondary.opacity(0.45)
                     )
-                    .frame(width: 28, height: 28)
+                    .frame(width: MonthDayMetrics.dateSize, height: MonthDayMetrics.dateSize)
                     .background(isToday ? Color.primary.opacity(0.8) : .clear, in: Circle())
             }
             .accessibilityIdentifier("calendar-month-date-\(day.key)")
             .accessibilityValue(isToday ? "今天" : day.key)
 
-            ForEach(tasks.prefix(3)) { task in
+            ForEach(tasks.prefix(MonthDayMetrics.visibleTaskCount)) { task in
                 let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
                 let isCompleted = isCalendarTaskCompleted(task.status)
                 Button { onTaskTap(task) } label: {
@@ -2320,7 +2334,7 @@ private struct MonthDayCell: View {
                         .opacity(isCompleted ? 0.7 : 1)
                         .foregroundStyle(style.foreground)
                         .padding(.horizontal, 3)
-                        .frame(maxWidth: .infinity, minHeight: 15, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: MonthDayMetrics.taskHeight, alignment: .leading)
                         .background {
                             CalendarCompletedCardFill(
                                 color: style.background,
@@ -2332,8 +2346,8 @@ private struct MonthDayCell: View {
                 .buttonStyle(.plain)
             }
 
-            if tasks.count > 3 {
-                Text("+\(tasks.count - 3)")
+            if tasks.count > MonthDayMetrics.visibleTaskCount {
+                Text("+\(tasks.count - MonthDayMetrics.visibleTaskCount)")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .padding(.leading, 3)
@@ -2376,9 +2390,16 @@ private struct MonthDayCell: View {
 
     private var monthBlankTapHeight: CGFloat {
         switch tasks.count {
-        case 0: 42
-        case 1: 24
-        default: 10
+        case 0:
+            MonthDayMetrics.rowHeight - MonthDayMetrics.dateSize - MonthDayMetrics.tapBuffer
+        case 1:
+            MonthDayMetrics.rowHeight
+                - MonthDayMetrics.dateSize
+                - MonthDayMetrics.spacing
+                - MonthDayMetrics.taskHeight
+                - MonthDayMetrics.tapBuffer
+        default:
+            10
         }
     }
 }
