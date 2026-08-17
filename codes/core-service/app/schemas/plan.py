@@ -1,0 +1,64 @@
+from pydantic import BaseModel, Field
+
+
+class PlanTemplateCreate(BaseModel):
+    title: str
+    description: str | None = None
+    creator_intro: str | None = None
+    usage_kind: str
+    period_kind: str
+    visibility: str
+    tags: list[str] = Field(default_factory=list)
+
+
+class PlanTemplateUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    creator_intro: str | None = None
+    visibility: str | None = None
+    tags: list[str] | None = None
+
+
+class PlanSlotPut(BaseModel):
+    rel_month: int | None = None
+    rel_day: int
+    start_minute: int
+    end_minute: int
+    all_day: bool = False
+    title: str
+    body: str | None = None
+    details: str | None = None
+    color: str = Field(default="#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
+    priority: str = "1"
+    location: str | None = None
+    sort_index: int = 0
+
+
+class PlanSlotOut(BaseModel):
+    id: str
+    rel_month: int | None
+    rel_day: int
+    start_minute: int
+    end_minute: int
+    all_day: bool
+    title: str
+    body: str | None
+    details: str | None
+    color: str
+    priority: str
+    location: str | None
+    sort_index: int
+
+
+class PlanTemplateOut(BaseModel):
+    id: str
+    title: str
+    description: str | None
+    creator_intro: str | None
+    usage_kind: str
+    period_kind: str
+    visibility: str
+    tags: list[str]
+    use_count: int
+    version: int
+    created_by_user_id: str
