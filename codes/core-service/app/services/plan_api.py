@@ -297,3 +297,12 @@ def delete_plan_template(db: Session, user: User, template_id: uuid.UUID) -> Non
     db.flush()
     db.delete(template)
     db.commit()
+
+
+def mark_notification_read(db: Session, user: User, notification_id: uuid.UUID) -> None:
+    note = db.get(PlanNotification, notification_id)
+    if note is None or note.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    if note.read_at is None:
+        note.read_at = utcnow()
+    db.commit()

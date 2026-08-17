@@ -1317,3 +1317,81 @@ def test_subscribe_requires_auth():
         },
     )
     assert r.status_code == 401
+
+
+def test_discover_hides_private():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(owner_token))
+        assert created.status_code == 201, created.text
+        private_one_shot_id = created.json()["id"]
+        r = client.get(
+            "/views/plans",
+            params={"tab": "discover"},
+            headers=_headers(other_token),
+        )
+        assert r.status_code == 200
+        ids = [row["id"] for row in r.json()["items"]]
+        assert private_one_shot_id not in ids
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_imported_lists_apply_count_and_items():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
+        assert created.status_code == 201, created.text
+        week_one_shot_id = created.json()["id"]
+        slots = client.put(
+            f"/plan-templates/{week_one_shot_id}/slots",
+            json=[_slot(0, rel_day=1, start_minute=9 * 60, end_minute=10 * 60, title="周一晨练")],
+            headers=_headers(token),
+        )
+        assert slots.status_code == 200, slots.text
+        workspace_id, project_id = _workspace_and_project(client, token)
+        applied = client.post(
+            f"/plan-templates/{week_one_shot_id}/apply",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "period_start": "2026-08-16",
+            },
+            headers=_headers(token),
+        )
+        assert applied.status_code == 201, applied.text
+        r = client.get("/views/plans/imported", headers=_headers(token))
+        assert r.status_code == 200
+        row = next(x for x in r.json()["items"] if x["id"] == week_one_shot_id)
+        assert row["my_import_count"] == 1
+        assert row["runs"][0]["period_start"] == "2026-08-16"
+        assert len(row["runs"][0]["items"]) >= 1
+    finally:
+        _cleanup_emails([email])
+
+
+def test_subscribed_shows_open_segment():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        sub_template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        subscribed = client.post(
+            f"/plan-templates/{sub_template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert subscribed.status_code == 201, subscribed.text
+        r = client.get("/views/plans/subscribed", headers=_headers(token))
+        assert r.status_code == 200
+        row = r.json()["items"][0]
+        assert row["segments"][0]["ended_at"] is None
+    finally:
+        _cleanup_emails([email])

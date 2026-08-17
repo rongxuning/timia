@@ -23,6 +23,7 @@ from app.services.plan_api import (
     build_template_out,
     create_plan_template,
     delete_plan_template,
+    mark_notification_read,
     replace_slots,
     update_plan_template,
 )
@@ -38,6 +39,7 @@ from app.services.plan_apply import (
 router = APIRouter(prefix="/plan-templates", tags=["plan-templates"])
 subscription_router = APIRouter(prefix="/plan-subscriptions", tags=["plan-subscriptions"])
 apply_run_router = APIRouter(prefix="/plan-apply-runs", tags=["plan-apply-runs"])
+notification_router = APIRouter(prefix="/plan-notifications", tags=["plan-notifications"])
 
 
 @router.post("", response_model=PlanTemplateOut, status_code=status.HTTP_201_CREATED)
@@ -152,3 +154,12 @@ def skip_plan_apply_run(
 ):
     run = skip_apply_run(db, user, run_id)
     return build_apply_run_out(db, run)
+
+
+@notification_router.post("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+def read_plan_notification(
+    notification_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    mark_notification_read(db, user, notification_id)
