@@ -140,3 +140,62 @@ export function slotsForCell(
     return slot.rel_month == null;
   });
 }
+
+export function putToDraft(slot: PlanSlotPut): PlanSlotDraft {
+  return {
+    key: newSlotKey(),
+    rel_month: slot.rel_month ?? null,
+    rel_day: slot.rel_day,
+    start_minute: slot.start_minute,
+    end_minute: slot.end_minute,
+    all_day: slot.all_day,
+    title: slot.title,
+    body: slot.body ?? null,
+    details: slot.details ?? null,
+    color: slot.color || "#FFFFFF",
+    priority: slot.priority || "1",
+    location: slot.location ?? null,
+    sort_index: slot.sort_index ?? 0,
+  };
+}
+
+export type PlanSlotDraftStorage = {
+  slots: PlanSlotPut[];
+  error: string;
+};
+
+export function planSlotDraftStorageKey(templateId: string): string {
+  return `timia-plan-slot-draft:${templateId}`;
+}
+
+export function savePlanSlotDraft(templateId: string, draft: PlanSlotDraftStorage): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(planSlotDraftStorageKey(templateId), JSON.stringify(draft));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+/** Load and remove a create-time slot draft for this template, if any. */
+export function takePlanSlotDraft(templateId: string): PlanSlotDraftStorage | null {
+  if (typeof sessionStorage === "undefined") return null;
+  const key = planSlotDraftStorageKey(templateId);
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    sessionStorage.removeItem(key);
+    const parsed = JSON.parse(raw) as PlanSlotDraftStorage;
+    if (!parsed || !Array.isArray(parsed.slots) || typeof parsed.error !== "string") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+}

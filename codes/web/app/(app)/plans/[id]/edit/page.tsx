@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
 import { PlanEditorForm, type PlanEditorSubmitData } from "@/components/plans/PlanEditorForm";
 import { planApiMessage } from "@/components/plans/planLabels";
-import { fetchPlanDetail, putPlanSlots, updatePlanTemplate, type PlanDetailOut } from "@/lib/api/plans";
+import { takePlanSlotDraft, type PlanSlotDraftStorage } from "@/components/plans/planSlots";
+import {
+  fetchPlanDetail,
+  putPlanSlots,
+  updatePlanTemplate,
+  type PlanDetailOut,
+  type PlanSlotPut,
+} from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 
@@ -16,9 +23,12 @@ export default function EditPlanPage() {
   const planId = params.id;
   const me = useCurrentMe();
   const [plan, setPlan] = useState<PlanDetailOut | null>(null);
+  const [draftSlotPuts, setDraftSlotPuts] = useState<PlanSlotPut[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const draftTakenForId = useRef<string | null>(null);
+  const draftRef = useRef<PlanSlotDraftStorage | null>(null);
 
   useEffect(() => {
     const token = getToken();
@@ -26,12 +36,24 @@ export default function EditPlanPage() {
       router.push("/login");
       return;
     }
+    if (draftTakenForId.current !== planId) {
+      draftTakenForId.current = planId;
+      draftRef.current = takePlanSlotDraft(planId);
+    }
+    const draft = draftRef.current;
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setDraftSlotPuts(null);
+    setPlan(null);
     fetchPlanDetail(token, planId)
       .then((data) => {
-        if (!cancelled) setPlan(data);
+        if (cancelled) return;
+        if (draft) {
+          setDraftSlotPuts(draft.slots);
+          setError(draft.error);
+        }
+        setPlan(data);
       })
       .catch((err: { message?: string }) => {
         if (!cancelled) setError(planApiMessage(err?.message ?? "加载失败"));
@@ -105,6 +127,7 @@ export default function EditPlanPage() {
             cancelHref={`/plans/${planId}`}
             submitting={submitting}
             error={error}
+            initialSlotPuts={draftSlotPuts}
             initial={{
               usage_kind: plan.usage_kind,
               period_kind: plan.period_kind,

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
 import { PlanEditorForm, type PlanEditorSubmitData } from "@/components/plans/PlanEditorForm";
 import { planApiMessage } from "@/components/plans/planLabels";
+import { savePlanSlotDraft } from "@/components/plans/planSlots";
 import { createPlanTemplate, putPlanSlots } from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
 
@@ -42,7 +43,8 @@ export default function NewPlanPage() {
           err && typeof err === "object" && "message" in err
             ? planApiMessage(String((err as { message: string }).message))
             : "时段保存失败";
-        setError(`${message}。模板已创建，请在编辑页重试。`);
+        const errorText = `${message}。模板已创建，请在编辑页重试。`;
+        savePlanSlotDraft(created.id, { slots: data.slots, error: errorText });
         router.push(`/plans/${created.id}/edit`);
         return;
       }

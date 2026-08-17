@@ -11,6 +11,7 @@ import {
   isPlanUsageKind,
   PLAN_MAX_TAG_LEN,
   PLAN_MAX_TAGS,
+  putToDraft,
   slotOutToDraft,
   type PlanPeriodKind,
   type PlanSlotDraft,
@@ -42,6 +43,8 @@ export type PlanEditorFormProps = {
   cancelHref: string;
   submitting?: boolean;
   error?: string | null;
+  /** When set (including empty), seeds slots instead of `initial.slots` (e.g. create-time draft). */
+  initialSlotPuts?: PlanSlotPut[] | null;
   initial?: {
     usage_kind: string;
     period_kind: string;
@@ -60,6 +63,7 @@ export function PlanEditorForm({
   cancelHref,
   submitting = false,
   error,
+  initialSlotPuts = null,
   initial,
   onSubmit,
 }: PlanEditorFormProps) {
@@ -79,7 +83,11 @@ export function PlanEditorForm({
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagDraft, setTagDraft] = useState("");
   const [tagError, setTagError] = useState<string | null>(null);
-  const [slots, setSlots] = useState<PlanSlotDraft[]>(() => (initial?.slots ?? []).map(slotOutToDraft));
+  const [slots, setSlots] = useState<PlanSlotDraft[]>(() =>
+    initialSlotPuts != null
+      ? initialSlotPuts.map(putToDraft)
+      : (initial?.slots ?? []).map(slotOutToDraft),
+  );
   const [localError, setLocalError] = useState<string | null>(null);
 
   const kindsReady = isPlanUsageKind(usageKind) && isPlanPeriodKind(periodKind);
