@@ -135,10 +135,10 @@ def _imported_run_out(
     )
 
 
-def _one_shot_applied_stmt(user_id: uuid.UUID):
+def _applied_stmt(user_id: uuid.UUID):
+    """Templates the actor has at least one applied run for (one_shot or subscription)."""
     return select(PlanApplyRun.template_id).where(
         PlanApplyRun.actor_user_id == user_id,
-        PlanApplyRun.source == "one_shot",
         PlanApplyRun.status == "applied",
     )
 
@@ -182,7 +182,7 @@ def list_plan_cards(
         if visibility:
             stmt = stmt.where(PlanTemplate.visibility == visibility)
     elif tab == "imported":
-        stmt = stmt.where(PlanTemplate.id.in_(_one_shot_applied_stmt(user.id).distinct()))
+        stmt = stmt.where(PlanTemplate.id.in_(_applied_stmt(user.id).distinct()))
     elif tab == "subscribed":
         stmt = stmt.where(
             PlanTemplate.id.in_(_active_subscription_template_stmt(user.id).distinct())
@@ -244,7 +244,6 @@ def get_plan_detail(db: Session, user: User, plan_id: uuid.UUID) -> PlanDetailOu
             select(func.count()).select_from(PlanApplyRun).where(
                 PlanApplyRun.template_id == template.id,
                 PlanApplyRun.actor_user_id == user.id,
-                PlanApplyRun.source == "one_shot",
                 PlanApplyRun.status == "applied",
             )
         )
@@ -309,7 +308,6 @@ def list_imported_plans(
             select(PlanApplyRun)
             .where(
                 PlanApplyRun.actor_user_id == user.id,
-                PlanApplyRun.source == "one_shot",
                 PlanApplyRun.status == "applied",
             )
             .order_by(PlanApplyRun.applied_at.desc(), PlanApplyRun.created_at.desc())

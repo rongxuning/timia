@@ -1395,3 +1395,36 @@ def test_subscribed_shows_open_segment():
         assert row["segments"][0]["ended_at"] is None
     finally:
         _cleanup_emails([email])
+
+
+def test_imported_includes_subscription_applies():
+    """Cancelled subscription still appears in 已导入 via applied runs."""
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        sub_template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        subscribed = client.post(
+            f"/plan-templates/{sub_template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert subscribed.status_code == 201, subscribed.text
+        subscription_id = subscribed.json()["id"]
+        canceled = client.post(
+            f"/plan-subscriptions/{subscription_id}/cancel",
+            headers=_headers(token),
+        )
+        assert canceled.status_code == 204, canceled.text
+        r = client.get("/views/plans/imported", headers=_headers(token))
+        assert r.status_code == 200
+        row = next(x for x in r.json()["items"] if x["id"] == sub_template_id)
+        assert row["my_import_count"] >= 1
+        assert len(row["runs"]) >= 1
+        assert len(row["runs"][0]["items"]) >= 1
+    finally:
+        _cleanup_emails([email])
