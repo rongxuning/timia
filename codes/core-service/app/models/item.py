@@ -41,5 +41,21 @@ class Item(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
+    source_plan_template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plan_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_plan_slot_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plan_slots.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_plan_apply_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plan_apply_runs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     project = relationship("Project", back_populates="items")
     comments = relationship("Comment", back_populates="item", cascade="all,delete-orphan")

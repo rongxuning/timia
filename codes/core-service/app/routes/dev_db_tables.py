@@ -22,6 +22,15 @@ from app.models import (
     Item,
     MobileDevice,
     MobileSession,
+    PlanApplyRun,
+    PlanComment,
+    PlanNotification,
+    PlanSlot,
+    PlanSubscription,
+    PlanSubscriptionSegment,
+    PlanTag,
+    PlanTemplate,
+    PlanTemplateTag,
     Project,
     ProjectFavorite,
     ProjectMember,
@@ -100,6 +109,16 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("sticky_notes", StickyNote),
     ("sticky_note_attachments", StickyNoteAttachment),
     ("sticky_note_ai_parses", StickyNoteAIParse),
+    # 规划
+    ("plan_templates", PlanTemplate),
+    ("plan_slots", PlanSlot),
+    ("plan_tags", PlanTag),
+    ("plan_template_tags", PlanTemplateTag),
+    ("plan_subscriptions", PlanSubscription),
+    ("plan_subscription_segments", PlanSubscriptionSegment),
+    ("plan_apply_runs", PlanApplyRun),
+    ("plan_comments", PlanComment),
+    ("plan_notifications", PlanNotification),
 ]
 
 _ROW_LIMIT = 200

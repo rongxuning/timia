@@ -2,6 +2,17 @@ from app.models.activity import ActivityLog
 from app.models.comment import Comment
 from app.models.item import Item
 from app.models.mobile_auth import AuthChallenge, AuthIdentity, MobileDevice, MobileSession
+from app.models.plan import (
+    PlanApplyRun,
+    PlanComment,
+    PlanNotification,
+    PlanSlot,
+    PlanSubscription,
+    PlanSubscriptionSegment,
+    PlanTag,
+    PlanTemplate,
+    PlanTemplateTag,
+)
 from app.models.project import Project, ProjectFavorite, ProjectMember
 from app.models.sticky_note import (
     StickyNote,
@@ -20,6 +31,15 @@ __all__ = [
     "AuthIdentity",
     "MobileDevice",
     "MobileSession",
+    "PlanApplyRun",
+    "PlanComment",
+    "PlanNotification",
+    "PlanSlot",
+    "PlanSubscription",
+    "PlanSubscriptionSegment",
+    "PlanTag",
+    "PlanTemplate",
+    "PlanTemplateTag",
     "Project",
     "ProjectFavorite",
     "ProjectMember",
