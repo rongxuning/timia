@@ -32,6 +32,7 @@ from app.models.project import Project, ProjectFavorite, ProjectMember
 from app.models.user import User
 from app.models.web_auth import WebSession
 from app.models.workspace import Workspace, WorkspaceMember
+from app.services.plan_api import close_template_subscriptions
 
 PASSWORD = "password123!"
 
@@ -493,11 +494,89 @@ def test_delete_ends_open_segments_and_cancels_pending_runs():
 
         db = next(get_db())
         try:
-            # Template delete cascades subscriptions/runs; the write path must still
-            # have ended the segment and canceled the pending run before delete.
             assert db.get(PlanTemplate, uuid.UUID(template_id)) is None
             assert db.get(PlanSubscriptionSegment, segment_id) is None
             assert db.get(PlanApplyRun, run_id) is None
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([owner_email, sub_email])
+
+
+def test_close_template_subscriptions_ends_segment_and_cancels_pending_run():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    sub_email, sub_token = _register_and_login(client)
+    try:
+        created = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+            headers=_headers(owner_token),
+        )
+        assert created.status_code == 201, created.text
+        template_id = uuid.UUID(created.json()["id"])
+
+        ws = client.post("/workspaces", json={"name": "plan-close-ws"}, headers=_headers(sub_token))
+        assert ws.status_code == 201, ws.text
+        workspace_id = uuid.UUID(ws.json()["id"])
+        pj = client.post(
+            f"/workspaces/{workspace_id}/projects",
+            json={"name": "plan-close-pj"},
+            headers=_headers(sub_token),
+        )
+        assert pj.status_code == 201, pj.text
+        project_id = uuid.UUID(pj.json()["id"])
+
+        db = next(get_db())
+        try:
+            subscriber = db.scalar(select(User).where(User.email == sub_email))
+            assert subscriber is not None
+            template = db.get(PlanTemplate, template_id)
+            assert template is not None
+            subscription = PlanSubscription(
+                template_id=template_id,
+                subscriber_user_id=subscriber.id,
+                workspace_id=workspace_id,
+                project_id=project_id,
+            )
+            db.add(subscription)
+            db.flush()
+            segment = PlanSubscriptionSegment(
+                subscription_id=subscription.id,
+                started_at=utcnow(),
+                ended_at=None,
+            )
+            db.add(segment)
+            db.flush()
+            run = PlanApplyRun(
+                template_id=template_id,
+                template_version=1,
+                actor_user_id=subscriber.id,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                source="subscription",
+                subscription_id=subscription.id,
+                segment_id=segment.id,
+                period_start=date(2026, 8, 16),
+                period_kind="week",
+                status="pending",
+            )
+            db.add(run)
+            db.flush()
+            segment_id = segment.id
+            run_id = run.id
+
+            close_template_subscriptions(db, template)
+            db.flush()
+            db.expire_all()
+
+            segment = db.get(PlanSubscriptionSegment, segment_id)
+            run = db.get(PlanApplyRun, run_id)
+            assert segment is not None
+            assert segment.ended_at is not None
+            assert run is not None
+            assert run.status == "canceled"
+            assert db.get(PlanTemplate, template_id) is not None
         finally:
             db.close()
     finally:

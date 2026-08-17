@@ -266,8 +266,7 @@ def replace_slots(
     return rows
 
 
-def delete_plan_template(db: Session, user: User, template_id: uuid.UUID) -> None:
-    template = require_plan_owner(db, template_id, user)
+def close_template_subscriptions(db: Session, template: PlanTemplate) -> None:
     now = utcnow()
     open_segments = db.scalars(
         select(PlanSubscriptionSegment)
@@ -290,6 +289,11 @@ def delete_plan_template(db: Session, user: User, template_id: uuid.UUID) -> Non
     ).all()
     for run in pending_runs:
         run.status = "canceled"
+
+
+def delete_plan_template(db: Session, user: User, template_id: uuid.UUID) -> None:
+    template = require_plan_owner(db, template_id, user)
+    close_template_subscriptions(db, template)
     db.flush()
     db.delete(template)
     db.commit()
