@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { logoutAndClear } from "@/lib/auth";
+import { fetchPlanNotifications } from "@/lib/api/plans";
+import { getToken, logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
 import { NavItem } from "./NavItem";
@@ -19,6 +21,25 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
   const isAdmin = isSystemAdmin(me?.system_role);
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
   const displayName = me?.display_name?.trim() || "用户";
+  const [planBadge, setPlanBadge] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token || !me) return;
+    let cancelled = false;
+    fetchPlanNotifications(token)
+      .then((data) => {
+        if (cancelled) return;
+        const count = (data.unread_count ?? 0) + (data.pending_runs?.length ?? 0);
+        setPlanBadge(count > 0 ? count : undefined);
+      })
+      .catch(() => {
+        if (!cancelled) setPlanBadge(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [me]);
 
   return (
     <aside className="hidden h-full w-16 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
@@ -40,6 +61,13 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
             icon="event_note"
             label="我的日程"
             active={pathname.startsWith("/my/schedule")}
+          />
+          <NavItem
+            href="/plans"
+            icon="calendar_month"
+            label="规划"
+            active={pathname.startsWith("/plans")}
+            badge={planBadge}
           />
           <NavItem
             href="/workspaces"

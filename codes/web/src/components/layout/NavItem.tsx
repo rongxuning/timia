@@ -8,9 +8,14 @@ export type NavItemProps = {
   label: string;
   active: boolean;
   hidden?: boolean;
+  badge?: number;
 };
 
-export function NavItem({ href, icon, label, active, hidden }: NavItemProps) {
+export function NavItem({ href, icon, label, active, hidden, badge }: NavItemProps) {
+  const showBadge = typeof badge === "number" && badge > 0;
+  const badgeText = showBadge && badge > 99 ? "99+" : String(badge ?? "");
+  const ariaLabel = showBadge ? `${label}，${badge} 条提醒` : label;
+
   return (
     <Link
       className={
@@ -19,13 +24,23 @@ export function NavItem({ href, icon, label, active, hidden }: NavItemProps) {
           : `group relative flex items-center justify-center rounded-md px-2 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100${hidden ? " hidden" : ""}`
       }
       href={href}
-      aria-label={label}
+      aria-label={ariaLabel}
     >
-      <span
-        className="material-symbols-outlined flex h-6 w-6 shrink-0 items-center justify-center text-indigo-600"
-        style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
-      >
-        {icon}
+      <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+        <span
+          className="material-symbols-outlined flex h-6 w-6 items-center justify-center text-indigo-600"
+          style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
+        >
+          {icon}
+        </span>
+        {showBadge ? (
+          <span
+            className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold leading-none tabular-nums text-white"
+            aria-hidden
+          >
+            {badgeText}
+          </span>
+        ) : null}
       </span>
       <span
         role="tooltip"
