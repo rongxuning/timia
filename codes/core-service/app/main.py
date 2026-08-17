@@ -6,7 +6,9 @@ from app.routes.comments import router as comments_router
 from app.routes.items import router as items_router
 from app.routes.members import router as members_router
 from app.routes.mobile_auth import router as mobile_auth_router
+from app.routes.plans import apply_run_router as plan_apply_runs_router
 from app.routes.plans import router as plans_router
+from app.routes.plans import subscription_router as plan_subscriptions_router
 from app.routes.projects import router as projects_router
 from app.routes.sticky_notes import router as sticky_notes_router
 from app.routes.users import router as users_router
@@ -41,6 +43,8 @@ app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(items_router)
 app.include_router(plans_router)
+app.include_router(plan_subscriptions_router)
+app.include_router(plan_apply_runs_router)
 app.include_router(comments_router)
 app.include_router(sticky_notes_router)
 app.include_router(dev_db_tables_router)

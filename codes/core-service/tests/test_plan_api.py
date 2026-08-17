@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
@@ -33,6 +34,7 @@ from app.models.user import User
 from app.models.web_auth import WebSession
 from app.models.workspace import Workspace, WorkspaceMember
 from app.services.plan_api import close_template_subscriptions
+from app.services.plan_time import current_period_start
 
 PASSWORD = "password123!"
 
@@ -157,6 +159,75 @@ def _slot(i: int = 0, **overrides) -> dict:
     }
     data.update(overrides)
     return data
+
+
+def _subscription_template_with_slot(client: TestClient, token: str) -> str:
+    created = client.post(
+        "/plan-templates",
+        json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+        headers=_headers(token),
+    )
+    assert created.status_code == 201, created.text
+    template_id = created.json()["id"]
+    slots = client.put(
+        f"/plan-templates/{template_id}/slots",
+        json=[_slot(0, rel_day=1, start_minute=9 * 60, end_minute=10 * 60, title="周一晨练")],
+        headers=_headers(token),
+    )
+    assert slots.status_code == 200, slots.text
+    return template_id
+
+
+def _insert_pending_run(
+    *,
+    email: str,
+    template_id: str,
+    workspace_id: str,
+    project_id: str,
+    period_start: date,
+    template_version: int | None = None,
+) -> tuple[str, str]:
+    db = next(get_db())
+    try:
+        subscriber = db.scalar(select(User).where(User.email == email))
+        assert subscriber is not None
+        template = db.get(PlanTemplate, uuid.UUID(template_id))
+        assert template is not None
+        version = template.version if template_version is None else template_version
+        subscription = PlanSubscription(
+            template_id=uuid.UUID(template_id),
+            subscriber_user_id=subscriber.id,
+            workspace_id=uuid.UUID(workspace_id),
+            project_id=uuid.UUID(project_id),
+            timezone="Asia/Shanghai",
+        )
+        db.add(subscription)
+        db.flush()
+        segment = PlanSubscriptionSegment(
+            subscription_id=subscription.id,
+            started_at=utcnow(),
+            ended_at=None,
+        )
+        db.add(segment)
+        db.flush()
+        run = PlanApplyRun(
+            template_id=uuid.UUID(template_id),
+            template_version=version,
+            actor_user_id=subscriber.id,
+            workspace_id=uuid.UUID(workspace_id),
+            project_id=uuid.UUID(project_id),
+            source="subscription",
+            subscription_id=subscription.id,
+            segment_id=segment.id,
+            period_start=period_start,
+            period_kind="week",
+            status="pending",
+        )
+        db.add(run)
+        db.commit()
+        return str(run.id), str(subscription.id)
+    finally:
+        db.close()
 
 
 def test_create_plan_template_returns_201():
@@ -874,6 +945,375 @@ def test_apply_requires_auth():
             "workspace_id": str(uuid.uuid4()),
             "project_id": str(uuid.uuid4()),
             "period_start": "2026-08-16",
+        },
+    )
+    assert r.status_code == 401
+
+
+def test_subscribe_imports_current_week():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        now = datetime.now(ZoneInfo("Asia/Shanghai"))
+        expected_start = current_period_start("week", now, "Asia/Shanghai").isoformat()
+        r = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 201, r.text
+        body = r.json()
+        assert body["imported_current_period"] is True
+        assert body["apply_run"]["period_start"] == expected_start
+        assert body["apply_run"]["status"] == "applied"
+        assert body["apply_run"]["item_count"] >= 1
+        db = next(get_db())
+        try:
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert template is not None
+            assert template.use_count == 1
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert len(items) >= 1
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_resubscribe_same_week_does_not_duplicate_items():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        first = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert first.status_code == 201, first.text
+        subscription_id = first.json()["id"]
+        db = next(get_db())
+        try:
+            item_count = len(
+                list(db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all())
+            )
+        finally:
+            db.close()
+        canceled = client.post(
+            f"/plan-subscriptions/{subscription_id}/cancel",
+            headers=_headers(token),
+        )
+        assert canceled.status_code == 204, canceled.text
+        r = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["imported_current_period"] is False
+        assert r.json()["id"] == subscription_id
+        db = next(get_db())
+        try:
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert len(items) == item_count
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert template is not None
+            assert template.use_count == 1
+            segments = list(
+                db.scalars(
+                    select(PlanSubscriptionSegment).where(
+                        PlanSubscriptionSegment.subscription_id == uuid.UUID(subscription_id)
+                    )
+                ).all()
+            )
+            assert len(segments) == 2
+            open_segments = [s for s in segments if s.ended_at is None]
+            assert len(open_segments) == 1
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_subscribe_one_shot_template_rejected():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
+        assert created.status_code == 201, created.text
+        template_id = created.json()["id"]
+        workspace_id, project_id = _workspace_and_project(client, token)
+        r = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert r.status_code == 400
+        assert r.json()["detail"] == "wrong_usage_kind"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_subscribe_already_subscribed():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        payload = {
+            "workspace_id": workspace_id,
+            "project_id": project_id,
+            "timezone": "Asia/Shanghai",
+        }
+        first = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json=payload,
+            headers=_headers(token),
+        )
+        assert first.status_code == 201, first.text
+        r = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json=payload,
+            headers=_headers(token),
+        )
+        assert r.status_code == 409
+        assert r.json()["detail"] == "already_subscribed"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_cancel_cancels_pending_runs():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=date(2026, 8, 23),
+        )
+        r = client.post(
+            f"/plan-subscriptions/{subscription_id}/cancel",
+            headers=_headers(token),
+        )
+        assert r.status_code == 204, r.text
+        db = next(get_db())
+        try:
+            run = db.get(PlanApplyRun, uuid.UUID(run_id))
+            assert run is not None
+            assert run.status == "canceled"
+            segments = list(
+                db.scalars(
+                    select(PlanSubscriptionSegment).where(
+                        PlanSubscriptionSegment.subscription_id == uuid.UUID(subscription_id)
+                    )
+                ).all()
+            )
+            assert segments
+            assert all(s.ended_at is not None for s in segments)
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_cancel_not_subscriber_returns_not_found():
+    client = TestClient(app)
+    owner_email, owner_token = _register_and_login(client)
+    other_email, other_token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, owner_token)
+        workspace_id, project_id = _workspace_and_project(client, owner_token)
+        _run_id, subscription_id = _insert_pending_run(
+            email=owner_email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=date(2026, 8, 23),
+        )
+        r = client.post(
+            f"/plan-subscriptions/{subscription_id}/cancel",
+            headers=_headers(other_token),
+        )
+        assert r.status_code == 404
+        assert r.json()["detail"] == "not_found"
+    finally:
+        _cleanup_emails([owner_email, other_email])
+
+
+def test_confirm_pending_creates_items():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        run_id, _subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=date(2026, 8, 23),
+        )
+        r = client.post(f"/plan-apply-runs/{run_id}/confirm", headers=_headers(token))
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "applied"
+        assert body["item_count"] >= 1
+        assert body["template_updated"] is False
+        db = next(get_db())
+        try:
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert len(items) >= 1
+            run = db.get(PlanApplyRun, uuid.UUID(run_id))
+            assert run is not None
+            assert run.status == "applied"
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert template is not None
+            assert template.use_count == 1
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_skip_pending_does_not_create_items():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        run_id, _subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=date(2026, 8, 23),
+        )
+        r = client.post(f"/plan-apply-runs/{run_id}/skip", headers=_headers(token))
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "skipped"
+        assert body["applied_at"] is None
+        db = next(get_db())
+        try:
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert items == []
+            run = db.get(PlanApplyRun, uuid.UUID(run_id))
+            assert run is not None
+            assert run.status == "skipped"
+            assert run.applied_at is None
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert template is not None
+            assert template.use_count == 0
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_confirm_not_pending_returns_run_not_pending():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        run_id, _subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=date(2026, 8, 23),
+        )
+        skipped = client.post(f"/plan-apply-runs/{run_id}/skip", headers=_headers(token))
+        assert skipped.status_code == 200, skipped.text
+        r = client.post(f"/plan-apply-runs/{run_id}/confirm", headers=_headers(token))
+        assert r.status_code == 400
+        assert r.json()["detail"] == "run_not_pending"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_confirm_reports_template_updated():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        run_id, _subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=date(2026, 8, 23),
+            template_version=1,
+        )
+        bumped = client.put(
+            f"/plan-templates/{template_id}/slots",
+            json=[_slot(0, rel_day=2, start_minute=8 * 60, end_minute=9 * 60, title="新槽")],
+            headers=_headers(token),
+        )
+        assert bumped.status_code == 200, bumped.text
+        r = client.post(f"/plan-apply-runs/{run_id}/confirm", headers=_headers(token))
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["template_updated"] is True
+        assert body["status"] == "applied"
+        assert body["item_count"] >= 1
+        db = next(get_db())
+        try:
+            run = db.get(PlanApplyRun, uuid.UUID(run_id))
+            template = db.get(PlanTemplate, uuid.UUID(template_id))
+            assert run is not None
+            assert template is not None
+            assert run.template_version == template.version
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert any(item.title == "新槽" for item in items)
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_subscribe_requires_auth():
+    client = TestClient(app)
+    r = client.post(
+        f"/plan-templates/{uuid.uuid4()}/subscribe",
+        json={
+            "workspace_id": str(uuid.uuid4()),
+            "project_id": str(uuid.uuid4()),
+            "timezone": "Asia/Shanghai",
         },
     )
     assert r.status_code == 401

@@ -9,8 +9,11 @@ from app.models.user import User
 from app.schemas.plan import (
     PlanApplyRequest,
     PlanApplyRunOut,
+    PlanConfirmRunOut,
     PlanSlotOut,
     PlanSlotPut,
+    PlanSubscribeOut,
+    PlanSubscribeRequest,
     PlanTemplateCreate,
     PlanTemplateOut,
     PlanTemplateUpdate,
@@ -23,9 +26,18 @@ from app.services.plan_api import (
     replace_slots,
     update_plan_template,
 )
-from app.services.plan_apply import apply_one_shot, build_apply_run_out
+from app.services.plan_apply import (
+    apply_one_shot,
+    build_apply_run_out,
+    cancel_subscription,
+    confirm_apply_run,
+    skip_apply_run,
+    subscribe_plan,
+)
 
 router = APIRouter(prefix="/plan-templates", tags=["plan-templates"])
+subscription_router = APIRouter(prefix="/plan-subscriptions", tags=["plan-subscriptions"])
+apply_run_router = APIRouter(prefix="/plan-apply-runs", tags=["plan-apply-runs"])
 
 
 @router.post("", response_model=PlanTemplateOut, status_code=status.HTTP_201_CREATED)
@@ -88,4 +100,55 @@ def apply_template(
         payload.project_id,
         payload.period_start,
     )
+    return build_apply_run_out(db, run)
+
+
+@router.post(
+    "/{template_id}/subscribe",
+    response_model=PlanSubscribeOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def subscribe_template(
+    template_id: uuid.UUID,
+    payload: PlanSubscribeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return subscribe_plan(
+        db,
+        user,
+        template_id,
+        payload.workspace_id,
+        payload.project_id,
+        payload.timezone,
+    )
+
+
+@subscription_router.post("/{subscription_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_plan_subscription(
+    subscription_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    cancel_subscription(db, user, subscription_id)
+
+
+@apply_run_router.post("/{run_id}/confirm", response_model=PlanConfirmRunOut)
+def confirm_plan_apply_run(
+    run_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    run, template_updated = confirm_apply_run(db, user, run_id)
+    base = build_apply_run_out(db, run)
+    return PlanConfirmRunOut(**base.model_dump(), template_updated=template_updated)
+
+
+@apply_run_router.post("/{run_id}/skip", response_model=PlanApplyRunOut)
+def skip_plan_apply_run(
+    run_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    run = skip_apply_run(db, user, run_id)
     return build_apply_run_out(db, run)

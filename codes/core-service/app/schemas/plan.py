@@ -87,3 +87,19 @@ class PlanApplyRunOut(BaseModel):
     skipped_slots: list[dict[str, Any]] = Field(default_factory=list)
     item_count: int
     applied_at: datetime | None
+
+
+class PlanSubscribeRequest(BaseModel):
+    workspace_id: UUID
+    project_id: UUID
+    timezone: str
+
+
+class PlanSubscribeOut(BaseModel):
+    id: str
+    imported_current_period: bool
+    apply_run: PlanApplyRunOut | None = None
+
+
+class PlanConfirmRunOut(PlanApplyRunOut):
+    template_updated: bool = False
