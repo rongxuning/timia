@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
+import { primePlanNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { PlanEditorForm, type PlanEditorSubmitData } from "@/components/plans/PlanEditorForm";
 import { planApiMessage } from "@/components/plans/planLabels";
 import { takePlanSlotDraft, type PlanSlotDraftStorage } from "@/components/plans/planSlots";
@@ -49,6 +50,7 @@ export default function EditPlanPage() {
     fetchPlanDetail(token, planId)
       .then((data) => {
         if (cancelled) return;
+        primePlanNameForBreadcrumb(data.id, data.title);
         if (draft) {
           setDraftSlotPuts(draft.slots);
           setError(draft.error);
@@ -98,7 +100,7 @@ export default function EditPlanPage() {
 
   return (
     <PageMain className="!px-3" fullWidth>
-      <div className="mx-auto max-w-4xl space-y-lg">
+      <div className="space-y-lg">
         <div>
           <h1 className="font-subhead text-subhead text-text-primary">编辑规划</h1>
           <p className="mt-1 text-small text-text-secondary">类型和周期创建后不可更改</p>

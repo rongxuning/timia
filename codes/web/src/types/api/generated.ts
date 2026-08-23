@@ -729,6 +729,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/plan-templates/{template_id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Template Favorite */
+        patch: operations["patch_template_favorite_plan_templates__template_id__favorite_patch"];
+        trace?: never;
+    };
     "/plan-templates/{template_id}/apply": {
         parameters: {
             query?: never;
@@ -2234,6 +2251,11 @@ export interface components {
             tags?: string[];
             /** Use Count */
             use_count: number;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
         };
         /** PlanCommentCreate */
         PlanCommentCreate: {
@@ -2326,6 +2348,11 @@ export interface components {
             tags?: string[];
             /** Use Count */
             use_count: number;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
             /** Description */
             description: string | null;
             /** Creator Intro */
@@ -2336,6 +2363,18 @@ export interface components {
             my_import_count: number;
             my_subscription?: components["schemas"]["PlanMySubscriptionOut"] | null;
             pending_run?: components["schemas"]["PlanPendingRunOut"] | null;
+        };
+        /** PlanFavoriteOut */
+        PlanFavoriteOut: {
+            /** Template Id */
+            template_id: string;
+            /** Is Favorite */
+            is_favorite: boolean;
+        };
+        /** PlanFavoriteUpdate */
+        PlanFavoriteUpdate: {
+            /** Is Favorite */
+            is_favorite: boolean;
         };
         /** PlanImportedListOut */
         PlanImportedListOut: {
@@ -2359,6 +2398,11 @@ export interface components {
             tags?: string[];
             /** Use Count */
             use_count: number;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
             /** My Import Count */
             my_import_count: number;
             /** Runs */
@@ -2569,6 +2613,11 @@ export interface components {
             tags?: string[];
             /** Use Count */
             use_count: number;
+            /**
+             * Is Favorite
+             * @default false
+             */
+            is_favorite: boolean;
             /** Workspace Id */
             workspace_id: string;
             /** Workspace Name */
@@ -5637,6 +5686,43 @@ export interface operations {
             };
         };
     };
+    patch_template_favorite_plan_templates__template_id__favorite_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanFavoriteUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanFavoriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     apply_template_plan_templates__template_id__apply_post: {
         parameters: {
             query?: never;
@@ -7063,6 +7149,7 @@ export interface operations {
                 tag?: string[] | null;
                 period_kind?: string | null;
                 usage_kind?: string | null;
+                favorite?: boolean | null;
                 limit?: number;
                 offset?: number;
             };
@@ -7097,6 +7184,12 @@ export interface operations {
     list_imported_views_plans_imported_get: {
         parameters: {
             query?: {
+                q?: string | null;
+                creator_q?: string | null;
+                tag?: string[] | null;
+                period_kind?: string | null;
+                usage_kind?: string | null;
+                favorite?: boolean | null;
                 limit?: number;
                 offset?: number;
             };
@@ -7131,6 +7224,12 @@ export interface operations {
     list_subscribed_views_plans_subscribed_get: {
         parameters: {
             query?: {
+                q?: string | null;
+                creator_q?: string | null;
+                tag?: string[] | null;
+                period_kind?: string | null;
+                usage_kind?: string | null;
+                favorite?: boolean | null;
                 limit?: number;
                 offset?: number;
             };

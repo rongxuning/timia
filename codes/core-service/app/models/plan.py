@@ -232,6 +232,20 @@ class PlanComment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
 
+class PlanFavorite(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "plan_favorites"
+    __table_args__ = (UniqueConstraint("user_id", "template_id", name="uq_plan_favorite"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("plan_templates.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+
 class PlanNotification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "plan_notifications"
 

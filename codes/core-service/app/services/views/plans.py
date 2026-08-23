@@ -5,12 +5,13 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.models.item import Item
 from app.models.plan import (
     PlanApplyRun,
+    PlanFavorite,
     PlanNotification,
     PlanSlot,
     PlanSubscription,
@@ -59,7 +60,13 @@ def _creator_out(user: User | None, user_id: uuid.UUID) -> PlanCreatorOut:
     )
 
 
-def _card(template: PlanTemplate, creator: User | None, tags: list[str]) -> PlanCardOut:
+def _card(
+    template: PlanTemplate,
+    creator: User | None,
+    tags: list[str],
+    *,
+    is_favorite: bool = False,
+) -> PlanCardOut:
     return PlanCardOut(
         id=str(template.id),
         title=template.title,
@@ -69,7 +76,131 @@ def _card(template: PlanTemplate, creator: User | None, tags: list[str]) -> Plan
         creator=_creator_out(creator, template.created_by_user_id),
         tags=tags,
         use_count=template.use_count,
+        is_favorite=is_favorite,
     )
+
+
+def _favorite_id_set(
+    db: Session, user_id: uuid.UUID, template_ids: list[uuid.UUID]
+) -> set[uuid.UUID]:
+    if not template_ids:
+        return set()
+    return set(
+        db.scalars(
+            select(PlanFavorite.template_id).where(
+                PlanFavorite.user_id == user_id,
+                PlanFavorite.template_id.in_(template_ids),
+            )
+        ).all()
+    )
+
+
+def _apply_template_filters(
+    stmt,
+    user: User,
+    *,
+    q: str | None = None,
+    creator_q: str | None = None,
+    tags: list[str] | None = None,
+    period_kind: str | None = None,
+    usage_kind: str | None = None,
+    favorite: bool | None = None,
+) -> tuple:
+    joined_favorite = False
+    if favorite is True:
+        stmt = stmt.join(
+            PlanFavorite,
+            and_(
+                PlanFavorite.template_id == PlanTemplate.id,
+                PlanFavorite.user_id == user.id,
+            ),
+        )
+        joined_favorite = True
+    elif favorite is False:
+        fav_ids = select(PlanFavorite.template_id).where(PlanFavorite.user_id == user.id)
+        stmt = stmt.where(~PlanTemplate.id.in_(fav_ids))
+    if q:
+        stmt = stmt.where(PlanTemplate.title.ilike(f"%{q.strip()}%"))
+    if creator_q:
+        stmt = stmt.where(User.display_name.ilike(f"%{creator_q.strip()}%"))
+    if period_kind:
+        stmt = stmt.where(PlanTemplate.period_kind == period_kind)
+    if usage_kind:
+        stmt = stmt.where(PlanTemplate.usage_kind == usage_kind)
+    for tag_name in tags or []:
+        name = tag_name.strip()
+        if not name:
+            continue
+        stmt = stmt.where(
+            PlanTemplate.id.in_(
+                select(PlanTemplateTag.template_id)
+                .join(PlanTag, PlanTag.id == PlanTemplateTag.tag_id)
+                .where(PlanTag.name == name)
+            )
+        )
+    return stmt, joined_favorite
+
+
+def _order_plan_templates(
+    stmt,
+    user: User,
+    *,
+    favorite: bool | None = None,
+    joined_favorite: bool = False,
+):
+    if favorite is True:
+        return stmt.order_by(PlanTemplate.created_at.desc())
+    if favorite is False:
+        return stmt.order_by(PlanTemplate.use_count.desc(), PlanTemplate.created_at.desc())
+    if not joined_favorite:
+        stmt = stmt.outerjoin(
+            PlanFavorite,
+            and_(
+                PlanFavorite.template_id == PlanTemplate.id,
+                PlanFavorite.user_id == user.id,
+            ),
+        )
+    return stmt.order_by(
+        PlanFavorite.id.isnot(None).desc(),
+        PlanTemplate.created_at.desc(),
+    )
+
+
+def _filter_template_ids_ordered(
+    db: Session,
+    user: User,
+    ordered_ids: list[uuid.UUID],
+    *,
+    q: str | None = None,
+    creator_q: str | None = None,
+    tags: list[str] | None = None,
+    period_kind: str | None = None,
+    usage_kind: str | None = None,
+    favorite: bool | None = None,
+) -> list[uuid.UUID]:
+    if not ordered_ids:
+        return []
+    stmt = (
+        select(PlanTemplate.id)
+        .join(User, User.id == PlanTemplate.created_by_user_id)
+        .where(PlanTemplate.id.in_(ordered_ids))
+    )
+    stmt, joined_favorite = _apply_template_filters(
+        stmt,
+        user,
+        q=q,
+        creator_q=creator_q,
+        tags=tags,
+        period_kind=period_kind,
+        usage_kind=usage_kind,
+        favorite=favorite,
+    )
+    if favorite is True:
+        return list(
+            db.scalars(_order_plan_templates(stmt, user, favorite=True, joined_favorite=joined_favorite)).all()
+        )
+    filtered = set(db.scalars(stmt).all())
+    return [template_id for template_id in ordered_ids if template_id in filtered]
 
 
 def _tags_by_template(
@@ -170,6 +301,7 @@ def list_plan_cards(
     tags: list[str] | None = None,
     period_kind: str | None = None,
     usage_kind: str | None = None,
+    favorite: bool | None = None,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
 ) -> PlanListOut:
@@ -189,37 +321,35 @@ def list_plan_cards(
         stmt = stmt.where(
             PlanTemplate.id.in_(_active_subscription_template_stmt(user.id).distinct())
         )
-    if q:
-        stmt = stmt.where(PlanTemplate.title.ilike(f"%{q.strip()}%"))
-    if creator_q:
-        stmt = stmt.where(User.display_name.ilike(f"%{creator_q.strip()}%"))
-    if period_kind:
-        stmt = stmt.where(PlanTemplate.period_kind == period_kind)
-    if usage_kind:
-        stmt = stmt.where(PlanTemplate.usage_kind == usage_kind)
-    for tag_name in tags or []:
-        name = tag_name.strip()
-        if not name:
-            continue
-        stmt = stmt.where(
-            PlanTemplate.id.in_(
-                select(PlanTemplateTag.template_id)
-                .join(PlanTag, PlanTag.id == PlanTemplateTag.tag_id)
-                .where(PlanTag.name == name)
-            )
-        )
+    stmt, joined_favorite = _apply_template_filters(
+        stmt,
+        user,
+        q=q,
+        creator_q=creator_q,
+        tags=tags,
+        period_kind=period_kind,
+        usage_kind=usage_kind,
+        favorite=favorite,
+    )
     templates = list(
         db.scalars(
-            stmt.order_by(PlanTemplate.use_count.desc(), PlanTemplate.created_at.desc())
+            _order_plan_templates(stmt, user, favorite=favorite, joined_favorite=joined_favorite)
             .offset(offset)
             .limit(limit)
         ).all()
     )
+    template_ids = [t.id for t in templates]
     creators = _users_by_id(db, [t.created_by_user_id for t in templates])
-    tags_map = _tags_by_template(db, [t.id for t in templates])
+    tags_map = _tags_by_template(db, template_ids)
+    favorite_ids = _favorite_id_set(db, user.id, template_ids)
     return PlanListOut(
         items=[
-            _card(template, creators.get(template.created_by_user_id), tags_map[template.id])
+            _card(
+                template,
+                creators.get(template.created_by_user_id),
+                tags_map[template.id],
+                is_favorite=template.id in favorite_ids,
+            )
             for template in templates
         ]
     )
@@ -285,7 +415,12 @@ def get_plan_detail(db: Session, user: User, plan_id: uuid.UUID) -> PlanDetailOu
         )
         .order_by(PlanApplyRun.period_start.desc())
     )
-    card = _card(template, creator, tags)
+    card = _card(
+        template,
+        creator,
+        tags,
+        is_favorite=template.id in _favorite_id_set(db, user.id, [template.id]),
+    )
     return PlanDetailOut(
         **card.model_dump(),
         description=template.description,
@@ -301,6 +436,12 @@ def list_imported_plans(
     db: Session,
     user: User,
     *,
+    q: str | None = None,
+    creator_q: str | None = None,
+    tags: list[str] | None = None,
+    period_kind: str | None = None,
+    usage_kind: str | None = None,
+    favorite: bool | None = None,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
 ) -> PlanImportedListOut:
@@ -322,7 +463,18 @@ def list_imported_plans(
             continue
         seen.add(run.template_id)
         template_ids.append(run.template_id)
-    page_ids = template_ids[offset : offset + limit]
+    filtered_ids = _filter_template_ids_ordered(
+        db,
+        user,
+        template_ids,
+        q=q,
+        creator_q=creator_q,
+        tags=tags,
+        period_kind=period_kind,
+        usage_kind=usage_kind,
+        favorite=favorite,
+    )
+    page_ids = filtered_ids[offset : offset + limit]
     if not page_ids:
         return PlanImportedListOut(items=[])
     templates = {
@@ -333,6 +485,7 @@ def list_imported_plans(
         db, [templates[tid].created_by_user_id for tid in page_ids if tid in templates]
     )
     tags_map = _tags_by_template(db, page_ids)
+    favorite_ids = _favorite_id_set(db, user.id, page_ids)
     page_runs = [run for run in runs if run.template_id in set(page_ids)]
     items_map = _items_by_run(db, [run.id for run in page_runs])
     runs_by_template: dict[uuid.UUID, list[PlanApplyRun]] = defaultdict(list)
@@ -344,7 +497,12 @@ def list_imported_plans(
         if template is None:
             continue
         template_runs = runs_by_template[template_id]
-        card = _card(template, creators.get(template.created_by_user_id), tags_map[template.id])
+        card = _card(
+            template,
+            creators.get(template.created_by_user_id),
+            tags_map[template.id],
+            is_favorite=template.id in favorite_ids,
+        )
         items.append(
             PlanImportedRowOut(
                 **card.model_dump(),
@@ -361,6 +519,12 @@ def list_subscribed_plans(
     db: Session,
     user: User,
     *,
+    q: str | None = None,
+    creator_q: str | None = None,
+    tags: list[str] | None = None,
+    period_kind: str | None = None,
+    usage_kind: str | None = None,
+    favorite: bool | None = None,
     limit: int = DEFAULT_LIMIT,
     offset: int = 0,
 ) -> PlanSubscribedListOut:
@@ -380,7 +544,30 @@ def list_subscribed_plans(
             .distinct()
         ).all()
     )
-    page = subscriptions[offset : offset + limit]
+    ordered_template_ids: list[uuid.UUID] = []
+    seen_templates: set[uuid.UUID] = set()
+    for sub in subscriptions:
+        if sub.template_id in seen_templates:
+            continue
+        seen_templates.add(sub.template_id)
+        ordered_template_ids.append(sub.template_id)
+    filtered_template_ids = _filter_template_ids_ordered(
+        db,
+        user,
+        ordered_template_ids,
+        q=q,
+        creator_q=creator_q,
+        tags=tags,
+        period_kind=period_kind,
+        usage_kind=usage_kind,
+        favorite=favorite,
+    )
+    filtered_set = set(filtered_template_ids)
+    filtered_subs = [sub for sub in subscriptions if sub.template_id in filtered_set]
+    if favorite is True:
+        order_map = {template_id: index for index, template_id in enumerate(filtered_template_ids)}
+        filtered_subs.sort(key=lambda sub: order_map.get(sub.template_id, 999999))
+    page = filtered_subs[offset : offset + limit]
     if not page:
         return PlanSubscribedListOut(items=[])
     sub_ids = [sub.id for sub in page]
@@ -394,6 +581,7 @@ def list_subscribed_plans(
         [t.created_by_user_id for t in templates.values()],
     )
     tags_map = _tags_by_template(db, template_ids)
+    favorite_ids = _favorite_id_set(db, user.id, template_ids)
     workspaces = {
         row.id: row
         for row in db.scalars(
@@ -438,7 +626,12 @@ def list_subscribed_plans(
             continue
         workspace = workspaces.get(sub.workspace_id)
         project = projects.get(sub.project_id)
-        card = _card(template, creators.get(template.created_by_user_id), tags_map[template.id])
+        card = _card(
+            template,
+            creators.get(template.created_by_user_id),
+            tags_map[template.id],
+            is_favorite=template.id in favorite_ids,
+        )
         segment_outs: list[PlanSubscribedSegmentOut] = []
         for segment in segments_by_sub[sub.id]:
             segment_runs = runs_by_segment[segment.id]
@@ -467,6 +660,7 @@ def list_subscribed_plans(
                 creator=card.creator,
                 tags=card.tags,
                 use_count=card.use_count,
+                is_favorite=card.is_favorite,
                 workspace_id=str(sub.workspace_id),
                 workspace_name=workspace.name if workspace else "",
                 project_id=str(sub.project_id),

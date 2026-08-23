@@ -46,6 +46,7 @@ def list_plans(
     tag: list[str] | None = Query(None),
     period_kind: str | None = Query(None),
     usage_kind: str | None = Query(None),
+    favorite: bool | None = Query(None),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -62,6 +63,7 @@ def list_plans(
             tags=tag or [],
             period_kind=period_kind,
             usage_kind=usage_kind,
+            favorite=favorite,
             limit=limit,
             offset=offset,
         )
@@ -71,26 +73,60 @@ def list_plans(
 
 @router.get("/imported", response_model=PlanImportedListOut)
 def list_imported(
+    q: str | None = Query(None),
+    creator_q: str | None = Query(None),
+    tag: list[str] | None = Query(None),
+    period_kind: str | None = Query(None),
+    usage_kind: str | None = Query(None),
+    favorite: bool | None = Query(None),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     try:
-        return list_imported_plans(db, user, limit=limit, offset=offset)
+        return list_imported_plans(
+            db,
+            user,
+            q=q,
+            creator_q=creator_q,
+            tags=tag or [],
+            period_kind=period_kind,
+            usage_kind=usage_kind,
+            favorite=favorite,
+            limit=limit,
+            offset=offset,
+        )
     except ValueError as error:
         _raise_http(error)
 
 
 @router.get("/subscribed", response_model=PlanSubscribedListOut)
 def list_subscribed(
+    q: str | None = Query(None),
+    creator_q: str | None = Query(None),
+    tag: list[str] | None = Query(None),
+    period_kind: str | None = Query(None),
+    usage_kind: str | None = Query(None),
+    favorite: bool | None = Query(None),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     try:
-        return list_subscribed_plans(db, user, limit=limit, offset=offset)
+        return list_subscribed_plans(
+            db,
+            user,
+            q=q,
+            creator_q=creator_q,
+            tags=tag or [],
+            period_kind=period_kind,
+            usage_kind=usage_kind,
+            favorite=favorite,
+            limit=limit,
+            offset=offset,
+        )
     except ValueError as error:
         _raise_http(error)
 

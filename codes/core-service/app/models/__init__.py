@@ -5,6 +5,7 @@ from app.models.mobile_auth import AuthChallenge, AuthIdentity, MobileDevice, Mo
 from app.models.plan import (
     PlanApplyRun,
     PlanComment,
+    PlanFavorite,
     PlanNotification,
     PlanSlot,
     PlanSubscription,
@@ -33,6 +34,7 @@ __all__ = [
     "MobileSession",
     "PlanApplyRun",
     "PlanComment",
+    "PlanFavorite",
     "PlanNotification",
     "PlanSlot",
     "PlanSubscription",

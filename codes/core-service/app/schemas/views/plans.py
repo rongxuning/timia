@@ -20,6 +20,7 @@ class PlanCardOut(BaseModel):
     creator: PlanCreatorOut
     tags: list[str] = Field(default_factory=list)
     use_count: int
+    is_favorite: bool = False
 
 
 class PlanListOut(BaseModel):
@@ -91,6 +92,7 @@ class PlanSubscribedRowOut(BaseModel):
     creator: PlanCreatorOut
     tags: list[str] = Field(default_factory=list)
     use_count: int
+    is_favorite: bool = False
     workspace_id: str
     workspace_name: str
     project_id: str

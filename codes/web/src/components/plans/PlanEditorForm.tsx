@@ -20,12 +20,99 @@ import {
 } from "./planSlots";
 
 const FIELD_CLASS =
-  "w-full rounded-xl border border-border-subtle bg-surface-bright px-3 py-2 text-small text-text-primary outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-60";
+  "w-full rounded-lg border border-border-subtle bg-surface-bright px-2.5 py-1.5 text-caption text-text-primary outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:opacity-60";
+
+const INLINE_CONTROL_CLASS =
+  "rounded-lg border border-border-subtle bg-surface-bright px-2.5 py-1 text-caption text-text-primary outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:opacity-60";
 
 const CHOICE_BASE =
-  "rounded-xl border px-3 py-2 text-small font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "rounded-lg border px-2.5 py-1 text-caption font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 const CHOICE_ON = "border-indigo-200 bg-indigo-50 text-indigo-700";
 const CHOICE_OFF = "border-border-subtle bg-white text-text-secondary hover:bg-gray-50";
+
+const FIELD_LABEL_CLASS = "text-caption font-medium text-text-primary";
+
+type CreateGuideStep =
+  | "usage_kind"
+  | "period_kind"
+  | "title"
+  | "description"
+  | "creator_intro"
+  | "tags"
+  | "slots";
+
+const CREATE_GUIDE_TEXT: Record<CreateGuideStep, string> = {
+  usage_kind:
+    "选择规划类型。「加入」用于一次性将规划导入到指定周期；「订阅」用于按周期重复提醒，每期确认后再导入。",
+  period_kind:
+    "选择相对周期。时段将按日、周、月或年在相对日历上编排，导入时映射到实际日期。",
+  title: "填写标题，让读者快速了解这份规划的主题。",
+  description: "填写介绍，说明规划的目的、适用场景与主要内容。",
+  creator_intro: "填写创建人介绍，帮助他人了解你的背景或创建初衷。",
+  tags: "添加标签，便于他人搜索发现。输入后按回车添加，最多 8 个。",
+  slots: "在下方相对日历中点击空白处添加时段，标注每个时间块的任务安排。",
+};
+
+function FieldGuide({ children }: { children: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[11px] leading-none text-indigo-700/90 [white-space:nowrap] [word-break:keep-all]">
+      {children}
+    </span>
+  );
+}
+
+function FieldHeader({ label, guide }: { label: string; guide?: string }) {
+  return (
+    <div className="flex flex-row flex-nowrap items-center gap-2 overflow-x-auto">
+      <span className={`shrink-0 ${FIELD_LABEL_CLASS}`}>{label}</span>
+      {guide ? <FieldGuide>{guide}</FieldGuide> : null}
+    </div>
+  );
+}
+
+function shouldShowCreateGuide(
+  step: CreateGuideStep,
+  usageKind: PlanUsageKind | "",
+  periodKind: PlanPeriodKind | "",
+  title: string,
+  description: string,
+  creatorIntro: string,
+  tags: string[],
+  slots: PlanSlotDraft[],
+): boolean {
+  const kindsReady = isPlanUsageKind(usageKind) && isPlanPeriodKind(periodKind);
+  switch (step) {
+    case "usage_kind":
+      return !isPlanUsageKind(usageKind);
+    case "period_kind":
+      return !isPlanPeriodKind(periodKind);
+    case "title":
+      return kindsReady && !title.trim();
+    case "description":
+      return kindsReady && !!title.trim() && !description.trim();
+    case "creator_intro":
+      return kindsReady && !!title.trim() && !!description.trim() && !creatorIntro.trim();
+    case "tags":
+      return (
+        kindsReady &&
+        !!title.trim() &&
+        !!description.trim() &&
+        !!creatorIntro.trim() &&
+        tags.length === 0
+      );
+    case "slots":
+      return (
+        kindsReady &&
+        !!title.trim() &&
+        !!description.trim() &&
+        !!creatorIntro.trim() &&
+        tags.length > 0 &&
+        slots.length === 0
+      );
+    default:
+      return false;
+  }
+}
 
 export type PlanEditorSubmitData = {
   title: string;
@@ -92,6 +179,20 @@ export function PlanEditorForm({
 
   const kindsReady = isPlanUsageKind(usageKind) && isPlanPeriodKind(periodKind);
 
+  function showCreateGuide(step: CreateGuideStep) {
+    if (mode !== "create") return false;
+    return shouldShowCreateGuide(
+      step,
+      usageKind,
+      periodKind,
+      title,
+      description,
+      creatorIntro,
+      tags,
+      slots,
+    );
+  }
+
   function addTag(raw: string) {
     const name = raw.trim();
     if (!name) {
@@ -150,10 +251,13 @@ export function PlanEditorForm({
   }
 
   return (
-    <form className="space-y-lg" onSubmit={handleSubmit}>
-      <fieldset className="space-y-2">
-        <legend className="text-small font-medium text-text-primary">类型</legend>
-        <div className="flex flex-wrap gap-2">
+    <form className="space-y-md" onSubmit={handleSubmit}>
+      <div className="space-y-1.5">
+        <FieldHeader
+          label="类型"
+          guide={showCreateGuide("usage_kind") ? CREATE_GUIDE_TEXT.usage_kind : undefined}
+        />
+        <div className="flex flex-wrap gap-1.5">
           {(["one_shot", "subscription"] as const).map((value) => (
             <button
               key={value}
@@ -166,11 +270,14 @@ export function PlanEditorForm({
             </button>
           ))}
         </div>
-      </fieldset>
+      </div>
 
-      <fieldset className="space-y-2">
-        <legend className="text-small font-medium text-text-primary">周期</legend>
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-1.5">
+        <FieldHeader
+          label="周期"
+          guide={showCreateGuide("period_kind") ? CREATE_GUIDE_TEXT.period_kind : undefined}
+        />
+        <div className="flex flex-wrap gap-1.5">
           {(["day", "week", "month", "year"] as const).map((value) => (
             <button
               key={value}
@@ -187,16 +294,15 @@ export function PlanEditorForm({
             </button>
           ))}
         </div>
-      </fieldset>
+      </div>
 
-      {!kindsReady ? (
-        <p className="rounded-xl border border-border-subtle bg-white p-lg text-small text-text-secondary">
-          请先选择类型和周期
-        </p>
-      ) : (
+      {kindsReady ? (
         <>
-          <label className="block space-y-1">
-            <span className="text-caption text-neutral-muted">标题</span>
+          <div className="space-y-1.5">
+            <FieldHeader
+              label="标题"
+              guide={showCreateGuide("title") ? CREATE_GUIDE_TEXT.title : undefined}
+            />
             <input
               className={FIELD_CLASS}
               value={title}
@@ -205,30 +311,36 @@ export function PlanEditorForm({
               required
               disabled={submitting}
             />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-caption text-neutral-muted">介绍</span>
+          </div>
+          <div className="space-y-1.5">
+            <FieldHeader
+              label="介绍"
+              guide={showCreateGuide("description") ? CREATE_GUIDE_TEXT.description : undefined}
+            />
             <textarea
-              className={`${FIELD_CLASS} min-h-[96px]`}
+              className={`${FIELD_CLASS} min-h-[72px]`}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="规划介绍"
               disabled={submitting}
             />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-caption text-neutral-muted">创建人介绍</span>
+          </div>
+          <div className="space-y-1.5">
+            <FieldHeader
+              label="创建人介绍"
+              guide={showCreateGuide("creator_intro") ? CREATE_GUIDE_TEXT.creator_intro : undefined}
+            />
             <textarea
-              className={`${FIELD_CLASS} min-h-[72px]`}
+              className={`${FIELD_CLASS} min-h-[60px]`}
               value={creatorIntro}
               onChange={(event) => setCreatorIntro(event.target.value)}
               placeholder="关于这份规划的说明"
               disabled={submitting}
             />
-          </label>
-          <fieldset className="space-y-2">
-            <legend className="text-small font-medium text-text-primary">范围</legend>
-            <div className="flex flex-wrap gap-2">
+          </div>
+          <div className="space-y-1.5">
+            <FieldHeader label="范围" />
+            <div className="flex flex-wrap gap-1.5">
               {(["private", "public"] as const).map((value) => (
                 <button
                   key={value}
@@ -241,27 +353,30 @@ export function PlanEditorForm({
                 </button>
               ))}
             </div>
-          </fieldset>
-          <div className="space-y-1">
-            <span className="text-caption text-neutral-muted">标签</span>
-            <div className={`flex min-h-[42px] flex-wrap items-center gap-1.5 ${FIELD_CLASS}`}>
+          </div>
+          <div className="space-y-1.5">
+            <FieldHeader
+              label="标签"
+              guide={showCreateGuide("tags") ? CREATE_GUIDE_TEXT.tags : undefined}
+            />
+            <div className={`flex items-center gap-1 ${INLINE_CONTROL_CLASS}`}>
               {tags.map((tag) => (
                 <button
                   key={tag}
                   type="button"
-                  className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-white px-2 py-0.5 text-caption text-text-secondary"
+                  className="inline-flex h-[18px] shrink-0 items-center gap-0.5 rounded-full border border-border-subtle bg-white px-1.5 text-[11px] leading-none text-text-secondary"
                   onClick={() => setTags(tags.filter((item) => item !== tag))}
                   aria-label={`移除标签 ${tag}`}
                   disabled={submitting}
                 >
                   {tag}
-                  <span className="material-symbols-outlined text-[14px]" aria-hidden>
+                  <span className="material-symbols-outlined text-[12px]" aria-hidden>
                     close
                   </span>
                 </button>
               ))}
               <input
-                className="min-w-[80px] flex-1 bg-transparent py-0.5 text-small text-text-primary outline-none"
+                className="min-w-[72px] flex-1 bg-transparent text-caption leading-normal outline-none"
                 value={tagDraft}
                 onChange={(event) => setTagDraft(event.target.value)}
                 onKeyDown={onTagKeyDown}
@@ -273,16 +388,17 @@ export function PlanEditorForm({
                 disabled={submitting || tags.length >= PLAN_MAX_TAGS}
               />
             </div>
-            {tagError ? <p className="text-caption text-error">{tagError}</p> : null}
+            {tagError ? <p className="text-[11px] text-error">{tagError}</p> : null}
           </div>
           <PlanSlotEditor
             key={periodKind}
             periodKind={periodKind}
             slots={slots}
             onChange={setSlots}
+            guide={showCreateGuide("slots") ? CREATE_GUIDE_TEXT.slots : undefined}
           />
         </>
-      )}
+      ) : null}
 
       {localError || error ? (
         <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
@@ -293,12 +409,12 @@ export function PlanEditorForm({
       <div className="flex items-center gap-2">
         <button
           type="submit"
-          className="rounded-xl bg-primary px-4 py-2 text-small text-on-primary disabled:opacity-50"
+          className="rounded-lg bg-primary px-3 py-1.5 text-caption text-on-primary disabled:opacity-50"
           disabled={submitting || !kindsReady}
         >
           {submitting ? (mode === "create" ? "创建中…" : "保存中…") : mode === "create" ? "创建" : "保存"}
         </button>
-        <Link href={cancelHref} className="rounded-xl px-4 py-2 text-small text-text-secondary hover:bg-gray-100">
+        <Link href={cancelHref} className="rounded-lg px-3 py-1.5 text-caption text-text-secondary hover:bg-gray-100">
           取消
         </Link>
       </div>

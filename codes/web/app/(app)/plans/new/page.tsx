@@ -61,19 +61,13 @@ export default function NewPlanPage() {
 
   return (
     <PageMain className="!px-3" fullWidth>
-      <div className="mx-auto max-w-4xl space-y-lg">
-        <div>
-          <h1 className="font-subhead text-subhead text-text-primary">创建规划</h1>
-          <p className="mt-1 text-small text-text-secondary">先选择类型和周期，再填写介绍并编辑相对时段</p>
-        </div>
-        <PlanEditorForm
-          mode="create"
-          cancelHref="/plans"
-          submitting={submitting}
-          error={error}
-          onSubmit={handleSubmit}
-        />
-      </div>
+      <PlanEditorForm
+        mode="create"
+        cancelHref="/plans"
+        submitting={submitting}
+        error={error}
+        onSubmit={handleSubmit}
+      />
     </PageMain>
   );
 }

@@ -67,6 +67,65 @@ function HourLabels() {
   );
 }
 
+function slotTooltip(slot: PlanSlotDraft): string {
+  const parts = [slot.title || "未命名"];
+  if (slot.body?.trim()) parts.push(slot.body.trim());
+  parts.push(formatSlotRange(slot));
+  if (slot.location?.trim()) parts.push(slot.location.trim());
+  return parts.join(" · ");
+}
+
+function PlanSlotCalendarCard({
+  slot,
+  compact = false,
+  onSlotClick,
+}: {
+  slot: PlanSlotDraft;
+  compact?: boolean;
+  onSlotClick?: PlanRelativeCalendarProps["onSlotClick"];
+}) {
+  const colors = slotSurface(slot);
+  const tooltip = slotTooltip(slot);
+  const body = slot.body?.trim() ?? "";
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        data-slot-key={slot.key}
+        className="w-full rounded-md border px-1.5 py-0.5 text-left text-[10px] leading-4"
+        style={colors}
+        title={tooltip}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSlotClick?.(slot, event);
+        }}
+      >
+        <span className="block truncate font-medium">{slot.title || "未命名"}</span>
+        {body ? <span className="block truncate opacity-80">{body}</span> : null}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      data-slot-key={slot.key}
+      className="max-w-full truncate rounded-md border px-1.5 py-0.5 text-left text-[10px] leading-4"
+      style={colors}
+      title={tooltip}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSlotClick?.(slot, event);
+      }}
+    >
+      <span className="block truncate font-medium">{slot.title || "未命名"}</span>
+      {body ? <span className="block truncate opacity-80">{body}</span> : null}
+      <span className="block truncate opacity-80">{formatSlotRange(slot)}</span>
+    </button>
+  );
+}
+
 function TimedSlotBlock({
   slot,
   onSlotClick,
@@ -80,19 +139,22 @@ function TimedSlotBlock({
     ((slot.end_minute - slot.start_minute) / 60) * DAY_TIMELINE_HOUR_HEIGHT_PX,
   );
   const colors = slotSurface(slot);
+  const tooltip = slotTooltip(slot);
+  const body = slot.body?.trim() ?? "";
   return (
     <button
       type="button"
       data-slot-key={slot.key}
       className="absolute left-1 right-1 z-[1] overflow-hidden rounded-md border px-1 py-0.5 text-left text-[11px] leading-4"
       style={{ top, height, ...colors }}
-      title={`${slot.title} · ${formatSlotRange(slot)}`}
+      title={tooltip}
       onClick={(event) => {
         event.stopPropagation();
         onSlotClick?.(slot, event);
       }}
     >
       <span className="block truncate font-medium">{slot.title || "未命名"}</span>
+      {body ? <span className="block truncate opacity-80">{body}</span> : null}
       {height >= 32 ? (
         <span className="block truncate opacity-80">{formatSlotRange(slot)}</span>
       ) : null}
@@ -103,26 +165,13 @@ function TimedSlotBlock({
 function SlotChip({
   slot,
   onSlotClick,
+  compact = false,
 }: {
   slot: PlanSlotDraft;
   onSlotClick?: PlanRelativeCalendarProps["onSlotClick"];
+  compact?: boolean;
 }) {
-  const colors = slotSurface(slot);
-  return (
-    <button
-      type="button"
-      data-slot-key={slot.key}
-      className="max-w-full truncate rounded-md border px-1.5 py-0.5 text-left text-[10px] leading-4"
-      style={colors}
-      title={`${slot.title} · ${formatSlotRange(slot)}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSlotClick?.(slot, event);
-      }}
-    >
-      {slot.title || "未命名"}
-    </button>
-  );
+  return <PlanSlotCalendarCard slot={slot} compact={compact} onSlotClick={onSlotClick} />;
 }
 
 function handleTimelineClick(
@@ -212,7 +261,7 @@ function DayWeekCalendar({
           })}
         </div>
       </div>
-      <div className="max-h-[70vh] overflow-auto">
+      <div>
         <div className="flex bg-surface pt-2">
           <HourLabels />
           <div className={`min-w-0 flex-1 ${days === 7 ? "grid grid-cols-7" : ""}`}>
@@ -312,7 +361,7 @@ function MonthYearCalendar({
                       <div className="text-[11px] font-medium leading-4 text-text-primary">{relDay}</div>
                       <div className="mt-1 flex flex-col gap-0.5">
                         {cellSlots.map((slot) => (
-                          <SlotChip key={slot.key} slot={slot} onSlotClick={onSlotClick} />
+                          <SlotChip key={slot.key} slot={slot} onSlotClick={onSlotClick} compact />
                         ))}
                       </div>
                     </div>

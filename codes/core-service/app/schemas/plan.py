@@ -114,6 +114,15 @@ class PlanCommentUpdate(BaseModel):
     body: str
 
 
+class PlanFavoriteUpdate(BaseModel):
+    is_favorite: bool
+
+
+class PlanFavoriteOut(BaseModel):
+    template_id: str
+    is_favorite: bool
+
+
 class PlanCommentOut(BaseModel):
     id: str
     author_user_id: str

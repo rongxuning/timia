@@ -12,6 +12,8 @@ from app.schemas.plan import (
     PlanCommentCreate,
     PlanCommentOut,
     PlanCommentUpdate,
+    PlanFavoriteOut,
+    PlanFavoriteUpdate,
     PlanConfirmRunOut,
     PlanSlotOut,
     PlanSlotPut,
@@ -33,6 +35,7 @@ from app.services.plan_api import (
     mark_notification_read,
     replace_slots,
     update_plan_comment,
+    update_plan_favorite,
     update_plan_template,
 )
 from app.services.plan_apply import (
@@ -89,6 +92,16 @@ def put_template_slots(
 ):
     rows = replace_slots(db, user, template_id, slots)
     return [build_slot_out(row) for row in rows]
+
+
+@router.patch("/{template_id}/favorite", response_model=PlanFavoriteOut)
+def patch_template_favorite(
+    template_id: uuid.UUID,
+    payload: PlanFavoriteUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return update_plan_favorite(db, user, template_id, payload)
 
 
 @router.post(

@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import { PRIORITY_OPTIONS } from "@/components/schedule/taskUtils";
+import { SystemSelect } from "@/components/SystemSelect";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { PlanRelativeCalendar, type PlanCalendarEmptyClick } from "./PlanRelativeCalendar";
 import {
@@ -21,6 +23,9 @@ type PopoverState = {
   rel_month: number | null;
   rel_day: number;
   title: string;
+  body: string;
+  location: string;
+  priority: string;
   all_day: boolean;
   startText: string;
   endText: string;
@@ -29,7 +34,7 @@ type PopoverState = {
 };
 
 const POPOVER_WIDTH = 288;
-const POPOVER_HEIGHT = 340;
+const POPOVER_HEIGHT = 520;
 
 function clampPopover(x: number, y: number) {
   if (typeof window === "undefined") return { left: x, top: y };
@@ -46,9 +51,10 @@ export type PlanSlotEditorProps = {
   slots: PlanSlotDraft[];
   onChange?: (slots: PlanSlotDraft[]) => void;
   readOnly?: boolean;
+  guide?: string;
 };
 
-export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }: PlanSlotEditorProps) {
+export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false, guide }: PlanSlotEditorProps) {
   const titleId = useId();
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +97,9 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
       rel_month: coords.rel_month,
       rel_day: coords.rel_day,
       title: "",
+      body: "",
+      location: "",
+      priority: "1",
       all_day: coords.all_day,
       startText: formatMinutes(range.start_minute),
       endText: formatMinutes(range.end_minute),
@@ -108,6 +117,9 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
       rel_month: slot.rel_month,
       rel_day: slot.rel_day,
       title: slot.title,
+      body: slot.body ?? "",
+      location: slot.location ?? "",
+      priority: slot.priority || "1",
       all_day: slot.all_day,
       startText: formatMinutes(slot.start_minute),
       endText: formatMinutes(slot.end_minute),
@@ -147,11 +159,11 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
       end_minute: end,
       all_day: popover.all_day,
       title,
-      body: null,
+      body: popover.body.trim() || null,
       details: null,
       color: "#FFFFFF",
-      priority: "1",
-      location: null,
+      priority: popover.priority || "1",
+      location: popover.location.trim() || null,
       sort_index: 0,
     };
     if (popover.mode === "create") {
@@ -167,11 +179,8 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
           slot.key === popover.key
             ? {
                 ...nextSlot,
-                body: existing?.body ?? null,
                 details: existing?.details ?? null,
                 color: existing?.color ?? "#FFFFFF",
-                priority: existing?.priority ?? "1",
-                location: existing?.location ?? null,
               }
             : slot,
         ),
@@ -189,10 +198,15 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-small font-medium text-text-primary">相对时段</h2>
-        <p className="text-caption text-neutral-muted">
+    <div className="space-y-1.5">
+      <div className="flex flex-row flex-nowrap items-center gap-2 overflow-x-auto">
+        <h2 className="shrink-0 text-small font-medium text-text-primary">相对时段</h2>
+        {guide ? (
+          <span className="inline-flex shrink-0 items-center rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[11px] leading-none text-indigo-700/90 [white-space:nowrap] [word-break:keep-all]">
+            {guide}
+          </span>
+        ) : null}
+        <p className="ml-auto shrink-0 text-[11px] text-neutral-muted">
           {slots.length} / {limit}
         </p>
       </div>
@@ -221,7 +235,7 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
               <div
                 role="dialog"
                 aria-labelledby={titleId}
-                className="absolute w-72 rounded-xl border border-border-subtle bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+                className="absolute w-72 max-h-[min(520px,calc(100vh-16px))] overflow-y-auto rounded-xl border border-border-subtle bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
                 style={{ left: popover.left, top: popover.top }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -243,6 +257,40 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false }
                     autoFocus
                   />
                 </label>
+                <label className="mt-3 block space-y-1">
+                  <span className="text-caption text-neutral-muted">描述</span>
+                  <textarea
+                    className={`${FIELD_CLASS} min-h-[64px] resize-y`}
+                    value={popover.body}
+                    onChange={(event) => setPopover({ ...popover, body: event.target.value })}
+                    placeholder="时段说明"
+                    rows={2}
+                  />
+                </label>
+                <label className="mt-3 block space-y-1">
+                  <span className="text-caption text-neutral-muted">地点</span>
+                  <input
+                    className={FIELD_CLASS}
+                    value={popover.location}
+                    onChange={(event) => setPopover({ ...popover, location: event.target.value })}
+                    placeholder="可选"
+                  />
+                </label>
+                <div className="mt-3 space-y-1">
+                  <span className="text-caption text-neutral-muted">优先级</span>
+                  <SystemSelect
+                    label="优先级"
+                    hideLabel
+                    showAccent={false}
+                    value={popover.priority}
+                    options={PRIORITY_OPTIONS.map((option) => ({
+                      value: option.value,
+                      label: option.label,
+                    }))}
+                    onChange={(priority) => setPopover({ ...popover, priority })}
+                    placeholder="选择优先级"
+                  />
+                </div>
                 <label className="mt-3 flex items-center gap-2 text-small text-text-primary">
                   <input
                     type="checkbox"

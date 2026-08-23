@@ -10,6 +10,7 @@ from app.models._mixins import utcnow
 from app.models.plan import (
     PlanApplyRun,
     PlanComment,
+    PlanFavorite,
     PlanNotification,
     PlanSlot,
     PlanSubscription,
@@ -23,6 +24,8 @@ from app.schemas.plan import (
     PlanCommentCreate,
     PlanCommentOut,
     PlanCommentUpdate,
+    PlanFavoriteOut,
+    PlanFavoriteUpdate,
     PlanSlotOut,
     PlanSlotPut,
     PlanTemplateCreate,
@@ -426,3 +429,21 @@ def delete_plan_comment(
     comment = _require_comment_author(db, template_id, comment_id, user)
     comment.deleted_at = utcnow()
     db.commit()
+
+
+def update_plan_favorite(
+    db: Session, user: User, template_id: uuid.UUID, payload: PlanFavoriteUpdate
+) -> PlanFavoriteOut:
+    template = _visible_template(db, template_id, user)
+    favorite = db.scalar(
+        select(PlanFavorite).where(
+            PlanFavorite.template_id == template.id,
+            PlanFavorite.user_id == user.id,
+        )
+    )
+    if payload.is_favorite and not favorite:
+        db.add(PlanFavorite(template_id=template.id, user_id=user.id))
+    elif not payload.is_favorite and favorite:
+        db.delete(favorite)
+    db.commit()
+    return PlanFavoriteOut(template_id=str(template.id), is_favorite=payload.is_favorite)

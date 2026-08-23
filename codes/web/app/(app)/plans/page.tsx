@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageMain } from "@/components/layout";
 import { PlanList } from "@/components/plans/PlanList";
@@ -11,7 +10,12 @@ import {
   planListHref,
   type PlanFilterValues,
 } from "@/components/plans/PlanFilters";
-import { fetchPlanList, type FetchPlanListParams, type PlanCardOut } from "@/lib/api/plans";
+import {
+  fetchPlanList,
+  planFilterQueryParams,
+  type FetchPlanListParams,
+  type PlanCardOut,
+} from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
 
 function PlansPageFallback() {
@@ -49,13 +53,11 @@ function PlansPageInner() {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    const filterParams = planFilterQueryParams(filters);
     const params: FetchPlanListParams = {
       tab,
-      q: filters.q.trim() || undefined,
-      creator_q: filters.creator_q.trim() || undefined,
-      period_kind: filters.period_kind || undefined,
-      usage_kind: filters.usage_kind || undefined,
-      tag: filters.tags.length > 0 ? filters.tags : undefined,
+      ...filterParams,
+      tag: filterParams.tag,
       limit: 50,
     };
     if (tab === "created" && filters.visibility) {
@@ -86,19 +88,6 @@ function PlansPageInner() {
   return (
     <PageMain className="!px-3" fullWidth>
       <div className="space-y-lg">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-subhead text-subhead text-text-primary">规划</h1>
-            <p className="mt-1 text-small text-text-secondary">发现公开模板，或查看你创建、导入和订阅的规划</p>
-          </div>
-          <Link
-            href="/plans/new"
-            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-small text-on-primary"
-          >
-            创建规划
-          </Link>
-        </div>
-
         {error && (
           <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
@@ -111,6 +100,7 @@ function PlansPageInner() {
           items={items}
           loading={loading}
           onFiltersChange={onFiltersChange}
+          onItemsChange={setItems}
         />
       </div>
     </PageMain>

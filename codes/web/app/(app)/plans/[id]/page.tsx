@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
+import { primePlanNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { PlanApplyDialog } from "@/components/plans/PlanApplyDialog";
 import { PlanComments } from "@/components/plans/PlanComments";
 import { PlanDetailActions } from "@/components/plans/PlanDetailActions";
@@ -48,7 +49,10 @@ export default function PlanDetailPage() {
     }
     fetchPlanDetail(token, planId)
       .then((data) => {
-        if (!cancelled) setPlan(data);
+        if (!cancelled) {
+          primePlanNameForBreadcrumb(data.id, data.title);
+          setPlan(data);
+        }
       })
       .catch((err: { message?: string }) => {
         if (!cancelled) setError(planApiMessage(err?.message ?? "加载失败"));
@@ -89,11 +93,7 @@ export default function PlanDetailPage() {
 
   return (
     <PageMain className="!px-3" fullWidth>
-      <div className="mx-auto max-w-4xl space-y-lg">
-        <Link href="/plans" className="text-small text-text-secondary hover:text-text-primary">
-          ← 返回规划
-        </Link>
-
+      <div className="space-y-lg">
         {error ? (
           <div className="rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
             {error}
@@ -112,10 +112,35 @@ export default function PlanDetailPage() {
           </div>
         ) : plan ? (
           <>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 space-y-2">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <h1 className="font-subhead text-subhead text-text-primary">{plan.title}</h1>
-                <p className="flex flex-wrap gap-x-2 gap-y-1 text-caption text-text-secondary">
+                <div className="flex flex-wrap items-center gap-2">
+                  {isOwner ? (
+                    <Link
+                      href={`/plans/${plan.id}/edit`}
+                      className="rounded-xl border border-border-subtle bg-white px-4 py-2 text-small text-text-secondary hover:bg-gray-50"
+                    >
+                      编辑
+                    </Link>
+                  ) : null}
+                  <PlanDetailActions
+                    usageKind={plan.usage_kind}
+                    mySubscription={plan.my_subscription}
+                    onJoin={() => {
+                      setActionError(null);
+                      setApplyOpen(true);
+                    }}
+                    onSubscribe={() => {
+                      setActionError(null);
+                      setSubscribeOpen(true);
+                    }}
+                    onCancelSubscribe={onCancelSubscribe}
+                  />
+                </div>
+              </div>
+              <div className="inline-flex w-fit max-w-full flex-wrap items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-caption text-text-secondary">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span>{planLabel(PLAN_USAGE_LABEL, plan.usage_kind)}</span>
                   <span aria-hidden>·</span>
                   <span>{planLabel(PLAN_PERIOD_LABEL, plan.period_kind)}</span>
@@ -124,57 +149,38 @@ export default function PlanDetailPage() {
                   <span aria-hidden>·</span>
                   <span>{plan.creator.display_name}</span>
                 </p>
-                {(plan.tags ?? []).length > 0 ? (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {(plan.tags ?? []).map((tag) => (
-                      <li
-                        key={tag}
-                        className="rounded-full border border-border-subtle bg-surface-bright px-2 py-0.5 text-caption text-text-secondary"
-                      >
-                        {tag}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                <p className="text-caption text-neutral-muted">{plan.use_count} 次使用</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {isOwner ? (
-                  <Link
-                    href={`/plans/${plan.id}/edit`}
-                    className="rounded-xl border border-border-subtle bg-white px-4 py-2 text-small text-text-secondary hover:bg-gray-50"
-                  >
-                    编辑
-                  </Link>
-                ) : null}
-                <PlanDetailActions
-                  usageKind={plan.usage_kind}
-                  mySubscription={plan.my_subscription}
-                  onJoin={() => {
-                    setActionError(null);
-                    setApplyOpen(true);
-                  }}
-                  onSubscribe={() => {
-                    setActionError(null);
-                    setSubscribeOpen(true);
-                  }}
-                  onCancelSubscribe={onCancelSubscribe}
-                />
+                <span className="h-3.5 w-px shrink-0 bg-indigo-200/70" aria-hidden />
+                <ul className="flex flex-wrap items-center gap-1.5">
+                  {(plan.tags ?? []).map((tag) => (
+                    <li
+                      key={tag}
+                      className="rounded-full border border-indigo-100 bg-white/80 px-2 py-0.5 text-caption text-text-secondary"
+                    >
+                      {tag}
+                    </li>
+                  ))}
+                </ul>
+                <span className="h-3.5 w-px shrink-0 bg-indigo-200/70" aria-hidden />
+                <p className="shrink-0 text-indigo-700/70">{plan.use_count} 次使用</p>
               </div>
             </div>
 
-            <section className="space-y-2">
+            <section className="space-y-1.5">
               <h2 className="text-small font-medium text-text-primary">介绍</h2>
-              <p className="whitespace-pre-wrap text-small text-text-primary">
-                {plan.description?.trim() ? plan.description : "暂无介绍"}
-              </p>
+              <div className="rounded-xl border border-border-subtle bg-white p-lg">
+                <p className="whitespace-pre-wrap text-caption text-text-secondary">
+                  {plan.description?.trim() ? plan.description : "暂无介绍"}
+                </p>
+              </div>
             </section>
 
-            <section className="space-y-2">
+            <section className="space-y-1.5">
               <h2 className="text-small font-medium text-text-primary">创建人介绍</h2>
-              <p className="whitespace-pre-wrap text-small text-text-primary">
-                {plan.creator_intro?.trim() ? plan.creator_intro : "暂无创建人介绍"}
-              </p>
+              <div className="rounded-xl border border-border-subtle bg-white p-lg">
+                <p className="whitespace-pre-wrap text-caption text-text-secondary">
+                  {plan.creator_intro?.trim() ? plan.creator_intro : "暂无创建人介绍"}
+                </p>
+              </div>
             </section>
 
             <PlanSlotEditor periodKind={plan.period_kind} slots={slots} readOnly />

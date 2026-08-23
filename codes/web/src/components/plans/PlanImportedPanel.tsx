@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchImportedPlans, type PlanImportedRowOut } from "@/lib/api/plans";
+import {
+  fetchImportedPlans,
+  planFilterQueryParams,
+  updatePlanFavorite,
+  type PlanImportedRowOut,
+} from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
+import type { PlanFilterValues } from "./PlanFilters";
+import { PlanFavoriteButton } from "./PlanFavoriteButton";
 import { planApiMessage } from "./planLabels";
 import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
 import { PlanRunItems } from "./PlanRunItems";
@@ -15,10 +22,11 @@ function formatAppliedAt(value: string | null): string {
   return date.toLocaleString("zh-CN");
 }
 
-export function PlanImportedPanel() {
+export function PlanImportedPanel({ filters }: { filters: PlanFilterValues }) {
   const [items, setItems] = useState<PlanImportedRowOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [favoritingId, setFavoritingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     const token = getToken();
@@ -30,7 +38,7 @@ export function PlanImportedPanel() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchImportedPlans(token, { limit: 50 })
+    fetchImportedPlans(token, { ...planFilterQueryParams(filters), limit: 50 })
       .then((data) => {
         if (!cancelled) setItems(data.items);
       })
@@ -43,9 +51,30 @@ export function PlanImportedPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [filters]);
 
   useEffect(() => load(), [load]);
+
+  async function onFavoriteToggle(row: PlanImportedRowOut, next: boolean) {
+    const token = getToken();
+    if (!token) return;
+    setFavoritingId(row.id);
+    setError(null);
+    try {
+      await updatePlanFavorite(token, row.id, next);
+      setItems((prev) =>
+        prev.map((item) => (item.id === row.id ? { ...item, is_favorite: next } : item)),
+      );
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: string }).message)
+          : "收藏操作失败";
+      setError(planApiMessage(message));
+    } finally {
+      setFavoritingId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -80,12 +109,19 @@ export function PlanImportedPanel() {
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <Link
-                  href={`/plans/${row.id}`}
-                  className="font-subhead text-lg font-bold text-text-primary hover:underline"
-                >
-                  {row.title}
-                </Link>
+                <div className="flex items-start gap-2">
+                  <Link
+                    href={`/plans/${row.id}`}
+                    className="font-subhead text-lg font-bold text-text-primary hover:underline"
+                  >
+                    {row.title}
+                  </Link>
+                  <PlanFavoriteButton
+                    isFavorite={Boolean(row.is_favorite)}
+                    disabled={favoritingId === row.id}
+                    onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
+                  />
+                </div>
                 <p className="mt-1 text-caption text-neutral-muted">
                   已导入 {row.my_import_count} 次
                 </p>

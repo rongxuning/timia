@@ -6,11 +6,15 @@ import {
   cancelPlanSubscription,
   confirmPlanApplyRun,
   fetchSubscribedPlans,
+  planFilterQueryParams,
   skipPlanApplyRun,
+  updatePlanFavorite,
   type PlanPendingRunOut,
   type PlanSubscribedRowOut,
 } from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
+import type { PlanFilterValues } from "./PlanFilters";
+import { PlanFavoriteButton } from "./PlanFavoriteButton";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
 import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
@@ -23,11 +27,12 @@ function formatSegmentBound(value: string | null): string {
   return date.toLocaleString("zh-CN");
 }
 
-export function PlanSubscribedPanel() {
+export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) {
   const [items, setItems] = useState<PlanSubscribedRowOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [favoritingId, setFavoritingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     const token = getToken();
@@ -39,7 +44,7 @@ export function PlanSubscribedPanel() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchSubscribedPlans(token, { limit: 50 })
+    fetchSubscribedPlans(token, { ...planFilterQueryParams(filters), limit: 50 })
       .then((data) => {
         if (!cancelled) setItems(data.items);
       })
@@ -52,9 +57,32 @@ export function PlanSubscribedPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [filters]);
 
   useEffect(() => load(), [load]);
+
+  async function onFavoriteToggle(row: PlanSubscribedRowOut, next: boolean) {
+    const token = getToken();
+    if (!token) return;
+    setFavoritingId(row.template_id);
+    setError(null);
+    try {
+      await updatePlanFavorite(token, row.template_id, next);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.template_id === row.template_id ? { ...item, is_favorite: next } : item,
+        ),
+      );
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: string }).message)
+          : "收藏操作失败";
+      setError(planApiMessage(message));
+    } finally {
+      setFavoritingId(null);
+    }
+  }
 
   async function refreshAfterMutation() {
     dispatchPlanBadgeRefresh();
@@ -148,12 +176,19 @@ export function PlanSubscribedPanel() {
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <Link
-                  href={`/plans/${row.template_id}`}
-                  className="font-subhead text-lg font-bold text-text-primary hover:underline"
-                >
-                  {row.title}
-                </Link>
+                <div className="flex items-start gap-2">
+                  <Link
+                    href={`/plans/${row.template_id}`}
+                    className="font-subhead text-lg font-bold text-text-primary hover:underline"
+                  >
+                    {row.title}
+                  </Link>
+                  <PlanFavoriteButton
+                    isFavorite={Boolean(row.is_favorite)}
+                    disabled={favoritingId === row.template_id}
+                    onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
+                  />
+                </div>
                 <p className="mt-1 text-caption text-text-secondary">
                   {row.workspace_name} · {row.project_name}
                 </p>

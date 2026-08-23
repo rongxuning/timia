@@ -35,6 +35,7 @@ type ResolvedName = { label: string };
 
 const workspaceNameCache = new Map<string, ResolvedName>();
 const projectNameCache = new Map<string, ResolvedName>();
+const planNameCache = new Map<string, ResolvedName>();
 
 const breadcrumbNameCacheListeners = new Set<() => void>();
 let breadcrumbNameCacheEpoch = 0;
@@ -88,6 +89,15 @@ export function primeProjectNameForBreadcrumb(workspaceId: string, projectId: st
   notifyBreadcrumbNameCache();
 }
 
+/** 在任意已拿到规划名称的地方调用（与 {@link primeWorkspaceNameForBreadcrumb} 同理）。 */
+export function primePlanNameForBreadcrumb(planId: string, title: string) {
+  const n = title?.trim();
+  if (!planId || !n) return;
+  if (planNameCache.get(planId)?.label === n) return;
+  planNameCache.set(planId, { label: n });
+  notifyBreadcrumbNameCache();
+}
+
 export function Breadcrumbs({
   className,
   labelBySegment,
@@ -109,6 +119,7 @@ export function Breadcrumbs({
 
   const [workspaceLabels, setWorkspaceLabels] = useState<Record<string, string>>({});
   const [projectLabels, setProjectLabels] = useState<Record<string, string>>({});
+  const [planLabels, setPlanLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!pathname) return;
@@ -118,6 +129,11 @@ export function Breadcrumbs({
     const workspaceId = workspaceIdx >= 0 ? segments[workspaceIdx + 1] : undefined;
     const projectsIdx = segments.findIndex((s) => s === "projects");
     const projectId = projectsIdx >= 0 ? segments[projectsIdx + 1] : undefined;
+    const plansIdx = segments.findIndex((s) => s === "plans");
+    const planId =
+      plansIdx >= 0 && segments[plansIdx + 1] && segments[plansIdx + 1] !== "new"
+        ? segments[plansIdx + 1]
+        : undefined;
 
     const token = getAccessToken();
     if (!token) return;
@@ -163,6 +179,23 @@ export function Breadcrumbs({
       }
     }
 
+    if (planId && looksLikeOpaqueId(planId)) {
+      const cached = planNameCache.get(planId);
+      if (cached) {
+        setPlanLabels((prev) => (prev[planId] ? prev : { ...prev, [planId]: cached.label }));
+      } else {
+        apiFetch<{ id: string; title: string }>(`/views/plans/${planId}`, { token })
+          .then((plan) => {
+            if (cancelled) return;
+            primePlanNameForBreadcrumb(planId, plan.title);
+            setPlanLabels((prev) => ({ ...prev, [planId]: plan.title }));
+          })
+          .catch(() => {
+            // ignore: keep fallback label
+          });
+      }
+    }
+
     return () => {
       cancelled = true;
     };
@@ -190,6 +223,9 @@ export function Breadcrumbs({
       my: "我的",
       schedule: "日程",
       analytics: "数据分析",
+      plans: "规划",
+      new: "新建",
+      edit: "编辑",
     };
 
     const labels = { ...defaultLabelBySegment, ...(labelBySegment ?? {}) };
@@ -246,8 +282,12 @@ export function Breadcrumbs({
             projectLabels[`${workspaceIdForProject}:${segment}`] ??
             projectNameCache.get(`${workspaceIdForProject}:${segment}`)?.label
           : undefined;
+      const resolvedPlan =
+        prev === "plans" && looksLikeOpaqueId(segment)
+          ? planLabels[segment] ?? planNameCache.get(segment)?.label
+          : undefined;
 
-      let label = resolvedProject ?? resolvedWorkspace;
+      let label = resolvedPlan ?? resolvedProject ?? resolvedWorkspace;
       if (!label) {
         // 工作空间名称由列表/子页 prime + 缓存订阅尽快显示，此处不再用「工作空间」占位以免与真实名称切换闪烁。
         const idSlotPlaceholder =
@@ -270,7 +310,7 @@ export function Breadcrumbs({
       });
     }
     return out;
-  }, [hideOnPaths, labelBySegment, nameCacheEpoch, pathname, projectLabels, rootHrefOverrides, workspaceLabels]);
+  }, [hideOnPaths, labelBySegment, nameCacheEpoch, pathname, planLabels, projectLabels, rootHrefOverrides, workspaceLabels]);
 
   if (crumbs.length === 0) return null;
 

@@ -22,6 +22,7 @@ from app.models.item import Item
 from app.models.plan import (
     PlanApplyRun,
     PlanComment,
+    PlanFavorite,
     PlanNotification,
     PlanSlot,
     PlanSubscription,
@@ -104,6 +105,7 @@ def _cleanup_emails(emails: list[str]) -> None:
             db.execute(delete(PlanSlot).where(PlanSlot.template_id.in_(template_ids)))
             db.execute(delete(PlanTemplate).where(PlanTemplate.id.in_(template_ids)))
         db.execute(delete(PlanNotification).where(PlanNotification.user_id.in_(user_ids)))
+        db.execute(delete(PlanFavorite).where(PlanFavorite.user_id.in_(user_ids)))
 
         workspaces = list(
             db.scalars(select(Workspace).where(Workspace.created_by_user_id.in_(user_ids))).all()
@@ -1731,3 +1733,85 @@ def test_plan_comments_require_auth():
         == 401
     )
     assert client.delete(f"/plan-templates/{template_id}/comments/{comment_id}").status_code == 401
+
+
+def test_plan_favorite_toggle_and_filter():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        first = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "title": "收藏甲", "visibility": "public"},
+            headers=_headers(token),
+        )
+        assert first.status_code == 201, first.text
+        first_id = first.json()["id"]
+        second = client.post(
+            "/plan-templates",
+            json={**_TEMPLATE, "title": "收藏乙", "visibility": "public"},
+            headers=_headers(token),
+        )
+        assert second.status_code == 201, second.text
+        second_id = second.json()["id"]
+
+        favor = client.patch(
+            f"/plan-templates/{first_id}/favorite",
+            json={"is_favorite": True},
+            headers=_headers(token),
+        )
+        assert favor.status_code == 200, favor.text
+        assert favor.json() == {"template_id": first_id, "is_favorite": True}
+
+        listed = client.get(
+            "/views/plans",
+            params={"tab": "discover", "favorite": True},
+            headers=_headers(token),
+        )
+        assert listed.status_code == 200, listed.text
+        ids = [row["id"] for row in listed.json()["items"]]
+        assert ids == [first_id]
+        assert listed.json()["items"][0]["is_favorite"] is True
+
+        unfav = client.patch(
+            f"/plan-templates/{first_id}/favorite",
+            json={"is_favorite": False},
+            headers=_headers(token),
+        )
+        assert unfav.status_code == 200, unfav.text
+        none = client.get(
+            "/views/plans",
+            params={"tab": "discover", "favorite": True},
+            headers=_headers(token),
+        )
+        assert none.status_code == 200, none.text
+        assert all(row["id"] != first_id for row in none.json()["items"])
+
+        client.patch(
+            f"/plan-templates/{first_id}/favorite",
+            json={"is_favorite": True},
+            headers=_headers(token),
+        )
+        client.patch(
+            f"/plan-templates/{second_id}/favorite",
+            json={"is_favorite": True},
+            headers=_headers(token),
+        )
+        ordered = client.get(
+            "/views/plans",
+            params={"tab": "discover", "favorite": True},
+            headers=_headers(token),
+        )
+        assert ordered.status_code == 200, ordered.text
+        ordered_ids = [row["id"] for row in ordered.json()["items"]]
+        assert ordered_ids[:2] == [second_id, first_id]
+    finally:
+        _cleanup_emails([email])
+
+
+def test_plan_favorite_requires_auth():
+    client = TestClient(app)
+    template_id = uuid.uuid4()
+    assert (
+        client.patch(f"/plan-templates/{template_id}/favorite", json={"is_favorite": True}).status_code
+        == 401
+    )

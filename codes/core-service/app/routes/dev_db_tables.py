@@ -24,6 +24,7 @@ from app.models import (
     MobileSession,
     PlanApplyRun,
     PlanComment,
+    PlanFavorite,
     PlanNotification,
     PlanSlot,
     PlanSubscription,
@@ -118,6 +119,7 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("plan_subscription_segments", PlanSubscriptionSegment),
     ("plan_apply_runs", PlanApplyRun),
     ("plan_comments", PlanComment),
+    ("plan_favorites", PlanFavorite),
     ("plan_notifications", PlanNotification),
 ]
 
