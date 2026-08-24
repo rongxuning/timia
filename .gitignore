@@ -15,6 +15,7 @@ codes/core-service/.env
 
 node_modules/
 codes/web/node_modules/
+.next/
 codes/web/.next/
 codes/web/.env.local
 codes/web/next-env.d.ts
