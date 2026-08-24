@@ -226,6 +226,7 @@ export function Breadcrumbs({
       plans: "规划",
       new: "新建",
       edit: "编辑",
+      period: "周期详情",
     };
 
     const labels = { ...defaultLabelBySegment, ...(labelBySegment ?? {}) };

@@ -7,19 +7,25 @@ import {
   planFilterQueryParams,
   updatePlanFavorite,
   type PlanImportedRowOut,
+  type PlanRunItemOut,
 } from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
 import type { PlanFilterValues } from "./PlanFilters";
 import { PlanFavoriteButton } from "./PlanFavoriteButton";
 import { planApiMessage } from "./planLabels";
 import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
-import { PlanRunItems } from "./PlanRunItems";
+import { formatWorkspaceProjectLabel, planPeriodDetailHref } from "./planSubscribedUtils";
 
 function formatAppliedAt(value: string | null): string {
-  if (!value) return "";
+  if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("zh-CN");
+}
+
+function formatTaskLine(items: PlanRunItemOut[] | undefined): string {
+  const titles = (items ?? []).map((item) => item.title).filter(Boolean);
+  return titles.length > 0 ? titles.join("、") : "暂无任务";
 }
 
 export function PlanImportedPanel({ filters }: { filters: PlanFilterValues }) {
@@ -93,7 +99,7 @@ export function PlanImportedPanel({ filters }: { filters: PlanFilterValues }) {
   if (items.length === 0) {
     return (
       <div className="rounded-xl border border-border-subtle bg-white p-lg text-small text-text-secondary">
-        暂无已导入的规划
+        暂无已加入的规划
       </div>
     );
   }
@@ -107,53 +113,93 @@ export function PlanImportedPanel({ filters }: { filters: PlanFilterValues }) {
             key={row.id}
             className="space-y-3 rounded-xl border border-border-subtle bg-white p-lg"
           >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="flex items-start gap-2">
-                  <Link
-                    href={`/plans/${row.id}`}
-                    className="font-subhead text-lg font-bold text-text-primary hover:underline"
-                  >
-                    {row.title}
-                  </Link>
-                  <PlanFavoriteButton
-                    isFavorite={Boolean(row.is_favorite)}
-                    disabled={favoritingId === row.id}
-                    onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
-                  />
-                </div>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/plans/${row.id}`}
+                  className="font-subhead text-lg font-bold text-text-primary hover:underline"
+                >
+                  {row.title}
+                </Link>
                 <p className="mt-1 text-caption text-neutral-muted">
                   已导入 {row.my_import_count} 次
                 </p>
               </div>
+              <PlanFavoriteButton
+                isFavorite={Boolean(row.is_favorite)}
+                disabled={favoritingId === row.id}
+                onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
+              />
             </div>
-            <ul className="space-y-3">
-              {runs.map((run) => {
-                const start = parsePeriodStartAnchor(run.period_start);
-                return (
-                  <li
-                    key={`${row.id}-${run.workspace_id}-${run.project_id}-${run.period_start}-${run.applied_at ?? ""}`}
-                    className="rounded-lg border border-border-subtle bg-surface-bright/60 p-3"
-                  >
-                    <p className="text-small text-text-primary">
-                      {formatPeriodRange(row.period_kind, start)}
-                    </p>
-                    {run.applied_at ? (
-                      <p className="mt-0.5 text-caption text-neutral-muted">
-                        {formatAppliedAt(run.applied_at)}
-                      </p>
-                    ) : null}
-                    <div className="mt-2">
-                      <PlanRunItems
-                        items={run.items ?? []}
-                        workspaceId={run.workspace_id}
-                        projectId={run.project_id}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            {runs.length === 0 ? (
+              <p className="text-caption text-neutral-muted">暂无导入记录</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border-subtle">
+                <table className="min-w-full table-fixed text-left text-small">
+                  <colgroup>
+                    <col className="w-[11.5rem]" />
+                    <col className="w-[9.5rem]" />
+                    <col className="w-[10em]" />
+                    <col />
+                    <col className="w-[4.5rem]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-border-subtle bg-indigo-50/40 text-caption text-neutral-muted">
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">导入周期</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">导入时间</th>
+                      <th className="px-3 py-2 font-medium">导入空间/项目</th>
+                      <th className="px-3 py-2 font-medium">任务</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium text-right">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runs.map((run) => {
+                      const start = parsePeriodStartAnchor(run.period_start);
+                      const taskLine = formatTaskLine(run.items);
+                      const workspaceProjectLabel = formatWorkspaceProjectLabel(
+                        run.workspace_name ?? "",
+                        run.project_name ?? "",
+                      );
+                      return (
+                        <tr
+                          key={`${row.id}-${run.workspace_id}-${run.project_id}-${run.period_start}-${run.applied_at ?? ""}`}
+                          className="border-b border-border-subtle/80 last:border-b-0"
+                        >
+                          <td className="whitespace-nowrap px-3 py-2.5 text-text-primary">
+                            {formatPeriodRange(row.period_kind, start)}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-text-secondary">
+                            {formatAppliedAt(run.applied_at)}
+                          </td>
+                          <td
+                            className="truncate px-3 py-2.5 text-text-secondary"
+                            title={workspaceProjectLabel}
+                          >
+                            {workspaceProjectLabel}
+                          </td>
+                          <td className="truncate px-3 py-2.5 text-text-secondary" title={taskLine}>
+                            {taskLine}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                            <Link
+                              href={planPeriodDetailHref(
+                                row.id,
+                                run.period_start,
+                                run.workspace_id,
+                                run.project_id,
+                              )}
+                              className="inline-flex rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-caption text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
+                            >
+                              查看
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </article>
         );
       })}

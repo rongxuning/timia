@@ -2419,8 +2419,18 @@ export interface components {
             applied_at: string | null;
             /** Workspace Id */
             workspace_id: string;
+            /**
+             * Workspace Name
+             * @default
+             */
+            workspace_name: string;
             /** Project Id */
             project_id: string;
+            /**
+             * Project Name
+             * @default
+             */
+            project_name: string;
             /** Items */
             items?: components["schemas"]["PlanRunItemOut"][];
         };

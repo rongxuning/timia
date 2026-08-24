@@ -18,10 +18,13 @@ import { PlanFavoriteButton } from "./PlanFavoriteButton";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
 import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
-import { PlanRunItems } from "./PlanRunItems";
+import {
+  flattenSubscribedPeriodRows,
+  formatWorkspaceProjectLabel,
+  planPeriodDetailHref,
+} from "./planSubscribedUtils";
 
-function formatSegmentBound(value: string | null): string {
-  if (!value) return "至今";
+function formatSubscribedAt(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("zh-CN");
@@ -168,39 +171,36 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
       ) : null}
       {items.map((row) => {
         const pending = row.pending_run ?? null;
-        const segments = row.segments ?? [];
+        const periodRows = flattenSubscribedPeriodRows(row.segments ?? []);
         return (
           <article
             key={row.id}
             className="space-y-4 rounded-xl border border-border-subtle bg-white p-lg"
           >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="flex items-start gap-2">
-                  <Link
-                    href={`/plans/${row.template_id}`}
-                    className="font-subhead text-lg font-bold text-text-primary hover:underline"
-                  >
-                    {row.title}
-                  </Link>
-                  <PlanFavoriteButton
-                    isFavorite={Boolean(row.is_favorite)}
-                    disabled={favoritingId === row.template_id}
-                    onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
-                  />
-                </div>
-                <p className="mt-1 text-caption text-text-secondary">
-                  {row.workspace_name} · {row.project_name}
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/plans/${row.template_id}`}
+                  className="font-subhead text-lg font-bold text-text-primary hover:underline"
+                >
+                  {row.title}
+                </Link>
               </div>
-              <button
-                type="button"
-                className="rounded-xl border border-border-subtle bg-white px-4 py-2 text-small text-text-secondary hover:bg-gray-50 disabled:opacity-50"
-                disabled={busyId === row.id}
-                onClick={() => onCancel(row.id)}
-              >
-                {busyId === row.id ? "取消中…" : "取消订阅"}
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <PlanFavoriteButton
+                  isFavorite={Boolean(row.is_favorite)}
+                  disabled={favoritingId === row.template_id}
+                  onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
+                />
+                <button
+                  type="button"
+                  className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-small text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100 disabled:opacity-50"
+                  disabled={busyId === row.id}
+                  onClick={() => onCancel(row.id)}
+                >
+                  {busyId === row.id ? "取消中…" : "取消订阅"}
+                </button>
+              </div>
             </div>
 
             {pending ? (
@@ -230,39 +230,75 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
               </div>
             ) : null}
 
-            <div className="space-y-3">
-              <h3 className="text-small font-medium text-text-primary">分段</h3>
-              {segments.length === 0 ? (
-                <p className="text-caption text-neutral-muted">暂无分段</p>
-              ) : (
-                <ol className="space-y-3">
-                  {segments.map((segment) => {
-                    const runs = segment.runs ?? [];
-                    const segmentItems = segment.items ?? [];
-                    return (
-                      <li
-                        key={`${row.id}-${segment.started_at}`}
-                        className="rounded-lg border border-border-subtle bg-surface-bright/60 p-3"
-                      >
-                        <p className="text-small text-text-primary">
-                          {formatSegmentBound(segment.started_at)} – {formatSegmentBound(segment.ended_at)}
-                        </p>
-                        <p className="mt-0.5 text-caption text-neutral-muted">
-                          导入 {runs.length} 次
-                        </p>
-                        <div className="mt-2">
-                          <PlanRunItems
-                            items={segmentItems}
-                            workspaceId={row.workspace_id}
-                            projectId={row.project_id}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </div>
+            {periodRows.length === 0 ? (
+              <p className="text-caption text-neutral-muted">暂无已导入周期</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border-subtle">
+                <table className="min-w-full table-fixed text-left text-small">
+                  <colgroup>
+                    <col className="w-[11.5rem]" />
+                    <col className="w-[9.5rem]" />
+                    <col className="w-[10em]" />
+                    <col />
+                    <col className="w-[4.5rem]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-border-subtle bg-indigo-50/40 text-caption text-neutral-muted">
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">订阅周期</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">订阅时间</th>
+                      <th className="px-3 py-2 font-medium">订阅空间/项目</th>
+                      <th className="px-3 py-2 font-medium">任务</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium text-right">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {periodRows.map((periodRow) => {
+                      const taskTitles = (periodRow.items ?? []).map((item) => item.title).filter(Boolean);
+                      const taskLabel = taskTitles.length > 0 ? taskTitles.join("、") : "暂无任务";
+                      const workspaceProjectLabel = formatWorkspaceProjectLabel(
+                        periodRow.workspaceName,
+                        periodRow.projectName,
+                      );
+                      return (
+                        <tr
+                          key={periodRow.key}
+                          className="border-b border-border-subtle/80 last:border-b-0"
+                        >
+                          <td className="whitespace-nowrap px-3 py-2.5 text-text-primary">
+                            {formatPeriodRange(
+                              row.period_kind,
+                              parsePeriodStartAnchor(periodRow.periodStart),
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-text-secondary">
+                            {formatSubscribedAt(periodRow.subscribedAt)}
+                          </td>
+                          <td className="truncate px-3 py-2.5 text-text-secondary" title={workspaceProjectLabel}>
+                            {workspaceProjectLabel}
+                          </td>
+                          <td className="truncate px-3 py-2.5 text-text-secondary" title={taskLabel}>
+                            {taskLabel}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                            <Link
+                              href={planPeriodDetailHref(
+                                row.template_id,
+                                periodRow.periodStart,
+                                periodRow.workspaceId,
+                                periodRow.projectId,
+                              )}
+                              className="inline-flex rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-caption text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
+                            >
+                              查看
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </article>
         );
       })}

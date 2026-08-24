@@ -62,7 +62,9 @@ class PlanImportedRunOut(BaseModel):
     period_start: date
     applied_at: datetime | None
     workspace_id: str
+    workspace_name: str = ""
     project_id: str
+    project_name: str = ""
     items: list[PlanRunItemOut] = Field(default_factory=list)
 
 

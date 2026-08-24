@@ -256,14 +256,42 @@ def _items_by_run(
     return result
 
 
+def _workspaces_and_projects_for_runs(
+    db: Session, runs: list[PlanApplyRun]
+) -> tuple[dict[uuid.UUID, Workspace], dict[uuid.UUID, Project]]:
+    if not runs:
+        return {}, {}
+    workspace_ids = {run.workspace_id for run in runs}
+    project_ids = {run.project_id for run in runs}
+    workspaces = {
+        row.id: row
+        for row in db.scalars(
+            select(Workspace).where(Workspace.id.in_(workspace_ids))
+        ).all()
+    }
+    projects = {
+        row.id: row
+        for row in db.scalars(select(Project).where(Project.id.in_(project_ids))).all()
+    }
+    return workspaces, projects
+
+
 def _imported_run_out(
-    run: PlanApplyRun, items: list[PlanRunItemOut]
+    run: PlanApplyRun,
+    items: list[PlanRunItemOut],
+    *,
+    workspaces: dict[uuid.UUID, Workspace],
+    projects: dict[uuid.UUID, Project],
 ) -> PlanImportedRunOut:
+    workspace = workspaces.get(run.workspace_id)
+    project = projects.get(run.project_id)
     return PlanImportedRunOut(
         period_start=run.period_start,
         applied_at=run.applied_at,
         workspace_id=str(run.workspace_id),
+        workspace_name=workspace.name if workspace else "",
         project_id=str(run.project_id),
+        project_name=project.name if project else "",
         items=items,
     )
 
@@ -488,6 +516,7 @@ def list_imported_plans(
     favorite_ids = _favorite_id_set(db, user.id, page_ids)
     page_runs = [run for run in runs if run.template_id in set(page_ids)]
     items_map = _items_by_run(db, [run.id for run in page_runs])
+    run_workspaces, run_projects = _workspaces_and_projects_for_runs(db, page_runs)
     runs_by_template: dict[uuid.UUID, list[PlanApplyRun]] = defaultdict(list)
     for run in page_runs:
         runs_by_template[run.template_id].append(run)
@@ -508,7 +537,13 @@ def list_imported_plans(
                 **card.model_dump(),
                 my_import_count=len(template_runs),
                 runs=[
-                    _imported_run_out(run, items_map.get(run.id, [])) for run in template_runs
+                    _imported_run_out(
+                        run,
+                        items_map.get(run.id, []),
+                        workspaces=run_workspaces,
+                        projects=run_projects,
+                    )
+                    for run in template_runs
                 ],
             )
         )
@@ -618,7 +653,9 @@ def list_subscribed_plans(
             runs_by_segment[run.segment_id].append(run)
         if run.status == "pending" and run.subscription_id is not None:
             pending_by_sub.setdefault(run.subscription_id, run)
-    items_map = _items_by_run(db, [run.id for run in runs if run.status == "applied"])
+    applied_runs = [run for run in runs if run.status == "applied"]
+    items_map = _items_by_run(db, [run.id for run in applied_runs])
+    run_workspaces, run_projects = _workspaces_and_projects_for_runs(db, applied_runs)
     items: list[PlanSubscribedRowOut] = []
     for sub in page:
         template = templates.get(sub.template_id)
@@ -637,7 +674,13 @@ def list_subscribed_plans(
             segment_runs = runs_by_segment[segment.id]
             applied_runs = [run for run in segment_runs if run.status == "applied"]
             run_outs = [
-                _imported_run_out(run, items_map.get(run.id, [])) for run in applied_runs
+                _imported_run_out(
+                    run,
+                    items_map.get(run.id, []),
+                    workspaces=run_workspaces,
+                    projects=run_projects,
+                )
+                for run in applied_runs
             ]
             flat_items = [item for run_out in run_outs for item in run_out.items]
             segment_outs.append(

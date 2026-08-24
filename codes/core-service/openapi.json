@@ -9704,9 +9704,19 @@
             "type": "string",
             "title": "Workspace Id"
           },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name",
+            "default": ""
+          },
           "project_id": {
             "type": "string",
             "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name",
+            "default": ""
           },
           "items": {
             "items": {

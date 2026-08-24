@@ -23,6 +23,7 @@ export type PlanImportedRunOut = components["schemas"]["PlanImportedRunOut"];
 export type PlanRunItemOut = components["schemas"]["PlanRunItemOut"];
 export type PlanSubscribedListOut = components["schemas"]["PlanSubscribedListOut"];
 export type PlanSubscribedRowOut = components["schemas"]["PlanSubscribedRowOut"];
+export type PlanSubscribedSegmentOut = components["schemas"]["PlanSubscribedSegmentOut"];
 export type PlanPendingRunOut = components["schemas"]["PlanPendingRunOut"];
 export type PlanNotificationListOut = components["schemas"]["PlanNotificationListOut"];
 export type PlanNotificationOut = components["schemas"]["PlanNotificationOut"];
