@@ -184,6 +184,44 @@ def test_second_run_in_same_window_does_not_duplicate_pending():
         _cleanup_emails([email])
 
 
+def test_new_pending_expires_older_pending_immediately():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        body = _subscribe(client, token, template_id, workspace_id, project_id)
+        current_sunday = date.fromisoformat(body["apply_run"]["period_start"])
+        next_sunday = current_sunday + timedelta(days=7)
+        following_sunday = next_sunday + timedelta(days=7)
+
+        first = _run_job(_saturday_2000(current_sunday))
+        assert first["pending_created"] >= 1
+
+        second = _run_job(_saturday_2000(next_sunday))
+        assert second["pending_created"] >= 1
+        assert second["expired"] >= 1
+
+        db = next(get_db())
+        try:
+            subscription_id = uuid.UUID(body["id"])
+            runs = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == subscription_id,
+                        PlanApplyRun.period_start.in_([next_sunday, following_sunday]),
+                    )
+                ).all()
+            )
+            by_period = {run.period_start: run for run in runs}
+            assert by_period[next_sunday].status == "expired"
+            assert by_period[following_sunday].status == "pending"
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
 def test_pending_expires_after_period_without_materializing_items():
     client = TestClient(app)
     email, token = _register_and_login(client)

@@ -9688,6 +9688,11 @@
             "format": "date",
             "title": "Period Start"
           },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
           "applied_at": {
             "anyOf": [
               {
@@ -9699,6 +9704,10 @@
               }
             ],
             "title": "Applied At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
           },
           "workspace_id": {
             "type": "string",
@@ -9729,7 +9738,9 @@
         "type": "object",
         "required": [
           "period_start",
+          "created_at",
           "applied_at",
+          "status",
           "workspace_id",
           "project_id"
         ],

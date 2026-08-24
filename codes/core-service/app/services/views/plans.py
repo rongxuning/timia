@@ -43,6 +43,7 @@ from app.schemas.views.plans import (
 from app.services.plan_api import build_slot_out
 
 LIST_TABS = frozenset({"discover", "created", "imported", "subscribed"})
+SUBSCRIBED_RUN_STATUSES = frozenset({"applied", "expired", "skipped"})
 MAX_LIMIT = 50
 DEFAULT_LIMIT = 20
 
@@ -287,7 +288,9 @@ def _imported_run_out(
     project = projects.get(run.project_id)
     return PlanImportedRunOut(
         period_start=run.period_start,
+        created_at=run.created_at,
         applied_at=run.applied_at,
+        status=run.status,
         workspace_id=str(run.workspace_id),
         workspace_name=workspace.name if workspace else "",
         project_id=str(run.project_id),
@@ -654,8 +657,9 @@ def list_subscribed_plans(
         if run.status == "pending" and run.subscription_id is not None:
             pending_by_sub.setdefault(run.subscription_id, run)
     applied_runs = [run for run in runs if run.status == "applied"]
+    listable_runs = [run for run in runs if run.status in SUBSCRIBED_RUN_STATUSES]
     items_map = _items_by_run(db, [run.id for run in applied_runs])
-    run_workspaces, run_projects = _workspaces_and_projects_for_runs(db, applied_runs)
+    run_workspaces, run_projects = _workspaces_and_projects_for_runs(db, listable_runs)
     items: list[PlanSubscribedRowOut] = []
     for sub in page:
         template = templates.get(sub.template_id)
@@ -672,7 +676,11 @@ def list_subscribed_plans(
         segment_outs: list[PlanSubscribedSegmentOut] = []
         for segment in segments_by_sub[sub.id]:
             segment_runs = runs_by_segment[segment.id]
-            applied_runs = [run for run in segment_runs if run.status == "applied"]
+            segment_list_runs = sorted(
+                [run for run in segment_runs if run.status in SUBSCRIBED_RUN_STATUSES],
+                key=lambda run: run.period_start,
+                reverse=True,
+            )
             run_outs = [
                 _imported_run_out(
                     run,
@@ -680,9 +688,11 @@ def list_subscribed_plans(
                     workspaces=run_workspaces,
                     projects=run_projects,
                 )
-                for run in applied_runs
+                for run in segment_list_runs
             ]
-            flat_items = [item for run_out in run_outs for item in run_out.items]
+            flat_items = [
+                item for run_out in run_outs if run_out.status == "applied" for item in run_out.items
+            ]
             segment_outs.append(
                 PlanSubscribedSegmentOut(
                     started_at=segment.started_at,

@@ -1399,6 +1399,75 @@ def test_subscribed_shows_open_segment():
         _cleanup_emails([email])
 
 
+def test_subscribed_list_includes_expired_and_skipped_runs():
+    from datetime import datetime, time, timedelta
+    from zoneinfo import ZoneInfo
+
+    from app.db.deps import get_db
+    from app.jobs.plan_reminders import run_plan_reminders
+
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        sub_template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        subscribed = client.post(
+            f"/plan-templates/{sub_template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert subscribed.status_code == 201, subscribed.text
+        current_sunday = date.fromisoformat(subscribed.json()["apply_run"]["period_start"])
+
+        def run_job(at: datetime) -> dict:
+            db = next(get_db())
+            try:
+                result = run_plan_reminders(db, now=at)
+                db.commit()
+                return result
+            finally:
+                db.close()
+
+        first_now = datetime.combine(
+            current_sunday + timedelta(days=6), time(20, 0), tzinfo=ZoneInfo("Asia/Shanghai")
+        )
+        assert run_job(first_now) == {"pending_created": 1, "expired": 0}
+
+        listed = client.get("/views/plans/subscribed", headers=_headers(token))
+        pending_id = listed.json()["items"][0]["pending_run"]["id"]
+
+        second_now = datetime.combine(
+            current_sunday + timedelta(days=13), time(20, 0), tzinfo=ZoneInfo("Asia/Shanghai")
+        )
+        assert run_job(second_now) == {"pending_created": 1, "expired": 1}
+
+        listed = client.get("/views/plans/subscribed", headers=_headers(token))
+        pending_id = listed.json()["items"][0]["pending_run"]["id"]
+        skipped_resp = client.post(
+            f"/plan-apply-runs/{pending_id}/skip",
+            headers=_headers(token),
+        )
+        assert skipped_resp.status_code == 200, skipped_resp.text
+
+        final = client.get("/views/plans/subscribed", headers=_headers(token))
+        runs = [
+            run
+            for segment in final.json()["items"][0]["segments"]
+            for run in segment["runs"]
+        ]
+        statuses = {run["status"] for run in runs}
+        assert statuses == {"applied", "expired", "skipped"}
+        assert all(run.get("created_at") for run in runs)
+        expired_run = next(run for run in runs if run["status"] == "expired")
+        assert expired_run["items"] == []
+    finally:
+        _cleanup_emails([email])
+
+
 def test_imported_includes_subscription_applies():
     """Cancelled subscription still appears in 已导入 via applied runs."""
     client = TestClient(app)

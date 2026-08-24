@@ -3,6 +3,12 @@ export const PLAN_USAGE_LABEL: Record<string, string> = {
   subscription_mode: "订阅模式",
 };
 
+export const PLAN_RUN_STATUS_LABEL: Record<string, string> = {
+  applied: "已导入",
+  expired: "已过期",
+  skipped: "已跳过",
+};
+
 export const PLAN_PERIOD_LABEL: Record<string, string> = {
   day: "日",
   week: "周",

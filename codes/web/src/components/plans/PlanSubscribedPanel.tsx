@@ -20,11 +20,13 @@ import { dispatchPlanBadgeRefresh } from "./planEvents";
 import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
 import {
   flattenSubscribedPeriodRows,
+  formatSubscribedTaskLabel,
   formatWorkspaceProjectLabel,
   planPeriodDetailHref,
 } from "./planSubscribedUtils";
+import { PLAN_RUN_STATUS_LABEL, planLabel } from "./planLabels";
 
-function formatSubscribedAt(value: string): string {
+function formatRunCreatedAt(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("zh-CN");
@@ -252,6 +254,7 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
                     <col className="w-[10em]" />
                     <col />
                     <col className="w-[4.5rem]" />
+                    <col className="w-[4.5rem]" />
                   </colgroup>
                   <thead>
                     <tr className="border-b border-border-subtle bg-indigo-50/40 text-caption text-neutral-muted">
@@ -259,17 +262,19 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
                       <th className="whitespace-nowrap px-3 py-2 font-medium">订阅时间</th>
                       <th className="px-3 py-2 font-medium">订阅空间/项目</th>
                       <th className="px-3 py-2 font-medium">任务</th>
-                      <th className="whitespace-nowrap px-3 py-2 font-medium text-right">操作</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">状态</th>
+                      <th className="whitespace-nowrap px-3 py-2 font-medium">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {periodRows.map((periodRow) => {
-                      const taskTitles = (periodRow.items ?? []).map((item) => item.title).filter(Boolean);
-                      const taskLabel = taskTitles.length > 0 ? taskTitles.join("、") : "暂无任务";
+                      const taskLabel = formatSubscribedTaskLabel(periodRow.status, periodRow.items);
+                      const statusLabel = planLabel(PLAN_RUN_STATUS_LABEL, periodRow.status);
                       const workspaceProjectLabel = formatWorkspaceProjectLabel(
                         periodRow.workspaceName,
                         periodRow.projectName,
                       );
+                      const canViewPeriod = ["applied", "expired", "skipped"].includes(periodRow.status);
                       return (
                         <tr
                           key={periodRow.key}
@@ -282,7 +287,7 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
                             )}
                           </td>
                           <td className="whitespace-nowrap px-3 py-2.5 text-text-secondary">
-                            {formatSubscribedAt(periodRow.subscribedAt)}
+                            {formatRunCreatedAt(periodRow.createdAt)}
                           </td>
                           <td className="truncate px-3 py-2.5 text-text-secondary" title={workspaceProjectLabel}>
                             {workspaceProjectLabel}
@@ -290,18 +295,23 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
                           <td className="truncate px-3 py-2.5 text-text-secondary" title={taskLabel}>
                             {taskLabel}
                           </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-text-secondary">{statusLabel}</td>
                           <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                            <Link
-                              href={planPeriodDetailHref(
-                                row.template_id,
-                                periodRow.periodStart,
-                                periodRow.workspaceId,
-                                periodRow.projectId,
-                              )}
-                              className="inline-flex rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-caption text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
-                            >
-                              查看
-                            </Link>
+                            {canViewPeriod ? (
+                              <Link
+                                href={planPeriodDetailHref(
+                                  row.template_id,
+                                  periodRow.periodStart,
+                                  periodRow.workspaceId,
+                                  periodRow.projectId,
+                                )}
+                                className="inline-flex rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-caption text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
+                              >
+                                查看
+                              </Link>
+                            ) : (
+                              <span className="text-caption text-neutral-muted">—</span>
+                            )}
                           </td>
                         </tr>
                       );

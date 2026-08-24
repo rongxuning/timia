@@ -60,7 +60,9 @@ class PlanRunItemOut(BaseModel):
 
 class PlanImportedRunOut(BaseModel):
     period_start: date
+    created_at: datetime
     applied_at: datetime | None
+    status: str
     workspace_id: str
     workspace_name: str = ""
     project_id: str

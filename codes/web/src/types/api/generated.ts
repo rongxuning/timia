@@ -2415,8 +2415,15 @@ export interface components {
              * Format: date
              */
             period_start: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /** Applied At */
             applied_at: string | null;
+            /** Status */
+            status: string;
             /** Workspace Id */
             workspace_id: string;
             /**

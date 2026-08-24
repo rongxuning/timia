@@ -460,7 +460,7 @@ export function PlanFilters({ tab, value, onChange }: PlanFiltersProps) {
           </span>
           <button
             type="button"
-            className={`px-3 text-text-secondary hover:bg-gray-50 ${FILTER_INPUT_CLASS}`}
+            className="box-border h-[38px] rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-small text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
             onClick={resetAll}
           >
             重置
