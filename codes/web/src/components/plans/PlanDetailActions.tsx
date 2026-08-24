@@ -20,14 +20,14 @@ export function PlanDetailActions({
   onSubscribe,
   onCancelSubscribe,
 }: Props) {
-  if (usageKind === "one_shot") {
+  if (usageKind === "plan_mode") {
     return (
       <button type="button" className={PRIMARY_BTN} onClick={onJoin}>
-        加入
+        导入
       </button>
     );
   }
-  if (usageKind === "subscription") {
+  if (usageKind === "subscription_mode") {
     if (mySubscription) {
       return (
         <button type="button" className={SECONDARY_BTN} onClick={onCancelSubscribe}>
@@ -37,7 +37,7 @@ export function PlanDetailActions({
     }
     return (
       <button type="button" className={PRIMARY_BTN} onClick={onSubscribe}>
-        订阅
+        开启订阅
       </button>
     );
   }

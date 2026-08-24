@@ -88,7 +88,7 @@ def test_saturday_2000_creates_pending_for_next_sunday():
             run = pending[0]
             assert run.period_start == next_sunday
             assert run.period_kind == "week"
-            assert run.source == "subscription"
+            assert run.source == "subscription_mode"
             assert run.skipped_slots == []
             assert str(run.template_id) == template_id
             assert str(run.workspace_id) == workspace_id

@@ -149,13 +149,13 @@ class PlanApplyRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "plan_apply_runs"
     __table_args__ = (
         Index(
-            "uq_plan_apply_one_shot_applied",
+            "uq_plan_apply_plan_mode_applied",
             "actor_user_id",
             "template_id",
             "project_id",
             "period_start",
             unique=True,
-            postgresql_where=text("source = 'one_shot' AND status = 'applied'"),
+            postgresql_where=text("source = 'plan_mode' AND status = 'applied'"),
         ),
         Index(
             "uq_plan_apply_sub_applied",

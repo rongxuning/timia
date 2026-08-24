@@ -181,7 +181,7 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/plans/${row.template_id}`}
-                  className="font-subhead text-lg font-bold text-text-primary hover:underline"
+                  className="font-subhead text-lg font-bold text-text-primary transition-colors hover:text-indigo-600"
                 >
                   {row.title}
                 </Link>
@@ -210,6 +210,17 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
                   {formatPeriodRange(row.period_kind, parsePeriodStartAnchor(pending.period_start))}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={planPeriodDetailHref(
+                      row.template_id,
+                      pending.period_start,
+                      row.workspace_id,
+                      row.project_id,
+                    )}
+                    className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-small text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50"
+                  >
+                    查看
+                  </Link>
                   <button
                     type="button"
                     className="rounded-xl bg-primary px-4 py-2 text-small text-on-primary disabled:opacity-50"

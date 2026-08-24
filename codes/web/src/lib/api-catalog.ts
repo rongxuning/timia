@@ -264,7 +264,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         creator_q: "string?",
         tag: "string[] (repeatable)?",
         period_kind: "day | week | month | year?",
-        usage_kind: "one_shot | subscription?",
+        usage_kind: "plan_mode | subscription_mode?",
         limit: "number (1-50, default 20)",
         offset: "number (default 0)",
       },
@@ -1326,7 +1326,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         title: "string",
         description: "string | null?",
         creator_intro: "string | null?",
-        usage_kind: '"one_shot" | "subscription"',
+        usage_kind: '"plan_mode" | "subscription_mode"',
         period_kind: '"day" | "week" | "month" | "year"',
         visibility: '"private" | "public"',
         tags: "string[]?",
@@ -1374,7 +1374,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
   {
     method: "POST",
     path: "/plan-templates/{template_id}/apply",
-    name: "加入规划",
+    name: "计划模式导入",
     requestJson: {
       headers: authBearer,
       pathParams: planTemplatePath,
@@ -1390,7 +1390,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
   {
     method: "POST",
     path: "/plan-templates/{template_id}/subscribe",
-    name: "订阅规划",
+    name: "开启订阅模式",
     requestJson: {
       headers: authBearer,
       pathParams: planTemplatePath,

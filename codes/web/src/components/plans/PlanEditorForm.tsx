@@ -43,7 +43,7 @@ type CreateGuideStep =
 
 const CREATE_GUIDE_TEXT: Record<CreateGuideStep, string> = {
   usage_kind:
-    "选择规划类型。「加入」用于一次性将规划导入到指定周期；「订阅」用于按周期重复提醒，每期确认后再导入。",
+    "选择规划模式。「计划模式」用于一次性将规划导入到指定周期；「订阅模式」用于按周期重复提醒，每期确认后再导入。",
   period_kind:
     "选择相对周期。时段将按日、周、月或年在相对日历上编排，导入时映射到实际日期。",
   title: "填写标题，让读者快速了解这份规划的主题。",
@@ -254,11 +254,11 @@ export function PlanEditorForm({
     <form className="space-y-md" onSubmit={handleSubmit}>
       <div className="space-y-1.5">
         <FieldHeader
-          label="类型"
+          label="模式"
           guide={showCreateGuide("usage_kind") ? CREATE_GUIDE_TEXT.usage_kind : undefined}
         />
         <div className="flex flex-wrap gap-1.5">
-          {(["one_shot", "subscription"] as const).map((value) => (
+          {(["plan_mode", "subscription_mode"] as const).map((value) => (
             <button
               key={value}
               type="button"

@@ -124,7 +124,7 @@ export function PlanApplyDialog({
           className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
         >
           <h2 id={titleId} className="font-semibold font-subhead text-text-primary">
-            加入规划
+            计划模式 · 导入
           </h2>
           <form onSubmit={onSubmit} className="space-y-4">
             <PlanTargetPickers
@@ -183,7 +183,7 @@ export function PlanApplyDialog({
                 className="rounded-xl bg-primary px-4 py-2 text-small text-on-primary disabled:opacity-50"
                 disabled={submitting}
               >
-                {submitting ? "加入中…" : "加入"}
+                {submitting ? "导入中…" : "导入"}
               </button>
             </div>
           </form>

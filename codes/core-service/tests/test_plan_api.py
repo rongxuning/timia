@@ -43,7 +43,7 @@ _TEMPLATE = {
     "title": "晨间",
     "description": "d",
     "creator_intro": "作者介绍",
-    "usage_kind": "one_shot",
+    "usage_kind": "plan_mode",
     "period_kind": "week",
     "visibility": "private",
     "tags": ["专注"],
@@ -166,7 +166,7 @@ def _slot(i: int = 0, **overrides) -> dict:
 def _subscription_template_with_slot(client: TestClient, token: str) -> str:
     created = client.post(
         "/plan-templates",
-        json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+        json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
         headers=_headers(token),
     )
     assert created.status_code == 201, created.text
@@ -218,7 +218,7 @@ def _insert_pending_run(
             actor_user_id=subscriber.id,
             workspace_id=uuid.UUID(workspace_id),
             project_id=uuid.UUID(project_id),
-            source="subscription",
+            source="subscription_mode",
             subscription_id=subscription.id,
             segment_id=segment.id,
             period_start=period_start,
@@ -239,7 +239,7 @@ def test_create_plan_template_returns_201():
         r = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
         assert r.status_code == 201
         body = r.json()
-        assert body["usage_kind"] == "one_shot"
+        assert body["usage_kind"] == "plan_mode"
         assert body["creator_intro"] == "作者介绍"
         assert body["tags"] == ["专注"]
     finally:
@@ -414,7 +414,7 @@ def test_patch_does_not_change_usage_or_period_and_bumps_version():
             f"/plan-templates/{template_id}",
             json={
                 "title": "新标题",
-                "usage_kind": "subscription",
+                "usage_kind": "subscription_mode",
                 "period_kind": "day",
             },
             headers=_headers(token),
@@ -422,7 +422,7 @@ def test_patch_does_not_change_usage_or_period_and_bumps_version():
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["title"] == "新标题"
-        assert body["usage_kind"] == "one_shot"
+        assert body["usage_kind"] == "plan_mode"
         assert body["period_kind"] == "week"
         assert body["version"] == 2
     finally:
@@ -458,7 +458,7 @@ def test_put_slots_notifies_active_subscribers():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
             headers=_headers(owner_token),
         )
         assert created.status_code == 201, created.text
@@ -529,7 +529,7 @@ def test_delete_ends_open_segments_and_cancels_pending_runs():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
             headers=_headers(owner_token),
         )
         assert created.status_code == 201, created.text
@@ -571,7 +571,7 @@ def test_delete_ends_open_segments_and_cancels_pending_runs():
                 actor_user_id=subscriber.id,
                 workspace_id=workspace_id,
                 project_id=project_id,
-                source="subscription",
+                source="subscription_mode",
                 subscription_id=subscription.id,
                 segment_id=segment.id,
                 period_start=date(2026, 8, 16),
@@ -606,7 +606,7 @@ def test_close_template_subscriptions_ends_segment_and_cancels_pending_run():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
             headers=_headers(owner_token),
         )
         assert created.status_code == 201, created.text
@@ -650,7 +650,7 @@ def test_close_template_subscriptions_ends_segment_and_cancels_pending_run():
                 actor_user_id=subscriber.id,
                 workspace_id=workspace_id,
                 project_id=project_id,
-                source="subscription",
+                source="subscription_mode",
                 subscription_id=subscription.id,
                 segment_id=segment.id,
                 period_start=date(2026, 8, 16),
@@ -685,7 +685,7 @@ def test_apply_subscription_template_rejected():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription", "visibility": "public"},
+            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
             headers=_headers(token),
         )
         assert created.status_code == 201, created.text
@@ -1056,7 +1056,7 @@ def test_resubscribe_same_week_does_not_duplicate_items():
         _cleanup_emails([email])
 
 
-def test_subscribe_one_shot_template_rejected():
+def test_subscribe_plan_mode_template_rejected():
     client = TestClient(app)
     email, token = _register_and_login(client)
     try:
@@ -1328,7 +1328,7 @@ def test_discover_hides_private():
     try:
         created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(owner_token))
         assert created.status_code == 201, created.text
-        private_one_shot_id = created.json()["id"]
+        private_plan_mode_id = created.json()["id"]
         r = client.get(
             "/views/plans",
             params={"tab": "discover"},
@@ -1336,7 +1336,7 @@ def test_discover_hides_private():
         )
         assert r.status_code == 200
         ids = [row["id"] for row in r.json()["items"]]
-        assert private_one_shot_id not in ids
+        assert private_plan_mode_id not in ids
     finally:
         _cleanup_emails([owner_email, other_email])
 
@@ -1347,16 +1347,16 @@ def test_imported_lists_apply_count_and_items():
     try:
         created = client.post("/plan-templates", json=_TEMPLATE, headers=_headers(token))
         assert created.status_code == 201, created.text
-        week_one_shot_id = created.json()["id"]
+        week_plan_mode_id = created.json()["id"]
         slots = client.put(
-            f"/plan-templates/{week_one_shot_id}/slots",
+            f"/plan-templates/{week_plan_mode_id}/slots",
             json=[_slot(0, rel_day=1, start_minute=9 * 60, end_minute=10 * 60, title="周一晨练")],
             headers=_headers(token),
         )
         assert slots.status_code == 200, slots.text
         workspace_id, project_id = _workspace_and_project(client, token)
         applied = client.post(
-            f"/plan-templates/{week_one_shot_id}/apply",
+            f"/plan-templates/{week_plan_mode_id}/apply",
             json={
                 "workspace_id": workspace_id,
                 "project_id": project_id,
@@ -1367,7 +1367,7 @@ def test_imported_lists_apply_count_and_items():
         assert applied.status_code == 201, applied.text
         r = client.get("/views/plans/imported", headers=_headers(token))
         assert r.status_code == 200
-        row = next(x for x in r.json()["items"] if x["id"] == week_one_shot_id)
+        row = next(x for x in r.json()["items"] if x["id"] == week_plan_mode_id)
         assert row["my_import_count"] == 1
         assert row["runs"][0]["period_start"] == "2026-08-16"
         assert len(row["runs"][0]["items"]) >= 1

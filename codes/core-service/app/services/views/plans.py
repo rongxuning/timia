@@ -297,7 +297,7 @@ def _imported_run_out(
 
 
 def _applied_stmt(user_id: uuid.UUID):
-    """Templates the actor has at least one applied run for (one_shot or subscription)."""
+    """Templates the actor has at least one applied run for (plan_mode or subscription_mode)."""
     return select(PlanApplyRun.template_id).where(
         PlanApplyRun.actor_user_id == user_id,
         PlanApplyRun.status == "applied",

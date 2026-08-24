@@ -39,7 +39,7 @@ from app.services.plan_api import (
     update_plan_template,
 )
 from app.services.plan_apply import (
-    apply_one_shot,
+    apply_plan_mode,
     build_apply_run_out,
     cancel_subscription,
     confirm_apply_run,
@@ -115,7 +115,7 @@ def apply_template(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    run = apply_one_shot(
+    run = apply_plan_mode(
         db,
         user,
         template_id,

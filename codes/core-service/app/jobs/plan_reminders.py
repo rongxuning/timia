@@ -21,6 +21,7 @@ from app.services.plan_time import (
     pending_should_expire,
     upcoming_period_start,
 )
+from app.services.plan_api import SUBSCRIPTION_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ def _create_pending_for_segment(
                 actor_user_id=sub.subscriber_user_id,
                 workspace_id=sub.workspace_id,
                 project_id=sub.project_id,
-                source="subscription",
+                source=SUBSCRIPTION_MODE,
                 subscription_id=sub.id,
                 segment_id=segment.id,
                 period_start=period_start,

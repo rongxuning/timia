@@ -21,7 +21,7 @@ from app.models.user import User
 from app.schemas.plan import PlanApplyRunOut, PlanSubscribeOut
 from app.services.activity import log_activity
 from app.services.permissions import require_project_content_access
-from app.services.plan_api import require_plan_visible
+from app.services.plan_api import PLAN_MODE, SUBSCRIPTION_MODE, require_plan_visible
 from app.services.plan_time import (
     current_period_start,
     resolve_slot_bounds,
@@ -166,7 +166,7 @@ def materialize_run(
     return run
 
 
-def apply_one_shot(
+def apply_plan_mode(
     db: Session,
     user: User,
     template_id: uuid.UUID,
@@ -176,7 +176,7 @@ def apply_one_shot(
 ) -> PlanApplyRun:
     require_project_content_access(db, workspace_id, project_id, user)
     template = require_plan_visible(db, db.get(PlanTemplate, template_id), user)
-    if template.usage_kind != "one_shot":
+    if template.usage_kind != PLAN_MODE:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="wrong_usage_kind")
     period_start = canonical_period_start(template.period_kind, period_start)
     existing = db.scalar(
@@ -185,7 +185,7 @@ def apply_one_shot(
             PlanApplyRun.template_id == template.id,
             PlanApplyRun.project_id == project_id,
             PlanApplyRun.period_start == period_start,
-            PlanApplyRun.source == "one_shot",
+            PlanApplyRun.source == PLAN_MODE,
             PlanApplyRun.status == "applied",
         )
     )
@@ -198,7 +198,7 @@ def apply_one_shot(
         actor_user_id=user.id,
         workspace_id=workspace_id,
         project_id=project_id,
-        source="one_shot",
+        source=PLAN_MODE,
         period_start=period_start,
         period_kind=template.period_kind,
         status="applied",
@@ -215,7 +215,7 @@ def apply_one_shot(
     except IntegrityError as error:
         db.rollback()
         orig = str(getattr(error, "orig", error))
-        if "uq_plan_apply_one_shot_applied" in orig:
+        if "uq_plan_apply_plan_mode_applied" in orig:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="already_applied"
             ) from error
@@ -285,7 +285,7 @@ def subscribe_plan(
 ) -> PlanSubscribeOut:
     require_project_content_access(db, workspace_id, project_id, user)
     template = require_plan_visible(db, db.get(PlanTemplate, template_id), user)
-    if template.usage_kind != "subscription":
+    if template.usage_kind != SUBSCRIPTION_MODE:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="wrong_usage_kind")
     _require_timezone(timezone)
 
@@ -334,7 +334,7 @@ def subscribe_plan(
                 actor_user_id=user.id,
                 workspace_id=workspace_id,
                 project_id=project_id,
-                source="subscription",
+                source=SUBSCRIPTION_MODE,
                 subscription_id=subscription.id,
                 segment_id=segment.id,
                 period_start=period_start,

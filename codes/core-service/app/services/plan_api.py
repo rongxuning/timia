@@ -34,7 +34,13 @@ from app.schemas.plan import (
 )
 from app.services.plan_time import SLOT_LIMITS
 
-USAGE_KINDS = frozenset({"one_shot", "subscription"})
+PLAN_MODE = "plan_mode"
+SUBSCRIPTION_MODE = "subscription_mode"
+USAGE_KINDS = frozenset({PLAN_MODE, SUBSCRIPTION_MODE})
+USAGE_KIND_LABELS = {
+    PLAN_MODE: "计划模式",
+    SUBSCRIPTION_MODE: "订阅模式",
+}
 PERIOD_KINDS = frozenset({"day", "week", "month", "year"})
 VISIBILITIES = frozenset({"private", "public"})
 MAX_TAGS = 8

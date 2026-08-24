@@ -11,7 +11,7 @@ export const PLAN_MAX_TAGS = 8;
 export const PLAN_MAX_TAG_LEN = 20;
 
 export type PlanPeriodKind = keyof typeof PLAN_SLOT_LIMITS;
-export type PlanUsageKind = "one_shot" | "subscription";
+export type PlanUsageKind = "plan_mode" | "subscription_mode";
 export type PlanVisibility = "private" | "public";
 
 export type PlanSlotDraft = {
@@ -35,7 +35,7 @@ export function isPlanPeriodKind(value: string): value is PlanPeriodKind {
 }
 
 export function isPlanUsageKind(value: string): value is PlanUsageKind {
-  return value === "one_shot" || value === "subscription";
+  return value === "plan_mode" || value === "subscription_mode";
 }
 
 export function slotLimit(periodKind: string): number {

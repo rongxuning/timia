@@ -99,7 +99,7 @@ export function PlanImportedPanel({ filters }: { filters: PlanFilterValues }) {
   if (items.length === 0) {
     return (
       <div className="rounded-xl border border-border-subtle bg-white p-lg text-small text-text-secondary">
-        暂无已加入的规划
+        暂无已导入的规划
       </div>
     );
   }

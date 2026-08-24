@@ -1,6 +1,6 @@
 export const PLAN_USAGE_LABEL: Record<string, string> = {
-  one_shot: "加入",
-  subscription: "订阅",
+  plan_mode: "计划模式",
+  subscription_mode: "订阅模式",
 };
 
 export const PLAN_PERIOD_LABEL: Record<string, string> = {
@@ -34,7 +34,7 @@ export function planApiMessage(message: string): string {
     case "already_applied":
       return "该周期已导入";
     case "already_subscribed":
-      return "已订阅该规划";
+      return "已开启该规划的订阅模式";
     case "empty_template":
       return "模板没有可导入的时段";
     case "wrong_usage_kind":

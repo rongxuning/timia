@@ -77,7 +77,7 @@ export function PlanSubscribeDialog({
       const message =
         err && typeof err === "object" && "message" in err
           ? String((err as { message: string }).message)
-          : "订阅失败";
+          : "开启订阅失败";
       setError(planApiMessage(message));
     } finally {
       setSubmitting(false);
@@ -102,7 +102,7 @@ export function PlanSubscribeDialog({
           className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
         >
           <h2 id={titleId} className="font-semibold font-subhead text-text-primary">
-            订阅规划
+            订阅模式
           </h2>
           <form onSubmit={onSubmit} className="space-y-4">
             <PlanTargetPickers
@@ -136,7 +136,7 @@ export function PlanSubscribeDialog({
                 className="rounded-xl bg-primary px-4 py-2 text-small text-on-primary disabled:opacity-50"
                 disabled={submitting}
               >
-                {submitting ? "订阅中…" : "订阅"}
+                {submitting ? "开启中…" : "开启订阅"}
               </button>
             </div>
           </form>

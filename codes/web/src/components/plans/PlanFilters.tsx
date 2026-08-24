@@ -11,7 +11,7 @@ export type PlanTab = (typeof PLAN_TABS)[number];
 export const PLAN_TAB_LABELS: Record<PlanTab, string> = {
   discover: "发现",
   created: "我创建的",
-  imported: "已加入",
+  imported: "已导入",
   subscribed: "订阅中",
 };
 
@@ -44,9 +44,9 @@ const PERIOD_OPTIONS = [
 ];
 
 const USAGE_OPTIONS = [
-  { value: "", label: "全部类型" },
-  { value: "one_shot", label: "加入" },
-  { value: "subscription", label: "订阅" },
+  { value: "", label: "全部模式" },
+  { value: "plan_mode", label: "计划模式" },
+  { value: "subscription_mode", label: "订阅模式" },
 ];
 
 const VISIBILITY_OPTIONS = [
@@ -404,7 +404,7 @@ export function PlanFilters({ tab, value, onChange }: PlanFiltersProps) {
         onChange={(period_kind) => commit({ period_kind })}
       />
       <PlanFilterSelect
-        label="类型"
+        label="模式"
         value={value.usage_kind}
         options={USAGE_OPTIONS}
         onChange={(usage_kind) => commit({ usage_kind })}
