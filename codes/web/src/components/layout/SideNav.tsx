@@ -1,13 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { fetchPlanNotifications } from "@/lib/api/plans";
-import { getToken, logoutAndClear } from "@/lib/auth";
+import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
-import { PLAN_BADGE_REFRESH_EVENT } from "@/components/plans/planEvents";
 import { NavItem } from "./NavItem";
 
 export type SideNavProps = {
@@ -22,33 +19,6 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
   const isAdmin = isSystemAdmin(me?.system_role);
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
   const displayName = me?.display_name?.trim() || "用户";
-  const [planBadge, setPlanBadge] = useState<number | undefined>(undefined);
-
-  useEffect(() => {
-    const token = getToken();
-    if (!token || !me) return;
-    let cancelled = false;
-    function loadBadge() {
-      const current = getToken();
-      if (!current) return;
-      fetchPlanNotifications(current)
-        .then((data) => {
-          if (cancelled) return;
-          const count = (data.unread_count ?? 0) + (data.pending_runs?.length ?? 0);
-          setPlanBadge(count > 0 ? count : undefined);
-        })
-        .catch(() => {
-          if (!cancelled) setPlanBadge(undefined);
-        });
-    }
-    loadBadge();
-    window.addEventListener(PLAN_BADGE_REFRESH_EVENT, loadBadge);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(PLAN_BADGE_REFRESH_EVENT, loadBadge);
-    };
-  }, [me]);
-
   return (
     <aside className="hidden h-full w-16 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
       <div className="px-2">
@@ -75,7 +45,6 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
             icon="calendar_month"
             label="规划"
             active={pathname.startsWith("/plans")}
-            badge={planBadge}
           />
           <NavItem
             href="/workspaces"

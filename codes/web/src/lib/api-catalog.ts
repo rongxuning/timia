@@ -40,6 +40,7 @@ const userPath = { user_id: "uuid (path)" };
 const stickyNotePath = { note_id: "uuid (path)" };
 const planPath = { plan_id: "uuid (path)" };
 const planTemplatePath = { template_id: "uuid (path)" };
+const planCommentPath = { template_id: "uuid (path)", comment_id: "uuid (path)" };
 const planSubscriptionPath = { subscription_id: "uuid (path)" };
 const planApplyRunPath = { run_id: "uuid (path)" };
 const planNotificationPath = { notification_id: "uuid (path)" };
@@ -265,6 +266,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         tag: "string[] (repeatable)?",
         period_kind: "day | week | month | year?",
         usage_kind: "plan_mode | subscription_mode?",
+        favorite: "boolean?",
         limit: "number (1-50, default 20)",
         offset: "number (default 0)",
       },
@@ -278,10 +280,19 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "已导入规划",
     requestJson: {
       headers: authBearer,
-      query: { limit: "number (1-50, default 20)", offset: "number (default 0)" },
+      query: {
+        q: "string?",
+        creator_q: "string?",
+        tag: "string[] (repeatable)?",
+        period_kind: "day | week | month | year?",
+        usage_kind: "plan_mode | subscription_mode?",
+        favorite: "boolean?",
+        limit: "number (1-50, default 20)",
+        offset: "number (default 0)",
+      },
       jsonBody: null,
     },
-    responseJson: { items: "PlanImportedListOut" },
+    responseJson: { items: "PlanImportedRowOut[]" },
   },
   {
     method: "GET",
@@ -289,17 +300,36 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "订阅中规划",
     requestJson: {
       headers: authBearer,
-      query: { limit: "number (1-50, default 20)", offset: "number (default 0)" },
+      query: {
+        q: "string?",
+        creator_q: "string?",
+        tag: "string[] (repeatable)?",
+        period_kind: "day | week | month | year?",
+        usage_kind: "plan_mode | subscription_mode?",
+        favorite: "boolean?",
+        limit: "number (1-50, default 20)",
+        offset: "number (default 0)",
+      },
       jsonBody: null,
     },
-    responseJson: { items: "PlanSubscribedListOut" },
+    responseJson: { items: "PlanSubscribedRowOut[]" },
   },
   {
     method: "GET",
     path: "/views/plans/{plan_id}",
     name: "规划详情",
     requestJson: { headers: authBearer, pathParams: planPath, query: null, jsonBody: null },
-    responseJson: "PlanDetailOut",
+    responseJson: {
+      id: "uuid",
+      title: "string",
+      usage_kind: "plan_mode | subscription_mode",
+      period_kind: "string",
+      slots: "PlanSlotOut[]",
+      my_import_count: "number",
+      my_subscription: "PlanMySubscriptionOut | null",
+      pending_run: "PlanPendingRunOut | null",
+      is_favorite: "boolean",
+    },
   },
   {
     method: "GET",
@@ -1419,6 +1449,25 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     responseJson: "PlanCommentOut",
   },
   {
+    method: "PATCH",
+    path: "/plan-templates/{template_id}/comments/{comment_id}",
+    name: "编辑规划评论",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planCommentPath,
+      query: null,
+      jsonBody: { body: "string" },
+    },
+    responseJson: "PlanCommentOut",
+  },
+  {
+    method: "DELETE",
+    path: "/plan-templates/{template_id}/comments/{comment_id}",
+    name: "删除规划评论",
+    requestJson: { headers: authBearer, pathParams: planCommentPath, query: null, jsonBody: null },
+    responseJson: { httpStatus: 204, jsonBody: null },
+  },
+  {
     method: "POST",
     path: "/plan-subscriptions/{subscription_id}/cancel",
     name: "取消订阅",
@@ -1438,6 +1487,18 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "跳过批次",
     requestJson: { headers: authBearer, pathParams: planApplyRunPath, query: null, jsonBody: null },
     responseJson: "PlanApplyRunOut",
+  },
+  {
+    method: "PATCH",
+    path: "/plan-templates/{template_id}/favorite",
+    name: "规划收藏",
+    requestJson: {
+      headers: authBearer,
+      pathParams: planTemplatePath,
+      query: null,
+      jsonBody: { is_favorite: "boolean" },
+    },
+    responseJson: { template_id: "uuid", is_favorite: "boolean" },
   },
   {
     method: "POST",
