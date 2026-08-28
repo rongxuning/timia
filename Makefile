@@ -45,7 +45,7 @@ core-service-install:
 	cd codes/core-service && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
 
 core-service: core-service-install kill-port-8000
-	cd codes/core-service && PYTHONPATH=. uv run python -m alembic upgrade head && uv run python -m uvicorn app.main:app --reload --port 8000
+	cd codes/core-service && PYTHONPATH=. uv run python -m alembic upgrade head && uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Future: notification-service-install / notification-service (port 8001), etc.
 

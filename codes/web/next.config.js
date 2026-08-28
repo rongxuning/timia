@@ -13,6 +13,10 @@ const nextConfig = {
         source: "/sticky-notes/:path*",
         destination: "http://localhost:8000/sticky-notes/:path*",
       },
+      {
+        source: "/health/:path*",
+        destination: "http://localhost:8000/health/:path*",
+      },
     ];
   },
 };

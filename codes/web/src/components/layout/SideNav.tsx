@@ -41,16 +41,28 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
             active={pathname.startsWith("/my/schedule")}
           />
           <NavItem
+            href="/workspaces"
+            icon="grid_view"
+            label="工作空间"
+            active={pathname === "/workspaces" || pathname.startsWith("/workspace/")}
+          />
+          <NavItem
+            href="/my/health"
+            icon="monitor_heart"
+            label="健康"
+            active={pathname.startsWith("/my/health")}
+          />
+          <NavItem
             href="/plans"
             icon="calendar_month"
             label="规划"
             active={pathname.startsWith("/plans")}
           />
           <NavItem
-            href="/workspaces"
-            icon="grid_view"
-            label="工作空间"
-            active={pathname === "/workspaces" || pathname.startsWith("/workspace/")}
+            href="/my/analytics"
+            icon="query_stats"
+            label="数据分析"
+            active={pathname.startsWith("/my/analytics")}
           />
           <NavItem
             href="/member"
@@ -58,12 +70,6 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
             label="成员"
             active={pathname.startsWith("/member")}
             hidden={!isAdmin}
-          />
-          <NavItem
-            href="/my/analytics"
-            icon="query_stats"
-            label="数据分析"
-            active={pathname.startsWith("/my/analytics")}
           />
           <NavItem
             href="/documents/code"

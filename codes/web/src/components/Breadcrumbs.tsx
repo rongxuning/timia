@@ -223,6 +223,7 @@ export function Breadcrumbs({
       my: "我的",
       schedule: "日程",
       analytics: "数据分析",
+      health: "健康",
       plans: "规划",
       new: "新建",
       edit: "编辑",
@@ -267,6 +268,16 @@ export function Breadcrumbs({
       if (segment === "analytics" && prev === "my") {
         href += `/${segment}`;
         out.push({ href, label: "数据分析" });
+        continue;
+      }
+
+      if (segment === "my" && segments[i + 1] === "health") {
+        href += `/${segment}`;
+        continue;
+      }
+      if (segment === "health" && prev === "my") {
+        href += `/${segment}`;
+        out.push({ href, label: "健康" });
         continue;
       }
 

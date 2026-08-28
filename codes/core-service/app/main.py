@@ -11,6 +11,7 @@ from app.routes.plans import notification_router as plan_notifications_router
 from app.routes.plans import router as plans_router
 from app.routes.plans import subscription_router as plan_subscriptions_router
 from app.routes.projects import router as projects_router
+from app.routes.health import router as health_router
 from app.routes.sticky_notes import router as sticky_notes_router
 from app.routes.users import router as users_router
 from app.routes.web_auth import router as web_auth_router
@@ -23,6 +24,7 @@ from app.routes.views.project import router as views_project_router
 from app.routes.views.users import router as views_users_router
 from app.routes.views.task import router as views_task_router
 from app.routes.views.analytics import router as views_analytics_router
+from app.routes.views.health import router as views_health_router
 from app.routes.views.plans import notification_view_router as views_plan_notifications_router
 from app.routes.views.plans import router as views_plans_router
 
@@ -51,6 +53,7 @@ app.include_router(plan_apply_runs_router)
 app.include_router(plan_notifications_router)
 app.include_router(comments_router)
 app.include_router(sticky_notes_router)
+app.include_router(health_router)
 app.include_router(dev_db_tables_router)
 app.include_router(views_schedule_router)
 app.include_router(views_workspace_router)
@@ -58,6 +61,7 @@ app.include_router(views_project_router)
 app.include_router(views_users_router)
 app.include_router(views_task_router)
 app.include_router(views_analytics_router)
+app.include_router(views_health_router)
 app.include_router(views_plans_router)
 app.include_router(views_plan_notifications_router)
 

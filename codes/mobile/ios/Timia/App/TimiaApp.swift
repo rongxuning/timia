@@ -36,6 +36,7 @@ private struct RootView: View {
             }
         case let .signedIn(user):
             MainTabView(user: user)
+                .task { await HealthBackgroundDelivery.shared.start(api: session.api) }
         }
     }
 }

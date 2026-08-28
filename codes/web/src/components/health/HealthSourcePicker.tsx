@@ -1,0 +1,51 @@
+"use client";
+
+export const HEALTH_SOURCE_APPLE = "apple";
+
+type HealthSourceOption = {
+  id: string;
+  label: string;
+  visible: boolean;
+};
+
+const SOURCES: HealthSourceOption[] = [
+  { id: HEALTH_SOURCE_APPLE, label: "苹果", visible: true },
+  { id: "coros", label: "高驰", visible: false },
+  { id: "garmin", label: "佳明", visible: false },
+];
+
+type HealthSourcePickerProps = {
+  value: string;
+  onChange: (id: string) => void;
+};
+
+export function HealthSourcePicker({ value, onChange }: HealthSourcePickerProps) {
+  const visible = SOURCES.filter((item) => item.visible);
+
+  return (
+    <section className="rounded-xl border border-border-subtle bg-white p-lg">
+      <h2 className="font-headline text-small text-text-primary">数据源</h2>
+      <p className="mt-1 text-caption text-neutral-muted">选择当前展示的设备与平台</p>
+      <div className="mt-md flex flex-wrap gap-sm">
+        {visible.map((item) => {
+          const active = value === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChange(item.id)}
+              className={
+                active
+                  ? "rounded-xl bg-primary px-3 py-2 text-caption font-medium text-on-primary"
+                  : "rounded-xl border border-border-subtle bg-white px-3 py-2 text-caption text-text-secondary hover:bg-gray-50"
+              }
+              aria-pressed={active}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

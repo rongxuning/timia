@@ -19,6 +19,13 @@ struct AccountView: View {
                 }
                 .padding(.vertical, 6)
             }
+            Section("健康与健身") {
+                NavigationLink {
+                    HealthSyncView()
+                } label: {
+                    Label("健康数据", systemImage: "heart.text.square")
+                }
+            }
             if user.isSystemAdmin {
                 Section("管理") {
                     NavigationLink("成员") { UserDirectoryView() }

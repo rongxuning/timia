@@ -1,5 +1,15 @@
 from app.models.activity import ActivityLog
 from app.models.comment import Comment
+from app.models.health import (
+    HealthInsightDaily,
+    HealthMetricsDaily,
+    HealthMetricsLayout,
+    HealthSampleQuantity,
+    HealthSampleSleep,
+    HealthSampleStandHour,
+    HealthSeriesHeartbeat,
+    HealthWorkoutSession,
+)
 from app.models.item import Item
 from app.models.mobile_auth import AuthChallenge, AuthIdentity, MobileDevice, MobileSession
 from app.models.plan import (
@@ -27,6 +37,14 @@ from app.models.workspace import Workspace, WorkspaceMember
 __all__ = [
     "ActivityLog",
     "Comment",
+    "HealthInsightDaily",
+    "HealthMetricsDaily",
+    "HealthMetricsLayout",
+    "HealthSampleQuantity",
+    "HealthSampleSleep",
+    "HealthSampleStandHour",
+    "HealthSeriesHeartbeat",
+    "HealthWorkoutSession",
     "Item",
     "AuthChallenge",
     "AuthIdentity",

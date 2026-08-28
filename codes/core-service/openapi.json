@@ -4837,6 +4837,512 @@
         }
       }
     },
+    "/health/sync-status": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Sync Status",
+        "operationId": "get_sync_status_health_sync_status_get",
+        "parameters": [
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "Asia/Shanghai",
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/samples": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Samples",
+        "operationId": "post_sync_samples_health_sync_samples_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthQuantitySyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/sleep": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Sleep",
+        "operationId": "post_sync_sleep_health_sync_sleep_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthSleepSyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/stand-hours": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Stand Hours",
+        "operationId": "post_sync_stand_hours_health_sync_stand_hours_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthStandHourSyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/heartbeat-series": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Heartbeat Series",
+        "operationId": "post_sync_heartbeat_series_health_sync_heartbeat_series_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthHeartbeatSyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/workouts": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Workouts",
+        "operationId": "post_sync_workouts_health_sync_workouts_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthWorkoutSyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/deletions": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Deletions",
+        "operationId": "post_sync_deletions_health_sync_deletions_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthDeletionSyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/layout": {
+      "patch": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Patch Health Layout",
+        "operationId": "patch_health_layout_health_layout_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthLayoutIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLayoutOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dev/db-tables": {
       "get": {
         "tags": [
@@ -6370,6 +6876,182 @@
         }
       }
     },
+    "/views/me/health": {
+      "get": {
+        "tags": [
+          "views-health"
+        ],
+        "summary": "My Health",
+        "operationId": "my_health_views_me_health_get",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Range"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyHealthViewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/me/health/workouts": {
+      "get": {
+        "tags": [
+          "views-health"
+        ],
+        "summary": "My Health Workouts",
+        "operationId": "my_health_workouts_views_me_health_workouts_get",
+        "parameters": [
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 31,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthWorkoutsPageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/views/plans": {
       "get": {
         "tags": [
@@ -7507,6 +8189,1331 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HealthCalendarDayOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "has_metrics": {
+            "type": "boolean",
+            "title": "Has Metrics",
+            "default": false
+          },
+          "has_workout": {
+            "type": "boolean",
+            "title": "Has Workout",
+            "default": false
+          },
+          "has_insight": {
+            "type": "boolean",
+            "title": "Has Insight",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date"
+        ],
+        "title": "HealthCalendarDayOut"
+      },
+      "HealthCurrentOut": {
+        "properties": {
+          "steps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "flights_climbed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flights Climbed"
+          },
+          "exercise_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exercise Minutes"
+          },
+          "stand_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stand Hours"
+          },
+          "stand_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stand Minutes"
+          },
+          "basal_energy_kcal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basal Energy Kcal"
+          },
+          "active_energy_kcal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Energy Kcal"
+          },
+          "resting_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resting Hr Bpm"
+          },
+          "hr_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hr Min"
+          },
+          "hr_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hr Avg"
+          },
+          "hr_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hr Max"
+          },
+          "hrv_median_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hrv Median Ms"
+          },
+          "spo2_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spo2 Avg"
+          },
+          "body_mass_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Mass Kg"
+          },
+          "vo2_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vo2 Max"
+          },
+          "cardio_recovery_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cardio Recovery Bpm"
+          },
+          "sleep_in_bed_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleep In Bed Minutes"
+          },
+          "sleep_asleep_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleep Asleep Minutes"
+          },
+          "sleep_deep_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleep Deep Minutes"
+          },
+          "sleep_rem_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleep Rem Minutes"
+          },
+          "sleep_core_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleep Core Minutes"
+          }
+        },
+        "type": "object",
+        "title": "HealthCurrentOut"
+      },
+      "HealthDeletionIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "kind"
+        ],
+        "title": "HealthDeletionIn"
+      },
+      "HealthDeletionSyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "deletions": {
+            "items": {
+              "$ref": "#/components/schemas/HealthDeletionIn"
+            },
+            "type": "array",
+            "title": "Deletions"
+          }
+        },
+        "type": "object",
+        "title": "HealthDeletionSyncIn"
+      },
+      "HealthHeartbeatIntervalIn": {
+        "properties": {
+          "t": {
+            "type": "number",
+            "title": "T"
+          },
+          "gap": {
+            "type": "boolean",
+            "title": "Gap",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "t"
+        ],
+        "title": "HealthHeartbeatIntervalIn"
+      },
+      "HealthHeartbeatSeriesIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "intervals": {
+            "items": {
+              "$ref": "#/components/schemas/HealthHeartbeatIntervalIn"
+            },
+            "type": "array",
+            "title": "Intervals"
+          },
+          "source_bundle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Bundle Id"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "start_at",
+          "end_at",
+          "intervals"
+        ],
+        "title": "HealthHeartbeatSeriesIn"
+      },
+      "HealthHeartbeatSyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/HealthHeartbeatSeriesIn"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "title": "HealthHeartbeatSyncIn"
+      },
+      "HealthInsightOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "trends": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Trends"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date",
+          "status"
+        ],
+        "title": "HealthInsightOut"
+      },
+      "HealthLayoutIn": {
+        "properties": {
+          "card_order": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Card Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_order"
+        ],
+        "title": "HealthLayoutIn"
+      },
+      "HealthLayoutOut": {
+        "properties": {
+          "card_order": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Card Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_order"
+        ],
+        "title": "HealthLayoutOut"
+      },
+      "HealthQuantitySampleIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "metric_type": {
+            "type": "string",
+            "title": "Metric Type"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Unit"
+          },
+          "source_bundle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Bundle Id"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "metric_type",
+          "start_at",
+          "end_at",
+          "value",
+          "unit"
+        ],
+        "title": "HealthQuantitySampleIn"
+      },
+      "HealthQuantitySyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/HealthQuantitySampleIn"
+            },
+            "type": "array",
+            "title": "Samples"
+          }
+        },
+        "type": "object",
+        "title": "HealthQuantitySyncIn"
+      },
+      "HealthScoreFormulaOut": {
+        "properties": {
+          "formula": {
+            "type": "string",
+            "title": "Formula"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "formula",
+          "hint"
+        ],
+        "title": "HealthScoreFormulaOut"
+      },
+      "HealthSeriesPointOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date"
+        ],
+        "title": "HealthSeriesPointOut"
+      },
+      "HealthSleepSampleIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "source_bundle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Bundle Id"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "start_at",
+          "end_at",
+          "stage"
+        ],
+        "title": "HealthSleepSampleIn"
+      },
+      "HealthSleepSyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSleepSampleIn"
+            },
+            "type": "array",
+            "title": "Samples"
+          }
+        },
+        "type": "object",
+        "title": "HealthSleepSyncIn"
+      },
+      "HealthStandHourSampleIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "stood": {
+            "type": "boolean",
+            "title": "Stood"
+          },
+          "source_bundle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Bundle Id"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "start_at",
+          "end_at",
+          "stood"
+        ],
+        "title": "HealthStandHourSampleIn"
+      },
+      "HealthStandHourSyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/HealthStandHourSampleIn"
+            },
+            "type": "array",
+            "title": "Samples"
+          }
+        },
+        "type": "object",
+        "title": "HealthStandHourSyncIn"
+      },
+      "HealthSyncDayStatusOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "quantity_count": {
+            "type": "integer",
+            "title": "Quantity Count",
+            "default": 0
+          },
+          "sleep_count": {
+            "type": "integer",
+            "title": "Sleep Count",
+            "default": 0
+          },
+          "stand_hour_count": {
+            "type": "integer",
+            "title": "Stand Hour Count",
+            "default": 0
+          },
+          "heartbeat_series_count": {
+            "type": "integer",
+            "title": "Heartbeat Series Count",
+            "default": 0
+          },
+          "workout_count": {
+            "type": "integer",
+            "title": "Workout Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date"
+        ],
+        "title": "HealthSyncDayStatusOut"
+      },
+      "HealthSyncOut": {
+        "properties": {
+          "upserted": {
+            "type": "integer",
+            "title": "Upserted"
+          },
+          "local_dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Local Dates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upserted"
+        ],
+        "title": "HealthSyncOut"
+      },
+      "HealthSyncStatusOut": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSyncDayStatusOut"
+            },
+            "type": "array",
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone"
+        ],
+        "title": "HealthSyncStatusOut"
+      },
+      "HealthWorkoutIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "activity_type": {
+            "type": "string",
+            "title": "Activity Type",
+            "default": "other"
+          },
+          "activity_type_raw": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Type Raw"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "active_energy_kcal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Energy Kcal"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "avg_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr Bpm"
+          },
+          "max_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr Bpm"
+          },
+          "avg_cadence_spm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cadence Spm"
+          },
+          "avg_pace_sec_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Pace Sec Per Km"
+          },
+          "weather_temp_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Temp C"
+          },
+          "weather_humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Humidity"
+          },
+          "location_country": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Country"
+          },
+          "location_admin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Admin"
+          },
+          "location_city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location City"
+          },
+          "source_bundle_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Bundle Id"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "start_at",
+          "end_at",
+          "duration_seconds"
+        ],
+        "title": "HealthWorkoutIn"
+      },
+      "HealthWorkoutOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "hk_uuid": {
+            "type": "string",
+            "title": "Hk Uuid"
+          },
+          "activity_type": {
+            "type": "string",
+            "title": "Activity Type"
+          },
+          "activity_type_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Type Raw"
+          },
+          "start_at": {
+            "type": "string",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "title": "End At"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "active_energy_kcal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Energy Kcal"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "avg_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr Bpm"
+          },
+          "max_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr Bpm"
+          },
+          "avg_cadence_spm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cadence Spm"
+          },
+          "avg_pace_sec_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Pace Sec Per Km"
+          },
+          "weather_temp_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Temp C"
+          },
+          "weather_humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Humidity"
+          },
+          "location_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Country"
+          },
+          "location_admin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Admin"
+          },
+          "location_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location City"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "hk_uuid",
+          "activity_type",
+          "start_at",
+          "end_at",
+          "duration_seconds"
+        ],
+        "title": "HealthWorkoutOut"
+      },
+      "HealthWorkoutSyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "workouts": {
+            "items": {
+              "$ref": "#/components/schemas/HealthWorkoutIn"
+            },
+            "type": "array",
+            "title": "Workouts"
+          }
+        },
+        "type": "object",
+        "title": "HealthWorkoutSyncIn"
+      },
+      "HealthWorkoutsPageOut": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "title": "End Date"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "workouts": {
+            "items": {
+              "$ref": "#/components/schemas/HealthWorkoutOut"
+            },
+            "type": "array",
+            "title": "Workouts"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone",
+          "start_date",
+          "end_date",
+          "days"
+        ],
+        "title": "HealthWorkoutsPageOut"
       },
       "ItemCreate": {
         "properties": {
@@ -8956,6 +10963,161 @@
           "project_count"
         ],
         "title": "MyAnalyticsViewOut"
+      },
+      "MyHealthViewOut": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": "day"
+          },
+          "selected_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Date"
+          },
+          "range_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Days"
+          },
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "calendar_days": {
+            "items": {
+              "$ref": "#/components/schemas/HealthCalendarDayOut"
+            },
+            "type": "array",
+            "title": "Calendar Days"
+          },
+          "current": {
+            "$ref": "#/components/schemas/HealthCurrentOut"
+          },
+          "totals": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthCurrentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scores": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Scores"
+          },
+          "score_formulas": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/HealthScoreFormulaOut"
+            },
+            "type": "object",
+            "title": "Score Formulas"
+          },
+          "card_order": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Card Order"
+          },
+          "recent_workouts": {
+            "items": {
+              "$ref": "#/components/schemas/HealthWorkoutOut"
+            },
+            "type": "array",
+            "title": "Recent Workouts"
+          },
+          "workout_start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workout Start Date"
+          },
+          "workout_end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workout End Date"
+          },
+          "workout_has_more": {
+            "type": "boolean",
+            "title": "Workout Has More",
+            "default": false
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/HealthSeriesPointOut"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Series"
+          },
+          "insight": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthInsightOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "insights": {
+            "items": {
+              "$ref": "#/components/schemas/HealthInsightOut"
+            },
+            "type": "array",
+            "title": "Insights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timezone",
+          "month",
+          "current"
+        ],
+        "title": "MyHealthViewOut"
       },
       "MyScheduleDashboardOut": {
         "properties": {

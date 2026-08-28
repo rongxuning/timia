@@ -29,8 +29,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: online.timia.ios
         PRODUCT_NAME: Timia
         INFOPLIST_FILE: Timia/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Timia/Resources/Timia.entitlements
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - sdk: HealthKit.framework
     scheme:
       testTargets:
         - TimiaTests
