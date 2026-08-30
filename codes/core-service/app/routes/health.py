@@ -22,6 +22,7 @@ from app.schemas.health import (
     HealthStandHourSyncIn,
     HealthSyncOut,
     HealthSyncStatusOut,
+    HealthWorkoutRouteSyncIn,
     HealthWorkoutSyncIn,
 )
 from app.services.health_api import (
@@ -34,6 +35,7 @@ from app.services.health_api import (
     sync_quantity_samples,
     sync_sleep_samples,
     sync_stand_hours,
+    sync_workout_routes,
     sync_workouts,
 )
 from app.services.health_metrics import local_date_of
@@ -106,6 +108,17 @@ def post_sync_workouts(
     user: User = Depends(get_current_user),
 ):
     result = sync_workouts(db, user, payload)
+    db.commit()
+    return result
+
+
+@router.post("/sync/workout-routes", response_model=HealthSyncOut)
+def post_sync_workout_routes(
+    payload: HealthWorkoutRouteSyncIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = sync_workout_routes(db, user, payload)
     db.commit()
     return result
 

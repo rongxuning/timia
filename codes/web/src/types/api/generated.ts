@@ -1110,6 +1110,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/sync/workout-routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Sync Workout Routes */
+        post: operations["post_sync_workout_routes_health_sync_workout_routes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/sync/deletions": {
         parameters: {
             query?: never;
@@ -2127,6 +2144,17 @@ export interface components {
              */
             possibly_late: boolean;
         };
+        /** HealthRoutePointIn */
+        HealthRoutePointIn: {
+            /** T */
+            t: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Alt */
+            alt?: number | null;
+        };
         /** HealthSamplePointOut */
         HealthSamplePointOut: {
             /** At */
@@ -2426,6 +2454,26 @@ export interface components {
             location_admin?: string | null;
             /** Location City */
             location_city?: string | null;
+        };
+        /** HealthWorkoutRouteIn */
+        HealthWorkoutRouteIn: {
+            /**
+             * Hk Uuid
+             * Format: uuid
+             */
+            hk_uuid: string;
+            /** Points */
+            points: components["schemas"]["HealthRoutePointIn"][];
+        };
+        /** HealthWorkoutRouteSyncIn */
+        HealthWorkoutRouteSyncIn: {
+            /**
+             * Timezone
+             * @default Asia/Shanghai
+             */
+            timezone: string;
+            /** Routes */
+            routes?: components["schemas"]["HealthWorkoutRouteIn"][];
         };
         /** HealthWorkoutSyncIn */
         HealthWorkoutSyncIn: {
@@ -7585,6 +7633,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["HealthWorkoutSyncIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthSyncOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sync_workout_routes_health_sync_workout_routes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthWorkoutRouteSyncIn"];
             };
         };
         responses: {

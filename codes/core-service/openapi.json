@@ -5225,6 +5225,65 @@
         }
       }
     },
+    "/health/sync/workout-routes": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Workout Routes",
+        "operationId": "post_sync_workout_routes_health_sync_workout_routes_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthWorkoutRouteSyncIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/sync/deletions": {
       "post": {
         "tags": [
@@ -9401,6 +9460,41 @@
         ],
         "title": "HealthRecoveryLinkOut"
       },
+      "HealthRoutePointIn": {
+        "properties": {
+          "t": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "T"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "alt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t",
+          "lat",
+          "lng"
+        ],
+        "title": "HealthRoutePointIn"
+      },
       "HealthSamplePointOut": {
         "properties": {
           "at": {
@@ -10357,6 +10451,50 @@
           "duration_seconds"
         ],
         "title": "HealthWorkoutOut"
+      },
+      "HealthWorkoutRouteIn": {
+        "properties": {
+          "hk_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hk Uuid"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HealthRoutePointIn"
+            },
+            "type": "array",
+            "maxItems": 1800,
+            "minItems": 2,
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hk_uuid",
+          "points"
+        ],
+        "title": "HealthWorkoutRouteIn"
+      },
+      "HealthWorkoutRouteSyncIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/HealthWorkoutRouteIn"
+            },
+            "type": "array",
+            "title": "Routes"
+          }
+        },
+        "type": "object",
+        "title": "HealthWorkoutRouteSyncIn"
       },
       "HealthWorkoutSyncIn": {
         "properties": {

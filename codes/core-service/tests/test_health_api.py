@@ -678,3 +678,127 @@ def test_health_card_detail_steps_hourly_from_samples():
     assert body["stats"]["distance_m"] == 800
 
 
+def _three_route_points() -> list[dict]:
+    return [
+        {"t": 0.0, "lat": 31.23, "lng": 121.47, "alt": 5.0},
+        {"t": 30.0, "lat": 31.231, "lng": 121.471, "alt": 6.0},
+        {"t": 60.0, "lat": 31.232, "lng": 121.472, "alt": 7.0},
+    ]
+
+
+def test_sync_workout_route_after_workout():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    workout = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": now.isoformat(),
+                    "end_at": (now + timedelta(minutes=10)).isoformat(),
+                    "duration_seconds": 600,
+                }
+            ],
+        },
+    )
+    assert workout.status_code == 200, workout.text
+    resp = client.post(
+        "/health/sync/workout-routes",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "routes": [{"hk_uuid": hk, "points": _three_route_points()}],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
+
+
+def test_sync_workout_route_without_workout_not_found():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    resp = client.post(
+        "/health/sync/workout-routes",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "routes": [{"hk_uuid": str(uuid.uuid4()), "points": _three_route_points()}],
+        },
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "workout_not_found"
+
+
+def test_sync_workout_routes_batch_too_large():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    routes = [
+        {"hk_uuid": str(uuid.uuid4()), "points": _three_route_points()} for _ in range(11)
+    ]
+    resp = client.post(
+        "/health/sync/workout-routes",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "routes": routes},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "batch_too_large"
+
+
+def test_deleted_workout_rejects_route_resync():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    workout = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": now.isoformat(),
+                    "end_at": (now + timedelta(minutes=10)).isoformat(),
+                    "duration_seconds": 600,
+                }
+            ],
+        },
+    )
+    assert workout.status_code == 200, workout.text
+    route = client.post(
+        "/health/sync/workout-routes",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "routes": [{"hk_uuid": hk, "points": _three_route_points()}],
+        },
+    )
+    assert route.status_code == 200, route.text
+    deleted = client.post(
+        "/health/sync/deletions",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "deletions": [{"hk_uuid": hk, "kind": "workout"}],
+        },
+    )
+    assert deleted.status_code == 200, deleted.text
+    again = client.post(
+        "/health/sync/workout-routes",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "routes": [{"hk_uuid": hk, "points": _three_route_points()}],
+        },
+    )
+    assert again.status_code == 400
+    assert again.json()["detail"] == "workout_not_found"
+
+

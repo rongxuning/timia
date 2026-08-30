@@ -104,6 +104,23 @@ class HealthWorkoutSyncIn(BaseModel):
     workouts: list[HealthWorkoutIn] = Field(default_factory=list)
 
 
+class HealthRoutePointIn(BaseModel):
+    t: float = Field(ge=0)
+    lat: float
+    lng: float
+    alt: float | None = None
+
+
+class HealthWorkoutRouteIn(BaseModel):
+    hk_uuid: UUID
+    points: list[HealthRoutePointIn] = Field(min_length=2, max_length=1800)
+
+
+class HealthWorkoutRouteSyncIn(BaseModel):
+    timezone: str = Field(default="Asia/Shanghai", min_length=1, max_length=64)
+    routes: list[HealthWorkoutRouteIn] = Field(default_factory=list)
+
+
 class HealthDeletionIn(BaseModel):
     hk_uuid: UUID
     kind: str

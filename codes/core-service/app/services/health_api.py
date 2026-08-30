@@ -44,6 +44,7 @@ from app.models.health import (
     HealthSampleSleep,
     HealthSampleStandHour,
     HealthSeriesHeartbeat,
+    HealthWorkoutRoute,
     HealthWorkoutSession,
 )
 from app.models.health_types import KNOWN_CARD_KEYS, normalize_activity_type, normalize_card_order
@@ -61,6 +62,7 @@ from app.schemas.health import (
     HealthSyncDayStatusOut,
     HealthSyncOut,
     HealthSyncStatusOut,
+    HealthWorkoutRouteSyncIn,
     HealthWorkoutSyncIn,
 )
 from app.services.health_metrics import (
@@ -78,6 +80,8 @@ BATCH_SLEEP_MAX = 200
 BATCH_STAND_HOUR_MAX = 200
 BATCH_HEARTBEAT_MAX = 20
 BATCH_WORKOUT_MAX = 50
+BATCH_WORKOUT_ROUTE_MAX = 10
+BATCH_WORKOUT_ROUTE_POINTS_MAX = 1800
 BATCH_DELETION_MAX = 500
 
 
@@ -355,6 +359,42 @@ def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> Heal
     return HealthSyncOut(upserted=len(payload.workouts), local_dates=_date_list(dates))
 
 
+def sync_workout_routes(db: Session, user: User, payload: HealthWorkoutRouteSyncIn) -> HealthSyncOut:
+    try:
+        tz_name = _ensure_timezone(payload.timezone)
+    except ValueError as err:
+        _invalid_timezone(err)
+        raise
+    if len(payload.routes) > BATCH_WORKOUT_ROUTE_MAX:
+        raise HTTPException(status_code=400, detail="batch_too_large")
+    dates: set[date] = set()
+    for item in payload.routes:
+        if len(item.points) > BATCH_WORKOUT_ROUTE_POINTS_MAX:
+            raise HTTPException(status_code=400, detail="too_many_points")
+        session = _get_live_workout(db, user.id, item.hk_uuid)
+        if session is None:
+            raise HTTPException(status_code=400, detail="workout_not_found")
+        dates.add(local_date_of(session.start_at, tz_name))
+        points = [point.model_dump() for point in item.points]
+        row = _get_workout_route(db, user.id, item.hk_uuid)
+        if row is None:
+            db.add(
+                HealthWorkoutRoute(
+                    owner_user_id=user.id,
+                    workout_hk_uuid=item.hk_uuid,
+                    points=points,
+                    point_count=len(points),
+                )
+            )
+        else:
+            row.points = points
+            row.point_count = len(points)
+            row.deleted_at = None
+            row.updated_at = utcnow()
+    db.flush()
+    return HealthSyncOut(upserted=len(payload.routes), local_dates=_date_list(dates))
+
+
 def sync_deletions(db: Session, user: User, payload: HealthDeletionSyncIn) -> HealthSyncOut:
     try:
         tz_name = _ensure_timezone(payload.timezone)
@@ -374,6 +414,11 @@ def sync_deletions(db: Session, user: User, payload: HealthDeletionSyncIn) -> He
         dates.add(local_date_of(stamp, tz_name))
         row.deleted_at = now
         row.updated_at = now
+        if item.kind == DELETION_KIND_WORKOUT:
+            route = _get_workout_route(db, user.id, item.hk_uuid)
+            if route is not None:
+                route.deleted_at = now
+                route.updated_at = now
     db.flush()
     for local_date in dates:
         recompute_daily_metrics(db, user.id, local_date, tz_name)
@@ -700,6 +745,29 @@ def _get_workout(db: Session, owner_id: uuid.UUID, hk_uuid: uuid.UUID) -> Health
         select(HealthWorkoutSession).where(
             HealthWorkoutSession.owner_user_id == owner_id,
             HealthWorkoutSession.hk_uuid == hk_uuid,
+        )
+    )
+
+
+def _get_live_workout(
+    db: Session, owner_id: uuid.UUID, hk_uuid: uuid.UUID
+) -> HealthWorkoutSession | None:
+    return db.scalar(
+        select(HealthWorkoutSession).where(
+            HealthWorkoutSession.owner_user_id == owner_id,
+            HealthWorkoutSession.hk_uuid == hk_uuid,
+            HealthWorkoutSession.deleted_at.is_(None),
+        )
+    )
+
+
+def _get_workout_route(
+    db: Session, owner_id: uuid.UUID, workout_hk_uuid: uuid.UUID
+) -> HealthWorkoutRoute | None:
+    return db.scalar(
+        select(HealthWorkoutRoute).where(
+            HealthWorkoutRoute.owner_user_id == owner_id,
+            HealthWorkoutRoute.workout_hk_uuid == workout_hk_uuid,
         )
     )
 
