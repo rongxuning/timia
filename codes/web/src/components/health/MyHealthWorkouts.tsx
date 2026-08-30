@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import type { HealthWorkout } from "@/types/api/views/health";
 import { workoutActivityStyle } from "@/components/health/workoutActivity";
 import { useHealthWorkouts } from "@/hooks/useHealthWorkouts";
@@ -76,6 +77,7 @@ type MyHealthWorkoutsProps = {
   initialHasMore?: boolean;
   initialEndDate?: string | null;
   timezone?: string;
+  queryString?: string;
 };
 
 export function MyHealthWorkouts({
@@ -85,6 +87,7 @@ export function MyHealthWorkouts({
   initialHasMore = false,
   initialEndDate = null,
   timezone = "Asia/Shanghai",
+  queryString = "",
 }: MyHealthWorkoutsProps) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const { workouts, hasMore, hasBuffer, prefetching, seeded, consumeBuffer } = useHealthWorkouts({
@@ -147,9 +150,10 @@ export function MyHealthWorkouts({
                       place,
                     ].filter(Boolean);
                     return (
-                      <article
+                      <Link
                         key={workout.id}
-                        className="flex min-w-[280px] shrink-0 flex-col rounded-xl border border-border-subtle bg-white p-md"
+                        href={`/my/health/workouts/${workout.id}${queryString}`}
+                        className="flex min-w-[280px] shrink-0 flex-col rounded-xl border border-border-subtle bg-white p-md transition-shadow hover:shadow-md"
                       >
                         <div className="flex items-start justify-between gap-md">
                           <div className="min-w-0">
@@ -186,7 +190,7 @@ export function MyHealthWorkouts({
                         {env.length > 0 ? (
                           <p className="mt-md self-end text-caption text-neutral-muted">{env.join("  ")}</p>
                         ) : null}
-                      </article>
+                      </Link>
                     );
                   })}
                 </div>

@@ -1,5 +1,11 @@
 import { apiFetch } from "@/lib/api";
-import type { HealthCardDetail, HealthProfile, HealthWorkoutsPage, MyHealthView } from "@/types/api/views/health";
+import type {
+  HealthCardDetail,
+  HealthProfile,
+  HealthWorkoutDetail,
+  HealthWorkoutsPage,
+  MyHealthView,
+} from "@/types/api/views/health";
 
 export type FetchMyHealthParams = {
   date?: string;
@@ -66,4 +72,8 @@ export function fetchHealthWorkouts(
   if (params.days) query.set("days", String(params.days));
   const suffix = query.toString() ? `?${query.toString()}` : "";
   return apiFetch<HealthWorkoutsPage>(`/views/me/health/workouts${suffix}`, { token });
+}
+
+export function fetchHealthWorkoutDetail(token: string, id: string): Promise<HealthWorkoutDetail> {
+  return apiFetch<HealthWorkoutDetail>(`/views/me/health/workouts/${id}`, { token });
 }

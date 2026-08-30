@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { HEALTH_CARD_LABELS, isHealthCardKey } from "@/components/health/healthCards";
 import { apiFetch } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 
@@ -98,19 +99,30 @@ export function primePlanNameForBreadcrumb(planId: string, title: string) {
   notifyBreadcrumbNameCache();
 }
 
-export function Breadcrumbs({
-  className,
-  labelBySegment,
-  rootHrefOverrides,
-  hideOnPaths,
-}: {
+type BreadcrumbsProps = {
   className?: string;
   labelBySegment?: Record<string, string>;
   rootHrefOverrides?: Record<string, string>;
   hideOnPaths?: string[];
-}) {
+};
+
+export function Breadcrumbs(props: BreadcrumbsProps) {
+  return (
+    <Suspense fallback={<nav aria-label="面包屑导航" className={props.className} />}>
+      <BreadcrumbsInner {...props} />
+    </Suspense>
+  );
+}
+
+function BreadcrumbsInner({
+  className,
+  labelBySegment,
+  rootHrefOverrides,
+  hideOnPaths,
+}: BreadcrumbsProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const nameCacheEpoch = useSyncExternalStore(
     subscribeBreadcrumbNameCache,
     getBreadcrumbNameCacheEpoch,
@@ -277,7 +289,22 @@ export function Breadcrumbs({
       }
       if (segment === "health" && prev === "my") {
         href += `/${segment}`;
-        out.push({ href, label: "健康" });
+        const search = searchParams.toString();
+        out.push({ href: search ? `${href}?${search}` : href, label: "健康" });
+        continue;
+      }
+      if (segment === "workouts" && prev === "health") {
+        href += `/${segment}`;
+        continue;
+      }
+      if (prev === "workouts" && looksLikeOpaqueId(segment)) {
+        href += `/${segment}`;
+        out.push({ href, label: "训练详情" });
+        continue;
+      }
+      if (prev === "health" && isHealthCardKey(segment)) {
+        href += `/${segment}`;
+        out.push({ href, label: HEALTH_CARD_LABELS[segment] });
         continue;
       }
 
@@ -322,7 +349,7 @@ export function Breadcrumbs({
       });
     }
     return out;
-  }, [hideOnPaths, labelBySegment, nameCacheEpoch, pathname, planLabels, projectLabels, rootHrefOverrides, workspaceLabels]);
+  }, [hideOnPaths, labelBySegment, nameCacheEpoch, pathname, planLabels, projectLabels, rootHrefOverrides, searchParams, workspaceLabels]);
 
   if (crumbs.length === 0) return null;
 
