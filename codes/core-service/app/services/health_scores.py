@@ -10,6 +10,10 @@ from app.models.health_types import DEFAULT_CARD_ORDER
 from app.schemas.views.health import HealthCurrentOut, HealthScoreFormulaOut
 
 SCORE_MAX = 100
+ACTIVE_DEFAULT_TARGET_KCAL = 500.0
+ACTIVE_BMR_FRACTION = 0.40
+ACTIVE_TARGET_MIN_KCAL = 250.0
+PROFILE_SEXES = frozenset({"male", "female"})
 
 SCORE_FORMULAS: dict[str, HealthScoreFormulaOut] = {
     "steps": HealthScoreFormulaOut(
@@ -69,11 +73,74 @@ SCORE_FORMULAS: dict[str, HealthScoreFormulaOut] = {
 }
 
 
-def score_current(current: HealthCurrentOut) -> dict[str, int | None]:
+def mifflin_st_jeor_bmr(
+    *,
+    sex: str | None,
+    age_years: int | None,
+    height_cm: float | None,
+    weight_kg: float | None,
+) -> float | None:
+    if sex not in PROFILE_SEXES:
+        return None
+    if age_years is None or height_cm is None or weight_kg is None:
+        return None
+    if age_years <= 0 or height_cm <= 0 or weight_kg <= 0:
+        return None
+    base = 10.0 * weight_kg + 6.25 * height_cm - 5.0 * age_years
+    if sex == "male":
+        return base + 5.0
+    return base - 161.0
+
+
+def energy_targets(
+    *,
+    sex: str | None,
+    age_years: int | None,
+    height_cm: float | None,
+    weight_kg: float | None,
+) -> tuple[float, float] | None:
+    bmr = mifflin_st_jeor_bmr(
+        sex=sex, age_years=age_years, height_cm=height_cm, weight_kg=weight_kg
+    )
+    if bmr is None:
+        return None
+    active = max(ACTIVE_TARGET_MIN_KCAL, bmr * ACTIVE_BMR_FRACTION)
+    return (bmr, active)
+
+
+def score_current(
+    current: HealthCurrentOut,
+    *,
+    sex: str | None = None,
+    age_years: int | None = None,
+    height_cm: float | None = None,
+) -> tuple[dict[str, int | None], dict[str, HealthScoreFormulaOut], tuple[float, float] | None]:
+    targets = energy_targets(
+        sex=sex,
+        age_years=age_years,
+        height_cm=height_cm,
+        weight_kg=current.body_mass_kg,
+    )
+    active_target = ACTIVE_DEFAULT_TARGET_KCAL
+    basal_score = None
+    formulas = {key: value.model_copy() for key, value in SCORE_FORMULAS.items()}
+    if targets is not None:
+        bmr, active_target = targets
+        basal_score = _linear(current.basal_energy_kcal, bmr)
+        bmr_kcal = int(round(bmr))
+        active_kcal = int(round(active_target))
+        formulas["basal"] = HealthScoreFormulaOut(
+            formula=f"clamp(round(100 × kcal / {bmr_kcal}), 0, 100)",
+            hint=f"总分100分，以 Mifflin-St Jeor 推算基础代谢 {bmr_kcal} kcal 为基础",
+        )
+        formulas["active"] = HealthScoreFormulaOut(
+            formula=f"clamp(round(100 × kcal / {active_kcal}), 0, 100)",
+            hint=f"总分100分，以推算基础代谢的 40%（{active_kcal} kcal）为活动消耗目标",
+        )
     values = {
         "steps": _linear(current.steps, 10000),
-        "active": _linear(current.active_energy_kcal, 500),
-        "basal": None,
+        "active": _linear(current.active_energy_kcal, active_target),
+        "basal": basal_score,
         "exercise": _linear(current.exercise_minutes, 30),
         "stand": _linear(
             current.stand_hours if current.stand_hours is not None else None,
@@ -87,7 +154,8 @@ def score_current(current: HealthCurrentOut) -> dict[str, int | None]:
         "recovery": _linear(current.cardio_recovery_bpm, 30),
         "spo2": _score_spo2(current.spo2_avg),
     }
-    return {key: values[key] for key in DEFAULT_CARD_ORDER}
+    scores = {key: values[key] for key in DEFAULT_CARD_ORDER}
+    return scores, formulas, targets
 
 
 def _clamp(value: float) -> int:

@@ -5343,6 +5343,112 @@
         }
       }
     },
+    "/health/profile": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Profile Get",
+        "operationId": "health_profile_get_health_profile_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Profile Patch",
+        "operationId": "health_profile_patch_health_profile_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthProfileIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dev/db-tables": {
       "get": {
         "tags": [
@@ -6974,6 +7080,97 @@
         }
       }
     },
+    "/views/me/health/cards/{metric}": {
+      "get": {
+        "tags": [
+          "views-health"
+        ],
+        "summary": "My Health Card Detail",
+        "operationId": "my_health_card_detail_views_me_health_cards__metric__get",
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Range"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCardDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/views/me/health/workouts": {
       "get": {
         "tags": [
@@ -8218,6 +8415,157 @@
         ],
         "title": "HealthCalendarDayOut"
       },
+      "HealthCardDetailOut": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "title": "Metric"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "focus_date": {
+            "type": "string",
+            "title": "Focus Date"
+          },
+          "range_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Start"
+          },
+          "range_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range End"
+          },
+          "hourly": {
+            "items": {
+              "$ref": "#/components/schemas/HealthHourBucketOut"
+            },
+            "type": "array",
+            "title": "Hourly"
+          },
+          "hourly_heart_rate": {
+            "items": {
+              "$ref": "#/components/schemas/HealthHourBucketOut"
+            },
+            "type": "array",
+            "title": "Hourly Heart Rate"
+          },
+          "stats": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Stats"
+          },
+          "workouts": {
+            "items": {
+              "$ref": "#/components/schemas/HealthWorkoutOut"
+            },
+            "type": "array",
+            "title": "Workouts"
+          },
+          "stand_cells": {
+            "items": {
+              "$ref": "#/components/schemas/HealthStandCellOut"
+            },
+            "type": "array",
+            "title": "Stand Cells"
+          },
+          "sit_streaks": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSitStreakOut"
+            },
+            "type": "array",
+            "title": "Sit Streaks"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSamplePointOut"
+            },
+            "type": "array",
+            "title": "Samples"
+          },
+          "sleep": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSleepNightOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sleep_nights": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSleepNightOut"
+            },
+            "type": "array",
+            "title": "Sleep Nights"
+          },
+          "bedtime_std_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedtime Std Minutes"
+          },
+          "heartbeat": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthHeartbeatPreviewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recovery_links": {
+            "items": {
+              "$ref": "#/components/schemas/HealthRecoveryLinkOut"
+            },
+            "type": "array",
+            "title": "Recovery Links"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "timezone",
+          "mode",
+          "focus_date"
+        ],
+        "title": "HealthCardDetailOut"
+      },
       "HealthCurrentOut": {
         "properties": {
           "steps": {
@@ -8505,6 +8853,24 @@
         "type": "object",
         "title": "HealthDeletionSyncIn"
       },
+      "HealthEnergyTargetsOut": {
+        "properties": {
+          "bmr_kcal": {
+            "type": "number",
+            "title": "Bmr Kcal"
+          },
+          "active_target_kcal": {
+            "type": "number",
+            "title": "Active Target Kcal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bmr_kcal",
+          "active_target_kcal"
+        ],
+        "title": "HealthEnergyTargetsOut"
+      },
       "HealthHeartbeatIntervalIn": {
         "properties": {
           "t": {
@@ -8522,6 +8888,31 @@
           "t"
         ],
         "title": "HealthHeartbeatIntervalIn"
+      },
+      "HealthHeartbeatPreviewOut": {
+        "properties": {
+          "start_at": {
+            "type": "string",
+            "title": "Start At"
+          },
+          "interval_count": {
+            "type": "integer",
+            "title": "Interval Count"
+          },
+          "intervals_ms": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Intervals Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_at",
+          "interval_count"
+        ],
+        "title": "HealthHeartbeatPreviewOut"
       },
       "HealthHeartbeatSeriesIn": {
         "properties": {
@@ -8601,6 +8992,52 @@
         "type": "object",
         "title": "HealthHeartbeatSyncIn"
       },
+      "HealthHourBucketOut": {
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "title": "Hour"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hour"
+        ],
+        "title": "HealthHourBucketOut"
+      },
       "HealthInsightOut": {
         "properties": {
           "local_date": {
@@ -8677,6 +9114,127 @@
           "card_order"
         ],
         "title": "HealthLayoutOut"
+      },
+      "HealthProfileIn": {
+        "properties": {
+          "sex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "age_years": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 120.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Years"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 250.0,
+                "minimum": 50.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          }
+        },
+        "type": "object",
+        "title": "HealthProfileIn"
+      },
+      "HealthProfileOut": {
+        "properties": {
+          "sex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "age_years": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Years"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          }
+        },
+        "type": "object",
+        "title": "HealthProfileOut"
+      },
+      "HealthProfileViewOut": {
+        "properties": {
+          "sex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "age_years": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Years"
+          },
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          }
+        },
+        "type": "object",
+        "title": "HealthProfileViewOut"
       },
       "HealthQuantitySampleIn": {
         "properties": {
@@ -8777,6 +9335,68 @@
         "type": "object",
         "title": "HealthQuantitySyncIn"
       },
+      "HealthRecoveryLinkOut": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "workout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthWorkoutOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "possibly_late": {
+            "type": "boolean",
+            "title": "Possibly Late",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "at",
+          "value"
+        ],
+        "title": "HealthRecoveryLinkOut"
+      },
+      "HealthSamplePointOut": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window"
+          }
+        },
+        "type": "object",
+        "required": [
+          "at",
+          "value"
+        ],
+        "title": "HealthSamplePointOut"
+      },
       "HealthScoreFormulaOut": {
         "properties": {
           "formula": {
@@ -8841,6 +9461,165 @@
         ],
         "title": "HealthSeriesPointOut"
       },
+      "HealthSitStreakOut": {
+        "properties": {
+          "start_hour": {
+            "type": "integer",
+            "title": "Start Hour"
+          },
+          "hours": {
+            "type": "integer",
+            "title": "Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_hour",
+          "hours"
+        ],
+        "title": "HealthSitStreakOut"
+      },
+      "HealthSleepNightOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "bedtime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedtime"
+          },
+          "wake_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake At"
+          },
+          "in_bed_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Bed Minutes"
+          },
+          "asleep_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asleep Minutes"
+          },
+          "efficiency": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Efficiency"
+          },
+          "deep_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deep Minutes"
+          },
+          "rem_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rem Minutes"
+          },
+          "core_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Core Minutes"
+          },
+          "awake_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awake Minutes"
+          },
+          "unspecified_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unspecified Minutes"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSleepSegmentOut"
+            },
+            "type": "array",
+            "title": "Segments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date"
+        ],
+        "title": "HealthSleepNightOut"
+      },
       "HealthSleepSampleIn": {
         "properties": {
           "hk_uuid": {
@@ -8903,6 +9682,29 @@
         ],
         "title": "HealthSleepSampleIn"
       },
+      "HealthSleepSegmentOut": {
+        "properties": {
+          "start_at": {
+            "type": "string",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "title": "End At"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_at",
+          "end_at",
+          "stage"
+        ],
+        "title": "HealthSleepSegmentOut"
+      },
       "HealthSleepSyncIn": {
         "properties": {
           "timezone": {
@@ -8922,6 +9724,30 @@
         },
         "type": "object",
         "title": "HealthSleepSyncIn"
+      },
+      "HealthStandCellOut": {
+        "properties": {
+          "hour": {
+            "type": "integer",
+            "title": "Hour"
+          },
+          "stood": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stood"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hour"
+        ],
+        "title": "HealthStandCellOut"
       },
       "HealthStandHourSampleIn": {
         "properties": {
@@ -11109,6 +11935,26 @@
             },
             "type": "array",
             "title": "Insights"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthProfileViewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "energy_targets": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthEnergyTargetsOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

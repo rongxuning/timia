@@ -31,14 +31,14 @@ def test_card_order_fills_missing_and_drops_unknown():
 
 
 def test_score_none_when_missing():
-    scores = score_current(HealthCurrentOut())
+    scores, _, _ = score_current(HealthCurrentOut())
     assert scores["steps"] is None
     assert scores["weight"] is None
     assert scores["basal"] is None
 
 
 def test_score_linear_and_sleep_peak():
-    scores = score_current(
+    scores, _, _ = score_current(
         HealthCurrentOut(
             steps=10000,
             active_energy_kcal=250,

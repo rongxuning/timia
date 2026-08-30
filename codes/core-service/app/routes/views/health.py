@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
-from app.schemas.views.health import HealthWorkoutsPageOut, MyHealthViewOut
+from app.schemas.views.health import HealthCardDetailOut, HealthWorkoutsPageOut, MyHealthViewOut
+from app.services.views.health_card_detail import build_health_card_detail
 from app.services.views.my_health import (
     RANGE_CHOICES,
     WORKOUT_DAYS,
@@ -46,6 +47,33 @@ def my_health(
         )
     except ValueError as exc:
         detail = str(exc)
+        if detail in {"invalid_range", "invalid_date", "invalid_timezone"}:
+            raise HTTPException(status_code=400, detail=detail) from exc
+        raise
+
+
+@router.get("/health/cards/{metric}", response_model=HealthCardDetailOut)
+def my_health_card_detail(
+    metric: str,
+    selected_date: date | None = Query(default=None, alias="date"),
+    range_days: int | None = Query(default=None, alias="range"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if range_days is not None and range_days not in RANGE_CHOICES:
+        raise HTTPException(status_code=400, detail="invalid_range")
+    try:
+        return build_health_card_detail(
+            db,
+            user,
+            metric,
+            selected_date=selected_date,
+            range_days=range_days,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        if detail == "unknown_metric":
+            raise HTTPException(status_code=404, detail="unknown_metric") from exc
         if detail in {"invalid_range", "invalid_date", "invalid_timezone"}:
             raise HTTPException(status_code=400, detail=detail) from exc
         raise
