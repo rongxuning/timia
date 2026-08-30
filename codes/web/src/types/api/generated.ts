@@ -1553,6 +1553,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/views/me/health/workouts/{workout_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Health Workout Detail */
+        get: operations["my_health_workout_detail_views_me_health_workouts__workout_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/views/plans": {
         parameters: {
             query?: never;
@@ -2046,6 +2063,15 @@ export interface components {
             /** Suggestions */
             suggestions?: string[];
         };
+        /** HealthKmMarkerOut */
+        HealthKmMarkerOut: {
+            /** Km */
+            km: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
         /** HealthLayoutIn */
         HealthLayoutIn: {
             /** Card Order */
@@ -2055,6 +2081,13 @@ export interface components {
         HealthLayoutOut: {
             /** Card Order */
             card_order: string[];
+        };
+        /** HealthOffsetPointOut */
+        HealthOffsetPointOut: {
+            /** Offset Seconds */
+            offset_seconds: number;
+            /** Value */
+            value: number;
         };
         /** HealthProfileIn */
         HealthProfileIn: {
@@ -2144,8 +2177,26 @@ export interface components {
              */
             possibly_late: boolean;
         };
+        /** HealthRouteOut */
+        HealthRouteOut: {
+            /** Points */
+            points?: components["schemas"]["HealthRoutePointOut"][];
+            /** Km Markers */
+            km_markers?: components["schemas"]["HealthKmMarkerOut"][];
+        };
         /** HealthRoutePointIn */
         HealthRoutePointIn: {
+            /** T */
+            t: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Alt */
+            alt?: number | null;
+        };
+        /** HealthRoutePointOut */
+        HealthRoutePointOut: {
             /** T */
             t: number;
             /** Lat */
@@ -2179,6 +2230,15 @@ export interface components {
             value?: number | null;
             /** Min */
             min?: number | null;
+            /** Max */
+            max?: number | null;
+        };
+        /** HealthSeriesWindowOut */
+        HealthSeriesWindowOut: {
+            /** Points */
+            points?: components["schemas"]["HealthOffsetPointOut"][];
+            /** Avg */
+            avg?: number | null;
             /** Max */
             max?: number | null;
         };
@@ -2266,6 +2326,26 @@ export interface components {
             /** Samples */
             samples?: components["schemas"]["HealthSleepSampleIn"][];
         };
+        /** HealthSplitOut */
+        HealthSplitOut: {
+            /** Lap */
+            lap: number;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Distance M */
+            distance_m: number;
+            /** Pace Sec Per Km */
+            pace_sec_per_km?: number | null;
+            /** Avg Hr Bpm */
+            avg_hr_bpm?: number | null;
+            /** Avg Cadence Spm */
+            avg_cadence_spm?: number | null;
+            /**
+             * Is Total
+             * @default false
+             */
+            is_total: boolean;
+        };
         /** HealthStandCellOut */
         HealthStandCellOut: {
             /** Hour */
@@ -2350,6 +2430,76 @@ export interface components {
             timezone: string;
             /** Days */
             days?: components["schemas"]["HealthSyncDayStatusOut"][];
+        };
+        /** HealthWorkoutDetailOut */
+        HealthWorkoutDetailOut: {
+            /** Id */
+            id: string;
+            /** Hk Uuid */
+            hk_uuid: string;
+            /** Activity Type */
+            activity_type: string;
+            /** Activity Type Raw */
+            activity_type_raw?: string | null;
+            /** Start At */
+            start_at: string;
+            /** End At */
+            end_at: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Active Energy Kcal */
+            active_energy_kcal?: number | null;
+            /** Distance M */
+            distance_m?: number | null;
+            /** Avg Hr Bpm */
+            avg_hr_bpm?: number | null;
+            /** Max Hr Bpm */
+            max_hr_bpm?: number | null;
+            /** Avg Cadence Spm */
+            avg_cadence_spm?: number | null;
+            /** Avg Pace Sec Per Km */
+            avg_pace_sec_per_km?: number | null;
+            /** Elevation Ascended M */
+            elevation_ascended_m?: number | null;
+            /** Elevation Descended M */
+            elevation_descended_m?: number | null;
+            /** Weather Temp C */
+            weather_temp_c?: number | null;
+            /** Weather Humidity */
+            weather_humidity?: number | null;
+            /** Location Country */
+            location_country?: string | null;
+            /** Location Admin */
+            location_admin?: string | null;
+            /** Location City */
+            location_city?: string | null;
+            /** Stride M */
+            stride_m?: number | null;
+            /** Running Index */
+            running_index?: number | null;
+            /** Running Power W */
+            running_power_w?: number | null;
+            /** Training Load */
+            training_load?: number | null;
+            /** Trimp */
+            trimp?: number | null;
+            /** Rtss */
+            rtss?: number | null;
+            /** Hr Max Used */
+            hr_max_used?: number | null;
+            /** Hr Rest Used */
+            hr_rest_used?: number | null;
+            running_index_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
+            training_load_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
+            route?: components["schemas"]["HealthRouteOut"] | null;
+            /** Splits */
+            splits?: components["schemas"]["HealthSplitOut"][] | null;
+            heart_rate?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            /** Heart Rate Zones */
+            heart_rate_zones?: components["schemas"]["HealthZoneShareOut"][] | null;
+            series: components["schemas"]["HealthWorkoutSeriesOut"];
+            /** Pace Zones */
+            pace_zones?: components["schemas"]["HealthZoneShareOut"][] | null;
         };
         /** HealthWorkoutIn */
         HealthWorkoutIn: {
@@ -2475,6 +2625,16 @@ export interface components {
             /** Routes */
             routes?: components["schemas"]["HealthWorkoutRouteIn"][];
         };
+        /** HealthWorkoutSeriesOut */
+        HealthWorkoutSeriesOut: {
+            pace?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            cadence?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            stride?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            power?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            vertical_oscillation?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            ground_contact?: components["schemas"]["HealthSeriesWindowOut"] | null;
+            altitude?: components["schemas"]["HealthSeriesWindowOut"] | null;
+        };
         /** HealthWorkoutSyncIn */
         HealthWorkoutSyncIn: {
             /**
@@ -2502,6 +2662,19 @@ export interface components {
              * @default false
              */
             has_more: boolean;
+        };
+        /** HealthZoneShareOut */
+        HealthZoneShareOut: {
+            /** Zone */
+            zone: number | string;
+            /** Lo */
+            lo: number;
+            /** Hi */
+            hi: number;
+            /** Seconds */
+            seconds: number;
+            /** Ratio */
+            ratio: number;
         };
         /** ItemCreate */
         ItemCreate: {
@@ -8568,6 +8741,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthWorkoutsPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_health_workout_detail_views_me_health_workouts__workout_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthWorkoutDetailOut"];
                 };
             };
             /** @description Validation Error */

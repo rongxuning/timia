@@ -124,6 +124,82 @@ class HealthWorkoutsPageOut(BaseModel):
     has_more: bool = False
 
 
+class HealthOffsetPointOut(BaseModel):
+    offset_seconds: float
+    value: float
+
+
+class HealthSeriesWindowOut(BaseModel):
+    points: list[HealthOffsetPointOut] = Field(default_factory=list)
+    avg: float | None = None
+    max: float | None = None
+
+
+class HealthZoneShareOut(BaseModel):
+    zone: int | str
+    lo: float
+    hi: float
+    seconds: float
+    ratio: float
+
+
+class HealthKmMarkerOut(BaseModel):
+    km: int
+    lat: float
+    lng: float
+
+
+class HealthRoutePointOut(BaseModel):
+    t: float
+    lat: float
+    lng: float
+    alt: float | None = None
+
+
+class HealthRouteOut(BaseModel):
+    points: list[HealthRoutePointOut] = Field(default_factory=list)
+    km_markers: list[HealthKmMarkerOut] = Field(default_factory=list)
+
+
+class HealthSplitOut(BaseModel):
+    lap: int
+    duration_seconds: float
+    distance_m: float
+    pace_sec_per_km: float | None = None
+    avg_hr_bpm: float | None = None
+    avg_cadence_spm: float | None = None
+    is_total: bool = False
+
+
+class HealthWorkoutSeriesOut(BaseModel):
+    pace: HealthSeriesWindowOut | None = None
+    cadence: HealthSeriesWindowOut | None = None
+    stride: HealthSeriesWindowOut | None = None
+    power: HealthSeriesWindowOut | None = None
+    vertical_oscillation: HealthSeriesWindowOut | None = None
+    ground_contact: HealthSeriesWindowOut | None = None
+    altitude: HealthSeriesWindowOut | None = None
+
+
+class HealthWorkoutDetailOut(HealthWorkoutOut):
+    stride_m: float | None = None
+    running_index: float | None = None
+    running_power_w: float | None = None
+    training_load: float | None = None
+    trimp: float | None = None
+    rtss: float | None = None
+    hr_max_used: float | None = None
+    hr_rest_used: float | None = None
+    running_index_formula: HealthScoreFormulaOut | None = None
+    training_load_formula: HealthScoreFormulaOut | None = None
+    route: HealthRouteOut | None = None
+    splits: list[HealthSplitOut] | None = None
+    heart_rate: HealthSeriesWindowOut | None = None
+    heart_rate_zones: list[HealthZoneShareOut] | None = None
+    series: HealthWorkoutSeriesOut
+    pace_zones: list[HealthZoneShareOut] | None = None
+
+
 class HealthHourBucketOut(BaseModel):
     hour: int
     value: float | None = None

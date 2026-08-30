@@ -7308,6 +7308,65 @@
         }
       }
     },
+    "/views/me/health/workouts/{workout_id}": {
+      "get": {
+        "tags": [
+          "views-health"
+        ],
+        "summary": "My Health Workout Detail",
+        "operationId": "my_health_workout_detail_views_me_health_workouts__workout_id__get",
+        "parameters": [
+          {
+            "name": "workout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workout Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthWorkoutDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/views/plans": {
       "get": {
         "tags": [
@@ -9140,6 +9199,29 @@
         ],
         "title": "HealthInsightOut"
       },
+      "HealthKmMarkerOut": {
+        "properties": {
+          "km": {
+            "type": "integer",
+            "title": "Km"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "km",
+          "lat",
+          "lng"
+        ],
+        "title": "HealthKmMarkerOut"
+      },
       "HealthLayoutIn": {
         "properties": {
           "card_order": {
@@ -9173,6 +9255,24 @@
           "card_order"
         ],
         "title": "HealthLayoutOut"
+      },
+      "HealthOffsetPointOut": {
+        "properties": {
+          "offset_seconds": {
+            "type": "number",
+            "title": "Offset Seconds"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "offset_seconds",
+          "value"
+        ],
+        "title": "HealthOffsetPointOut"
       },
       "HealthProfileIn": {
         "properties": {
@@ -9460,6 +9560,26 @@
         ],
         "title": "HealthRecoveryLinkOut"
       },
+      "HealthRouteOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HealthRoutePointOut"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "km_markers": {
+            "items": {
+              "$ref": "#/components/schemas/HealthKmMarkerOut"
+            },
+            "type": "array",
+            "title": "Km Markers"
+          }
+        },
+        "type": "object",
+        "title": "HealthRouteOut"
+      },
       "HealthRoutePointIn": {
         "properties": {
           "t": {
@@ -9494,6 +9614,40 @@
           "lng"
         ],
         "title": "HealthRoutePointIn"
+      },
+      "HealthRoutePointOut": {
+        "properties": {
+          "t": {
+            "type": "number",
+            "title": "T"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "alt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t",
+          "lat",
+          "lng"
+        ],
+        "title": "HealthRoutePointOut"
       },
       "HealthSamplePointOut": {
         "properties": {
@@ -9587,6 +9741,41 @@
           "local_date"
         ],
         "title": "HealthSeriesPointOut"
+      },
+      "HealthSeriesWindowOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HealthOffsetPointOut"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          }
+        },
+        "type": "object",
+        "title": "HealthSeriesWindowOut"
       },
       "HealthSitStreakOut": {
         "properties": {
@@ -9852,6 +10041,67 @@
         "type": "object",
         "title": "HealthSleepSyncIn"
       },
+      "HealthSplitOut": {
+        "properties": {
+          "lap": {
+            "type": "integer",
+            "title": "Lap"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "title": "Duration Seconds"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "pace_sec_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace Sec Per Km"
+          },
+          "avg_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr Bpm"
+          },
+          "avg_cadence_spm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cadence Spm"
+          },
+          "is_total": {
+            "type": "boolean",
+            "title": "Is Total",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "lap",
+          "duration_seconds",
+          "distance_m"
+        ],
+        "title": "HealthSplitOut"
+      },
       "HealthStandCellOut": {
         "properties": {
           "hour": {
@@ -10028,6 +10278,372 @@
           "timezone"
         ],
         "title": "HealthSyncStatusOut"
+      },
+      "HealthWorkoutDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "hk_uuid": {
+            "type": "string",
+            "title": "Hk Uuid"
+          },
+          "activity_type": {
+            "type": "string",
+            "title": "Activity Type"
+          },
+          "activity_type_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Type Raw"
+          },
+          "start_at": {
+            "type": "string",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "title": "End At"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "active_energy_kcal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Energy Kcal"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "avg_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr Bpm"
+          },
+          "max_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr Bpm"
+          },
+          "avg_cadence_spm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cadence Spm"
+          },
+          "avg_pace_sec_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Pace Sec Per Km"
+          },
+          "elevation_ascended_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Ascended M"
+          },
+          "elevation_descended_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Descended M"
+          },
+          "weather_temp_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Temp C"
+          },
+          "weather_humidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Humidity"
+          },
+          "location_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Country"
+          },
+          "location_admin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Admin"
+          },
+          "location_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location City"
+          },
+          "stride_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stride M"
+          },
+          "running_index": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running Index"
+          },
+          "running_power_w": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running Power W"
+          },
+          "training_load": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training Load"
+          },
+          "trimp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trimp"
+          },
+          "rtss": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rtss"
+          },
+          "hr_max_used": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hr Max Used"
+          },
+          "hr_rest_used": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hr Rest Used"
+          },
+          "running_index_formula": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScoreFormulaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "training_load_formula": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScoreFormulaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "route": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthRouteOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "splits": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HealthSplitOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Splits"
+          },
+          "heart_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "heart_rate_zones": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HealthZoneShareOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate Zones"
+          },
+          "series": {
+            "$ref": "#/components/schemas/HealthWorkoutSeriesOut"
+          },
+          "pace_zones": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/HealthZoneShareOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace Zones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "hk_uuid",
+          "activity_type",
+          "start_at",
+          "end_at",
+          "duration_seconds",
+          "series"
+        ],
+        "title": "HealthWorkoutDetailOut"
       },
       "HealthWorkoutIn": {
         "properties": {
@@ -10496,6 +11112,82 @@
         "type": "object",
         "title": "HealthWorkoutRouteSyncIn"
       },
+      "HealthWorkoutSeriesOut": {
+        "properties": {
+          "pace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stride": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "power": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vertical_oscillation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ground_contact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "altitude": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthSeriesWindowOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "HealthWorkoutSeriesOut"
+      },
       "HealthWorkoutSyncIn": {
         "properties": {
           "timezone": {
@@ -10555,6 +11247,46 @@
           "days"
         ],
         "title": "HealthWorkoutsPageOut"
+      },
+      "HealthZoneShareOut": {
+        "properties": {
+          "zone": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Zone"
+          },
+          "lo": {
+            "type": "number",
+            "title": "Lo"
+          },
+          "hi": {
+            "type": "number",
+            "title": "Hi"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds"
+          },
+          "ratio": {
+            "type": "number",
+            "title": "Ratio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zone",
+          "lo",
+          "hi",
+          "seconds",
+          "ratio"
+        ],
+        "title": "HealthZoneShareOut"
       },
       "ItemCreate": {
         "properties": {

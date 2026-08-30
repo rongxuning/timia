@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,7 +7,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
-from app.schemas.views.health import HealthCardDetailOut, HealthWorkoutsPageOut, MyHealthViewOut
+from app.schemas.views.health import (
+    HealthCardDetailOut,
+    HealthWorkoutDetailOut,
+    HealthWorkoutsPageOut,
+    MyHealthViewOut,
+)
 from app.services.views.health_card_detail import build_health_card_detail
 from app.services.views.my_health import (
     RANGE_CHOICES,
@@ -16,6 +22,7 @@ from app.services.views.my_health import (
     build_my_health,
     list_my_health_workouts,
 )
+from app.services.views.workout_detail import build_workout_detail
 
 router = APIRouter(prefix="/views/me", tags=["views-health"])
 
@@ -92,4 +99,18 @@ def my_health_workouts(
         detail = str(exc)
         if detail in {"invalid_range", "invalid_date"}:
             raise HTTPException(status_code=400, detail=detail) from exc
+        raise
+
+
+@router.get("/health/workouts/{workout_id}", response_model=HealthWorkoutDetailOut)
+def my_health_workout_detail(
+    workout_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        return build_workout_detail(db, user, workout_id)
+    except ValueError as exc:
+        if str(exc) == "not_found":
+            raise HTTPException(status_code=404, detail="not_found") from exc
         raise

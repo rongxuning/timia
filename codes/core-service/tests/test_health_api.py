@@ -802,3 +802,98 @@ def test_deleted_workout_rejects_route_resync():
     assert again.json()["detail"] == "workout_not_found"
 
 
+def _km_route_points() -> list[dict]:
+    """Three points along a meridian, about 1.11 km total."""
+    return [
+        {"t": 0.0, "lat": 31.230, "lng": 121.470, "alt": 5.0},
+        {"t": 400.0, "lat": 31.235, "lng": 121.470, "alt": 8.0},
+        {"t": 900.0, "lat": 31.240, "lng": 121.470, "alt": 12.0},
+    ]
+
+
+def test_requires_auth_for_workout_detail():
+    client = TestClient(app)
+    resp = client.get(f"/views/me/health/workouts/{uuid.uuid4()}")
+    assert resp.status_code == 401
+
+
+def test_workout_detail_running_index_and_owner_scope():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    _, other_token = _register_and_login(client)
+
+    saved = client.patch("/health/profile", headers=_headers(token), json={"max_hr_bpm": 188})
+    assert saved.status_code == 200, saved.text
+
+    hk = str(uuid.uuid4())
+    start = datetime.now(timezone.utc).replace(microsecond=0)
+    end = start + timedelta(minutes=25)
+    workout = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "duration_seconds": 1500,
+                    "distance_m": 3500,
+                    "avg_hr_bpm": 155,
+                    "avg_cadence_spm": 170,
+                    "avg_pace_sec_per_km": 429,
+                }
+            ],
+        },
+    )
+    assert workout.status_code == 200, workout.text
+
+    samples = []
+    for i, bpm in enumerate((148, 155, 162)):
+        at = (start + timedelta(minutes=5 * (i + 1))).isoformat()
+        samples.append(
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "heart_rate",
+                "start_at": at,
+                "end_at": at,
+                "value": bpm,
+                "unit": "count/min",
+            }
+        )
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "samples": samples},
+    )
+    assert posted.status_code == 200, posted.text
+
+    route = client.post(
+        "/health/sync/workout-routes",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "routes": [{"hk_uuid": hk, "points": _km_route_points()}],
+        },
+    )
+    assert route.status_code == 200, route.text
+
+    listing = client.get("/views/me/health", headers=_headers(token))
+    assert listing.status_code == 200, listing.text
+    workouts = listing.json()["recent_workouts"]
+    assert workouts, listing.text
+    workout_id = workouts[0]["id"]
+
+    detail = client.get(f"/views/me/health/workouts/{workout_id}", headers=_headers(token))
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["running_index"] is not None
+    assert any(row.get("is_total") is True for row in (body.get("splits") or []))
+
+    other = client.get(f"/views/me/health/workouts/{workout_id}", headers=_headers(other_token))
+    assert other.status_code == 404
+    assert other.json()["detail"] == "not_found"
+
+

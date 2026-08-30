@@ -5,6 +5,10 @@ export type HealthWorkout = components["schemas"]["HealthWorkoutOut"];
 export type HealthSeriesPoint = components["schemas"]["HealthSeriesPointOut"];
 export type HealthInsight = components["schemas"]["HealthInsightOut"];
 export type HealthWorkoutsPage = components["schemas"]["HealthWorkoutsPageOut"];
+export type HealthProfile = components["schemas"]["HealthProfileViewOut"];
+export type HealthEnergyTargets = components["schemas"]["HealthEnergyTargetsOut"];
+export type HealthCardDetail = components["schemas"]["HealthCardDetailOut"];
+export type HealthWorkoutDetail = components["schemas"]["HealthWorkoutDetailOut"];
 
 export type HealthCalendarDay = {
   local_date: string;
@@ -32,4 +36,6 @@ export type MyHealthView = {
   series?: Record<string, HealthSeriesPoint[]>;
   insight?: HealthInsight | null;
   insights?: HealthInsight[];
+  profile?: HealthProfile | null;
+  energy_targets?: HealthEnergyTargets | null;
 };
