@@ -65,8 +65,6 @@ WINDOW_METRIC_TYPES = (
     METRIC_STEP_COUNT,
 )
 REST_LOOKBACK_DAYS = 14
-CADENCE_SPM_LO = 40.0
-CADENCE_SPM_HI = 250.0
 SERIES_MAX_POINTS = 600
 
 
@@ -91,16 +89,16 @@ def build_workout_detail(
     by_type = _group_window_samples(db, user.id, session.start_at, session.end_at)
     route_points = _load_route_points(db, user.id, session.hk_uuid)
 
-    hr_pairs = by_type.get(METRIC_HEART_RATE, [])
-    speed_pairs = by_type.get(METRIC_RUNNING_SPEED, [])
-    stride_pairs = by_type.get(METRIC_RUNNING_STRIDE, [])
-    power_pairs = by_type.get(METRIC_RUNNING_POWER, [])
-    vo_pairs = by_type.get(METRIC_RUNNING_VERTICAL_OSC, [])
-    gct_pairs = by_type.get(METRIC_RUNNING_GROUND_CONTACT, [])
-    step_pairs = by_type.get(METRIC_STEP_COUNT, [])
+    hr_pairs = _offset_values(by_type.get(METRIC_HEART_RATE, []))
+    speed_pairs = _offset_values(by_type.get(METRIC_RUNNING_SPEED, []))
+    stride_pairs = _offset_values(by_type.get(METRIC_RUNNING_STRIDE, []))
+    power_pairs = _offset_values(by_type.get(METRIC_RUNNING_POWER, []))
+    vo_pairs = _offset_values(by_type.get(METRIC_RUNNING_VERTICAL_OSC, []))
+    gct_pairs = _offset_values(by_type.get(METRIC_RUNNING_GROUND_CONTACT, []))
+    step_intervals = by_type.get(METRIC_STEP_COUNT, [])
 
     pace_pairs = _pace_from_speed(speed_pairs) or _pace_from_route(route_points)
-    cadence_pairs = _cadence_from_steps(step_pairs)
+    cadence_pairs = _cadence_from_steps(step_intervals)
     altitude_pairs = _altitude_from_route(route_points)
 
     mean_grade = _mean_grade(route_points)
@@ -243,7 +241,8 @@ def _group_window_samples(
     owner_id: uuid.UUID,
     start_at: datetime,
     end_at: datetime,
-) -> dict[str, list[tuple[float, float]]]:
+) -> dict[str, list[tuple[float, float, float]]]:
+    """Group in-window samples as (offset_seconds, value, duration_seconds)."""
     start = _aware(start_at)
     end = _aware(end_at)
     rows = list(
@@ -259,11 +258,19 @@ def _group_window_samples(
             .order_by(HealthSampleQuantity.start_at)
         )
     )
-    grouped: dict[str, list[tuple[float, float]]] = {}
+    grouped: dict[str, list[tuple[float, float, float]]] = {}
     for row in rows:
-        offset = (_aware(row.start_at) - start).total_seconds()
-        grouped.setdefault(row.metric_type, []).append((offset, float(row.value)))
+        row_start = _aware(row.start_at)
+        offset = (row_start - start).total_seconds()
+        duration = (_aware(row.end_at) - row_start).total_seconds()
+        grouped.setdefault(row.metric_type, []).append((offset, float(row.value), duration))
     return grouped
+
+
+def _offset_values(
+    rows: list[tuple[float, float, float]],
+) -> list[tuple[float, float]]:
+    return [(offset, value) for offset, value, _duration in rows]
 
 
 def _load_route_points(db: Session, owner_id: uuid.UUID, hk_uuid: uuid.UUID) -> list[dict[str, Any]]:
@@ -300,12 +307,16 @@ def _pace_from_route(points: list[dict[str, Any]]) -> list[tuple[float, float]]:
     return out
 
 
-def _cadence_from_steps(pairs: list[tuple[float, float]]) -> list[tuple[float, float]]:
-    if not pairs:
-        return []
-    if all(CADENCE_SPM_LO <= value <= CADENCE_SPM_HI for _offset, value in pairs):
-        return list(pairs)
-    return []
+def _cadence_from_steps(
+    intervals: list[tuple[float, float, float]],
+) -> list[tuple[float, float]]:
+    """Convert step_count intervals to SPM: steps / (duration_seconds / 60)."""
+    out: list[tuple[float, float]] = []
+    for offset, steps, duration in intervals:
+        if duration <= 0:
+            continue
+        out.append((offset, steps / (duration / 60.0)))
+    return out
 
 
 def _altitude_from_route(points: list[dict[str, Any]]) -> list[tuple[float, float]]:

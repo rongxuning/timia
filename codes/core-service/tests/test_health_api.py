@@ -897,3 +897,65 @@ def test_workout_detail_running_index_and_owner_scope():
     assert other.json()["detail"] == "not_found"
 
 
+def test_workout_detail_cadence_from_step_count_interval():
+    """step_count intervals convert to SPM: steps / (duration_min)."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+
+    hk = str(uuid.uuid4())
+    start = datetime.now(timezone.utc).replace(microsecond=0)
+    end = start + timedelta(minutes=10)
+    workout = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "duration_seconds": 600,
+                    "distance_m": 1500,
+                    "avg_hr_bpm": 150,
+                    "avg_cadence_spm": 165,
+                }
+            ],
+        },
+    )
+    assert workout.status_code == 200, workout.text
+
+    # 85 steps over 30s => 170 SPM. Value 85 is in the old "already SPM" band,
+    # so without duration-based conversion the series avg would be ~85, not ~170.
+    sample_start = start + timedelta(minutes=2)
+    sample_end = sample_start + timedelta(seconds=30)
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "step_count",
+                    "start_at": sample_start.isoformat(),
+                    "end_at": sample_end.isoformat(),
+                    "value": 85,
+                    "unit": "count",
+                }
+            ],
+        },
+    )
+    assert posted.status_code == 200, posted.text
+
+    listing = client.get("/views/me/health", headers=_headers(token))
+    assert listing.status_code == 200, listing.text
+    workout_id = listing.json()["recent_workouts"][0]["id"]
+
+    detail = client.get(f"/views/me/health/workouts/{workout_id}", headers=_headers(token))
+    assert detail.status_code == 200, detail.text
+    cadence = detail.json()["series"]["cadence"]
+    assert cadence is not None
+    assert abs(cadence["avg"] - 170.0) < 1.0
+
