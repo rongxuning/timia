@@ -127,9 +127,8 @@ struct HealthSyncView: View {
     }
 
     private func sync() async {
-        if !permissions.didRequest {
-            guard await permissions.requestIfNeeded() else { return }
-        }
+        // Always re-request: HealthKit no-ops if unchanged, shows sheet for new read types.
+        guard await permissions.requestIfNeeded() else { return }
         isSyncing = true
         progress = 0.05
         progressText = "正在读取健康数据…"
