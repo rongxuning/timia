@@ -15,6 +15,8 @@ from app.schemas.health import (
     HealthHeartbeatSyncIn,
     HealthLayoutIn,
     HealthLayoutOut,
+    HealthProfileIn,
+    HealthProfileOut,
     HealthQuantitySyncIn,
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
@@ -23,8 +25,10 @@ from app.schemas.health import (
     HealthWorkoutSyncIn,
 )
 from app.services.health_api import (
+    get_profile,
     list_sync_status,
     save_card_order,
+    save_profile,
     sync_deletions,
     sync_heartbeat_series,
     sync_quantity_samples,
@@ -124,5 +128,24 @@ def patch_health_layout(
     user: User = Depends(get_current_user),
 ):
     result = save_card_order(db, user, payload)
+    db.commit()
+    return result
+
+
+@router.get("/profile", response_model=HealthProfileOut)
+def health_profile_get(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return get_profile(db, user)
+
+
+@router.patch("/profile", response_model=HealthProfileOut)
+def health_profile_patch(
+    payload: HealthProfileIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = save_profile(db, user, payload)
     db.commit()
     return result
