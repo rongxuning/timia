@@ -46,10 +46,11 @@ struct HealthSyncService {
         let sleepBatches = export.sleep.chunked(into: 200)
         let standBatches = export.standHours.chunked(into: 200)
         let workoutBatches = export.workouts.chunked(into: 50)
+        let routeBatches = export.routes.chunked(into: 10)
         let heartbeatBatches = export.heartbeats.chunked(into: 20)
         let total = max(
             sampleBatches.count + sleepBatches.count + standBatches.count
-                + workoutBatches.count + heartbeatBatches.count,
+                + workoutBatches.count + routeBatches.count + heartbeatBatches.count,
             1
         )
         var done = 0
@@ -60,7 +61,7 @@ struct HealthSyncService {
         }
 
         if sampleBatches.isEmpty, sleepBatches.isEmpty, standBatches.isEmpty,
-           workoutBatches.isEmpty, heartbeatBatches.isEmpty {
+           workoutBatches.isEmpty, routeBatches.isEmpty, heartbeatBatches.isEmpty {
             onProgress(1, "没有需要上传的数据")
             return
         }
@@ -80,6 +81,10 @@ struct HealthSyncService {
         for batch in workoutBatches {
             _ = try await api.syncWorkouts(HealthWorkoutSyncPayload(timezone: timezone, workouts: batch))
             step("正在同步训练 \(done)/\(total)")
+        }
+        for batch in routeBatches {
+            _ = try await api.syncWorkoutRoutes(HealthWorkoutRouteSyncPayload(timezone: timezone, routes: batch))
+            step("正在同步路线 \(done)/\(total)")
         }
         for batch in heartbeatBatches {
             _ = try await api.syncHeartbeat(HealthHeartbeatSyncPayload(timezone: timezone, series: batch))

@@ -8,6 +8,7 @@ struct HealthKitExport: Sendable {
     var sleep: [HealthSleepSamplePayload]
     var standHours: [HealthStandHourPayload]
     var workouts: [HealthWorkoutPayload]
+    var routes: [HealthWorkoutRoutePayload]
     var heartbeats: [HealthHeartbeatSeriesPayload]
 }
 
@@ -30,13 +31,14 @@ struct HealthKitStore {
         let samples = await fetchQuantities(from: start, to: end)
         let sleep = await fetchSleep(from: start, to: end)
         let standHours = await fetchStandHours(from: start, to: end)
-        let workouts = await fetchWorkouts(from: start, to: end)
+        let (workouts, routes) = await fetchWorkouts(from: start, to: end)
         let heartbeats = await fetchHeartbeats(from: start, to: end)
         return HealthKitExport(
             samples: samples,
             sleep: sleep,
             standHours: standHours,
             workouts: workouts,
+            routes: routes,
             heartbeats: heartbeats
         )
     }
@@ -142,14 +144,21 @@ struct HealthKitStore {
         }
     }
 
-    private func fetchWorkouts(from start: Date, to end: Date) async -> [HealthWorkoutPayload] {
+    private func fetchWorkouts(
+        from start: Date,
+        to end: Date
+    ) async -> ([HealthWorkoutPayload], [HealthWorkoutRoutePayload]) {
         let samples = (try? await sampleQuery(HKObjectType.workoutType(), from: start, to: end)) ?? []
-        var result: [HealthWorkoutPayload] = []
+        var workouts: [HealthWorkoutPayload] = []
+        var routes: [HealthWorkoutRoutePayload] = []
         for sample in samples {
             guard let workout = sample as? HKWorkout else { continue }
-            result.append(await workoutPayload(workout))
+            workouts.append(await workoutPayload(workout))
+            if let route = await fetchRoute(for: workout) {
+                routes.append(route)
+            }
         }
-        return result
+        return (workouts, routes)
     }
 
     private func workoutPayload(_ workout: HKWorkout) async -> HealthWorkoutPayload {
@@ -170,6 +179,8 @@ struct HealthKitStore {
             maxHrBpm: Self.maximum(workout, .heartRate, unit: bpmUnit),
             avgCadenceSpm: Self.cadence(workout),
             avgPaceSecPerKm: Self.paceSecPerKm(workout, distanceM: distanceM),
+            elevationAscendedM: Self.elevationM(workout, key: HKMetadataKeyElevationAscended),
+            elevationDescendedM: Self.elevationM(workout, key: HKMetadataKeyElevationDescended),
             weatherTempC: Self.weatherTempC(workout),
             weatherHumidity: Self.weatherHumidity(workout),
             locationCountry: place?.country,
@@ -241,6 +252,10 @@ struct HealthKitStore {
         return workout.duration / (distanceM / 1000)
     }
 
+    private static func elevationM(_ workout: HKWorkout, key: String) -> Double? {
+        (workout.metadata?[key] as? HKQuantity)?.doubleValue(for: .meter())
+    }
+
     private static func weatherTempC(_ workout: HKWorkout) -> Double? {
         (workout.metadata?[HKMetadataKeyWeatherTemperature] as? HKQuantity)?
             .doubleValue(for: .degreeCelsius())
@@ -257,6 +272,65 @@ struct HealthKitStore {
         let marks = try? await CLGeocoder().reverseGeocodeLocation(location)
         guard let mark = marks?.first else { return nil }
         return (mark.country, mark.administrativeArea, mark.locality ?? mark.subLocality)
+    }
+
+    private func fetchRoute(for workout: HKWorkout) async -> HealthWorkoutRoutePayload? {
+        let predicate = HKQuery.predicateForObjects(from: workout)
+        let samples: [HKSample] = await withCheckedContinuation { continuation in
+            let once = ResumeOnce()
+            let query = HKSampleQuery(
+                sampleType: HKSeriesType.workoutRoute(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, _ in
+                once.resume { continuation.resume(returning: samples ?? []) }
+            }
+            store.execute(query)
+        }
+        var locations: [CLLocation] = []
+        for sample in samples {
+            guard let route = sample as? HKWorkoutRoute else { continue }
+            locations.append(contentsOf: await collectRouteLocations(route))
+        }
+        locations.sort { $0.timestamp < $1.timestamp }
+        let points = Self.downsample(locations, maxCount: 1800).map { location in
+            HealthWorkoutRoutePoint(
+                t: max(0, location.timestamp.timeIntervalSince(workout.startDate)),
+                lat: location.coordinate.latitude,
+                lng: location.coordinate.longitude,
+                alt: location.verticalAccuracy >= 0 ? location.altitude : nil
+            )
+        }
+        guard points.count >= 2 else { return nil }
+        return HealthWorkoutRoutePayload(
+            hkUuid: workout.uuid.uuidString.lowercased(),
+            points: points
+        )
+    }
+
+    private func collectRouteLocations(_ route: HKWorkoutRoute) async -> [CLLocation] {
+        await withCheckedContinuation { continuation in
+            let once = ResumeOnce()
+            let rows = RowBox<CLLocation>()
+            let query = HKWorkoutRouteQuery(route: route) { _, locations, done, error in
+                if let locations {
+                    rows.items.append(contentsOf: locations)
+                }
+                if done || error != nil {
+                    once.resume { continuation.resume(returning: rows.items) }
+                }
+            }
+            store.execute(query)
+        }
+    }
+
+    private static func downsample<T>(_ items: [T], maxCount: Int) -> [T] {
+        let count = items.count
+        guard count > maxCount, maxCount >= 2 else { return items }
+        return (0..<maxCount).map { i in
+            items[i * (count - 1) / (maxCount - 1)]
+        }
     }
 
     private func firstRouteLocation(for workout: HKWorkout) async -> CLLocation? {
@@ -530,6 +604,8 @@ struct HealthKitStore {
 
         func normalized(_ value: Double) -> Double {
             if metric == "oxygen_saturation", value > 1 { return value / 100 }
+            if metric == "running_vertical_oscillation" { return value * 10 }
+            if metric == "running_ground_contact" { return value * 1000 }
             return value
         }
     }
@@ -550,6 +626,21 @@ struct HealthKitStore {
         .init(type: HKQuantityType(.oxygenSaturation), metric: "oxygen_saturation", unit: .percent(), unitName: "fraction"),
         .init(type: HKQuantityType(.vo2Max), metric: "vo2_max", unit: HKUnit(from: "ml/kg*min"), unitName: "ml_kg_min"),
         .init(type: HKQuantityType(.heartRateRecoveryOneMinute), metric: "cardio_recovery", unit: HKUnit.count().unitDivided(by: .minute()), unitName: "bpm"),
+        .init(type: HKQuantityType(.runningSpeed), metric: "running_speed", unit: HKUnit.meter().unitDivided(by: .second()), unitName: "m/s"),
+        .init(type: HKQuantityType(.runningStrideLength), metric: "running_stride", unit: .meter(), unitName: "m"),
+        .init(type: HKQuantityType(.runningPower), metric: "running_power", unit: .watt(), unitName: "W"),
+        .init(
+            type: HKQuantityType(.runningVerticalOscillation),
+            metric: "running_vertical_oscillation",
+            unit: .meterUnit(with: .centi),
+            unitName: "mm"
+        ),
+        .init(
+            type: HKQuantityType(.runningGroundContactTime),
+            metric: "running_ground_contact",
+            unit: .second(),
+            unitName: "ms"
+        ),
     ]
 }
 

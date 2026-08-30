@@ -82,6 +82,8 @@ struct HealthWorkoutPayload: Encodable, Sendable {
     var maxHrBpm: Double?
     var avgCadenceSpm: Double?
     var avgPaceSecPerKm: Double?
+    var elevationAscendedM: Double?
+    var elevationDescendedM: Double?
     var weatherTempC: Double?
     var weatherHumidity: Double?
     var locationCountry: String?
@@ -94,6 +96,23 @@ struct HealthWorkoutPayload: Encodable, Sendable {
 struct HealthWorkoutSyncPayload: Encodable, Sendable {
     var timezone: String
     var workouts: [HealthWorkoutPayload]
+}
+
+struct HealthWorkoutRoutePoint: Encodable, Sendable {
+    var t: Double
+    var lat: Double
+    var lng: Double
+    var alt: Double?
+}
+
+struct HealthWorkoutRoutePayload: Encodable, Sendable {
+    var hkUuid: String
+    var points: [HealthWorkoutRoutePoint]
+}
+
+struct HealthWorkoutRouteSyncPayload: Encodable, Sendable {
+    var timezone: String
+    var routes: [HealthWorkoutRoutePayload]
 }
 
 struct HealthHeartbeatIntervalPayload: Encodable, Sendable {
@@ -143,6 +162,15 @@ struct HealthSyncAPI: Sendable {
 
     func syncWorkouts(_ payload: HealthWorkoutSyncPayload) async throws -> HealthSyncOut {
         try await client.request("/health/sync/workouts", method: "POST", body: payload, response: HealthSyncOut.self)
+    }
+
+    func syncWorkoutRoutes(_ payload: HealthWorkoutRouteSyncPayload) async throws -> HealthSyncOut {
+        try await client.request(
+            "/health/sync/workout-routes",
+            method: "POST",
+            body: payload,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncHeartbeat(_ payload: HealthHeartbeatSyncPayload) async throws -> HealthSyncOut {
