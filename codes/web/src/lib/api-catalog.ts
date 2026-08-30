@@ -273,6 +273,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       series: "Record<string, HealthSeriesPointOut[]>",
       insight: "HealthInsightOut | null",
       insights: "HealthInsightOut[]",
+      profile: "{ sex, age_years, height_cm, max_hr_bpm } | null",
+      energy_targets: "{ bmr_kcal, active_target_kcal } | null",
     },
   },
   {
@@ -291,6 +293,25 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       days: "number",
       workouts: "HealthWorkoutOut[]",
       has_more: "boolean",
+    },
+  },
+  {
+    method: "GET",
+    path: "/views/me/health/cards/{metric}",
+    name: "健康指标卡片详情",
+    requestJson: {
+      headers: authBearer,
+      query: { date: "YYYY-MM-DD?", range: "7 | 30 | 90?" },
+      jsonBody: null,
+    },
+    responseJson: {
+      metric: "steps | active | ...",
+      hourly: "HealthHourBucketOut[]",
+      stats: "Record<string, number | null>",
+      workouts: "HealthWorkoutOut[]",
+      stand_cells: "HealthStandCellOut[]",
+      samples: "HealthSamplePointOut[]",
+      sleep: "HealthSleepNightOut | null",
     },
   },
   {
@@ -1483,6 +1504,34 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       jsonBody: { card_order: "string[] — steps, active, basal, exercise, stand, rhr, sleep, weight, hrv, vo2, recovery, spo2" },
     },
     responseJson: { card_order: "string[]" },
+  },
+  {
+    method: "GET",
+    path: "/health/profile",
+    name: "读取健康基础信息",
+    requestJson: { headers: authBearer, query: null, jsonBody: null },
+    responseJson: {
+      sex: "male | female | null",
+      age_years: "number | null",
+      height_cm: "number | null",
+      max_hr_bpm: "number | null",
+    },
+  },
+  {
+    method: "PATCH",
+    path: "/health/profile",
+    name: "保存健康基础信息",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: { sex: "male | female | null?", age_years: "1-120?", height_cm: "50-250?", max_hr_bpm: "80-220?" },
+    },
+    responseJson: {
+      sex: "male | female | null",
+      age_years: "number | null",
+      height_cm: "number | null",
+      max_hr_bpm: "number | null",
+    },
   },
 
   // ---------- Plans (templates, apply/subscribe, comments, notifications) ----------
