@@ -2361,6 +2361,10 @@ export interface components {
             avg_cadence_spm?: number | null;
             /** Avg Pace Sec Per Km */
             avg_pace_sec_per_km?: number | null;
+            /** Elevation Ascended M */
+            elevation_ascended_m?: number | null;
+            /** Elevation Descended M */
+            elevation_descended_m?: number | null;
             /** Weather Temp C */
             weather_temp_c?: number | null;
             /** Weather Humidity */
@@ -2408,6 +2412,10 @@ export interface components {
             avg_cadence_spm?: number | null;
             /** Avg Pace Sec Per Km */
             avg_pace_sec_per_km?: number | null;
+            /** Elevation Ascended M */
+            elevation_ascended_m?: number | null;
+            /** Elevation Descended M */
+            elevation_descended_m?: number | null;
             /** Weather Temp C */
             weather_temp_c?: number | null;
             /** Weather Humidity */

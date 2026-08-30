@@ -87,6 +87,8 @@ class HealthWorkoutIn(BaseModel):
     max_hr_bpm: float | None = None
     avg_cadence_spm: float | None = None
     avg_pace_sec_per_km: float | None = None
+    elevation_ascended_m: float | None = None
+    elevation_descended_m: float | None = None
     weather_temp_c: float | None = None
     weather_humidity: float | None = None
     location_country: str | None = Field(default=None, max_length=64)

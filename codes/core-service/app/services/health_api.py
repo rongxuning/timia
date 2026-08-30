@@ -313,6 +313,8 @@ def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> Heal
                     max_hr_bpm=item.max_hr_bpm,
                     avg_cadence_spm=item.avg_cadence_spm,
                     avg_pace_sec_per_km=item.avg_pace_sec_per_km,
+                    elevation_ascended_m=item.elevation_ascended_m,
+                    elevation_descended_m=item.elevation_descended_m,
                     weather_temp_c=item.weather_temp_c,
                     weather_humidity=item.weather_humidity,
                     location_country=item.location_country,
@@ -335,6 +337,8 @@ def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> Heal
             row.max_hr_bpm = item.max_hr_bpm
             row.avg_cadence_spm = item.avg_cadence_spm
             row.avg_pace_sec_per_km = item.avg_pace_sec_per_km
+            row.elevation_ascended_m = item.elevation_ascended_m
+            row.elevation_descended_m = item.elevation_descended_m
             row.weather_temp_c = item.weather_temp_c
             row.weather_humidity = item.weather_humidity
             row.location_country = item.location_country

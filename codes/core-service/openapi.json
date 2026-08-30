@@ -10040,6 +10040,28 @@
             ],
             "title": "Avg Pace Sec Per Km"
           },
+          "elevation_ascended_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Ascended M"
+          },
+          "elevation_descended_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Descended M"
+          },
           "weather_temp_c": {
             "anyOf": [
               {
@@ -10246,6 +10268,28 @@
               }
             ],
             "title": "Avg Pace Sec Per Km"
+          },
+          "elevation_ascended_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Ascended M"
+          },
+          "elevation_descended_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Descended M"
           },
           "weather_temp_c": {
             "anyOf": [

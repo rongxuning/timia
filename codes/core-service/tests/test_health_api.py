@@ -76,6 +76,31 @@ def test_unknown_metric_type_rejected():
     assert resp.json()["detail"] == "unknown_metric_type"
 
 
+def test_running_speed_sample_accepted():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc).isoformat()
+    resp = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "running_speed",
+                    "start_at": now,
+                    "end_at": now,
+                    "value": 3.5,
+                    "unit": "m/s",
+                }
+            ],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
+
+
 def test_sample_batch_too_large():
     client = TestClient(app)
     _, token = _register_and_login(client)
@@ -406,6 +431,36 @@ def test_workout_card_metrics_round_trip():
     steps_formula = view.json()["score_formulas"]["steps"]
     assert steps_formula["formula"].startswith("clamp(")
     assert "10000" in steps_formula["hint"]
+
+
+def test_workout_elevation_round_trip():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc)
+    resp = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "activity_type": "running",
+                    "start_at": now.isoformat(),
+                    "end_at": (now + timedelta(minutes=30)).isoformat(),
+                    "duration_seconds": 1800,
+                    "elevation_ascended_m": 12,
+                    "elevation_descended_m": 8,
+                }
+            ],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    view = client.get("/views/me/health", headers=_headers(token))
+    assert view.status_code == 200, view.text
+    workout = view.json()["recent_workouts"][0]
+    assert workout["elevation_ascended_m"] == 12
+    assert workout["elevation_descended_m"] == 8
 
 
 def _shanghai_today() -> date:

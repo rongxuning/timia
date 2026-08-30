@@ -396,6 +396,8 @@ def workout_out(item: HealthWorkoutSession) -> HealthWorkoutOut:
         max_hr_bpm=item.max_hr_bpm,
         avg_cadence_spm=item.avg_cadence_spm,
         avg_pace_sec_per_km=item.avg_pace_sec_per_km,
+        elevation_ascended_m=item.elevation_ascended_m,
+        elevation_descended_m=item.elevation_descended_m,
         weather_temp_c=item.weather_temp_c,
         weather_humidity=item.weather_humidity,
         location_country=item.location_country,
