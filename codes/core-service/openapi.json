@@ -9153,6 +9153,17 @@
               }
             ],
             "title": "Height Cm"
+          },
+          "max_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr Bpm"
           }
         },
         "type": "object",
@@ -9192,6 +9203,17 @@
               }
             ],
             "title": "Height Cm"
+          },
+          "max_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr Bpm"
           }
         },
         "type": "object",
@@ -9231,6 +9253,17 @@
               }
             ],
             "title": "Height Cm"
+          },
+          "max_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr Bpm"
           }
         },
         "type": "object",

@@ -1144,6 +1144,24 @@ export interface paths {
         patch: operations["patch_health_layout_health_layout_patch"];
         trace?: never;
     };
+    "/health/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health Profile Get */
+        get: operations["health_profile_get_health_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Health Profile Patch */
+        patch: operations["health_profile_patch_health_profile_patch"];
+        trace?: never;
+    };
     "/dev/db-tables": {
         parameters: {
             query?: never;
@@ -1484,6 +1502,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/views/me/health/cards/{metric}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Health Card Detail */
+        get: operations["my_health_card_detail_views_me_health_cards__metric__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/views/me/health/workouts": {
         parameters: {
             query?: never;
@@ -1804,6 +1839,45 @@ export interface components {
              */
             has_insight: boolean;
         };
+        /** HealthCardDetailOut */
+        HealthCardDetailOut: {
+            /** Metric */
+            metric: string;
+            /** Timezone */
+            timezone: string;
+            /** Mode */
+            mode: string;
+            /** Focus Date */
+            focus_date: string;
+            /** Range Start */
+            range_start?: string | null;
+            /** Range End */
+            range_end?: string | null;
+            /** Hourly */
+            hourly?: components["schemas"]["HealthHourBucketOut"][];
+            /** Hourly Heart Rate */
+            hourly_heart_rate?: components["schemas"]["HealthHourBucketOut"][];
+            /** Stats */
+            stats?: {
+                [key: string]: number | null;
+            };
+            /** Workouts */
+            workouts?: components["schemas"]["HealthWorkoutOut"][];
+            /** Stand Cells */
+            stand_cells?: components["schemas"]["HealthStandCellOut"][];
+            /** Sit Streaks */
+            sit_streaks?: components["schemas"]["HealthSitStreakOut"][];
+            /** Samples */
+            samples?: components["schemas"]["HealthSamplePointOut"][];
+            sleep?: components["schemas"]["HealthSleepNightOut"] | null;
+            /** Sleep Nights */
+            sleep_nights?: components["schemas"]["HealthSleepNightOut"][];
+            /** Bedtime Std Minutes */
+            bedtime_std_minutes?: number | null;
+            heartbeat?: components["schemas"]["HealthHeartbeatPreviewOut"] | null;
+            /** Recovery Links */
+            recovery_links?: components["schemas"]["HealthRecoveryLinkOut"][];
+        };
         /** HealthCurrentOut */
         HealthCurrentOut: {
             /** Steps */
@@ -1871,6 +1945,13 @@ export interface components {
             /** Deletions */
             deletions?: components["schemas"]["HealthDeletionIn"][];
         };
+        /** HealthEnergyTargetsOut */
+        HealthEnergyTargetsOut: {
+            /** Bmr Kcal */
+            bmr_kcal: number;
+            /** Active Target Kcal */
+            active_target_kcal: number;
+        };
         /** HealthHeartbeatIntervalIn */
         HealthHeartbeatIntervalIn: {
             /** T */
@@ -1880,6 +1961,15 @@ export interface components {
              * @default false
              */
             gap: boolean;
+        };
+        /** HealthHeartbeatPreviewOut */
+        HealthHeartbeatPreviewOut: {
+            /** Start At */
+            start_at: string;
+            /** Interval Count */
+            interval_count: number;
+            /** Intervals Ms */
+            intervals_ms?: number[];
         };
         /** HealthHeartbeatSeriesIn */
         HealthHeartbeatSeriesIn: {
@@ -1915,6 +2005,17 @@ export interface components {
             /** Series */
             series?: components["schemas"]["HealthHeartbeatSeriesIn"][];
         };
+        /** HealthHourBucketOut */
+        HealthHourBucketOut: {
+            /** Hour */
+            hour: number;
+            /** Value */
+            value?: number | null;
+            /** Min */
+            min?: number | null;
+            /** Max */
+            max?: number | null;
+        };
         /** HealthInsightOut */
         HealthInsightOut: {
             /** Local Date */
@@ -1937,6 +2038,39 @@ export interface components {
         HealthLayoutOut: {
             /** Card Order */
             card_order: string[];
+        };
+        /** HealthProfileIn */
+        HealthProfileIn: {
+            /** Sex */
+            sex?: string | null;
+            /** Age Years */
+            age_years?: number | null;
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Max Hr Bpm */
+            max_hr_bpm?: number | null;
+        };
+        /** HealthProfileOut */
+        HealthProfileOut: {
+            /** Sex */
+            sex?: string | null;
+            /** Age Years */
+            age_years?: number | null;
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Max Hr Bpm */
+            max_hr_bpm?: number | null;
+        };
+        /** HealthProfileViewOut */
+        HealthProfileViewOut: {
+            /** Sex */
+            sex?: string | null;
+            /** Age Years */
+            age_years?: number | null;
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Max Hr Bpm */
+            max_hr_bpm?: number | null;
         };
         /** HealthQuantitySampleIn */
         HealthQuantitySampleIn: {
@@ -1980,6 +2114,28 @@ export interface components {
             /** Samples */
             samples?: components["schemas"]["HealthQuantitySampleIn"][];
         };
+        /** HealthRecoveryLinkOut */
+        HealthRecoveryLinkOut: {
+            /** At */
+            at: string;
+            /** Value */
+            value: number;
+            workout?: components["schemas"]["HealthWorkoutOut"] | null;
+            /**
+             * Possibly Late
+             * @default false
+             */
+            possibly_late: boolean;
+        };
+        /** HealthSamplePointOut */
+        HealthSamplePointOut: {
+            /** At */
+            at: string;
+            /** Value */
+            value: number;
+            /** Window */
+            window?: string | null;
+        };
         /** HealthScoreFormulaOut */
         HealthScoreFormulaOut: {
             /** Formula */
@@ -1997,6 +2153,42 @@ export interface components {
             min?: number | null;
             /** Max */
             max?: number | null;
+        };
+        /** HealthSitStreakOut */
+        HealthSitStreakOut: {
+            /** Start Hour */
+            start_hour: number;
+            /** Hours */
+            hours: number;
+        };
+        /** HealthSleepNightOut */
+        HealthSleepNightOut: {
+            /** Local Date */
+            local_date: string;
+            /** Bedtime */
+            bedtime?: string | null;
+            /** Wake At */
+            wake_at?: string | null;
+            /** In Bed Minutes */
+            in_bed_minutes?: number | null;
+            /** Asleep Minutes */
+            asleep_minutes?: number | null;
+            /** Efficiency */
+            efficiency?: number | null;
+            /** Deep Minutes */
+            deep_minutes?: number | null;
+            /** Rem Minutes */
+            rem_minutes?: number | null;
+            /** Core Minutes */
+            core_minutes?: number | null;
+            /** Awake Minutes */
+            awake_minutes?: number | null;
+            /** Unspecified Minutes */
+            unspecified_minutes?: number | null;
+            /** Score */
+            score?: number | null;
+            /** Segments */
+            segments?: components["schemas"]["HealthSleepSegmentOut"][];
         };
         /** HealthSleepSampleIn */
         HealthSleepSampleIn: {
@@ -2027,6 +2219,15 @@ export interface components {
             /** Source Name */
             source_name?: string | null;
         };
+        /** HealthSleepSegmentOut */
+        HealthSleepSegmentOut: {
+            /** Start At */
+            start_at: string;
+            /** End At */
+            end_at: string;
+            /** Stage */
+            stage: string;
+        };
         /** HealthSleepSyncIn */
         HealthSleepSyncIn: {
             /**
@@ -2036,6 +2237,13 @@ export interface components {
             timezone: string;
             /** Samples */
             samples?: components["schemas"]["HealthSleepSampleIn"][];
+        };
+        /** HealthStandCellOut */
+        HealthStandCellOut: {
+            /** Hour */
+            hour: number;
+            /** Stood */
+            stood?: boolean | null;
         };
         /** HealthStandHourSampleIn */
         HealthStandHourSampleIn: {
@@ -2795,6 +3003,8 @@ export interface components {
             insight?: components["schemas"]["HealthInsightOut"] | null;
             /** Insights */
             insights?: components["schemas"]["HealthInsightOut"][];
+            profile?: components["schemas"]["HealthProfileViewOut"] | null;
+            energy_targets?: components["schemas"]["HealthEnergyTargetsOut"] | null;
         };
         /** MyScheduleDashboardOut */
         MyScheduleDashboardOut: {
@@ -7460,6 +7670,72 @@ export interface operations {
             };
         };
     };
+    health_profile_get_health_profile_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_profile_patch_health_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthProfileIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_db_tables_dev_db_tables_get: {
         parameters: {
             query?: never;
@@ -8131,6 +8407,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyHealthViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_health_card_detail_views_me_health_cards__metric__get: {
+        parameters: {
+            query?: {
+                date?: string | null;
+                range?: number | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                metric: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthCardDetailOut"];
                 };
             };
             /** @description Validation Error */
