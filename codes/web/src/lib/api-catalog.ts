@@ -1506,6 +1506,24 @@ export const API_CATALOG: ApiCatalogEntry[] = [
   },
   {
     method: "POST",
+    path: "/health/sync/workout-routes",
+    name: "同步训练路线",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: {
+        timezone: "string",
+        routes: "HealthWorkoutRouteIn[] (max 10, points ≤1800)",
+      },
+    },
+    responseJson: {
+      upserted: "number",
+      local_dates: "string[]",
+      errors: "batch_too_large | too_many_points | workout_not_found",
+    },
+  },
+  {
+    method: "POST",
     path: "/health/sync/deletions",
     name: "同步健康删除",
     requestJson: {

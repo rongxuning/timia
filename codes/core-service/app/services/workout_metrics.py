@@ -287,26 +287,15 @@ def _avg_in_window(
     return sum(vals) / len(vals)
 
 
-def km_splits(
-    points: list[dict],
+def _splits_from_curve(
+    times: list[float],
+    cum_d: list[float],
     hr_points: list[tuple[float, float]],
     cadence_points: list[tuple[float, float]],
 ) -> list[dict]:
-    """Accumulate haversine distance and cut at every 1000 m; keep partial final lap."""
-    if len(points) < 2:
+    """Cut kilometre laps from a (time, cumulative-metres) curve."""
+    if len(times) < 2 or len(times) != len(cum_d):
         return []
-
-    times = [float(p["t"]) for p in points]
-    cum_d = [0.0]
-    for i in range(1, len(points)):
-        d = haversine_m(
-            points[i - 1]["lat"],
-            points[i - 1]["lng"],
-            points[i]["lat"],
-            points[i]["lng"],
-        )
-        cum_d.append(cum_d[-1] + d)
-
     total = cum_d[-1]
     if total <= 0:
         return []
@@ -346,6 +335,70 @@ def km_splits(
             }
         )
     return splits
+
+
+def km_splits(
+    points: list[dict],
+    hr_points: list[tuple[float, float]],
+    cadence_points: list[tuple[float, float]],
+) -> list[dict]:
+    """Accumulate haversine distance and cut at every 1000 m; keep partial final lap."""
+    if len(points) < 2:
+        return []
+
+    times = [float(p["t"]) for p in points]
+    cum_d = [0.0]
+    for i in range(1, len(points)):
+        d = haversine_m(
+            points[i - 1]["lat"],
+            points[i - 1]["lng"],
+            points[i]["lat"],
+            points[i]["lng"],
+        )
+        cum_d.append(cum_d[-1] + d)
+    return _splits_from_curve(times, cum_d, hr_points, cadence_points)
+
+
+def km_splits_from_speed(
+    samples: list[tuple[float, float, float]],
+    hr_points: list[tuple[float, float]],
+    cadence_points: list[tuple[float, float]],
+) -> list[dict]:
+    """Integrate running_speed (m/s × duration) and cut kilometres; keep last partial lap."""
+    times: list[float] = []
+    cum_d: list[float] = []
+    for offset, speed, duration in samples:
+        if duration <= 0 or speed <= 0:
+            continue
+        if not times:
+            times.append(offset)
+            cum_d.append(0.0)
+        elif offset > times[-1]:
+            times.append(offset)
+            cum_d.append(cum_d[-1])
+        times.append(offset + duration)
+        cum_d.append(cum_d[-1] + speed * duration)
+    return _splits_from_curve(times, cum_d, hr_points, cadence_points)
+
+
+def mean_grade(points: list[dict], min_horiz_m: float = 5.0) -> float | None:
+    """Overall route grade as ΣΔalt / Σhoriz (fraction). Skip horiz <= 0 or < min."""
+    if len(points) < 2:
+        return None
+    sum_dalt = 0.0
+    sum_horiz = 0.0
+    for i in range(1, len(points)):
+        prev, cur = points[i - 1], points[i]
+        if prev.get("alt") is None or cur.get("alt") is None:
+            continue
+        horiz = haversine_m(prev["lat"], prev["lng"], cur["lat"], cur["lng"])
+        if horiz <= 0 or horiz < min_horiz_m:
+            continue
+        sum_dalt += float(cur["alt"]) - float(prev["alt"])
+        sum_horiz += horiz
+    if sum_horiz <= 0:
+        return None
+    return sum_dalt / sum_horiz
 
 
 def downsample_series(

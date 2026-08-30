@@ -104,12 +104,16 @@ def my_health_workouts(
 
 @router.get("/health/workouts/{workout_id}", response_model=HealthWorkoutDetailOut)
 def my_health_workout_detail(
-    workout_id: uuid.UUID,
+    workout_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     try:
-        return build_workout_detail(db, user, workout_id)
+        parsed_id = uuid.UUID(workout_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="not_found") from exc
+    try:
+        return build_workout_detail(db, user, parsed_id)
     except ValueError as exc:
         if str(exc) == "not_found":
             raise HTTPException(status_code=404, detail="not_found") from exc

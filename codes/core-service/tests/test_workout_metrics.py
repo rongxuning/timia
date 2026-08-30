@@ -7,6 +7,8 @@ from app.services.workout_metrics import (
     haversine_m,
     hr_zones,
     km_splits,
+    km_splits_from_speed,
+    mean_grade,
     pace_zones,
     resolve_hr_max,
     running_index,
@@ -99,6 +101,32 @@ def test_km_splits_partial_last_lap():
     assert abs(splits[0]["distance_m"] - 1000) < 30
     assert abs(splits[-1]["distance_m"] - 500) < 30
     assert abs(haversine_m(0, 0, 1 / 111_320, 0) - 1) < 0.05
+
+
+def test_km_splits_from_speed_partial_last_lap():
+    """Indoor: integrate constant m/s × duration; last lap stays partial."""
+    speed = 10.0 / 3.0
+    samples = [(float(i * 30), speed, 30.0) for i in range(25)]
+    splits = km_splits_from_speed(samples, hr_points=[], cadence_points=[])
+    assert len(splits) == 3
+    assert abs(splits[0]["distance_m"] - 1000) < 1
+    assert abs(splits[1]["distance_m"] - 1000) < 1
+    assert abs(splits[-1]["distance_m"] - 500) < 1
+    assert splits[0]["avg_hr_bpm"] is None
+
+
+def test_mean_grade_is_distance_weighted():
+    """A 10 m 50% segment must not outweigh a 1000 m flat; ΣΔalt/Σhoriz ≈ 5/1010."""
+    deg_per_m = 1.0 / 111_320
+    points = [
+        {"t": 0.0, "lat": 0.0, "lng": 0.0, "alt": 0.0},
+        {"t": 10.0, "lat": 10.0 * deg_per_m, "lng": 0.0, "alt": 5.0},
+        {"t": 110.0, "lat": 1010.0 * deg_per_m, "lng": 0.0, "alt": 5.0},
+    ]
+    grade = mean_grade(points)
+    assert grade is not None
+    assert abs(grade - (5.0 / 1010.0)) < 1e-4
+    assert abs(grade - 0.25) > 0.2
 
 
 def test_downsample_series_keeps_ends():

@@ -48,6 +48,8 @@ from app.services.workout_metrics import (
     haversine_m,
     hr_zones,
     km_splits,
+    km_splits_from_speed,
+    mean_grade,
     pace_zones,
     resolve_hr_max,
     running_index,
@@ -101,7 +103,7 @@ def build_workout_detail(
     cadence_pairs = _cadence_from_steps(step_intervals)
     altitude_pairs = _altitude_from_route(route_points)
 
-    mean_grade = _mean_grade(route_points)
+    grade = mean_grade(route_points)
     activity = normalize_activity_type(session.activity_type, session.activity_type_raw)
     index = running_index(
         activity_type=activity,
@@ -109,7 +111,7 @@ def build_workout_detail(
         distance_m=session.distance_m,
         avg_hr_bpm=session.avg_hr_bpm,
         hr_max=hr_max_used,
-        mean_grade=mean_grade,
+        mean_grade=grade,
     )
     watch_power = _mean_of(power_pairs)
     power_w = estimate_power_w(
@@ -141,8 +143,13 @@ def build_workout_detail(
     )
 
     climb = session.elevation_ascended_m
-    if climb is None:
-        climb = _climb_from_route(route_points)
+    descent = session.elevation_descended_m
+    if climb is None or descent is None:
+        route_climb, route_descent = _elevation_from_route(route_points)
+        if climb is None:
+            climb = route_climb
+        if descent is None:
+            descent = route_descent
 
     stride_m = _mean_of(stride_pairs)
     if stride_m is None:
@@ -170,6 +177,7 @@ def build_workout_detail(
 
     payload = workout_out(session).model_dump()
     payload["elevation_ascended_m"] = climb
+    payload["elevation_descended_m"] = descent
     return HealthWorkoutDetailOut(
         **payload,
         stride_m=stride_m,
@@ -183,7 +191,9 @@ def build_workout_detail(
         running_index_formula=RUNNING_INDEX_FORMULA if index is not None else None,
         training_load_formula=TRAINING_LOAD_FORMULA if load is not None else None,
         route=_route_out(route_points),
-        splits=_splits_out(route_points, hr_pairs, cadence_pairs),
+        splits=_splits_out(
+            route_points, hr_pairs, cadence_pairs, by_type.get(METRIC_RUNNING_SPEED, [])
+        ),
         heart_rate=_series_window(hr_pairs),
         heart_rate_zones=hr_zone_rows or None,
         series=HealthWorkoutSeriesOut(
@@ -335,27 +345,11 @@ def _mean_of(pairs: list[tuple[float, float]]) -> float | None:
     return sum(value for _offset, value in pairs) / len(pairs)
 
 
-def _mean_grade(points: list[dict[str, Any]]) -> float | None:
+def _elevation_from_route(points: list[dict[str, Any]]) -> tuple[float | None, float | None]:
     if len(points) < 2:
-        return None
-    grades: list[float] = []
-    for i in range(1, len(points)):
-        prev, cur = points[i - 1], points[i]
-        if prev.get("alt") is None or cur.get("alt") is None:
-            continue
-        dist = haversine_m(prev["lat"], prev["lng"], cur["lat"], cur["lng"])
-        if dist <= 0:
-            continue
-        grades.append((float(cur["alt"]) - float(prev["alt"])) / dist)
-    if not grades:
-        return None
-    return sum(grades) / len(grades)
-
-
-def _climb_from_route(points: list[dict[str, Any]]) -> float | None:
-    if len(points) < 2:
-        return None
+        return None, None
     climb = 0.0
+    descent = 0.0
     saw_alt = False
     for i in range(1, len(points)):
         prev_alt = points[i - 1].get("alt")
@@ -366,7 +360,11 @@ def _climb_from_route(points: list[dict[str, Any]]) -> float | None:
         delta = float(cur_alt) - float(prev_alt)
         if delta > 0:
             climb += delta
-    return climb if saw_alt else None
+        elif delta < 0:
+            descent += -delta
+    if not saw_alt:
+        return None, None
+    return climb, descent
 
 
 def _session_pace_sec_per_km(session: HealthWorkoutSession) -> float | None:
@@ -446,10 +444,14 @@ def _splits_out(
     points: list[dict[str, Any]],
     hr_pairs: list[tuple[float, float]],
     cadence_pairs: list[tuple[float, float]],
+    speed_samples: list[tuple[float, float, float]] | None = None,
 ) -> list[HealthSplitOut] | None:
-    if not points:
+    if points:
+        rows = km_splits(points, hr_pairs, cadence_pairs)
+    elif speed_samples:
+        rows = km_splits_from_speed(speed_samples, hr_pairs, cadence_pairs)
+    else:
         return None
-    rows = km_splits(points, hr_pairs, cadence_pairs)
     if not rows:
         return None
     splits = [

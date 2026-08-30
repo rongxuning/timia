@@ -6,7 +6,14 @@ import type { ApiError } from "@/lib/api";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
 function detailErrorMessage(item: Partial<ApiError> | undefined): string {
-  if (item?.status === 404 || item?.message === "not_found") return "找不到这条训练";
+  if (
+    item?.status === 404 ||
+    item?.status === 400 ||
+    item?.status === 422 ||
+    item?.message === "not_found"
+  ) {
+    return "找不到这条训练";
+  }
   return item?.message ?? "加载详情失败";
 }
 
