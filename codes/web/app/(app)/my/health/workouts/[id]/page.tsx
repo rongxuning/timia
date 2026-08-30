@@ -1,12 +1,18 @@
 "use client";
 
 import { Suspense, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { HealthPageFrame } from "@/components/health/HealthPageFrame";
 import { WorkoutDetailSummary } from "@/components/health/WorkoutDetailSummary";
 import { PageMain } from "@/components/layout";
 import { useHealthWorkoutDetail } from "@/hooks/useHealthWorkoutDetail";
 import { useMyHealthPage } from "@/hooks/useMyHealthPage";
+
+const WorkoutRouteMap = dynamic(
+  () => import("@/components/health/WorkoutRouteMap").then((mod) => mod.WorkoutRouteMap),
+  { ssr: false },
+);
 
 function WorkoutDetailFallback() {
   return (
@@ -39,7 +45,10 @@ function WorkoutDetailPageInner() {
       ) : workout.loading && !workout.detail ? (
         <p className="text-small text-text-secondary">加载中…</p>
       ) : workout.detail ? (
-        <WorkoutDetailSummary workout={workout.detail} timezone={page.view?.timezone} />
+        <div className="space-y-lg">
+          <WorkoutRouteMap route={workout.detail.route} />
+          <WorkoutDetailSummary workout={workout.detail} timezone={page.view?.timezone} />
+        </div>
       ) : null}
     </HealthPageFrame>
   );

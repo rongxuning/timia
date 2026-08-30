@@ -1,6 +1,7 @@
 "use client";
 
 import { workoutActivityStyle } from "@/components/health/workoutActivity";
+import { WorkoutSplitsTable } from "@/components/health/WorkoutSplitsTable";
 import { resolveAvgPaceSecPerKm } from "@/components/health/workoutPace";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
@@ -194,6 +195,7 @@ export function WorkoutDetailSummary({
       {loadExtras.length > 0 ? (
         <p className="text-caption text-text-secondary">{loadExtras.join(" · ")}</p>
       ) : null}
+      <WorkoutSplitsTable splits={workout.splits} />
       <div className="rounded-xl border border-dashed border-border-subtle p-lg">
         <h3 className="text-small font-medium text-text-primary">分析与建议</h3>
         <p className="mt-2 text-small text-text-secondary">

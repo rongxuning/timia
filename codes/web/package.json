@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "latest",
+    "maplibre-gl": "^6.6.0",
     "mermaid": "latest",
     "next": "latest",
     "react": "latest",
