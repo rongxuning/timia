@@ -1,7 +1,20 @@
 "use client";
 
 import { workoutActivityStyle } from "@/components/health/workoutActivity";
+import {
+  formatIntTick,
+  formatPaceTick,
+  formatStrideTick,
+  WorkoutSeriesChart,
+} from "@/components/health/WorkoutSeriesChart";
 import { WorkoutSplitsTable } from "@/components/health/WorkoutSplitsTable";
+import {
+  formatHrZoneRange,
+  formatPaceZoneRange,
+  hrZoneName,
+  paceZoneName,
+  WorkoutZoneBar,
+} from "@/components/health/WorkoutZoneBar";
 import { resolveAvgPaceSecPerKm } from "@/components/health/workoutPace";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
@@ -196,6 +209,68 @@ export function WorkoutDetailSummary({
         <p className="text-caption text-text-secondary">{loadExtras.join(" · ")}</p>
       ) : null}
       <WorkoutSplitsTable splits={workout.splits} />
+      <WorkoutSeriesChart
+        title="配速"
+        series={workout.series?.pace}
+        formatValue={formatPaceTick}
+        invertY
+        maxLabel="最佳最快"
+      />
+      <WorkoutZoneBar
+        title="配速区间"
+        zones={workout.pace_zones}
+        zoneName={paceZoneName}
+        formatRange={formatPaceZoneRange}
+      />
+      <WorkoutSeriesChart
+        title="心率（次/分）"
+        series={workout.heart_rate}
+        formatValue={formatIntTick}
+      />
+      <WorkoutZoneBar
+        title="心率区间"
+        zones={workout.heart_rate_zones}
+        zoneName={hrZoneName}
+        formatRange={formatHrZoneRange}
+      />
+      <WorkoutSeriesChart
+        title="步频（步/分）"
+        series={workout.series?.cadence}
+        formatValue={formatIntTick}
+      />
+      <WorkoutSeriesChart
+        title="步幅（米）"
+        series={workout.series?.stride}
+        formatValue={formatStrideTick}
+      />
+      <WorkoutSeriesChart
+        title="功率（瓦）"
+        series={workout.series?.power}
+        formatValue={formatIntTick}
+      />
+      <WorkoutSeriesChart
+        title="垂直振幅（毫米）"
+        series={workout.series?.vertical_oscillation}
+        formatValue={formatIntTick}
+      />
+      <WorkoutSeriesChart
+        title="触地时间（毫秒）"
+        series={workout.series?.ground_contact}
+        formatValue={formatIntTick}
+      />
+      <WorkoutSeriesChart
+        title="海拔（米）"
+        series={workout.series?.altitude}
+        formatValue={formatIntTick}
+        extras={[
+          workout.elevation_ascended_m == null
+            ? null
+            : `总爬升 ${Math.round(workout.elevation_ascended_m)} 米`,
+          workout.elevation_descended_m == null
+            ? null
+            : `总下降 ${Math.round(workout.elevation_descended_m)} 米`,
+        ]}
+      />
       <div className="rounded-xl border border-dashed border-border-subtle p-lg">
         <h3 className="text-small font-medium text-text-primary">分析与建议</h3>
         <p className="mt-2 text-small text-text-secondary">
