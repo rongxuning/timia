@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchHealthWorkoutDetail } from "@/lib/api/health-views";
 import type { ApiError } from "@/lib/api";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
@@ -14,6 +14,11 @@ export function useHealthWorkoutDetail(token: string | null, id: string) {
   const [detail, setDetail] = useState<HealthWorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const reload = useCallback(() => {
+    setReloadKey((key) => key + 1);
+  }, []);
 
   useEffect(() => {
     if (!token || !id) {
@@ -39,7 +44,7 @@ export function useHealthWorkoutDetail(token: string | null, id: string) {
     return () => {
       cancelled = true;
     };
-  }, [token, id]);
+  }, [token, id, reloadKey]);
 
-  return { detail, loading, error };
+  return { detail, loading, error, reload };
 }

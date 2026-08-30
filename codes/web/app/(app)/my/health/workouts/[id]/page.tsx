@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { HealthPageFrame } from "@/components/health/HealthPageFrame";
 import { WorkoutDetailSummary } from "@/components/health/WorkoutDetailSummary";
@@ -21,8 +21,18 @@ function WorkoutDetailPageInner() {
   const page = useMyHealthPage();
   const workout = useHealthWorkoutDetail(page.token, params.id);
 
+  const saveProfile = useCallback(
+    (payload: Parameters<typeof page.saveProfile>[0]) =>
+      Promise.resolve(page.saveProfile(payload)).then((ok) => {
+        if (ok) workout.reload();
+      }),
+    [page.saveProfile, workout.reload],
+  );
+
+  const framePage = { ...page, saveProfile };
+
   return (
-    <HealthPageFrame page={page}>
+    <HealthPageFrame page={framePage}>
       {workout.error ? (
         <p className="text-small text-error">{workout.error}</p>
       ) : workout.loading && !workout.detail ? (

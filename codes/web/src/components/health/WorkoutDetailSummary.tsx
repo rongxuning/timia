@@ -1,6 +1,7 @@
 "use client";
 
 import { workoutActivityStyle } from "@/components/health/workoutActivity";
+import { resolveAvgPaceSecPerKm } from "@/components/health/workoutPace";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
 const WEEKDAY: Record<string, string> = {
@@ -157,7 +158,16 @@ export function WorkoutDetailSummary({
           label="距离（公里）"
           value={dashNumber(workout.distance_m, (n) => (n / 1000).toFixed(2))}
         />
-        <MetricCell label="平均配速" value={paceLabel(workout.avg_pace_sec_per_km)} />
+        <MetricCell
+          label="平均配速"
+          value={paceLabel(
+            resolveAvgPaceSecPerKm({
+              avg_pace_sec_per_km: workout.avg_pace_sec_per_km,
+              distance_m: workout.distance_m,
+              duration_seconds: workout.duration_seconds,
+            }),
+          )}
+        />
         <MetricCell
           label="训练负荷"
           value={dashNumber(workout.training_load, (n) => n.toFixed(1))}

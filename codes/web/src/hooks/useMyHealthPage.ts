@@ -90,11 +90,17 @@ export function useMyHealthPage() {
       height_cm: number | null;
       max_hr_bpm: number | null;
     }) => {
-      if (!token) return;
+      if (!token) return Promise.resolve(false);
       setSavingProfile(true);
-      patchHealthProfile(token, payload)
-        .then(() => reload())
-        .catch((e: { message?: string }) => setError(e?.message ?? "保存基础信息失败"))
+      return patchHealthProfile(token, payload)
+        .then(() => {
+          reload();
+          return true;
+        })
+        .catch((e: { message?: string }) => {
+          setError(e?.message ?? "保存基础信息失败");
+          return false;
+        })
         .finally(() => setSavingProfile(false));
     },
     [reload, token],
