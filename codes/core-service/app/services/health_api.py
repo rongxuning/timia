@@ -39,6 +39,7 @@ from app.models.health import (
     SLEEP_STAGES,
     HealthMetricsDaily,
     HealthMetricsLayout,
+    HealthProfile,
     HealthSampleQuantity,
     HealthSampleSleep,
     HealthSampleStandHour,
@@ -52,6 +53,8 @@ from app.schemas.health import (
     HealthHeartbeatSyncIn,
     HealthLayoutIn,
     HealthLayoutOut,
+    HealthProfileIn,
+    HealthProfileOut,
     HealthQuantitySyncIn,
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
@@ -68,6 +71,7 @@ from app.services.health_metrics import (
     parse_timezone,
     sum_values,
 )
+from app.services.health_scores import PROFILE_SEXES
 
 BATCH_SAMPLES_MAX = 500
 BATCH_SLEEP_MAX = 200
@@ -475,6 +479,56 @@ def save_card_order(db: Session, user: User, payload: HealthLayoutIn) -> HealthL
         row.updated_at = utcnow()
     db.flush()
     return HealthLayoutOut(card_order=order)
+
+
+def get_profile(db: Session, user: User) -> HealthProfileOut:
+    row = db.scalar(select(HealthProfile).where(HealthProfile.owner_user_id == user.id))
+    if row is None:
+        return HealthProfileOut()
+    return HealthProfileOut(
+        sex=row.sex,
+        age_years=row.age_years,
+        height_cm=row.height_cm,
+        max_hr_bpm=row.max_hr_bpm,
+    )
+
+
+def save_profile(db: Session, user: User, payload: HealthProfileIn) -> HealthProfileOut:
+    if (
+        "sex" in payload.model_fields_set
+        and payload.sex is not None
+        and payload.sex not in PROFILE_SEXES
+    ):
+        raise HTTPException(status_code=400, detail="invalid_sex")
+    if "age_years" in payload.model_fields_set and payload.age_years is not None:
+        if payload.age_years < 1 or payload.age_years > 120:
+            raise HTTPException(status_code=400, detail="invalid_age")
+    if "height_cm" in payload.model_fields_set and payload.height_cm is not None:
+        if payload.height_cm < 50 or payload.height_cm > 250:
+            raise HTTPException(status_code=400, detail="invalid_height")
+    if "max_hr_bpm" in payload.model_fields_set and payload.max_hr_bpm is not None:
+        if payload.max_hr_bpm < 80 or payload.max_hr_bpm > 220:
+            raise HTTPException(status_code=400, detail="invalid_max_hr")
+    row = db.scalar(select(HealthProfile).where(HealthProfile.owner_user_id == user.id))
+    if row is None:
+        row = HealthProfile(owner_user_id=user.id)
+        db.add(row)
+    if "sex" in payload.model_fields_set:
+        row.sex = payload.sex
+    if "age_years" in payload.model_fields_set:
+        row.age_years = payload.age_years
+    if "height_cm" in payload.model_fields_set:
+        row.height_cm = payload.height_cm
+    if "max_hr_bpm" in payload.model_fields_set:
+        row.max_hr_bpm = payload.max_hr_bpm
+    row.updated_at = utcnow()
+    db.flush()
+    return HealthProfileOut(
+        sex=row.sex,
+        age_years=row.age_years,
+        height_cm=row.height_cm,
+        max_hr_bpm=row.max_hr_bpm,
+    )
 
 
 def recompute_daily_metrics(

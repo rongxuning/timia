@@ -20,15 +20,17 @@ from app.models.user import User
 from app.schemas.views.health import (
     HealthCalendarDayOut,
     HealthCurrentOut,
+    HealthEnergyTargetsOut,
     HealthInsightOut,
+    HealthProfileViewOut,
     HealthSeriesPointOut,
     HealthWorkoutOut,
     HealthWorkoutsPageOut,
     MyHealthViewOut,
 )
-from app.services.health_api import get_card_order
+from app.services.health_api import get_card_order, get_profile
 from app.services.health_metrics import local_date_of
-from app.services.health_scores import SCORE_FORMULAS, score_current
+from app.services.health_scores import score_current
 
 DEFAULT_TIMEZONE = "Asia/Shanghai"
 SERIES_DAYS = 30
@@ -148,6 +150,13 @@ def build_my_health(
             )
         )
     }
+    profile = get_profile(db, user)
+    scores, formulas, targets = score_current(
+        current,
+        sex=profile.sex,
+        age_years=profile.age_years,
+        height_cm=profile.height_cm,
+    )
     return MyHealthViewOut(
         timezone=tz_name,
         mode=mode,
@@ -163,8 +172,8 @@ def build_my_health(
         ),
         current=current,
         totals=totals,
-        scores=score_current(current),
-        score_formulas=SCORE_FORMULAS,
+        scores=scores,
+        score_formulas=formulas,
         card_order=get_card_order(db, user),
         recent_workouts=workout_page.workouts,
         workout_start_date=workout_page.start_date,
@@ -173,6 +182,17 @@ def build_my_health(
         series=_series_from_dailies(series_rows),
         insight=_insight_out(insight),
         insights=[item for item in (_insight_out(row) for row in insight_rows) if item is not None],
+        profile=HealthProfileViewOut(
+            sex=profile.sex,
+            age_years=profile.age_years,
+            height_cm=profile.height_cm,
+            max_hr_bpm=profile.max_hr_bpm,
+        ),
+        energy_targets=(
+            HealthEnergyTargetsOut(bmr_kcal=targets[0], active_target_kcal=targets[1])
+            if targets
+            else None
+        ),
     )
 
 
@@ -220,7 +240,7 @@ def list_my_health_workouts(
         start_date=start.isoformat(),
         end_date=end.isoformat(),
         days=days,
-        workouts=[_workout_out(item) for item in workouts],
+        workouts=[workout_out(item) for item in workouts],
         has_more=older_id is not None,
     )
 
@@ -361,7 +381,7 @@ def _aggregate_range(dailies: list[HealthMetricsDaily]) -> tuple[HealthCurrentOu
     return current, totals
 
 
-def _workout_out(item: HealthWorkoutSession) -> HealthWorkoutOut:
+def workout_out(item: HealthWorkoutSession) -> HealthWorkoutOut:
     return HealthWorkoutOut(
         id=str(item.id),
         hk_uuid=str(item.hk_uuid),

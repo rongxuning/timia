@@ -97,6 +97,20 @@ class MyHealthViewOut(BaseModel):
     series: dict[str, list[HealthSeriesPointOut]] = Field(default_factory=dict)
     insight: HealthInsightOut | None = None
     insights: list[HealthInsightOut] = Field(default_factory=list)
+    profile: HealthProfileViewOut | None = None
+    energy_targets: HealthEnergyTargetsOut | None = None
+
+
+class HealthProfileViewOut(BaseModel):
+    sex: str | None = None
+    age_years: int | None = None
+    height_cm: float | None = None
+    max_hr_bpm: int | None = None
+
+
+class HealthEnergyTargetsOut(BaseModel):
+    bmr_kcal: float
+    active_target_kcal: float
 
 
 class HealthWorkoutsPageOut(BaseModel):
@@ -106,3 +120,82 @@ class HealthWorkoutsPageOut(BaseModel):
     days: int
     workouts: list[HealthWorkoutOut] = Field(default_factory=list)
     has_more: bool = False
+
+
+class HealthHourBucketOut(BaseModel):
+    hour: int
+    value: float | None = None
+    min: float | None = None
+    max: float | None = None
+
+
+class HealthStandCellOut(BaseModel):
+    hour: int
+    stood: bool | None = None
+
+
+class HealthSitStreakOut(BaseModel):
+    start_hour: int
+    hours: int
+
+
+class HealthSamplePointOut(BaseModel):
+    at: str
+    value: float
+    window: str | None = None
+
+
+class HealthSleepSegmentOut(BaseModel):
+    start_at: str
+    end_at: str
+    stage: str
+
+
+class HealthSleepNightOut(BaseModel):
+    local_date: str
+    bedtime: str | None = None
+    wake_at: str | None = None
+    in_bed_minutes: float | None = None
+    asleep_minutes: float | None = None
+    efficiency: float | None = None
+    deep_minutes: float | None = None
+    rem_minutes: float | None = None
+    core_minutes: float | None = None
+    awake_minutes: float | None = None
+    unspecified_minutes: float | None = None
+    score: int | None = None
+    segments: list[HealthSleepSegmentOut] = Field(default_factory=list)
+
+
+class HealthHeartbeatPreviewOut(BaseModel):
+    start_at: str
+    interval_count: int
+    intervals_ms: list[float] = Field(default_factory=list)
+
+
+class HealthRecoveryLinkOut(BaseModel):
+    at: str
+    value: float
+    workout: HealthWorkoutOut | None = None
+    possibly_late: bool = False
+
+
+class HealthCardDetailOut(BaseModel):
+    metric: str
+    timezone: str
+    mode: str
+    focus_date: str
+    range_start: str | None = None
+    range_end: str | None = None
+    hourly: list[HealthHourBucketOut] = Field(default_factory=list)
+    hourly_heart_rate: list[HealthHourBucketOut] = Field(default_factory=list)
+    stats: dict[str, float | None] = Field(default_factory=dict)
+    workouts: list[HealthWorkoutOut] = Field(default_factory=list)
+    stand_cells: list[HealthStandCellOut] = Field(default_factory=list)
+    sit_streaks: list[HealthSitStreakOut] = Field(default_factory=list)
+    samples: list[HealthSamplePointOut] = Field(default_factory=list)
+    sleep: HealthSleepNightOut | None = None
+    sleep_nights: list[HealthSleepNightOut] = Field(default_factory=list)
+    bedtime_std_minutes: float | None = None
+    heartbeat: HealthHeartbeatPreviewOut | None = None
+    recovery_links: list[HealthRecoveryLinkOut] = Field(default_factory=list)

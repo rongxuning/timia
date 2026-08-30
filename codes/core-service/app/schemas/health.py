@@ -137,3 +137,17 @@ class HealthLayoutIn(BaseModel):
 
 class HealthLayoutOut(BaseModel):
     card_order: list[str]
+
+
+class HealthProfileIn(BaseModel):
+    sex: str | None = None
+    age_years: int | None = Field(default=None, ge=1, le=120)
+    height_cm: float | None = Field(default=None, ge=50, le=250)
+    max_hr_bpm: int | None = None
+
+
+class HealthProfileOut(BaseModel):
+    sex: str | None = None
+    age_years: int | None = None
+    height_cm: float | None = None
+    max_hr_bpm: int | None = None

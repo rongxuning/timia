@@ -485,3 +485,141 @@ def test_health_workouts_rejects_future_end_date():
     assert resp.status_code == 400
     assert resp.json()["detail"] == "invalid_date"
 
+
+def test_requires_auth_for_health_profile():
+    client = TestClient(app)
+    assert client.get("/health/profile").status_code == 401
+    assert client.patch("/health/profile", json={"sex": "male"}).status_code == 401
+
+
+def test_health_profile_persists_and_unlocks_energy_scores():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    empty = client.get("/health/profile", headers=_headers(token))
+    assert empty.status_code == 200
+    assert empty.json()["sex"] is None
+
+    bad = client.patch("/health/profile", headers=_headers(token), json={"sex": "unknown"})
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "invalid_sex"
+
+    saved = client.patch(
+        "/health/profile",
+        headers=_headers(token),
+        json={"sex": "male", "age_years": 30, "height_cm": 175},
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["sex"] == "male"
+    assert saved.json()["age_years"] == 30
+    assert saved.json()["height_cm"] == 175
+
+    now = datetime.now(timezone.utc)
+    client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "body_mass",
+                    "start_at": now.isoformat(),
+                    "end_at": now.isoformat(),
+                    "value": 70,
+                    "unit": "kg",
+                },
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "basal_energy",
+                    "start_at": now.isoformat(),
+                    "end_at": now.isoformat(),
+                    "value": 1649,
+                    "unit": "kcal",
+                },
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "active_energy",
+                    "start_at": now.isoformat(),
+                    "end_at": now.isoformat(),
+                    "value": 660,
+                    "unit": "kcal",
+                },
+            ],
+        },
+    )
+    view = client.get("/views/me/health", headers=_headers(token))
+    assert view.status_code == 200, view.text
+    body = view.json()
+    assert body["profile"]["sex"] == "male"
+    assert body["energy_targets"]["bmr_kcal"] == 1648.75
+    assert body["scores"]["basal"] == 100
+    assert body["scores"]["active"] == 100
+    assert "Mifflin" in body["score_formulas"]["basal"]["hint"]
+
+
+def test_health_profile_max_hr_bpm():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    bad = client.patch("/health/profile", headers=_headers(token), json={"max_hr_bpm": 70})
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "invalid_max_hr"
+    saved = client.patch("/health/profile", headers=_headers(token), json={"max_hr_bpm": 188})
+    assert saved.status_code == 200
+    assert saved.json()["max_hr_bpm"] == 188
+    cleared = client.patch("/health/profile", headers=_headers(token), json={"max_hr_bpm": None})
+    assert cleared.json()["max_hr_bpm"] is None
+
+
+def test_requires_auth_for_health_card_detail():
+    client = TestClient(app)
+    assert client.get("/views/me/health/cards/steps").status_code == 401
+
+
+def test_health_card_detail_unknown_metric():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    resp = client.get("/views/me/health/cards/not_a_card", headers=_headers(token))
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "unknown_metric"
+
+
+def test_health_card_detail_steps_hourly_from_samples():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    start = datetime(today.year, today.month, today.day, 8, 0, tzinfo=tz)
+    end = start + timedelta(hours=1)
+    client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "step_count",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "value": 1200,
+                    "unit": "count",
+                },
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "distance_walking_running",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "value": 800,
+                    "unit": "m",
+                },
+            ],
+        },
+    )
+    resp = client.get(f"/views/me/health/cards/steps?date={today.isoformat()}", headers=_headers(token))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["metric"] == "steps"
+    assert body["hourly"][8]["value"] == 1200
+    assert body["stats"]["distance_m"] == 800
+
+
