@@ -23,8 +23,9 @@ function WorkoutDetailPageInner() {
 
   const saveProfile = useCallback(
     (payload: Parameters<typeof page.saveProfile>[0]) =>
-      Promise.resolve(page.saveProfile(payload)).then((ok) => {
+      page.saveProfile(payload).then((ok) => {
         if (ok) workout.reload();
+        return ok;
       }),
     [page.saveProfile, workout.reload],
   );
