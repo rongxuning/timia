@@ -22,10 +22,12 @@ from app.models import (
     HealthInsightDaily,
     HealthMetricsDaily,
     HealthMetricsLayout,
+    HealthProfile,
     HealthSampleQuantity,
     HealthSampleSleep,
     HealthSampleStandHour,
     HealthSeriesHeartbeat,
+    HealthWorkoutRoute,
     HealthWorkoutSession,
     Item,
     MobileDevice,
@@ -134,8 +136,10 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("health_sample_stand_hour", HealthSampleStandHour),
     ("health_series_heartbeat", HealthSeriesHeartbeat),
     ("health_workout_session", HealthWorkoutSession),
+    ("health_workout_route", HealthWorkoutRoute),
     ("health_metrics_daily", HealthMetricsDaily),
     ("health_metrics_layout", HealthMetricsLayout),
+    ("health_profiles", HealthProfile),
     ("health_insight_daily", HealthInsightDaily),
 ]
 

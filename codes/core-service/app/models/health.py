@@ -38,6 +38,11 @@ METRIC_BODY_MASS = "body_mass"
 METRIC_OXYGEN_SATURATION = "oxygen_saturation"
 METRIC_VO2_MAX = "vo2_max"
 METRIC_CARDIO_RECOVERY = "cardio_recovery"
+METRIC_RUNNING_SPEED = "running_speed"
+METRIC_RUNNING_STRIDE = "running_stride"
+METRIC_RUNNING_POWER = "running_power"
+METRIC_RUNNING_VERTICAL_OSC = "running_vertical_oscillation"
+METRIC_RUNNING_GROUND_CONTACT = "running_ground_contact"
 
 QUANTITY_METRIC_TYPES = frozenset(
     {
@@ -56,6 +61,11 @@ QUANTITY_METRIC_TYPES = frozenset(
         METRIC_OXYGEN_SATURATION,
         METRIC_VO2_MAX,
         METRIC_CARDIO_RECOVERY,
+        METRIC_RUNNING_SPEED,
+        METRIC_RUNNING_STRIDE,
+        METRIC_RUNNING_POWER,
+        METRIC_RUNNING_VERTICAL_OSC,
+        METRIC_RUNNING_GROUND_CONTACT,
     }
 )
 
@@ -206,6 +216,8 @@ class HealthWorkoutSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     max_hr_bpm: Mapped[float | None] = mapped_column(Float, nullable=True)
     avg_cadence_spm: Mapped[float | None] = mapped_column(Float, nullable=True)
     avg_pace_sec_per_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+    elevation_ascended_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    elevation_descended_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     weather_temp_c: Mapped[float | None] = mapped_column(Float, nullable=True)
     weather_humidity: Mapped[float | None] = mapped_column(Float, nullable=True)
     location_country: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -215,6 +227,38 @@ class HealthWorkoutSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     extra_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB, nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class HealthWorkoutRoute(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """GPS route points for a workout session, keyed by HealthKit workout UUID."""
+
+    __tablename__ = "health_workout_route"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "workout_hk_uuid", name="uq_health_workout_route_owner_hk"),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workout_hk_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    points: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+    point_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class HealthProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Self-reported sex, age, and height for energy scoring. One row per owner."""
+
+    __tablename__ = "health_profiles"
+    __table_args__ = (UniqueConstraint("owner_user_id", name="uq_health_profiles_owner"),)
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    sex: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    age_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_hr_bpm: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class HealthMetricsDaily(Base, UUIDPrimaryKeyMixin, TimestampMixin):
