@@ -115,6 +115,27 @@ def test_km_splits_from_speed_partial_last_lap():
     assert splits[0]["avg_hr_bpm"] is None
 
 
+def test_mean_grade_dense_watch_gps_track():
+    """~1 Hz Watch GPS (~3 m steps) must still yield grade for ACSM."""
+    deg_per_m = 1.0 / 111_320
+    spacing_m = 3.0
+    n = 100
+    climb_m = 10.0
+    points = [
+        {
+            "t": float(i),
+            "lat": i * spacing_m * deg_per_m,
+            "lng": 0.0,
+            "alt": climb_m * i / (n - 1),
+        }
+        for i in range(n)
+    ]
+    grade = mean_grade(points)
+    assert grade is not None
+    expected = climb_m / ((n - 1) * spacing_m)
+    assert abs(grade - expected) < 1e-4
+
+
 def test_mean_grade_is_distance_weighted():
     """A 10 m 50% segment must not outweigh a 1000 m flat; ΣΔalt/Σhoriz ≈ 5/1010."""
     deg_per_m = 1.0 / 111_320

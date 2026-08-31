@@ -381,7 +381,7 @@ def km_splits_from_speed(
     return _splits_from_curve(times, cum_d, hr_points, cadence_points)
 
 
-def mean_grade(points: list[dict], min_horiz_m: float = 5.0) -> float | None:
+def mean_grade(points: list[dict], min_horiz_m: float = 0.0) -> float | None:
     """Overall route grade as ΣΔalt / Σhoriz (fraction). Skip horiz <= 0 or < min."""
     if len(points) < 2:
         return None
