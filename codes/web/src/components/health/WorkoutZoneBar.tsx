@@ -10,6 +10,8 @@ type WorkoutZoneBarProps = {
   zones: ZoneShare[] | null | undefined;
   zoneName: (zone: ZoneShare["zone"]) => string;
   formatRange: (lo: number, hi: number) => string;
+  defaultOpen?: boolean;
+  showEmpty?: boolean;
 };
 
 const ZONE_FILL = [
@@ -35,61 +37,79 @@ function formatRatio(ratio: number): string {
   return `${Math.round(ratio * 100)}%`;
 }
 
-export function WorkoutZoneBar({ title, zones, zoneName, formatRange }: WorkoutZoneBarProps) {
-  const [open, setOpen] = useState(false);
+export function WorkoutZoneBar({
+  title,
+  zones,
+  zoneName,
+  formatRange,
+  defaultOpen = false,
+  showEmpty = false,
+}: WorkoutZoneBarProps) {
+  const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();
-  if (!zones || zones.length === 0) return null;
+  if ((!zones || zones.length === 0) && !showEmpty) return null;
 
-  const hasShare = zones.some((zone) => zone.seconds > 0 || zone.ratio > 0);
+  const rows = zones ?? [];
+  const hasShare = rows.some((zone) => zone.seconds > 0 || zone.ratio > 0);
 
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-sm">
         <h3 className="text-small font-medium text-text-primary">{title}</h3>
-        <button
-          type="button"
-          className="text-caption text-primary hover:underline"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((prev) => !prev)}
-        >
-          {open ? "收起" : "展开"}
-        </button>
+        {rows.length > 0 ? (
+          <button
+            type="button"
+            className="text-caption text-primary hover:underline"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen((prev) => !prev)}
+          >
+            {open ? "收起" : "展开"}
+          </button>
+        ) : null}
       </div>
       <div className="mt-sm rounded-xl border border-border-subtle bg-white p-md">
-        {hasShare ? (
-          <div className="flex h-3 overflow-hidden rounded-full bg-surface-container-low" aria-hidden>
-            {zones.map((zone, index) =>
-              zone.seconds > 0 || zone.ratio > 0 ? (
-                <span
-                  key={`${zone.zone}-${index}`}
-                  className={`h-full ${ZONE_FILL[index % ZONE_FILL.length]}`}
-                  style={{ width: `${Math.max(zone.ratio * 100, 0)}%` }}
-                  title={`${zoneName(zone.zone)} ${formatRatio(zone.ratio)}`}
-                />
-              ) : null,
-            )}
-          </div>
-        ) : null}
-        <div id={panelId} hidden={!open}>
-          <ul className="mt-md divide-y divide-border-subtle/80">
-            {zones.map((zone, index) => (
-              <li
-                key={`${zone.zone}-${index}`}
-                className="flex flex-wrap items-baseline justify-between gap-x-md gap-y-1 py-2 first:pt-0 last:pb-0"
-              >
-                <span className="text-small text-text-primary">{zoneName(zone.zone)}</span>
-                <span className="text-caption tabular-nums text-text-secondary">
-                  {formatRange(zone.lo, zone.hi)}
-                  <span className="mx-1.5 text-neutral-muted">·</span>
-                  {formatStay(zone.seconds)}
-                  <span className="mx-1.5 text-neutral-muted">·</span>
-                  {formatRatio(zone.ratio)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {rows.length === 0 ? (
+          <p className="text-small text-text-secondary">暂无数据</p>
+        ) : (
+          <>
+            {hasShare ? (
+              <div className="flex h-3 overflow-hidden rounded-full bg-surface-container-low" aria-hidden>
+                {rows.map((zone, index) =>
+                  zone.seconds > 0 || zone.ratio > 0 ? (
+                    <span
+                      key={`${zone.zone}-${index}`}
+                      className={`h-full ${ZONE_FILL[index % ZONE_FILL.length]}`}
+                      style={{ width: `${Math.max(zone.ratio * 100, 0)}%` }}
+                      title={`${zoneName(zone.zone)} ${formatRatio(zone.ratio)}`}
+                    />
+                  ) : null,
+                )}
+              </div>
+            ) : null}
+            <div id={panelId} hidden={!open}>
+              <ul className="mt-md grid gap-y-2">
+                {rows.map((zone, index) => (
+                  <li
+                    key={`${zone.zone}-${index}`}
+                    className="grid grid-cols-[4.5rem_minmax(0,1fr)_4.75rem_3rem] items-center gap-x-md text-left"
+                  >
+                    <span className="text-small text-text-primary">{zoneName(zone.zone)}</span>
+                    <span className="text-caption tabular-nums text-text-secondary">
+                      {formatRange(zone.lo, zone.hi)}
+                    </span>
+                    <span className="text-caption tabular-nums text-text-secondary">
+                      {formatStay(zone.seconds)}
+                    </span>
+                    <span className="text-caption tabular-nums text-text-secondary">
+                      {formatRatio(zone.ratio)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );

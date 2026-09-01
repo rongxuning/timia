@@ -9,6 +9,7 @@ struct HealthSyncView: View {
     @State private var progressText = ""
     @State private var progress: Double = 0
     @State private var errorMessage: String?
+    @State private var quantityGapHint: String?
     @State private var lastSyncedAt: Date?
 
     private let lastSyncedKey = "timia.health.lastManualSyncAt"
@@ -37,6 +38,11 @@ struct HealthSyncView: View {
                 }
                 if let hint = permissions.lastError {
                     Text(hint).foregroundStyle(.red)
+                }
+                if let quantityGapHint {
+                    Text(quantityGapHint)
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
                 }
                 if permissions.didRequest {
                     Button("在系统设置中管理权限") {
@@ -137,6 +143,9 @@ struct HealthSyncView: View {
             let service = HealthSyncService(api: HealthSyncAPI(client: session.api))
             let export = try await service.readLastNinetyDays()
             pendingDays = HealthSyncService.pendingDays(from: export)
+            quantityGapHint = export.samples.isEmpty
+                ? "没有读到步数、消耗或心率样本。请在「设置 > 健康 > 数据访问与设备」中允许 Timia 读取这些类型后再同步。"
+                : nil
             try await service.upload(export) { fraction, label in
                 progress = fraction
                 progressText = label

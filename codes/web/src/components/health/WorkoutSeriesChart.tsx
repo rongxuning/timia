@@ -11,6 +11,7 @@ type WorkoutSeriesChartProps = {
   invertY?: boolean;
   maxLabel?: string;
   extras?: Array<string | null | undefined>;
+  showEmpty?: boolean;
 };
 
 function formatMmSs(offsetSeconds: number): string {
@@ -32,9 +33,20 @@ export function WorkoutSeriesChart({
   invertY = false,
   maxLabel = "最大",
   extras,
+  showEmpty = false,
 }: WorkoutSeriesChartProps) {
   const points = series?.points ?? [];
-  if (points.length === 0) return null;
+  if (points.length === 0) {
+    if (!showEmpty) return null;
+    return (
+      <section>
+        <h3 className="text-small font-medium text-text-primary">{title}</h3>
+        <div className="mt-sm rounded-xl border border-border-subtle bg-white p-md">
+          <p className="text-small text-text-secondary">暂无数据</p>
+        </div>
+      </section>
+    );
+  }
 
   const values = points.map((point) => point.value);
   const offsets = points.map((point) => point.offset_seconds);

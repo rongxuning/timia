@@ -103,13 +103,18 @@ def build_workout_detail(
     cadence_pairs = _cadence_from_steps(step_intervals)
     altitude_pairs = _altitude_from_route(route_points)
 
+    avg_hr = session.avg_hr_bpm if session.avg_hr_bpm is not None else _mean_of(hr_pairs)
+    avg_cadence = (
+        session.avg_cadence_spm if session.avg_cadence_spm is not None else _mean_of(cadence_pairs)
+    )
+
     grade = mean_grade(route_points)
     activity = normalize_activity_type(session.activity_type, session.activity_type_raw)
     index = running_index(
         activity_type=activity,
         duration_seconds=session.duration_seconds,
         distance_m=session.distance_m,
-        avg_hr_bpm=session.avg_hr_bpm,
+        avg_hr_bpm=avg_hr,
         hr_max=hr_max_used,
         mean_grade=grade,
     )
@@ -122,14 +127,14 @@ def build_workout_detail(
     )
     load = zone_training_load(
         duration_seconds=session.duration_seconds,
-        avg_hr_bpm=session.avg_hr_bpm,
+        avg_hr_bpm=avg_hr,
         hr_max=hr_max_used,
         hr_rest=hr_rest_used,
         hr_series=hr_pairs or None,
     )
     trimp = banister_trimp(
         duration_seconds=session.duration_seconds,
-        avg_hr_bpm=session.avg_hr_bpm,
+        avg_hr_bpm=avg_hr,
         hr_max=hr_max_used,
         hr_rest=hr_rest_used,
         sex=profile.sex,
@@ -153,13 +158,17 @@ def build_workout_detail(
 
     stride_m = _mean_of(stride_pairs)
     if stride_m is None:
-        stride_m = _stride_from_cadence(session)
+        stride_m = _stride_from_cadence(
+            distance_m=session.distance_m,
+            cadence_spm=avg_cadence,
+            duration_seconds=session.duration_seconds,
+        )
 
     hr_zone_rows = [
         HealthZoneShareOut(**row)
         for row in hr_zones(
             duration_seconds=session.duration_seconds,
-            avg_hr_bpm=session.avg_hr_bpm,
+            avg_hr_bpm=avg_hr,
             hr_max=hr_max_used,
             hr_rest=hr_rest_used,
             hr_series=hr_pairs or None,
@@ -176,6 +185,8 @@ def build_workout_detail(
     ]
 
     payload = workout_out(session).model_dump()
+    payload["avg_hr_bpm"] = avg_hr
+    payload["avg_cadence_spm"] = avg_cadence
     payload["elevation_ascended_m"] = climb
     payload["elevation_descended_m"] = descent
     return HealthWorkoutDetailOut(
@@ -320,12 +331,22 @@ def _pace_from_route(points: list[dict[str, Any]]) -> list[tuple[float, float]]:
 def _cadence_from_steps(
     intervals: list[tuple[float, float, float]],
 ) -> list[tuple[float, float]]:
-    """Convert step_count intervals to SPM: steps / (duration_seconds / 60)."""
+    """Convert step_count intervals to SPM: steps / (duration_seconds / 60).
+
+    Instantaneous samples (start==end) use the gap to the next (or previous) point.
+    """
     out: list[tuple[float, float]] = []
-    for offset, steps, duration in intervals:
-        if duration <= 0:
+    n = len(intervals)
+    for i, (offset, steps, duration) in enumerate(intervals):
+        dt = duration
+        if dt <= 0:
+            if i + 1 < n:
+                dt = intervals[i + 1][0] - offset
+            elif i > 0:
+                dt = offset - intervals[i - 1][0]
+        if dt <= 0:
             continue
-        out.append((offset, steps / (duration / 60.0)))
+        out.append((offset, steps / (dt / 60.0)))
     return out
 
 
@@ -375,19 +396,19 @@ def _session_pace_sec_per_km(session: HealthWorkoutSession) -> float | None:
     return None
 
 
-def _stride_from_cadence(session: HealthWorkoutSession) -> float | None:
-    if (
-        session.distance_m is None
-        or session.avg_cadence_spm is None
-        or session.avg_cadence_spm <= 0
-        or session.duration_seconds <= 0
-    ):
+def _stride_from_cadence(
+    *,
+    distance_m: float | None,
+    cadence_spm: float | None,
+    duration_seconds: int,
+) -> float | None:
+    if distance_m is None or cadence_spm is None or cadence_spm <= 0 or duration_seconds <= 0:
         return None
-    minutes = session.duration_seconds / 60.0
-    steps = session.avg_cadence_spm * minutes
+    minutes = duration_seconds / 60.0
+    steps = cadence_spm * minutes
     if steps <= 0:
         return None
-    return session.distance_m / steps
+    return distance_m / steps
 
 
 def _series_window(pairs: list[tuple[float, float]]) -> HealthSeriesWindowOut | None:

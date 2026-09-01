@@ -45,11 +45,19 @@ struct HealthKitStore {
 
     private func fetchQuantities(from start: Date, to end: Date) async -> [HealthQuantitySamplePayload] {
         var collected: [HealthQuantitySamplePayload] = []
+        var seen = Set<String>()
+        func append(_ rows: [HealthQuantitySamplePayload]) {
+            for row in rows where seen.insert(row.hkUuid).inserted {
+                collected.append(row)
+            }
+        }
         for spec in Self.quantitySpecs {
-            do {
-                collected.append(contentsOf: try await queryQuantitySeries(spec, from: start, to: end))
-            } catch {
-                collected.append(contentsOf: (try? await queryQuantitySamples(spec, from: start, to: end)) ?? [])
+            // Series query completes with 0 rows (not an error) for discrete types
+            // like steps and energy. Only falling back on throw would skip them.
+            let series = (try? await queryQuantitySeries(spec, from: start, to: end)) ?? []
+            append(series)
+            if series.isEmpty {
+                append((try? await queryQuantitySamples(spec, from: start, to: end)) ?? [])
             }
         }
         return collected
@@ -175,9 +183,9 @@ struct HealthKitStore {
             activeEnergyKcal: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
                 ?? Self.average(workout, .activeEnergyBurned, unit: .kilocalorie()),
             distanceM: distanceM,
-            avgHrBpm: Self.average(workout, .heartRate, unit: bpmUnit),
-            maxHrBpm: Self.maximum(workout, .heartRate, unit: bpmUnit),
-            avgCadenceSpm: Self.cadence(workout),
+            avgHrBpm: await quantityAverage(workout, .heartRate, unit: bpmUnit),
+            maxHrBpm: await quantityMaximum(workout, .heartRate, unit: bpmUnit),
+            avgCadenceSpm: await cadence(workout),
             avgPaceSecPerKm: Self.paceSecPerKm(workout, distanceM: distanceM),
             elevationAscendedM: Self.elevationM(workout, key: HKMetadataKeyElevationAscended),
             elevationDescendedM: Self.elevationM(workout, key: HKMetadataKeyElevationDescended),
@@ -189,6 +197,67 @@ struct HealthKitStore {
             sourceBundleId: workout.sourceRevision.source.bundleIdentifier,
             sourceName: workout.sourceRevision.source.name
         )
+    }
+
+    private func quantityAverage(
+        _ workout: HKWorkout,
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit
+    ) async -> Double? {
+        if let value = Self.average(workout, identifier, unit: unit) {
+            return value
+        }
+        return await statisticsQuantity(workout, identifier, unit: unit, pick: { $0.averageQuantity() })
+    }
+
+    private func quantityMaximum(
+        _ workout: HKWorkout,
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit
+    ) async -> Double? {
+        if let value = Self.maximum(workout, identifier, unit: unit) {
+            return value
+        }
+        return await statisticsQuantity(workout, identifier, unit: unit, pick: { $0.maximumQuantity() })
+    }
+
+    private func quantitySum(
+        _ workout: HKWorkout,
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit
+    ) async -> Double? {
+        if let value = Self.sum(workout, identifier, unit: unit) {
+            return value
+        }
+        return await statisticsQuantity(workout, identifier, unit: unit, pick: { $0.sumQuantity() })
+    }
+
+    private func statisticsQuantity(
+        _ workout: HKWorkout,
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        pick: @escaping (HKStatistics) -> HKQuantity?
+    ) async -> Double? {
+        let type = HKQuantityType(identifier)
+        let predicate = HKQuery.predicateForSamples(
+            withStart: workout.startDate,
+            end: workout.endDate,
+            options: [.strictStartDate, .strictEndDate]
+        )
+        let options: HKStatisticsOptions = type.aggregationStyle == .cumulative ? .cumulativeSum : [.discreteAverage, .discreteMin, .discreteMax]
+        return await withCheckedContinuation { continuation in
+            let once = ResumeOnce()
+            let query = HKStatisticsQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: options
+            ) { _, stats, _ in
+                once.resume {
+                    continuation.resume(returning: stats.flatMap(pick)?.doubleValue(for: unit))
+                }
+            }
+            store.execute(query)
+        }
     }
 
     private static func average(
@@ -215,11 +284,11 @@ struct HealthKitStore {
         workout.statistics(for: HKQuantityType(identifier))?.sumQuantity()?.doubleValue(for: unit)
     }
 
-    private static func cadence(_ workout: HKWorkout) -> Double? {
-        let token = activityType(workout.workoutActivityType)
+    private func cadence(_ workout: HKWorkout) async -> Double? {
+        let token = Self.activityType(workout.workoutActivityType)
         let spmUnit = HKUnit.count().unitDivided(by: .minute())
         if token == "cycling" || token == "hand_cycling" {
-            if let cycling = average(workout, .cyclingCadence, unit: spmUnit), cycling > 0 {
+            if let cycling = await quantityAverage(workout, .cyclingCadence, unit: spmUnit), cycling > 0 {
                 return cycling
             }
             return nil
@@ -227,7 +296,7 @@ struct HealthKitStore {
         guard ["running", "walking", "hiking", "wheelchair_walk", "wheelchair_run"].contains(token) else {
             return nil
         }
-        guard workout.duration > 30, let steps = sum(workout, .stepCount, unit: .count()), steps > 0 else {
+        guard workout.duration > 30, let steps = await quantitySum(workout, .stepCount, unit: .count()), steps > 0 else {
             return nil
         }
         let spm = steps / (workout.duration / 60)

@@ -1139,3 +1139,147 @@ def test_workout_detail_descent_from_route_alts():
     assert body["elevation_ascended_m"] > 0
     assert body["elevation_descended_m"] > 0
 
+
+def test_workout_detail_fills_hr_metrics_from_samples_when_session_avg_missing():
+    """Spec §4: HR is session avg or in-window series — index/load must not stay null."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    saved = client.patch("/health/profile", headers=_headers(token), json={"max_hr_bpm": 188})
+    assert saved.status_code == 200, saved.text
+
+    hk = str(uuid.uuid4())
+    start = datetime.now(timezone.utc).replace(microsecond=0)
+    end = start + timedelta(minutes=25)
+    workout = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "duration_seconds": 1500,
+                    "distance_m": 3500,
+                }
+            ],
+        },
+    )
+    assert workout.status_code == 200, workout.text
+
+    samples = []
+    for i, bpm in enumerate((148, 155, 162)):
+        at = (start + timedelta(minutes=5 * (i + 1))).isoformat()
+        samples.append(
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "heart_rate",
+                "start_at": at,
+                "end_at": at,
+                "value": bpm,
+                "unit": "count/min",
+            }
+        )
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "samples": samples},
+    )
+    assert posted.status_code == 200, posted.text
+
+    listing = client.get("/views/me/health", headers=_headers(token))
+    workout_id = listing.json()["recent_workouts"][0]["id"]
+    detail = client.get(f"/views/me/health/workouts/{workout_id}", headers=_headers(token))
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["avg_hr_bpm"] is not None
+    assert abs(body["avg_hr_bpm"] - 155.0) < 1.0
+    assert body["running_index"] is not None
+    assert body["training_load"] is not None
+    assert body["heart_rate"] is not None
+    assert body["heart_rate_zones"]
+    assert sum(zone["seconds"] for zone in body["heart_rate_zones"]) > 0
+
+
+def test_workout_detail_fills_cadence_stride_from_point_step_samples():
+    """Instantaneous step_count (start==end) still yields SPM series, avg cadence, and stride."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    start = datetime.now(timezone.utc).replace(microsecond=0)
+    end = start + timedelta(minutes=10)
+    workout = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "duration_seconds": 600,
+                    "distance_m": 1500,
+                }
+            ],
+        },
+    )
+    assert workout.status_code == 200, workout.text
+
+    samples = []
+    for i in range(3):
+        at = start + timedelta(seconds=30 * (i + 1))
+        samples.append(
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "step_count",
+                "start_at": at.isoformat(),
+                "end_at": at.isoformat(),
+                "value": 85,
+                "unit": "count",
+            }
+        )
+        samples.append(
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "running_stride",
+                "start_at": at.isoformat(),
+                "end_at": at.isoformat(),
+                "value": 1.12,
+                "unit": "m",
+            }
+        )
+        samples.append(
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "running_vertical_oscillation",
+                "start_at": at.isoformat(),
+                "end_at": at.isoformat(),
+                "value": 82,
+                "unit": "mm",
+            }
+        )
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "samples": samples},
+    )
+    assert posted.status_code == 200, posted.text
+
+    listing = client.get("/views/me/health", headers=_headers(token))
+    workout_id = listing.json()["recent_workouts"][0]["id"]
+    detail = client.get(f"/views/me/health/workouts/{workout_id}", headers=_headers(token))
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["avg_cadence_spm"] is not None
+    assert abs(body["avg_cadence_spm"] - 170.0) < 5.0
+    assert body["stride_m"] is not None
+    assert abs(body["stride_m"] - 1.12) < 0.02
+    series = body["series"]
+    assert series["cadence"] is not None
+    assert series["stride"] is not None
+    assert series["vertical_oscillation"] is not None
+

@@ -221,6 +221,7 @@ export function WorkoutDetailSummary({
         zones={workout.pace_zones}
         zoneName={paceZoneName}
         formatRange={formatPaceZoneRange}
+        defaultOpen
       />
       <WorkoutSeriesChart
         title="心率（次/分）"
@@ -232,16 +233,20 @@ export function WorkoutDetailSummary({
         zones={workout.heart_rate_zones}
         zoneName={hrZoneName}
         formatRange={formatHrZoneRange}
+        defaultOpen
+        showEmpty
       />
       <WorkoutSeriesChart
         title="步频（步/分）"
         series={workout.series?.cadence}
         formatValue={formatIntTick}
+        showEmpty
       />
       <WorkoutSeriesChart
         title="步幅（米）"
         series={workout.series?.stride}
         formatValue={formatStrideTick}
+        showEmpty
       />
       <WorkoutSeriesChart
         title="功率（瓦）"
@@ -252,6 +257,7 @@ export function WorkoutDetailSummary({
         title="垂直振幅（毫米）"
         series={workout.series?.vertical_oscillation}
         formatValue={formatIntTick}
+        showEmpty
       />
       <WorkoutSeriesChart
         title="触地时间（毫秒）"
