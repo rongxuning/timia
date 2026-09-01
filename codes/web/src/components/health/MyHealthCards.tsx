@@ -1,23 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { HealthSparkline } from "@/components/health/HealthSparkline";
+import { HEALTH_CARD_KEYS } from "@/components/health/healthCards";
 import { useCardReorderAnimation } from "@/hooks/useCardReorderAnimation";
 import type { HealthCurrent, HealthSeriesPoint } from "@/types/api/views/health";
-
-const DEFAULT_CARD_ORDER = [
-  "steps",
-  "active",
-  "basal",
-  "exercise",
-  "stand",
-  "rhr",
-  "sleep",
-  "weight",
-  "hrv",
-  "vo2",
-  "recovery",
-  "spo2",
-];
 
 function display(value: number | null | undefined, format: (n: number) => string): string {
   if (value == null) return "—";
@@ -35,168 +22,33 @@ function sleepLabel(minutes: number | null | undefined): string {
 
 function standLabel(hours: number | null | undefined): string {
   if (hours == null) return "—";
-  return Number.isInteger(hours) ? `${hours}` : hours.toFixed(1);
-}
-
-function formatAxisNumber(n: number): string {
-  if (Math.abs(n) >= 100) return String(Math.round(n));
-  if (Number.isInteger(n)) return String(n);
-  if (Math.abs(n) >= 10) return (Math.round(n * 10) / 10).toFixed(1);
-  return String(Math.round(n * 100) / 100);
-}
-
-function formatAxisDate(iso: string): string {
-  const parts = iso.split("-");
-  if (parts.length < 3) return iso;
-  return `${Number(parts[1])}月${Number(parts[2])}日`;
-}
-
-function Sparkline({ points }: { points: HealthSeriesPoint[] }) {
-  const valued = points.filter((point): point is HealthSeriesPoint & { value: number } => point.value != null);
-  if (valued.length === 0) {
-    return <p className="flex h-full min-h-[4.5rem] w-full items-center justify-end text-caption text-neutral-muted">暂无趋势</p>;
-  }
-  const values = valued.map((point) => point.value);
-  const dataMin = Math.min(...values);
-  const dataMax = Math.max(...values);
-  const yMin = Math.min(0, dataMin);
-  const yMax = Math.max(0, dataMax);
-  const span = yMax - yMin || 1;
-  const latest = valued[valued.length - 1];
-  const padL = 28;
-  const padR = 2;
-  const padT = 6;
-  const padB = 12;
-  const width = 168;
-  const height = 76;
-  const plotW = width - padL - padR;
-  const plotH = height - padT - padB;
-  const xAt = (index: number, count: number) =>
-    padL + (count <= 1 ? plotW / 2 : (index / (count - 1)) * plotW);
-  const yAt = (value: number) => padT + (1 - (value - yMin) / span) * plotH;
-  const d = valued
-    .map((point, index) => {
-      const x = xAt(index, valued.length);
-      const y = yAt(point.value);
-      return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const near = (a: number, b: number) => Math.abs(a - b) / span < 0.12;
-  const yTicks = [
-    { value: dataMax, label: formatAxisNumber(dataMax) },
-    { value: 0, label: "0" },
-    { value: dataMin, label: formatAxisNumber(dataMin) },
-  ].filter((tick, index, all) => all.findIndex((item) => near(item.value, tick.value)) === index);
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className="h-full w-full text-primary"
-      aria-hidden
-    >
-      <line
-        x1={padL}
-        y1={padT}
-        x2={padL}
-        y2={padT + plotH}
-        stroke="currentColor"
-        strokeOpacity="0.28"
-        strokeWidth="1"
-      />
-      <line
-        x1={padL}
-        y1={padT + plotH}
-        x2={padL + plotW}
-        y2={padT + plotH}
-        stroke="currentColor"
-        strokeOpacity="0.28"
-        strokeWidth="1"
-      />
-      <line
-        x1={padL}
-        y1={yAt(0)}
-        x2={padL + plotW}
-        y2={yAt(0)}
-        stroke="currentColor"
-        strokeOpacity="0.28"
-        strokeWidth="1"
-      />
-      {yTicks.map((tick) => (
-        <g key={`${tick.value}-${tick.label}`}>
-          <line
-            x1={padL - 3}
-            y1={yAt(tick.value)}
-            x2={padL}
-            y2={yAt(tick.value)}
-            stroke="currentColor"
-            strokeOpacity="0.35"
-            strokeWidth="1"
-          />
-          <text
-            x={padL - 5}
-            y={yAt(tick.value)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            className="fill-neutral-muted"
-            fontSize="8"
-          >
-            {tick.label}
-          </text>
-        </g>
-      ))}
-      <path d={d} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      <text
-        x={padL + plotW}
-        y={height - 1}
-        textAnchor="end"
-        className="fill-neutral-muted"
-        fontSize="8"
-      >
-        {formatAxisDate(latest.local_date)}
-      </text>
-    </svg>
-  );
+  const n = Number.isInteger(hours) ? `${hours}` : hours.toFixed(1);
+  return `${n} 小时`;
 }
 
 function ScoreHelp({ formula, hint }: { formula: string; hint: string }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLSpanElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
   return (
-    <span ref={rootRef} className="relative inline-flex self-stretch">
+    <span className="group/help relative z-10 inline-flex self-stretch hover:z-30">
       <button
         type="button"
         className="inline-flex aspect-square h-auto self-stretch items-center justify-center rounded-full border border-current p-0 text-[0.68em] leading-none text-neutral-muted hover:bg-gray-50 hover:text-text-secondary"
         aria-label="评分说明"
-        aria-expanded={open}
         onClick={(event) => {
+          event.preventDefault();
           event.stopPropagation();
-          setOpen((prev) => !prev);
         }}
       >
         ?
       </button>
-      {open ? (
-        <span
-          role="tooltip"
-          className="absolute left-0 top-5 z-20 w-max min-w-[24rem] max-w-[min(42rem,calc(100vw-2rem))] rounded-xl border border-border-subtle bg-white px-md py-sm text-caption leading-5 text-text-secondary shadow-lg"
-        >
-          <span className="block whitespace-nowrap">公式：{formula}</span>
-          <span className="mt-1 block whitespace-nowrap">{hint}</span>
+      <span
+        role="tooltip"
+        className="absolute left-0 top-full z-20 hidden w-72 max-w-[min(18rem,calc(100vw-2rem))] pt-1 group-hover/help:block group-focus-within/help:block"
+      >
+        <span className="block rounded-xl border border-border-subtle bg-white px-md py-sm text-caption leading-5 text-text-secondary shadow-lg">
+          <span className="block">公式：{formula}</span>
+          <span className="mt-1 block">{hint}</span>
         </span>
-      ) : null}
+      </span>
     </span>
   );
 }
@@ -209,7 +61,7 @@ type CardDef = {
   total: string | null;
 };
 
-function cardsFromCurrent(
+export function cardsFromCurrent(
   current: HealthCurrent | undefined,
   totals: HealthCurrent | null | undefined,
   loading: boolean,
@@ -256,9 +108,9 @@ function cardsFromCurrent(
     {
       key: "stand",
       seriesKey: "stand_hours",
-      label: "站立小时",
+      label: "站立时间",
       value: valueOrDash(display(current?.stand_hours, standLabel)),
-      total: rangeMode ? valueOrDash(display(totals?.stand_hours, (n) => `累计 ${standLabel(n)} 小时`)) : null,
+      total: rangeMode ? valueOrDash(display(totals?.stand_hours, (n) => `累计 ${standLabel(n)}`)) : null,
     },
     {
       key: "rhr",
@@ -328,6 +180,7 @@ type MyHealthCardsProps = {
   loading?: boolean;
   rangeMode?: boolean;
   onReorder?: (cardOrder: string[]) => void;
+  onOpenDetail?: (cardKey: string) => void;
 };
 
 export function MyHealthCards({
@@ -340,13 +193,15 @@ export function MyHealthCards({
   loading,
   rangeMode,
   onReorder,
+  onOpenDetail,
 }: MyHealthCardsProps) {
   const defs = cardsFromCurrent(current, totals, Boolean(loading), Boolean(rangeMode));
   const byKey = useMemo(() => new Map(defs.map((card) => [card.key, card])), [defs]);
   const [order, setOrder] = useState<string[]>(() =>
-    cardOrder && cardOrder.length > 0 ? cardOrder : DEFAULT_CARD_ORDER,
+    cardOrder && cardOrder.length > 0 ? cardOrder : [...HEALTH_CARD_KEYS],
   );
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const dragEndedAt = useRef(0);
 
   useEffect(() => {
     if (cardOrder && cardOrder.length > 0) setOrder(cardOrder);
@@ -370,7 +225,9 @@ export function MyHealthCards({
   return (
     <section className="rounded-xl border border-border-subtle bg-white p-lg">
       <h2 className="font-headline text-lg font-bold text-text-primary">健康数据</h2>
-      <p className="mt-1 text-caption text-neutral-muted">按住卡片可拖动排序，顺序会保存到账号。</p>
+      <p className="mt-1 text-caption text-neutral-muted">
+        点击卡片查看详情；按住可拖动排序，顺序会保存到账号。
+      </p>
       <div ref={gridRef} className="mt-lg grid grid-cols-1 gap-lg sm:grid-cols-2 xl:grid-cols-3">
         {ordered.map((card) => (
           <section
@@ -392,12 +249,19 @@ export function MyHealthCards({
               if (fromKey) moveCard(fromKey, card.key);
               setDraggingKey(null);
             }}
-            onDragEnd={() => setDraggingKey(null)}
-            className={`flex min-w-0 cursor-grab items-stretch justify-between gap-sm rounded-xl border border-border-subtle bg-white px-lg py-md transition-all hover:shadow-lg active:cursor-grabbing ${
+            onDragEnd={() => {
+              setDraggingKey(null);
+              dragEndedAt.current = Date.now();
+            }}
+            onClick={() => {
+              if (Date.now() - dragEndedAt.current < 400) return;
+              onOpenDetail?.(card.key);
+            }}
+            className={`flex min-w-0 cursor-pointer items-stretch justify-between gap-sm rounded-xl border border-border-subtle bg-white px-lg py-md transition-all hover:shadow-lg active:cursor-grabbing ${
               draggingKey === card.key ? "opacity-60" : ""
             }`}
           >
-            <div className="flex min-w-0 shrink-0 flex-col gap-2">
+            <div className="flex min-w-0 flex-col gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="text-sm font-semibold leading-none text-primary">{card.label}</span>
                 <span className="inline-flex items-stretch gap-1 text-sm leading-none text-text-secondary">
@@ -419,7 +283,7 @@ export function MyHealthCards({
               </div>
             </div>
             <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end">
-              <Sparkline points={series?.[card.seriesKey] ?? []} />
+              <HealthSparkline points={series?.[card.seriesKey] ?? []} />
             </div>
           </section>
         ))}

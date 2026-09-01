@@ -14,8 +14,10 @@ type HealthRangePickerProps = {
 export function HealthRangePicker({ value, onChange }: HealthRangePickerProps) {
   return (
     <section className="rounded-xl border border-border-subtle bg-white p-lg">
-      <h2 className="font-headline text-small text-text-primary">时间段</h2>
-      <p className="mt-1 text-caption text-neutral-muted">查看区间汇总与趋势</p>
+      <div className="flex items-baseline gap-sm">
+        <h2 className="shrink-0 font-headline text-small text-text-primary">时间段</h2>
+        <p className="min-w-0 text-caption text-neutral-muted">查看区间汇总与趋势</p>
+      </div>
       <div className="mt-md grid grid-cols-3 gap-sm">
         {RANGES.map((item) => {
           const active = value === item.days;

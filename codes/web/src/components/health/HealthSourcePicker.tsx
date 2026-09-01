@@ -24,8 +24,10 @@ export function HealthSourcePicker({ value, onChange }: HealthSourcePickerProps)
 
   return (
     <section className="rounded-xl border border-border-subtle bg-white p-lg">
-      <h2 className="font-headline text-small text-text-primary">数据源</h2>
-      <p className="mt-1 text-caption text-neutral-muted">选择当前展示的设备与平台</p>
+      <div className="flex items-baseline gap-sm">
+        <h2 className="shrink-0 font-headline text-small text-text-primary">数据源</h2>
+        <p className="min-w-0 text-caption text-neutral-muted">选择当前展示的设备与平台</p>
+      </div>
       <div className="mt-md flex flex-wrap gap-sm">
         {visible.map((item) => {
           const active = value === item.id;
