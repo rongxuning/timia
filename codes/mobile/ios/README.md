@@ -13,6 +13,7 @@
 
 ```bash
 cd codes/mobile/ios
+cp -n Config/Debug.xcconfig.example Config/Debug.xcconfig
 xcodegen generate
 open Timia.xcodeproj
 ```
