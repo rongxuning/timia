@@ -19,9 +19,62 @@ struct HealthSyncDayStatus: Decodable, Sendable, Identifiable {
     }
 }
 
+struct HealthSyncRun: Decodable, Sendable, Identifiable {
+    var id: String
+    var source: String
+    var status: String
+    var startedAt: String
+    var finishedAt: String?
+    var fromAt: String?
+    var toAt: String?
+    var quantityCount: Int
+    var sleepCount: Int
+    var standHourCount: Int
+    var heartbeatSeriesCount: Int
+    var workoutCount: Int
+    var routeCount: Int
+    var upserted: Int
+    var localDates: [String]
+    var error: String?
+
+    var summary: String {
+        var parts: [String] = []
+        if quantityCount > 0 { parts.append("指标 \(quantityCount)") }
+        if sleepCount > 0 { parts.append("睡眠 \(sleepCount)") }
+        if standHourCount > 0 { parts.append("站立 \(standHourCount)") }
+        if heartbeatSeriesCount > 0 { parts.append("心跳序列 \(heartbeatSeriesCount)") }
+        if workoutCount > 0 { parts.append("训练 \(workoutCount)") }
+        if routeCount > 0 { parts.append("路线 \(routeCount)") }
+        if parts.isEmpty { return upserted > 0 ? "写入 \(upserted) 条" : "无新样本" }
+        return parts.joined(separator: " · ")
+    }
+
+    var sourceLabel: String {
+        source == "background" ? "后台" : "手动"
+    }
+}
+
+struct HealthSyncRunIn: Encodable, Sendable {
+    var source: String
+    var status: String
+    var fromAt: String?
+    var toAt: String
+    var quantityCount: Int
+    var sleepCount: Int
+    var standHourCount: Int
+    var heartbeatSeriesCount: Int
+    var workoutCount: Int
+    var routeCount: Int
+    var upserted: Int
+    var localDates: [String]
+    var error: String?
+}
+
 struct HealthSyncStatus: Decodable, Sendable {
     var timezone: String
+    var lastSyncedAt: String?
     var days: [HealthSyncDayStatus]
+    var runs: [HealthSyncRun]?
 }
 
 struct HealthQuantitySamplePayload: Encodable, Sendable {
@@ -146,6 +199,10 @@ struct HealthSyncAPI: Sendable {
             query: query,
             response: HealthSyncStatus.self
         )
+    }
+
+    func finishRun(_ payload: HealthSyncRunIn) async throws -> HealthSyncRun {
+        try await client.request("/health/sync/runs", method: "POST", body: payload, response: HealthSyncRun.self)
     }
 
     func syncSamples(_ payload: HealthQuantitySyncPayload) async throws -> HealthSyncOut {

@@ -34,6 +34,7 @@ export type MyHealthView = {
   workout_end_date?: string | null;
   workout_has_more?: boolean;
   series?: Record<string, HealthSeriesPoint[]>;
+  hourly?: Record<string, Array<{ hour: number; value?: number | null }>>;
   insight?: HealthInsight | null;
   insights?: HealthInsight[];
   profile?: HealthProfile | null;

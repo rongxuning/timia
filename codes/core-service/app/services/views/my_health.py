@@ -28,6 +28,7 @@ from app.schemas.views.health import (
     HealthWorkoutsPageOut,
     MyHealthViewOut,
 )
+from app.services.views.health_hourly import hourly_series_for_day
 from app.services.health_api import get_card_order, get_profile
 from app.services.health_metrics import local_date_of
 from app.services.health_scores import score_current
@@ -180,6 +181,7 @@ def build_my_health(
         workout_end_date=workout_page.end_date,
         workout_has_more=workout_page.has_more,
         series=_series_from_dailies(series_rows),
+        hourly=hourly_series_for_day(db, user.id, focus, tz_name) if mode == "day" else {},
         insight=_insight_out(insight),
         insights=[item for item in (_insight_out(row) for row in insight_rows) if item is not None],
         profile=HealthProfileViewOut(

@@ -23,14 +23,14 @@ export function HealthHeartbeatBars({ intervalsMs }: HealthHeartbeatBarsProps) {
   const padR = 8;
   const padT = 6;
   const padB = 14;
-  const width = 288;
-  const height = 72;
+  const width = 576;
+  const height = 88;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
   const barW = plotW / buckets.length;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-20 w-full text-primary" role="img">
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-28 w-full text-primary" role="img">
       {buckets.map((count, index) => {
         const h = (count / peak) * plotH;
         return (

@@ -11,7 +11,7 @@ export default function DatabaseDiagramPage() {
           <div className="space-y-xs">
             <h1 className="font-section-heading text-section-heading text-text-primary">数据库结构</h1>
             <p className="text-body text-text-secondary">
-              顶部为全局表关系总览，下方按业务领域展开字段级 ER 图（迁移 `0001` → `0025`）。跨域外键在总览图中以关系线标注。
+              顶部为全局表关系总览，下方按业务领域展开字段级 ER 图（迁移 `0001` → `0031`）。跨域外键在总览图中以关系线标注。
             </p>
           </div>
           <a
@@ -50,6 +50,10 @@ export default function DatabaseDiagramPage() {
             </li>
             <li>
               <code>sticky_note_ai_parses.converted_item_id</code> 可关联到 <code>items</code>。
+            </li>
+            <li>
+              健康域表均只挂 <code>users.id</code>（<code>owner_user_id</code>），不进工作空间；训练路线用{" "}
+              <code>workout_hk_uuid</code> 逻辑关联会话，同步游标在 <code>health_sync_state</code>。
             </li>
           </ul>
           <Link

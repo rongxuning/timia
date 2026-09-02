@@ -44,6 +44,79 @@ def test_requires_auth_for_health_sync_samples():
     assert resp.status_code == 401
 
 
+def test_requires_auth_for_health_sync_runs():
+    client = TestClient(app)
+    now = datetime.now(timezone.utc).isoformat()
+    resp = client.post(
+        "/health/sync/runs",
+        json={"source": "manual", "status": "success", "to_at": now},
+    )
+    assert resp.status_code == 401
+
+
+def test_health_sync_status_uses_daily_and_records_runs():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc)
+    synced = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "step_count",
+                    "start_at": now.isoformat(),
+                    "end_at": now.isoformat(),
+                    "value": 1200,
+                    "unit": "count",
+                }
+            ],
+        },
+    )
+    assert synced.status_code == 200, synced.text
+    local_date = synced.json()["local_dates"][0]
+    to_at = (now + timedelta(minutes=1)).isoformat()
+    recorded = client.post(
+        "/health/sync/runs",
+        headers=_headers(token),
+        json={
+            "source": "manual",
+            "status": "success",
+            "from_at": (now - timedelta(days=90)).isoformat(),
+            "to_at": to_at,
+            "quantity_count": 1,
+            "upserted": 1,
+            "local_dates": [local_date],
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+    assert recorded.json()["source"] == "manual"
+    assert recorded.json()["upserted"] == 1
+    status = client.get("/health/sync-status", headers=_headers(token))
+    assert status.status_code == 200, status.text
+    body = status.json()
+    assert body["last_synced_at"] is not None
+    assert any(day["local_date"] == local_date and day["quantity_count"] > 0 for day in body["days"])
+    assert len(body["runs"]) == 1
+    assert body["runs"][0]["quantity_count"] == 1
+    later = client.post(
+        "/health/sync/runs",
+        headers=_headers(token),
+        json={
+            "source": "background",
+            "status": "success",
+            "to_at": (now - timedelta(days=1)).isoformat(),
+            "upserted": 0,
+        },
+    )
+    assert later.status_code == 200
+    again = client.get("/health/sync-status", headers=_headers(token))
+    assert again.json()["last_synced_at"] == body["last_synced_at"]
+    assert len(again.json()["runs"]) == 2
+
+
 def test_requires_auth_for_views_me_health():
     client = TestClient(app)
     resp = client.get("/views/me/health")
@@ -257,6 +330,9 @@ def test_health_view_accepts_date_and_range():
     assert ranged.json()["current"]["steps"] == 4321
     assert ranged.json()["totals"]["steps"] == 4321
     assert ranged.json()["scores"]["steps"] == 43
+    assert view.json()["hourly"]["steps"][0]["hour"] == 0
+    assert any(slot["value"] for slot in view.json()["hourly"]["steps"])
+    assert ranged.json()["hourly"] == {}
     bad = client.get("/views/me/health?range=15", headers=_headers(token))
     assert bad.status_code == 400
     assert bad.json()["detail"] == "invalid_range"
@@ -676,6 +752,9 @@ def test_health_card_detail_steps_hourly_from_samples():
     assert body["metric"] == "steps"
     assert body["hourly"][8]["value"] == 1200
     assert body["stats"]["distance_m"] == 800
+    overview = client.get(f"/views/me/health?date={today.isoformat()}", headers=_headers(token))
+    assert overview.status_code == 200, overview.text
+    assert overview.json()["hourly"]["steps"][8]["value"] == 1200
 
 
 def _three_route_points() -> list[dict]:

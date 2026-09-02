@@ -21,6 +21,8 @@ from app.schemas.health import (
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
     HealthSyncOut,
+    HealthSyncRunIn,
+    HealthSyncRunOut,
     HealthSyncStatusOut,
     HealthWorkoutRouteSyncIn,
     HealthWorkoutSyncIn,
@@ -28,6 +30,7 @@ from app.schemas.health import (
 from app.services.health_api import (
     get_profile,
     list_sync_status,
+    record_sync_run,
     save_card_order,
     save_profile,
     sync_deletions,
@@ -55,6 +58,17 @@ def get_sync_status(
     start = date_from or (today - timedelta(days=90))
     end = date_to or today
     return list_sync_status(db, user, tz_name, start, end)
+
+
+@router.post("/sync/runs", response_model=HealthSyncRunOut)
+def post_sync_run(
+    payload: HealthSyncRunIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = record_sync_run(db, user, payload)
+    db.commit()
+    return result
 
 
 @router.post("/sync/samples", response_model=HealthSyncOut)

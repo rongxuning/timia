@@ -7,7 +7,6 @@ final class HealthBackgroundDelivery {
     static let shared = HealthBackgroundDelivery()
 
     private let store = HKHealthStore()
-    private let lastSyncKey = "timia.health.observerAnchorDate"
     private var started = false
     private var inFlight = false
     private var api: APIClient?
@@ -18,33 +17,33 @@ final class HealthBackgroundDelivery {
         self.api = api
         guard HKHealthStore.isHealthDataAvailable() else { return }
         guard HealthPermissionManager.shared.didRequest else { return }
-        guard !started else { return }
-        started = true
-
-        for type in observerTypes {
-            let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completion, error in
-                defer { completion() }
-                guard error == nil else { return }
-                Task { @MainActor in
-                    await self?.handleUpdate()
+        if !started {
+            started = true
+            for type in observerTypes {
+                let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completion, error in
+                    defer { completion() }
+                    guard error == nil else { return }
+                    Task { @MainActor in
+                        await self?.handleUpdate()
+                    }
                 }
+                store.execute(query)
+                store.enableBackgroundDelivery(for: type, frequency: .immediate) { _, _ in }
             }
-            store.execute(query)
-            store.enableBackgroundDelivery(for: type, frequency: .immediate) { _, _ in }
         }
     }
 
     private func handleUpdate() async {
         guard let api, !inFlight else { return }
+        guard HealthSyncService.cachedLastSyncedAt() != nil else { return }
         inFlight = true
         defer { inFlight = false }
-        let start = UserDefaults.standard.object(forKey: lastSyncKey) as? Date
-            ?? Calendar.current.date(byAdding: .hour, value: -6, to: Date())
-            ?? Date()
+        let start = HealthSyncService.startDate(lastSyncedAt: HealthSyncService.cachedLastSyncedAt())
+        let end = Date()
         do {
-            let export = try await HealthKitStore().exportSamples(from: start)
-            try await HealthSyncService(api: HealthSyncAPI(client: api)).upload(export) { _, _ in }
-            UserDefaults.standard.set(Date(), forKey: lastSyncKey)
+            let service = HealthSyncService(api: HealthSyncAPI(client: api))
+            let export = try await service.exportSince(start, to: end)
+            try await service.upload(export, source: .background, from: start, to: end) { _, _ in }
         } catch {
             // Keep the observer alive; the next wake or manual sync retries.
         }
@@ -53,14 +52,21 @@ final class HealthBackgroundDelivery {
     private var observerTypes: [HKSampleType] {
         [
             HKQuantityType(.heartRate),
+            HKQuantityType(.restingHeartRate),
+            HKQuantityType(.heartRateVariabilitySDNN),
             HKQuantityType(.stepCount),
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.basalEnergyBurned),
+            HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.appleExerciseTime),
+            HKQuantityType(.appleStandTime),
+            HKQuantityType(.oxygenSaturation),
+            HKQuantityType(.bodyMass),
+            HKQuantityType(.vo2Max),
+            HKQuantityType(.heartRateRecoveryOneMinute),
             HKObjectType.workoutType(),
             HKCategoryType(.sleepAnalysis),
             HKCategoryType(.appleStandHour),
-            HKQuantityType(.oxygenSaturation),
-            HKQuantityType(.bodyMass),
             HKSeriesType.heartbeat(),
         ]
     }

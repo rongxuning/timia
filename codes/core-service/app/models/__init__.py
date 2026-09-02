@@ -9,6 +9,8 @@ from app.models.health import (
     HealthSampleSleep,
     HealthSampleStandHour,
     HealthSeriesHeartbeat,
+    HealthSyncRun,
+    HealthSyncState,
     HealthWorkoutRoute,
     HealthWorkoutSession,
 )
@@ -47,6 +49,8 @@ __all__ = [
     "HealthSampleSleep",
     "HealthSampleStandHour",
     "HealthSeriesHeartbeat",
+    "HealthSyncRun",
+    "HealthSyncState",
     "HealthWorkoutRoute",
     "HealthWorkoutSession",
     "Item",

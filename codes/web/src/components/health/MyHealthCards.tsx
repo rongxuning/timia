@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HealthSparkline } from "@/components/health/HealthSparkline";
-import { HEALTH_CARD_KEYS } from "@/components/health/healthCards";
+import { formatHealthTrendY, HEALTH_CARD_KEYS, type HealthCardKey, valuedHours } from "@/components/health/healthCards";
+import { scoreScaleForMetric } from "@/components/health/healthScoreBands";
+import { HealthTrendChart } from "@/components/health/HealthTrendChart";
 import { useCardReorderAnimation } from "@/hooks/useCardReorderAnimation";
-import type { HealthCurrent, HealthSeriesPoint } from "@/types/api/views/health";
+import type { HealthCurrent, HealthEnergyTargets, HealthSeriesPoint } from "@/types/api/views/health";
+
+type HealthHourBucket = { hour: number; value?: number | null };
 
 function display(value: number | null | undefined, format: (n: number) => string): string {
   if (value == null) return "—";
@@ -170,6 +173,12 @@ function scoreLabel(score: number | null | undefined, loading: boolean): string 
   return String(score);
 }
 
+function currentValue(current: HealthCurrent | undefined, seriesKey: string): number | null {
+  if (!current) return null;
+  const value = current[seriesKey as keyof HealthCurrent];
+  return typeof value === "number" ? value : null;
+}
+
 type MyHealthCardsProps = {
   current?: HealthCurrent;
   totals?: HealthCurrent | null;
@@ -177,8 +186,12 @@ type MyHealthCardsProps = {
   scoreFormulas?: Record<string, { formula: string; hint: string }>;
   cardOrder?: string[];
   series?: Record<string, HealthSeriesPoint[]>;
+  hourly?: Record<string, HealthHourBucket[]>;
   loading?: boolean;
   rangeMode?: boolean;
+  rangeDays?: number | null;
+  rangeEnd?: string | null;
+  energyTargets?: HealthEnergyTargets | null;
   onReorder?: (cardOrder: string[]) => void;
   onOpenDetail?: (cardKey: string) => void;
 };
@@ -190,8 +203,12 @@ export function MyHealthCards({
   scoreFormulas,
   cardOrder,
   series,
+  hourly,
   loading,
   rangeMode,
+  rangeDays,
+  rangeEnd,
+  energyTargets,
   onReorder,
   onOpenDetail,
 }: MyHealthCardsProps) {
@@ -261,29 +278,44 @@ export function MyHealthCards({
               draggingKey === card.key ? "opacity-60" : ""
             }`}
           >
-            <div className="flex min-w-0 flex-col gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="text-sm font-semibold leading-none text-primary">{card.label}</span>
-                <span className="inline-flex items-stretch gap-1 text-sm leading-none text-text-secondary">
-                  <span className="tabular-nums">{scoreLabel(scores?.[card.key], Boolean(loading))}</span>
-                  <ScoreHelp
-                    formula={
-                      scoreFormulas?.[card.key]?.formula ??
-                      "clamp(round(100 × 值 / 目标), 0, 100)"
-                    }
-                    hint={scoreFormulas?.[card.key]?.hint ?? "总分100分。无数据时展示 none。"}
-                  />
-                </span>
-              </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-sm font-semibold leading-none text-primary">{card.label}</span>
+              <span className="inline-flex items-stretch gap-1 text-sm leading-none text-text-secondary">
+                <span className="tabular-nums">{scoreLabel(scores?.[card.key], Boolean(loading))}</span>
+                <ScoreHelp
+                  formula={
+                    scoreFormulas?.[card.key]?.formula ??
+                    "clamp(round(100 × 值 / 目标), 0, 100)"
+                  }
+                  hint={scoreFormulas?.[card.key]?.hint ?? "总分100分。无数据时展示 none。"}
+                />
+              </span>
               <div>
-                <span className="font-headline text-subhead text-text-primary">{card.value}</span>
+                <span className="text-sm font-semibold text-text-primary">{card.value}</span>
                 <p className="mt-1 min-h-4 text-caption text-neutral-muted">
                   {card.total && card.total !== "—" ? card.total : "\u00a0"}
                 </p>
               </div>
             </div>
             <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end">
-              <HealthSparkline points={series?.[card.seriesKey] ?? []} />
+              <HealthTrendChart
+                points={series?.[card.seriesKey] ?? []}
+                scale={scoreScaleForMetric(card.key as HealthCardKey, energyTargets)}
+                className="flex h-[4.75rem] w-full min-w-0 text-primary"
+                variant="card"
+                rangeDays={rangeMode ? rangeDays : null}
+                rangeEnd={rangeEnd}
+                hours={rangeMode ? null : valuedHours(hourly?.[card.seriesKey])}
+                formatY={(value) => formatHealthTrendY(card.key as HealthCardKey, value)}
+                anchor={
+                  rangeEnd && !rangeMode
+                    ? {
+                        local_date: rangeEnd,
+                        value: currentValue(current, card.seriesKey),
+                      }
+                    : null
+                }
+              />
             </div>
           </section>
         ))}

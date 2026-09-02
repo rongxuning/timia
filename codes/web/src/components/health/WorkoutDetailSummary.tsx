@@ -28,6 +28,12 @@ const WEEKDAY: Record<string, string> = {
   Sat: "六",
 };
 
+const TRIMP_HELP = {
+  formula:
+    "TRIMP = Σ Δt_min · HRR · 0.64 · e^(k·HRR)；k 男 1.92 / 女 1.67 / 其他 1.80；无静息心率时 HRR = HR/HRmax",
+  hint: "Banister 指数加权心率负荷。有心率序列则按点累加，否则用场均心率。需有时长、心率与最大心率。这是估算，非医疗建议。",
+};
+
 function formatWorkoutDateTime(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
@@ -145,10 +151,7 @@ export function WorkoutDetailSummary({
   const place = locationLabel(workout);
   const watt =
     workout.running_power_w == null ? null : `约 ${Math.round(workout.running_power_w)} 瓦`;
-  const loadExtras = [
-    workout.trimp == null ? null : `TRIMP ${workout.trimp.toFixed(1)}`,
-    workout.rtss == null ? null : `rTSS ${workout.rtss.toFixed(1)}`,
-  ].filter(Boolean);
+  const rtssExtra = workout.rtss == null ? null : `rTSS ${workout.rtss.toFixed(1)}`;
 
   return (
     <section className="space-y-lg">
@@ -204,10 +207,13 @@ export function WorkoutDetailSummary({
           label="平均步频（步/分）"
           value={dashNumber(workout.avg_cadence_spm, (n) => String(Math.round(n)))}
         />
+        <MetricCell
+          label="TRIMP"
+          value={dashNumber(workout.trimp, (n) => n.toFixed(1))}
+          help={workout.trimp_formula ?? TRIMP_HELP}
+        />
       </div>
-      {loadExtras.length > 0 ? (
-        <p className="text-caption text-text-secondary">{loadExtras.join(" · ")}</p>
-      ) : null}
+      {rtssExtra ? <p className="text-caption text-text-secondary">{rtssExtra}</p> : null}
       <WorkoutSplitsTable splits={workout.splits} />
       <WorkoutSeriesChart
         title="配速"

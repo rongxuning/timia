@@ -65,6 +65,13 @@ class HealthSeriesPointOut(BaseModel):
     max: float | None = None
 
 
+class HealthHourBucketOut(BaseModel):
+    hour: int
+    value: float | None = None
+    min: float | None = None
+    max: float | None = None
+
+
 class HealthInsightOut(BaseModel):
     local_date: str
     status: str
@@ -97,6 +104,7 @@ class MyHealthViewOut(BaseModel):
     workout_end_date: str | None = None
     workout_has_more: bool = False
     series: dict[str, list[HealthSeriesPointOut]] = Field(default_factory=dict)
+    hourly: dict[str, list[HealthHourBucketOut]] = Field(default_factory=dict)
     insight: HealthInsightOut | None = None
     insights: list[HealthInsightOut] = Field(default_factory=list)
     profile: HealthProfileViewOut | None = None
@@ -192,19 +200,13 @@ class HealthWorkoutDetailOut(HealthWorkoutOut):
     hr_rest_used: float | None = None
     running_index_formula: HealthScoreFormulaOut | None = None
     training_load_formula: HealthScoreFormulaOut | None = None
+    trimp_formula: HealthScoreFormulaOut | None = None
     route: HealthRouteOut | None = None
     splits: list[HealthSplitOut] | None = None
     heart_rate: HealthSeriesWindowOut | None = None
     heart_rate_zones: list[HealthZoneShareOut] | None = None
     series: HealthWorkoutSeriesOut
     pace_zones: list[HealthZoneShareOut] | None = None
-
-
-class HealthHourBucketOut(BaseModel):
-    hour: int
-    value: float | None = None
-    min: float | None = None
-    max: float | None = None
 
 
 class HealthStandCellOut(BaseModel):

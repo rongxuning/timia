@@ -3,13 +3,14 @@ export type WorkoutActivityStyle = {
   icon: string;
   bg: string;
   text: string;
+  band: string;
 };
 
-const HIIT = { bg: "bg-red-100", text: "text-red-700" };
-const RUNNING = { bg: "bg-blue-100", text: "text-blue-800" };
-const WALKING = { bg: "bg-green-100", text: "text-green-800" };
-const STRENGTH = { bg: "bg-yellow-100", text: "text-yellow-800" };
-const OTHER = { bg: "bg-violet-100", text: "text-violet-700" };
+const HIIT = { bg: "bg-red-100", text: "text-red-700", band: "#fecaca" };
+const RUNNING = { bg: "bg-blue-100", text: "text-blue-800", band: "#bfdbfe" };
+const WALKING = { bg: "bg-green-100", text: "text-green-800", band: "#bbf7d0" };
+const STRENGTH = { bg: "bg-yellow-100", text: "text-yellow-800", band: "#fef08a" };
+const OTHER = { bg: "bg-violet-100", text: "text-violet-700", band: "#ddd6fe" };
 
 const KNOWN: Record<string, WorkoutActivityStyle> = {
   hiit: { label: "高强度间歇", icon: "bolt", ...HIIT },

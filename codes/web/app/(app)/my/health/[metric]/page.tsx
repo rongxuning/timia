@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { HealthMetricDetail } from "@/components/health/HealthMetricDetail";
 import { HealthMetricDetailShell, healthCardSeriesKey } from "@/components/health/HealthMetricDetailShell";
 import { HealthPageFrame } from "@/components/health/HealthPageFrame";
-import { isHealthCardKey } from "@/components/health/healthCards";
+import { hoursForHealthTrend, isHealthCardKey, valuedHours } from "@/components/health/healthCards";
 import { cardsFromCurrent } from "@/components/health/MyHealthCards";
 import { PageMain } from "@/components/layout";
 import { useHealthCardDetail } from "@/hooks/useHealthCardDetail";
@@ -42,11 +42,11 @@ function HealthMetricPageInner() {
     (item) => item.key === metric,
   );
   const formula = page.view?.score_formulas?.[metric];
-  const sleepNight = metric === "sleep" && !page.rangeMode ? cardDetail.detail?.sleep : null;
-  const dayXLabels =
-    sleepNight?.bedtime && sleepNight.wake_at
-      ? ([formatClock(sleepNight.bedtime), formatClock(sleepNight.wake_at)] as [string, string])
-      : null;
+  const trendEnd = page.rangeMode ? page.today : (page.view?.selected_date ?? page.selectedDate);
+  const seriesKey = healthCardSeriesKey(metric);
+  const anchorValue = page.view?.current
+    ? (page.view.current[seriesKey as keyof typeof page.view.current] as number | null | undefined)
+    : null;
 
   return (
     <HealthPageFrame page={page}>
@@ -58,11 +58,16 @@ function HealthMetricPageInner() {
         score={page.view?.scores?.[metric]}
         formula={formula?.formula}
         hint={formula?.hint}
-        series={page.view?.series?.[healthCardSeriesKey(metric)] ?? []}
+        series={page.view?.series?.[seriesKey] ?? []}
         energyTargets={page.view?.energy_targets}
         rangeDays={page.rangeDays}
-        rangeEnd={page.today}
-        dayXLabels={dayXLabels}
+        rangeEnd={trendEnd}
+        anchorValue={page.rangeMode ? null : typeof anchorValue === "number" ? anchorValue : null}
+        hours={
+          page.rangeMode
+            ? null
+            : hoursForHealthTrend(metric, cardDetail.detail) ?? valuedHours(page.view?.hourly?.[seriesKey])
+        }
       >
         {cardDetail.error ? (
           <p className="text-small text-error">{cardDetail.error}</p>
@@ -87,15 +92,4 @@ export default function HealthMetricPage() {
       <HealthMetricPageInner />
     </Suspense>
   );
-}
-
-function formatClock(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(date);
 }

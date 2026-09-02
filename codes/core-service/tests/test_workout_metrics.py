@@ -1,6 +1,7 @@
 from app.services.workout_metrics import (
     RUNNING_INDEX_FORMULA,
     TRAINING_LOAD_FORMULA,
+    TRIMP_FORMULA,
     banister_trimp,
     downsample_series,
     estimate_power_w,
@@ -217,3 +218,5 @@ def test_formula_constants():
     assert TRAINING_LOAD_FORMULA.formula
     assert "TRIMP" in TRAINING_LOAD_FORMULA.hint
     assert "rTSS" in TRAINING_LOAD_FORMULA.hint
+    assert "HRR" in TRIMP_FORMULA.formula
+    assert "Banister" in TRIMP_FORMULA.hint

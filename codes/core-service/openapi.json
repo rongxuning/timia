@@ -4930,6 +4930,65 @@
         }
       }
     },
+    "/health/sync/runs": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Run",
+        "operationId": "post_sync_run_health_sync_runs_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthSyncRunIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/sync/samples": {
       "post": {
         "tags": [
@@ -7322,7 +7381,6 @@
             "required": true,
             "schema": {
               "type": "string",
-              "format": "uuid",
               "title": "Workout Id"
             }
           },
@@ -10259,11 +10317,239 @@
         ],
         "title": "HealthSyncOut"
       },
+      "HealthSyncRunIn": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "background"
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "from_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From At"
+          },
+          "to_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "To At"
+          },
+          "quantity_count": {
+            "type": "integer",
+            "title": "Quantity Count",
+            "default": 0
+          },
+          "sleep_count": {
+            "type": "integer",
+            "title": "Sleep Count",
+            "default": 0
+          },
+          "stand_hour_count": {
+            "type": "integer",
+            "title": "Stand Hour Count",
+            "default": 0
+          },
+          "heartbeat_series_count": {
+            "type": "integer",
+            "title": "Heartbeat Series Count",
+            "default": 0
+          },
+          "workout_count": {
+            "type": "integer",
+            "title": "Workout Count",
+            "default": 0
+          },
+          "route_count": {
+            "type": "integer",
+            "title": "Route Count",
+            "default": 0
+          },
+          "upserted": {
+            "type": "integer",
+            "title": "Upserted",
+            "default": 0
+          },
+          "local_dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Local Dates"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "status",
+          "to_at"
+        ],
+        "title": "HealthSyncRunIn"
+      },
+      "HealthSyncRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "from_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From At"
+          },
+          "to_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To At"
+          },
+          "quantity_count": {
+            "type": "integer",
+            "title": "Quantity Count",
+            "default": 0
+          },
+          "sleep_count": {
+            "type": "integer",
+            "title": "Sleep Count",
+            "default": 0
+          },
+          "stand_hour_count": {
+            "type": "integer",
+            "title": "Stand Hour Count",
+            "default": 0
+          },
+          "heartbeat_series_count": {
+            "type": "integer",
+            "title": "Heartbeat Series Count",
+            "default": 0
+          },
+          "workout_count": {
+            "type": "integer",
+            "title": "Workout Count",
+            "default": 0
+          },
+          "route_count": {
+            "type": "integer",
+            "title": "Route Count",
+            "default": 0
+          },
+          "upserted": {
+            "type": "integer",
+            "title": "Upserted",
+            "default": 0
+          },
+          "local_dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Local Dates"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "status",
+          "started_at"
+        ],
+        "title": "HealthSyncRunOut"
+      },
       "HealthSyncStatusOut": {
         "properties": {
           "timezone": {
             "type": "string",
             "title": "Timezone"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
           },
           "days": {
             "items": {
@@ -10271,6 +10557,13 @@
             },
             "type": "array",
             "title": "Days"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSyncRunOut"
+            },
+            "type": "array",
+            "title": "Runs"
           }
         },
         "type": "object",
@@ -10558,6 +10851,16 @@
             ]
           },
           "training_load_formula": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScoreFormulaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trimp_formula": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/HealthScoreFormulaOut"
@@ -12865,6 +13168,16 @@
             },
             "type": "object",
             "title": "Series"
+          },
+          "hourly": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/HealthHourBucketOut"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Hourly"
           },
           "insight": {
             "anyOf": [

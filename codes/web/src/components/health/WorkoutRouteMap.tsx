@@ -216,14 +216,7 @@ export function WorkoutRouteMap({ route }: WorkoutRouteMapProps) {
   }, [points, kmMarkers]);
 
   if (!points || points.length < 2) {
-    return (
-      <div
-        className="flex h-64 w-full items-center justify-center rounded-xl border border-border-subtle bg-white shadow-sm"
-        aria-label="训练路线地图"
-      >
-        <p className="text-small text-text-secondary">暂无路线</p>
-      </div>
-    );
+    return null;
   }
 
   return (

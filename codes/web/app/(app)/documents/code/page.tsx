@@ -29,7 +29,7 @@ export default function DocumentsCodePage() {
             <span className="material-symbols-outlined text-[22px] text-emerald-600">account_tree</span>
             <span className="font-medium text-text-primary group-hover:text-emerald-800">数据库结构图</span>
             <span className="text-small text-text-secondary">
-              按身份、空间、任务、便利贴、规划五个业务域展示 ER 图；关联紧密的表同域呈现，彩色虚线框标注域名。
+              按身份、空间、任务、便利贴、规划、健康六个业务域展示 ER 图；关联紧密的表同域呈现，彩色虚线框标注域名。
             </span>
           </a>
           <a

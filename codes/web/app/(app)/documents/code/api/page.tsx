@@ -11,7 +11,7 @@ export default function DocumentsCodeApiPage() {
             <h1 className="font-section-heading text-section-heading text-text-primary">后端 API 一览</h1>
             <p className="text-body text-text-secondary">
               与 <code className="rounded bg-surface-container-high px-1 py-0.5 text-small">codes/core-service</code>{" "}
-              FastAPI 路由对齐，含规划（计划模式 / 订阅模式）、收藏、通知等近期接口。视图类接口在{" "}
+              FastAPI 路由对齐，含规划、健康同步 / 视图、收藏、通知等近期接口。视图类接口在{" "}
               <code className="rounded bg-surface-container-high px-1 py-0.5 text-small">/views/*</code>{" "}
               前缀下聚合展示数据。
             </p>

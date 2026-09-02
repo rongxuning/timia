@@ -41,6 +41,10 @@
     <string>Timia 读取您的健康与健身数据，同步到您的账号，供您在网页查看趋势与建议。</string>
     <key>NSHealthUpdateUsageDescription</key>
     <string>Timia 需要健康权限以同步您授权的健康与健身数据。应用不会向健康写入数据。</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>healthkit</string>
+    </array>
     <key>UILaunchScreen</key>
     <dict/>
     <key>UISupportedInterfaceOrientations</key>

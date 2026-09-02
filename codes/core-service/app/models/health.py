@@ -334,3 +334,42 @@ class HealthMetricsLayout(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     card_order: Mapped[list[Any]] = mapped_column(JSONB, nullable=False)
+
+
+class HealthSyncRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """One completed health sync attempt (manual or background)."""
+
+    __tablename__ = "health_sync_run"
+    __table_args__ = (Index("ix_health_sync_run_owner_started", "owner_user_id", "started_at"),)
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    from_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    to_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    quantity_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sleep_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    stand_hour_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    heartbeat_series_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    workout_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    route_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    upserted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    local_dates: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    error: Mapped[str | None] = mapped_column(String(400), nullable=True)
+
+
+class HealthSyncState(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """High-water mark for incremental HealthKit sync. One row per owner."""
+
+    __tablename__ = "health_sync_state"
+    __table_args__ = (UniqueConstraint("owner_user_id", name="uq_health_sync_state_owner"),)
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

@@ -42,6 +42,7 @@ from app.services.views.my_health import DEFAULT_TIMEZONE, workout_out
 from app.services.workout_metrics import (
     RUNNING_INDEX_FORMULA,
     TRAINING_LOAD_FORMULA,
+    TRIMP_FORMULA,
     banister_trimp,
     downsample_series,
     estimate_power_w,
@@ -201,6 +202,7 @@ def build_workout_detail(
         hr_rest_used=hr_rest_used,
         running_index_formula=RUNNING_INDEX_FORMULA if index is not None else None,
         training_load_formula=TRAINING_LOAD_FORMULA if load is not None else None,
+        trimp_formula=TRIMP_FORMULA,
         route=_route_out(route_points),
         splits=_splits_out(
             route_points, hr_pairs, cadence_pairs, by_type.get(METRIC_RUNNING_SPEED, [])

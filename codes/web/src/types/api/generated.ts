@@ -1025,6 +1025,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/sync/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Sync Run */
+        post: operations["post_sync_run_health_sync_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/sync/samples": {
         parameters: {
             query?: never;
@@ -2424,12 +2441,134 @@ export interface components {
             /** Local Dates */
             local_dates?: string[];
         };
+        /** HealthSyncRunIn */
+        HealthSyncRunIn: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "background";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "success" | "failed";
+            /** From At */
+            from_at?: string | null;
+            /**
+             * To At
+             * Format: date-time
+             */
+            to_at: string;
+            /**
+             * Quantity Count
+             * @default 0
+             */
+            quantity_count: number;
+            /**
+             * Sleep Count
+             * @default 0
+             */
+            sleep_count: number;
+            /**
+             * Stand Hour Count
+             * @default 0
+             */
+            stand_hour_count: number;
+            /**
+             * Heartbeat Series Count
+             * @default 0
+             */
+            heartbeat_series_count: number;
+            /**
+             * Workout Count
+             * @default 0
+             */
+            workout_count: number;
+            /**
+             * Route Count
+             * @default 0
+             */
+            route_count: number;
+            /**
+             * Upserted
+             * @default 0
+             */
+            upserted: number;
+            /** Local Dates */
+            local_dates?: string[];
+            /** Error */
+            error?: string | null;
+        };
+        /** HealthSyncRunOut */
+        HealthSyncRunOut: {
+            /** Id */
+            id: string;
+            /** Source */
+            source: string;
+            /** Status */
+            status: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at?: string | null;
+            /** From At */
+            from_at?: string | null;
+            /** To At */
+            to_at?: string | null;
+            /**
+             * Quantity Count
+             * @default 0
+             */
+            quantity_count: number;
+            /**
+             * Sleep Count
+             * @default 0
+             */
+            sleep_count: number;
+            /**
+             * Stand Hour Count
+             * @default 0
+             */
+            stand_hour_count: number;
+            /**
+             * Heartbeat Series Count
+             * @default 0
+             */
+            heartbeat_series_count: number;
+            /**
+             * Workout Count
+             * @default 0
+             */
+            workout_count: number;
+            /**
+             * Route Count
+             * @default 0
+             */
+            route_count: number;
+            /**
+             * Upserted
+             * @default 0
+             */
+            upserted: number;
+            /** Local Dates */
+            local_dates?: string[];
+            /** Error */
+            error?: string | null;
+        };
         /** HealthSyncStatusOut */
         HealthSyncStatusOut: {
             /** Timezone */
             timezone: string;
+            /** Last Synced At */
+            last_synced_at?: string | null;
             /** Days */
             days?: components["schemas"]["HealthSyncDayStatusOut"][];
+            /** Runs */
+            runs?: components["schemas"]["HealthSyncRunOut"][];
         };
         /** HealthWorkoutDetailOut */
         HealthWorkoutDetailOut: {
@@ -2491,6 +2630,7 @@ export interface components {
             hr_rest_used?: number | null;
             running_index_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
             training_load_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
+            trimp_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
             route?: components["schemas"]["HealthRouteOut"] | null;
             /** Splits */
             splits?: components["schemas"]["HealthSplitOut"][] | null;
@@ -3228,6 +3368,10 @@ export interface components {
             /** Series */
             series?: {
                 [key: string]: components["schemas"]["HealthSeriesPointOut"][];
+            };
+            /** Hourly */
+            hourly?: {
+                [key: string]: components["schemas"]["HealthHourBucketOut"][];
             };
             insight?: components["schemas"]["HealthInsightOut"] | null;
             /** Insights */
@@ -7641,6 +7785,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSyncStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sync_run_health_sync_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthSyncRunIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthSyncRunOut"];
                 };
             };
             /** @description Validation Error */

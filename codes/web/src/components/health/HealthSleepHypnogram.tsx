@@ -66,7 +66,7 @@ export function HealthSleepHypnogram({ segments }: HealthSleepHypnogramProps) {
   const padR = 8;
   const padT = 8;
   const padB = 16;
-  const width = 288;
+  const width = 576;
   const height = 88;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
@@ -76,9 +76,8 @@ export function HealthSleepHypnogram({ segments }: HealthSleepHypnogramProps) {
   const shares = sharesFromMinutes(minutesFromSegments(staged));
 
   return (
-    <div className="flex justify-center">
-      <div className="inline-flex max-w-full items-center gap-sm">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-64 max-w-[min(100%,16rem)] shrink-0" role="img">
+    <div className="flex w-full items-center gap-md">
+        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-36 min-w-0 flex-1" role="img">
         {["深睡", "核心", "REM", "清醒"].map((label, index) => (
           <text
             key={label}
@@ -116,7 +115,6 @@ export function HealthSleepHypnogram({ segments }: HealthSleepHypnogramProps) {
         </text>
       </svg>
       <SleepStageShareList shares={shares} />
-      </div>
     </div>
   );
 }
@@ -144,9 +142,8 @@ export function HealthSleepStageAverage({
     return <HealthEmptyHint text="这段时间还没有睡眠分期。" />;
   }
   return (
-    <div className="flex justify-center">
-      <div className="inline-flex max-w-full items-center gap-sm">
-        <div className="flex h-4 w-64 max-w-[min(100%,16rem)] overflow-hidden rounded-full">
+    <div className="flex w-full items-center gap-md">
+        <div className="flex h-4 min-w-0 flex-1 overflow-hidden rounded-full">
           {shares
             .filter((part) => part.minutes > 0)
             .slice()
@@ -161,7 +158,6 @@ export function HealthSleepStageAverage({
             ))}
         </div>
         <SleepStageShareList shares={shares} />
-      </div>
     </div>
   );
 }

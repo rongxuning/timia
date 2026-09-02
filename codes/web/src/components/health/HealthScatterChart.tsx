@@ -29,7 +29,7 @@ export function HealthScatterChart({ points, format }: HealthScatterChartProps) 
   const padR = 8;
   const padT = 8;
   const padB = 16;
-  const width = 288;
+  const width = 576;
   const height = 96;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
@@ -43,7 +43,7 @@ export function HealthScatterChart({ points, format }: HealthScatterChartProps) 
     .join(" ");
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full text-primary" role="img">
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-36 w-full text-primary" role="img">
       <line
         x1={padL}
         y1={padT + plotH}
@@ -58,9 +58,9 @@ export function HealthScatterChart({ points, format }: HealthScatterChartProps) 
       {points.length > 1 ? (
         <path d={line} fill="none" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" />
       ) : null}
-      {points.map((point) => (
+      {points.map((point, index) => (
         <circle
-          key={point.at}
+          key={`${point.at}-${point.value}-${index}`}
           cx={xAt(point.at)}
           cy={yAt(point.value)}
           r="2.4"

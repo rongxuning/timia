@@ -44,6 +44,8 @@ from app.models.health import (
     HealthSampleSleep,
     HealthSampleStandHour,
     HealthSeriesHeartbeat,
+    HealthSyncRun,
+    HealthSyncState,
     HealthWorkoutRoute,
     HealthWorkoutSession,
 )
@@ -61,6 +63,8 @@ from app.schemas.health import (
     HealthStandHourSyncIn,
     HealthSyncDayStatusOut,
     HealthSyncOut,
+    HealthSyncRunIn,
+    HealthSyncRunOut,
     HealthSyncStatusOut,
     HealthWorkoutRouteSyncIn,
     HealthWorkoutSyncIn,
@@ -440,56 +444,47 @@ def list_sync_status(
     if end < start:
         raise HTTPException(status_code=400, detail="invalid_date_range")
     tz = ZoneInfo(tz_name)
-    window_start = datetime.combine(start - timedelta(days=1), datetime.min.time(), tzinfo=tz)
-    window_end = datetime.combine(end + timedelta(days=2), datetime.min.time(), tzinfo=tz)
+    window_start = datetime.combine(start, datetime.min.time(), tzinfo=tz)
+    window_end = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=tz)
     buckets: dict[str, HealthSyncDayStatusOut] = {}
 
-    def add(local: date, field: str) -> None:
-        if local < start or local > end:
+    def add(local: date, field: str, amount: int = 1) -> None:
+        if local < start or local > end or amount <= 0:
             return
         key = local.isoformat()
         day = buckets.get(key)
         if day is None:
             day = HealthSyncDayStatusOut(local_date=key)
             buckets[key] = day
-        setattr(day, field, getattr(day, field) + 1)
+        setattr(day, field, getattr(day, field) + amount)
 
     for row in db.scalars(
-        select(HealthSampleQuantity).where(
-            HealthSampleQuantity.owner_user_id == user.id,
-            HealthSampleQuantity.deleted_at.is_(None),
-            HealthSampleQuantity.start_at >= window_start,
-            HealthSampleQuantity.start_at < window_end,
+        select(HealthMetricsDaily).where(
+            HealthMetricsDaily.owner_user_id == user.id,
+            HealthMetricsDaily.local_date >= start,
+            HealthMetricsDaily.local_date <= end,
         )
     ):
-        add(local_date_of(row.start_at, tz_name), "quantity_count")
-    for row in db.scalars(
-        select(HealthSampleSleep).where(
-            HealthSampleSleep.owner_user_id == user.id,
-            HealthSampleSleep.deleted_at.is_(None),
-            HealthSampleSleep.end_at >= window_start,
-            HealthSampleSleep.end_at < window_end,
-        )
-    ):
-        add(local_date_of(row.end_at, row.timezone or tz_name), "sleep_count")
-    for row in db.scalars(
-        select(HealthSampleStandHour).where(
-            HealthSampleStandHour.owner_user_id == user.id,
-            HealthSampleStandHour.deleted_at.is_(None),
-            HealthSampleStandHour.start_at >= window_start,
-            HealthSampleStandHour.start_at < window_end,
-        )
-    ):
-        add(local_date_of(row.start_at, tz_name), "stand_hour_count")
-    for row in db.scalars(
-        select(HealthSeriesHeartbeat).where(
-            HealthSeriesHeartbeat.owner_user_id == user.id,
-            HealthSeriesHeartbeat.deleted_at.is_(None),
-            HealthSeriesHeartbeat.start_at >= window_start,
-            HealthSeriesHeartbeat.start_at < window_end,
-        )
-    ):
-        add(local_date_of(row.start_at, tz_name), "heartbeat_series_count")
+        qty = int(row.hr_count or 0)
+        if qty == 0 and any(
+            getattr(row, attr) is not None
+            for attr in (
+                "steps",
+                "active_energy_kcal",
+                "basal_energy_kcal",
+                "exercise_minutes",
+                "body_mass_kg",
+                "vo2_max",
+                "hrv_median_ms",
+                "spo2_avg",
+                "cardio_recovery_bpm",
+                "resting_hr_bpm",
+            )
+        ):
+            qty = 1
+        add(row.local_date, "quantity_count", qty)
+        add(row.local_date, "sleep_count", 1 if row.sleep_asleep_minutes is not None else 0)
+        add(row.local_date, "stand_hour_count", int(row.stand_hours or 0))
     for row in db.scalars(
         select(HealthWorkoutSession).where(
             HealthWorkoutSession.owner_user_id == user.id,
@@ -499,9 +494,88 @@ def list_sync_status(
         )
     ):
         add(local_date_of(row.start_at, tz_name), "workout_count")
+    for row in db.scalars(
+        select(HealthSeriesHeartbeat).where(
+            HealthSeriesHeartbeat.owner_user_id == user.id,
+            HealthSeriesHeartbeat.deleted_at.is_(None),
+            HealthSeriesHeartbeat.start_at >= window_start,
+            HealthSeriesHeartbeat.start_at < window_end,
+        )
+    ):
+        add(local_date_of(row.start_at, tz_name), "heartbeat_series_count")
 
-    days = [buckets[key] for key in sorted(buckets)]
-    return HealthSyncStatusOut(timezone=tz_name, days=days)
+    state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == user.id))
+    runs = list(
+        db.scalars(
+            select(HealthSyncRun)
+            .where(HealthSyncRun.owner_user_id == user.id)
+            .order_by(HealthSyncRun.started_at.desc())
+            .limit(50)
+        )
+    )
+    return HealthSyncStatusOut(
+        timezone=tz_name,
+        last_synced_at=state.last_synced_at if state else None,
+        days=[buckets[key] for key in sorted(buckets)],
+        runs=[_sync_run_out(row) for row in runs],
+    )
+
+
+def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> HealthSyncRunOut:
+    now = utcnow()
+    run = HealthSyncRun(
+        owner_user_id=user.id,
+        source=payload.source,
+        status=payload.status,
+        started_at=payload.from_at or now,
+        finished_at=now,
+        from_at=payload.from_at,
+        to_at=payload.to_at,
+        quantity_count=payload.quantity_count,
+        sleep_count=payload.sleep_count,
+        stand_hour_count=payload.stand_hour_count,
+        heartbeat_series_count=payload.heartbeat_series_count,
+        workout_count=payload.workout_count,
+        route_count=payload.route_count,
+        upserted=payload.upserted,
+        local_dates=list(payload.local_dates),
+        error=payload.error,
+    )
+    db.add(run)
+    db.flush()
+    if payload.status == "success":
+        state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == user.id))
+        if state is None:
+            state = HealthSyncState(owner_user_id=user.id)
+            db.add(state)
+        if state.last_synced_at is None or payload.to_at > state.last_synced_at:
+            state.last_synced_at = payload.to_at
+        state.last_run_id = run.id
+        state.updated_at = now
+        db.flush()
+    return _sync_run_out(run)
+
+
+def _sync_run_out(row: HealthSyncRun) -> HealthSyncRunOut:
+    dates = row.local_dates if isinstance(row.local_dates, list) else []
+    return HealthSyncRunOut(
+        id=str(row.id),
+        source=row.source,
+        status=row.status,
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+        from_at=row.from_at,
+        to_at=row.to_at,
+        quantity_count=row.quantity_count,
+        sleep_count=row.sleep_count,
+        stand_hour_count=row.stand_hour_count,
+        heartbeat_series_count=row.heartbeat_series_count,
+        workout_count=row.workout_count,
+        route_count=row.route_count,
+        upserted=row.upserted,
+        local_dates=[str(item) for item in dates],
+        error=row.error,
+    )
 
 
 def get_card_order(db: Session, user: User) -> list[str]:

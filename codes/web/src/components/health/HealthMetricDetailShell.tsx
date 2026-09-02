@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { HEALTH_CARD_LABELS, HEALTH_CARD_SERIES, type HealthCardKey } from "@/components/health/healthCards";
+import { formatHealthTrendY, HEALTH_CARD_LABELS, HEALTH_CARD_SERIES, type HealthCardKey } from "@/components/health/healthCards";
 import { scoreScaleForMetric } from "@/components/health/healthScoreBands";
 import { HealthTrendChart } from "@/components/health/HealthTrendChart";
 import type { HealthEnergyTargets, HealthSeriesPoint } from "@/types/api/views/health";
@@ -19,7 +19,8 @@ type HealthMetricDetailShellProps = {
   energyTargets?: HealthEnergyTargets | null;
   rangeDays?: number | null;
   rangeEnd?: string | null;
-  dayXLabels?: [string, string] | null;
+  anchorValue?: number | null;
+  hours?: Array<{ hour: number; value?: number | null }> | null;
   children?: ReactNode;
 };
 
@@ -35,7 +36,8 @@ export function HealthMetricDetailShell({
   energyTargets,
   rangeDays,
   rangeEnd,
-  dayXLabels,
+  anchorValue,
+  hours,
   children,
 }: HealthMetricDetailShellProps) {
   const title = HEALTH_CARD_LABELS[metric];
@@ -86,7 +88,9 @@ export function HealthMetricDetailShell({
           className="flex h-full w-full text-primary"
           rangeDays={rangeDays}
           rangeEnd={rangeEnd}
-          dayXLabels={dayXLabels}
+          hours={hours}
+          formatY={(value) => formatHealthTrendY(metric, value)}
+          anchor={rangeEnd ? { local_date: rangeEnd, value: anchorValue } : null}
         />
       </div>
       {children ? <div className="mt-lg">{children}</div> : null}

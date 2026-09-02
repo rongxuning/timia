@@ -54,8 +54,12 @@ function MyHealthPageInner() {
             scoreFormulas={view?.score_formulas}
             cardOrder={view?.card_order}
             series={view?.series ?? {}}
+            hourly={view?.hourly ?? {}}
             loading={loading}
             rangeMode={rangeMode}
+            rangeDays={page.rangeDays}
+            rangeEnd={rangeMode ? page.today : (view?.selected_date ?? page.selectedDate)}
+            energyTargets={view?.energy_targets}
             onReorder={page.saveLayout}
             onOpenDetail={(key) => router.push(`/my/health/${key}${queryString}`)}
           />

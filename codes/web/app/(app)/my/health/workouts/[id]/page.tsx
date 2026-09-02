@@ -46,7 +46,9 @@ function WorkoutDetailPageInner() {
         <p className="text-small text-text-secondary">加载中…</p>
       ) : workout.detail ? (
         <div className="space-y-lg">
-          <WorkoutRouteMap route={workout.detail.route} />
+          {(workout.detail.route?.points?.length ?? 0) >= 2 ? (
+            <WorkoutRouteMap route={workout.detail.route} />
+          ) : null}
           <WorkoutDetailSummary workout={workout.detail} timezone={page.view?.timezone} />
         </div>
       ) : null}

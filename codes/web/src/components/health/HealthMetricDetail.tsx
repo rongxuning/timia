@@ -104,8 +104,13 @@ function ActiveDetail({ detail }: { detail: HealthCardDetail }) {
       <p className="mt-sm text-caption text-neutral-muted">
         训练消耗来自训练摘要，与全天活动热量可能部分重叠，拆分只作观察。
       </p>
-      <HealthChartFrame title="当日活动消耗" hint="按小时汇总 active energy。">
-        <HealthHourlyBars points={detail.hourly ?? []} format={(value) => `${Math.round(value)}`} />
+      <HealthChartFrame title="当日活动消耗" hint="按小时汇总 active energy。色带为当天训练时段。">
+        <HealthHourlyBars
+          points={detail.hourly ?? []}
+          format={(value) => `${Math.round(value)}`}
+          workouts={detail.workouts ?? []}
+          timezone={detail.timezone}
+        />
       </HealthChartFrame>
       <HealthChartFrame title="当天训练">
         <HealthWorkoutMiniList workouts={detail.workouts ?? []} />

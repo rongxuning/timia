@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -145,9 +145,46 @@ class HealthSyncDayStatusOut(BaseModel):
     workout_count: int = 0
 
 
+class HealthSyncRunIn(BaseModel):
+    source: Literal["manual", "background"]
+    status: Literal["success", "failed"]
+    from_at: datetime | None = None
+    to_at: datetime
+    quantity_count: int = 0
+    sleep_count: int = 0
+    stand_hour_count: int = 0
+    heartbeat_series_count: int = 0
+    workout_count: int = 0
+    route_count: int = 0
+    upserted: int = 0
+    local_dates: list[str] = Field(default_factory=list)
+    error: str | None = Field(default=None, max_length=400)
+
+
+class HealthSyncRunOut(BaseModel):
+    id: str
+    source: str
+    status: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    from_at: datetime | None = None
+    to_at: datetime | None = None
+    quantity_count: int = 0
+    sleep_count: int = 0
+    stand_hour_count: int = 0
+    heartbeat_series_count: int = 0
+    workout_count: int = 0
+    route_count: int = 0
+    upserted: int = 0
+    local_dates: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
 class HealthSyncStatusOut(BaseModel):
     timezone: str
+    last_synced_at: datetime | None = None
     days: list[HealthSyncDayStatusOut] = Field(default_factory=list)
+    runs: list[HealthSyncRunOut] = Field(default_factory=list)
 
 
 class HealthLayoutIn(BaseModel):

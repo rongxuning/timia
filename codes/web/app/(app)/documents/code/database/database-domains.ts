@@ -84,6 +84,26 @@ export const SUMMARY_ER_DIAGRAM = `erDiagram
     uuid subscription_id FK
     string status
   }
+  HEALTH_PROFILES {
+    uuid id PK
+    uuid owner_user_id FK
+  }
+  HEALTH_METRICS_DAILY {
+    uuid id PK
+    uuid owner_user_id FK
+    date local_date
+  }
+  HEALTH_WORKOUT_SESSION {
+    uuid id PK
+    uuid owner_user_id FK
+    uuid hk_uuid
+    string activity_type
+  }
+  HEALTH_SYNC_STATE {
+    uuid id PK
+    uuid owner_user_id FK
+    datetime last_synced_at
+  }
   USERS ||--o{ WORKSPACES : creates
   USERS ||--o{ WORKSPACE_MEMBERS : joins
   USERS ||--o{ PROJECT_MEMBERS : joins
@@ -105,7 +125,11 @@ export const SUMMARY_ER_DIAGRAM = `erDiagram
   PLAN_APPLY_RUNS }o--|| WORKSPACES : targets
   PLAN_APPLY_RUNS }o--|| PROJECTS : targets
   ITEMS }o--o| PLAN_TEMPLATES : source_plan
-  ITEMS }o--o| PLAN_APPLY_RUNS : source_run`;
+  ITEMS }o--o| PLAN_APPLY_RUNS : source_run
+  USERS ||--o| HEALTH_PROFILES : profile
+  USERS ||--o{ HEALTH_METRICS_DAILY : daily
+  USERS ||--o{ HEALTH_WORKOUT_SESSION : workouts
+  USERS ||--o| HEALTH_SYNC_STATE : sync_cursor`;
 
 export const DATABASE_DOMAINS: DatabaseDomain[] = [
   {
@@ -427,6 +451,130 @@ export const DATABASE_DOMAINS: DatabaseDomain[] = [
       PLAN_TEMPLATES ||--o{ PLAN_APPLY_RUNS : materializes
       PLAN_TEMPLATES ||--o{ PLAN_COMMENTS : discussed
       PLAN_TEMPLATES ||--o{ PLAN_NOTIFICATIONS : notifies`,
+  },
+  {
+    id: "health",
+    title: "健康与健身",
+    description:
+      "个人 HealthKit 样本、训练、日汇总与同步游标；仅挂 owner_user_id，不进工作空间。",
+    borderClass: "border-rose-300",
+    labelClass: "bg-rose-100 text-rose-800",
+    tables: [
+      "health_profiles",
+      "health_sample_quantity",
+      "health_sample_sleep",
+      "health_sample_stand_hour",
+      "health_series_heartbeat",
+      "health_workout_session",
+      "health_workout_route",
+      "health_metrics_daily",
+      "health_insight_daily",
+      "health_metrics_layout",
+      "health_sync_run",
+      "health_sync_state",
+    ],
+    diagram: `erDiagram
+      HEALTH_PROFILES {
+        uuid id PK
+        uuid owner_user_id FK
+        string sex
+        int age_years
+        float height_cm
+        int max_hr_bpm
+      }
+      HEALTH_SAMPLE_QUANTITY {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid hk_uuid
+        string metric_type
+        datetime start_at
+        float value
+        string unit
+        datetime deleted_at
+      }
+      HEALTH_SAMPLE_SLEEP {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid hk_uuid
+        datetime start_at
+        string stage "in_bed | awake | core | deep | rem"
+        datetime deleted_at
+      }
+      HEALTH_SAMPLE_STAND_HOUR {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid hk_uuid
+        datetime start_at
+        bool stood
+        datetime deleted_at
+      }
+      HEALTH_SERIES_HEARTBEAT {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid hk_uuid
+        datetime start_at
+        int interval_count
+        jsonb intervals
+        datetime deleted_at
+      }
+      HEALTH_WORKOUT_SESSION {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid hk_uuid
+        string activity_type
+        datetime start_at
+        int duration_seconds
+        float distance_m
+        float avg_hr_bpm
+        datetime deleted_at
+      }
+      HEALTH_WORKOUT_ROUTE {
+        uuid id PK
+        uuid owner_user_id FK
+        uuid workout_hk_uuid
+        jsonb points
+        int point_count
+        datetime deleted_at
+      }
+      HEALTH_METRICS_DAILY {
+        uuid id PK
+        uuid owner_user_id FK
+        date local_date
+        float steps
+        float active_energy_kcal
+        float resting_hr_bpm
+        float sleep_asleep_minutes
+      }
+      HEALTH_INSIGHT_DAILY {
+        uuid id PK
+        uuid owner_user_id FK
+        date local_date
+        string status "pending | success | failed"
+        string summary
+      }
+      HEALTH_METRICS_LAYOUT {
+        uuid id PK
+        uuid owner_user_id FK
+        jsonb card_order
+      }
+      HEALTH_SYNC_RUN {
+        uuid id PK
+        uuid owner_user_id FK
+        string source "manual | background"
+        string status "success | failed"
+        datetime started_at
+        datetime from_at
+        datetime to_at
+        int upserted
+      }
+      HEALTH_SYNC_STATE {
+        uuid id PK
+        uuid owner_user_id FK
+        datetime last_synced_at
+        uuid last_run_id
+      }
+      HEALTH_WORKOUT_SESSION ||--o| HEALTH_WORKOUT_ROUTE : by_hk_uuid
+      HEALTH_SYNC_STATE }o--o| HEALTH_SYNC_RUN : last_run`,
   },
 ];
 

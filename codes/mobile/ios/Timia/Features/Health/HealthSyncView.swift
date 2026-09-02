@@ -3,6 +3,7 @@ import SwiftUI
 struct HealthSyncView: View {
     @EnvironmentObject private var session: AppSession
     @StateObject private var permissions = HealthPermissionManager.shared
+    @State private var syncedRuns: [HealthSyncRun] = []
     @State private var syncedDays: [HealthSyncDayStatus] = []
     @State private var pendingDays: [HealthPendingDay] = []
     @State private var isSyncing = false
@@ -11,8 +12,6 @@ struct HealthSyncView: View {
     @State private var errorMessage: String?
     @State private var quantityGapHint: String?
     @State private var lastSyncedAt: Date?
-
-    private let lastSyncedKey = "timia.health.lastManualSyncAt"
 
     var body: some View {
         List {
@@ -32,7 +31,7 @@ struct HealthSyncView: View {
                     if let lastSyncedAt {
                         LabeledContent("上次同步", value: lastSyncedAt.formatted(date: .abbreviated, time: .shortened))
                     }
-                    Text("新数据会在写入 iPhone「健康」后自动同步；也可随时手动同步。")
+                    Text("首次会读取近 90 天；之后从上次同步起增量同步。新数据也会在写入 iPhone「健康」后后台上传。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -53,8 +52,14 @@ struct HealthSyncView: View {
 
             Section("待同步") {
                 if pendingDays.isEmpty {
-                    Text(permissions.didRequest ? "点同步后会读取近 90 天数据并按日汇总。" : "授权后即可读取本机健康数据。")
-                        .foregroundStyle(.secondary)
+                    Text(
+                        permissions.didRequest
+                            ? (lastSyncedAt == nil
+                                ? "点同步后会读取近 90 天数据并按日汇总。"
+                                : "点同步后会从上次同步起增量读取新数据。")
+                            : "授权后即可读取本机健康数据。"
+                    )
+                    .foregroundStyle(.secondary)
                 } else {
                     ForEach(pendingDays) { day in
                         VStack(alignment: .leading, spacing: 6) {
@@ -70,19 +75,28 @@ struct HealthSyncView: View {
             }
 
             Section("已同步") {
-                if syncedDays.isEmpty {
-                    Text("还没有已同步的日期")
-                        .foregroundStyle(.secondary)
-                } else {
+                if !syncedRuns.isEmpty {
+                    ForEach(syncedRuns) { run in
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(runTime(run), value: run.sourceLabel)
+                            Text(run.summary)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else if !syncedDays.isEmpty {
                     ForEach(syncedDays) { day in
                         LabeledContent(day.localDate, value: "\(day.totalCount) 条")
                     }
+                } else {
+                    Text("还没有同步记录")
+                        .foregroundStyle(.secondary)
                 }
             }
         }
         .navigationTitle("健康数据")
         .task {
-            lastSyncedAt = UserDefaults.standard.object(forKey: lastSyncedKey) as? Date
+            lastSyncedAt = HealthSyncService.cachedLastSyncedAt()
             await refreshStatus()
         }
         .refreshable { await refreshStatus() }
@@ -124,40 +138,51 @@ struct HealthSyncView: View {
         do {
             let status = try await HealthSyncAPI(client: session.api)
                 .syncStatus(timezone: TimeZone.current.identifier)
-            syncedDays = status.days
-                .filter { $0.totalCount > 0 }
-                .sorted { $0.localDate > $1.localDate }
+            syncedRuns = (status.runs ?? []).filter { run in
+                run.source == "manual" || run.upserted > 0 || run.quantityCount + run.sleepCount
+                    + run.standHourCount + run.heartbeatSeriesCount + run.workoutCount + run.routeCount > 0
+            }
+            syncedDays = status.days.filter { $0.totalCount > 0 }
+            if let raw = status.lastSyncedAt, let date = HealthSyncService.parseISO(raw) {
+                lastSyncedAt = date
+                HealthSyncService.storeLastSyncedAt(date)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     private func sync() async {
-        // Always re-request: HealthKit no-ops if unchanged, shows sheet for new read types.
         guard await permissions.requestIfNeeded() else { return }
         isSyncing = true
         progress = 0.05
         progressText = "正在读取健康数据…"
         defer { isSyncing = false }
         do {
+            let start = HealthSyncService.startDate(lastSyncedAt: lastSyncedAt)
+            let end = Date()
             let service = HealthSyncService(api: HealthSyncAPI(client: session.api))
-            let export = try await service.readLastNinetyDays()
+            let export = try await service.exportSince(start, to: end)
             pendingDays = HealthSyncService.pendingDays(from: export)
-            quantityGapHint = export.samples.isEmpty
+            quantityGapHint = export.samples.isEmpty && lastSyncedAt == nil
                 ? "没有读到步数、消耗或心率样本。请在「设置 > 健康 > 数据访问与设备」中允许 Timia 读取这些类型后再同步。"
                 : nil
-            try await service.upload(export) { fraction, label in
+            try await service.upload(export, source: .manual, from: start, to: end) { fraction, label in
                 progress = fraction
                 progressText = label
             }
-            let now = Date()
-            lastSyncedAt = now
-            UserDefaults.standard.set(now, forKey: lastSyncedKey)
+            lastSyncedAt = end
             pendingDays = []
             await HealthBackgroundDelivery.shared.start(api: session.api)
             await refreshStatus()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func runTime(_ run: HealthSyncRun) -> String {
+        let raw = run.finishedAt ?? run.startedAt
+        guard let date = HealthSyncService.parseISO(raw) else { return raw }
+        return date.formatted(date: .abbreviated, time: .shortened)
     }
 }

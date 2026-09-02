@@ -61,6 +61,18 @@ TRAINING_LOAD_FORMULA = HealthScoreFormulaOut(
     ),
 )
 
+TRIMP_FORMULA = HealthScoreFormulaOut(
+    formula=(
+        "TRIMP = Σ Δt_min · HRR · 0.64 · e^(k·HRR)；"
+        "k 男 1.92 / 女 1.67 / 其他 1.80；"
+        "无静息心率时 HRR = HR/HRmax"
+    ),
+    hint=(
+        "Banister 指数加权心率负荷。有心率序列则按点累加，否则用场均心率。"
+        "需有时长、心率与最大心率。这是估算，非医疗建议。"
+    ),
+)
+
 
 def _clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
