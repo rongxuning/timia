@@ -129,11 +129,11 @@ export function HealthMiniCalendar({
               type="button"
               disabled={future}
               onClick={() => onSelectDate(cell.date)}
-              className={`flex items-center justify-center rounded-lg py-0.5 text-caption transition-colors ${
+              className={`flex items-center justify-center rounded-lg py-0.5 text-caption transition-[color,background-color,box-shadow] ${
                 future
                   ? "cursor-not-allowed text-zinc-300"
                   : selected
-                    ? "bg-indigo-50 text-indigo-700"
+                    ? "bg-primary-fixed font-semibold text-primary ring-2 ring-inset ring-primary"
                     : "text-text-primary hover:bg-gray-50"
               } ${isToday && !selected ? "font-semibold" : ""}`}
               aria-current={isToday ? "date" : undefined}

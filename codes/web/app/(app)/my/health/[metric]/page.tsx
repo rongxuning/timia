@@ -25,9 +25,23 @@ function HealthMetricPageInner() {
   const page = useMyHealthPage();
   const metric = params.metric;
   const validMetric = isHealthCardKey(metric);
+  // RHR「当日」：始终单日取数（日视图=所选日期，7/30/90=今天），不带 range。
+  // HRV「近日SDNN」/ SpO2「近期血氧」需要 range；「当日」另拉一笔不带 range 的当天详情，切 7/30/90 时样本不跟着变。
+  const rhrDayScoped = metric === "rhr";
+  const hrvPinToday = metric === "hrv" && page.rangeMode;
+  const spo2PinToday = metric === "spo2" && page.rangeMode;
+  const focusDay = page.rangeMode ? page.today : page.selectedDate;
   const cardDetail = useHealthCardDetail(validMetric ? page.token : null, metric, {
-    date: page.selectedDate,
-    range: page.rangeDays,
+    date: rhrDayScoped ? focusDay : page.selectedDate,
+    range: rhrDayScoped ? null : page.rangeDays,
+  });
+  const hrvDayDetail = useHealthCardDetail(validMetric && hrvPinToday ? page.token : null, "hrv", {
+    date: page.today,
+    range: null,
+  });
+  const spo2DayDetail = useHealthCardDetail(validMetric && spo2PinToday ? page.token : null, "spo2", {
+    date: page.today,
+    range: null,
   });
 
   useEffect(() => {
@@ -47,6 +61,27 @@ function HealthMetricPageInner() {
   const anchorValue = page.view?.current
     ? (page.view.current[seriesKey as keyof typeof page.view.current] as number | null | undefined)
     : null;
+  const detail =
+    hrvPinToday && cardDetail.detail && hrvDayDetail.detail
+      ? {
+          ...cardDetail.detail,
+          samples: hrvDayDetail.detail.samples,
+          stats: hrvDayDetail.detail.stats,
+        }
+      : spo2PinToday && cardDetail.detail && spo2DayDetail.detail
+        ? {
+            ...cardDetail.detail,
+            samples: spo2DayDetail.detail.samples,
+            stats: spo2DayDetail.detail.stats,
+            hourly: spo2DayDetail.detail.hourly,
+          }
+        : cardDetail.detail;
+  const detailLoading =
+    cardDetail.loading ||
+    (hrvPinToday && hrvDayDetail.loading && !hrvDayDetail.detail) ||
+    (spo2PinToday && spo2DayDetail.loading && !spo2DayDetail.detail);
+  const detailError =
+    cardDetail.error ?? (hrvPinToday ? hrvDayDetail.error : null) ?? (spo2PinToday ? spo2DayDetail.error : null);
 
   return (
     <HealthPageFrame page={page}>
@@ -66,16 +101,16 @@ function HealthMetricPageInner() {
         hours={
           page.rangeMode
             ? null
-            : hoursForHealthTrend(metric, cardDetail.detail) ?? valuedHours(page.view?.hourly?.[seriesKey])
+            : hoursForHealthTrend(metric, detail) ?? valuedHours(page.view?.hourly?.[seriesKey])
         }
       >
-        {cardDetail.error ? (
-          <p className="text-small text-error">{cardDetail.error}</p>
+        {detailError ? (
+          <p className="text-small text-error">{detailError}</p>
         ) : (
           <HealthMetricDetail
             metric={metric}
-            detail={cardDetail.detail}
-            loading={cardDetail.loading}
+            detail={detail}
+            loading={detailLoading}
             energyTargets={page.view?.energy_targets}
             rangeMode={page.rangeMode}
             rangeDays={page.rangeDays}

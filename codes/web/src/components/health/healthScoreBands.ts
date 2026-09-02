@@ -40,6 +40,13 @@ export function toneForScore(score: number | null | undefined): ScoreTone | "non
   return "low";
 }
 
+export const SCORE_BAND_LEGEND: Array<{ tone: ScoreTone; label: string; range: string }> = [
+  { tone: "high", label: "绿", range: "90–100 分" },
+  { tone: "good", label: "蓝", range: "76–89 分" },
+  { tone: "mid", label: "黄", range: "60–75 分" },
+  { tone: "low", label: "红", range: "0–59 分" },
+];
+
 export function scoreScaleForMetric(
   metric: HealthCardKey,
   energyTargets?: HealthEnergyTargets | null,

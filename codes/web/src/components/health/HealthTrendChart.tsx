@@ -154,9 +154,10 @@ function TrendPlot({
     { value: 0, label: labelOf(0) },
     { value: dataMin, label: labelOf(dataMin) },
   ].filter((tick, index, all) => all.findIndex((item) => near(item.value, tick.value)) === index);
+  const bipolar = scale.kind === "rhr" || scale.kind === "sleep";
   const bands = [
-    ...scoreBandsForScale(scale, yMin, dataMax),
-    ...(yMax > dataMax ? [{ y0: dataMax, y1: yMax, tone: "high" as const }] : []),
+    ...scoreBandsForScale(scale, yMin, bipolar ? yMax : dataMax),
+    ...(!bipolar && yMax > dataMax ? [{ y0: dataMax, y1: yMax, tone: "high" as const }] : []),
   ];
   const zeroInside = yMin < 0 && yMax > 0;
   const markers = markerPoints(plotPoints, xTicks, variant);

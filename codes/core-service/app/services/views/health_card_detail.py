@@ -33,11 +33,13 @@ from app.schemas.views.health import (
     HealthCardDetailOut,
     HealthHeartbeatPreviewOut,
     HealthHourBucketOut,
+    HealthHrvDayOut,
     HealthRecoveryLinkOut,
     HealthSamplePointOut,
     HealthSitStreakOut,
     HealthSleepNightOut,
     HealthSleepSegmentOut,
+    HealthSpo2DayOut,
     HealthStandCellOut,
 )
 from app.services.health_api import get_profile
@@ -59,8 +61,13 @@ from app.services.health_card_math import (
     weight_slope_kg_per_week,
 )
 from app.services.health_metrics import local_date_of
-from app.services.health_scores import _score_sleep, energy_targets
+from app.services.health_scores import _linear, _score_sleep, _score_spo2, energy_targets
 from app.services.views.my_health import DEFAULT_TIMEZONE, RANGE_CHOICES, workout_out
+
+ZONE_GAP_CAP_SECONDS = 2 * 3600
+HRV_ZONE_GAP_CAP_SECONDS = ZONE_GAP_CAP_SECONDS
+HRV_DAY_LOOKBACK = 9
+SPO2_DAY_LOOKBACK = 9
 
 
 def build_health_card_detail(
@@ -143,7 +150,7 @@ def _active(db, user, detail, tz_name, focus, _range_start, _range_end, _lookbac
     if active is not None:
         neat = max(0.0, active - (workout_kcal or 0.0))
     profile = get_profile(db, user)
-    weight = daily.body_mass_kg if daily else None
+    weight = _latest_body_mass_kg(db, user.id, focus)
     targets = energy_targets(
         sex=profile.sex, age_years=profile.age_years, height_cm=profile.height_cm, weight_kg=weight
     )
@@ -168,7 +175,7 @@ def _basal(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback
     )
     daily = _daily(db, user.id, focus)
     profile = get_profile(db, user)
-    weight = daily.body_mass_kg if daily else None
+    weight = _latest_body_mass_kg(db, user.id, focus)
     targets = energy_targets(
         sex=profile.sex, age_years=profile.age_years, height_cm=profile.height_cm, weight_kg=weight
     )
@@ -340,14 +347,48 @@ def _weight(db, user, detail, tz_name, focus, range_start, range_end, lookback_s
     return detail
 
 
-def _hrv(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback_start):
+def _hrv(db, user, detail, tz_name, focus, range_start, range_end, _lookback_start):
     rows = _quantities(db, user.id, [METRIC_HRV_SDNN], *_wide_day(focus, tz_name))
     detail.samples = [
         HealthSamplePointOut(at=aware(row.start_at, tz_name).isoformat(), value=row.value)
         for row in rows
         if local_date_of(row.start_at, tz_name) == focus
     ]
-    daily = _daily(db, user.id, focus)
+    if detail.mode == "range":
+        list_start, list_end = range_start, range_end
+    else:
+        list_start, list_end = focus - timedelta(days=HRV_DAY_LOOKBACK), focus
+    window_start = local_day_bounds(list_start, tz_name)[0]
+    window_end = local_day_bounds(list_end + timedelta(days=1), tz_name)[0]
+    window_rows = _quantities(db, user.id, [METRIC_HRV_SDNN], window_start, window_end)
+    samples_by_day: dict[date, list[tuple[datetime, float]]] = {}
+    for row in window_rows:
+        local = local_date_of(row.start_at, tz_name)
+        if list_start <= local <= list_end:
+            samples_by_day.setdefault(local, []).append((row.start_at, row.value))
+    daily_by_date = {
+        row.local_date: row for row in _dailies(db, user.id, list_start, list_end)
+    }
+    hrv_days: list[HealthHrvDayOut] = []
+    cursor = list_start
+    while cursor <= list_end:
+        daily_row = daily_by_date.get(cursor)
+        if daily_row is None or daily_row.hrv_median_ms is None:
+            cursor += timedelta(days=1)
+            continue
+        zones = _zone_shares(samples_by_day.get(cursor, []), lambda value: _linear(value, 60))
+        hrv_days.append(
+            HealthHrvDayOut(
+                local_date=cursor.isoformat(),
+                score=_linear(daily_row.hrv_median_ms, 60),
+                hrv_median_ms=daily_row.hrv_median_ms,
+                resting_hr_bpm=daily_row.resting_hr_bpm,
+                **zones,
+            )
+        )
+        cursor += timedelta(days=1)
+    detail.hrv_days = hrv_days
+    daily = daily_by_date.get(focus) or _daily(db, user.id, focus)
     day_start, day_end = local_day_bounds(focus, tz_name)
     series = db.scalar(
         select(HealthSeriesHeartbeat)
@@ -374,6 +415,60 @@ def _hrv(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback_s
         "sleep_asleep_minutes": daily.sleep_asleep_minutes if daily else None,
     }
     return detail
+
+
+def _zone_shares(
+    points: list[tuple[datetime, float]],
+    score_fn,
+) -> dict[str, float | None]:
+    """Attribute consecutive sample gaps to the earlier sample's score tone (gap capped)."""
+    empty = {
+        "high_minutes": None,
+        "good_minutes": None,
+        "mid_minutes": None,
+        "low_minutes": None,
+        "high_ratio": None,
+        "good_ratio": None,
+        "mid_ratio": None,
+        "low_ratio": None,
+    }
+    if not points:
+        return empty
+    minutes = {"high": 0.0, "good": 0.0, "mid": 0.0, "low": 0.0}
+    ordered = sorted(points, key=lambda item: item[0])
+    for index in range(len(ordered) - 1):
+        start_at, value = ordered[index]
+        next_at, _ = ordered[index + 1]
+        gap = (next_at - start_at).total_seconds()
+        if gap <= 0:
+            continue
+        gap = min(gap, ZONE_GAP_CAP_SECONDS)
+        tone = _tone_for_score(score_fn(value))
+        if tone is not None:
+            minutes[tone] += gap / 60.0
+    total = sum(minutes.values())
+    return {
+        "high_minutes": minutes["high"],
+        "good_minutes": minutes["good"],
+        "mid_minutes": minutes["mid"],
+        "low_minutes": minutes["low"],
+        "high_ratio": (minutes["high"] / total) if total > 0 else 0.0,
+        "good_ratio": (minutes["good"] / total) if total > 0 else 0.0,
+        "mid_ratio": (minutes["mid"] / total) if total > 0 else 0.0,
+        "low_ratio": (minutes["low"] / total) if total > 0 else 0.0,
+    }
+
+
+def _tone_for_score(score: int | None) -> str | None:
+    if score is None:
+        return None
+    if score >= 90:
+        return "high"
+    if score >= 76:
+        return "good"
+    if score >= 60:
+        return "mid"
+    return "low"
 
 
 def _vo2(db, user, detail, tz_name, focus, range_start, range_end, lookback_start):
@@ -471,12 +566,11 @@ def _recovery(db, user, detail, tz_name, focus, range_start, range_end, lookback
     return detail
 
 
-def _spo2(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback_start):
+def _spo2(db, user, detail, tz_name, focus, range_start, range_end, _lookback_start):
     rows = _quantities(db, user.id, [METRIC_OXYGEN_SATURATION], *_wide_day(focus, tz_name))
     day_samples = [row for row in rows if local_date_of(row.start_at, tz_name) == focus]
-    night_vals, day_vals = split_spo2_windows(
-        [(row.start_at, row.value) for row in day_samples], tz_name
-    )
+    focus_points = [(row.start_at, row.value) for row in day_samples]
+    night_vals, day_vals = split_spo2_windows(focus_points, tz_name)
     detail.samples = [
         HealthSamplePointOut(
             at=aware(row.start_at, tz_name).isoformat(),
@@ -485,7 +579,48 @@ def _spo2(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback_
         )
         for row in day_samples
     ]
-    daily = _daily(db, user.id, focus)
+    # Hourly stays 0–1 like samples/series; UI converts to % for bars / trend labels.
+    detail.hourly = _hour_out(bucket_instant(focus_points, tz_name, focus))
+    if detail.mode == "range":
+        list_start, list_end = range_start, range_end
+    else:
+        list_start, list_end = focus - timedelta(days=SPO2_DAY_LOOKBACK), focus
+    window_start = local_day_bounds(list_start, tz_name)[0]
+    window_end = local_day_bounds(list_end + timedelta(days=1), tz_name)[0]
+    window_rows = _quantities(db, user.id, [METRIC_OXYGEN_SATURATION], window_start, window_end)
+    samples_by_day: dict[date, list[tuple[datetime, float]]] = {}
+    for row in window_rows:
+        local = local_date_of(row.start_at, tz_name)
+        if list_start <= local <= list_end:
+            samples_by_day.setdefault(local, []).append((row.start_at, row.value))
+    daily_by_date = {
+        row.local_date: row for row in _dailies(db, user.id, list_start, list_end)
+    }
+    spo2_days: list[HealthSpo2DayOut] = []
+    cursor = list_start
+    while cursor <= list_end:
+        daily_row = daily_by_date.get(cursor)
+        if daily_row is None or daily_row.spo2_avg is None:
+            cursor += timedelta(days=1)
+            continue
+        day_points = samples_by_day.get(cursor, [])
+        night_day, day_day = split_spo2_windows(day_points, tz_name)
+        zones = _zone_shares(day_points, _score_spo2)
+        spo2_days.append(
+            HealthSpo2DayOut(
+                local_date=cursor.isoformat(),
+                score=_score_spo2(daily_row.spo2_avg),
+                spo2_avg=daily_row.spo2_avg,
+                spo2_min=daily_row.spo2_min,
+                spo2_max=daily_row.spo2_max,
+                spo2_day_avg=(sum(day_day) / len(day_day)) if day_day else None,
+                spo2_night_avg=(sum(night_day) / len(night_day)) if night_day else None,
+                **zones,
+            )
+        )
+        cursor += timedelta(days=1)
+    detail.spo2_days = spo2_days
+    daily = daily_by_date.get(focus) or _daily(db, user.id, focus)
     detail.stats = {
         "spo2_avg": daily.spo2_avg if daily else None,
         "spo2_min": daily.spo2_min if daily else None,
@@ -532,6 +667,36 @@ def _daily(db: Session, owner_id, local_date: date) -> HealthMetricsDaily | None
             HealthMetricsDaily.local_date == local_date,
         )
     )
+
+
+def _dailies(
+    db: Session, owner_id, start: date, end: date
+) -> list[HealthMetricsDaily]:
+    return list(
+        db.scalars(
+            select(HealthMetricsDaily)
+            .where(
+                HealthMetricsDaily.owner_user_id == owner_id,
+                HealthMetricsDaily.local_date >= start,
+                HealthMetricsDaily.local_date <= end,
+            )
+            .order_by(HealthMetricsDaily.local_date)
+        )
+    )
+
+
+def _latest_body_mass_kg(db: Session, owner_id, focus: date) -> float | None:
+    row = db.scalar(
+        select(HealthMetricsDaily)
+        .where(
+            HealthMetricsDaily.owner_user_id == owner_id,
+            HealthMetricsDaily.local_date <= focus,
+            HealthMetricsDaily.local_date >= focus - timedelta(days=89),
+            HealthMetricsDaily.body_mass_kg.is_not(None),
+        )
+        .order_by(HealthMetricsDaily.local_date.desc())
+    )
+    return None if row is None else row.body_mass_kg
 
 
 def _workouts_for_day(

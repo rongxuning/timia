@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { HealthPageFrame } from "@/components/health/HealthPageFrame";
 import { WorkoutDetailSummary } from "@/components/health/WorkoutDetailSummary";
@@ -46,6 +47,9 @@ function WorkoutDetailPageInner() {
         <p className="text-small text-text-secondary">加载中…</p>
       ) : workout.detail ? (
         <div className="space-y-lg">
+          <Link href={`/my/health${page.queryString}`} className="text-caption text-primary hover:underline">
+            返回健康
+          </Link>
           {(workout.detail.route?.points?.length ?? 0) >= 2 ? (
             <WorkoutRouteMap route={workout.detail.route} />
           ) : null}

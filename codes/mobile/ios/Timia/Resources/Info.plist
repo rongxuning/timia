@@ -2,63 +2,64 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>zh_CN</string>
-    <key>CFBundleDisplayName</key>
-    <string>Timia</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$(MARKETING_VERSION)</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>TIMIA_API_BASE_URL</key>
-    <string>$(TIMIA_API_BASE_URL)</string>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>Timia 需要访问你电脑上的开发服务器，以登录并同步健康数据。</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Timia 需要使用麦克风录制您说的便利贴内容。</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Timia 用本地语音识别把您说的话转成便利贴文字，识别在设备上完成，不会上传到任何服务器。</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找。</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找。即使 App 未在运行，小组件也能使用此权限。</string>
-    <key>NSHealthShareUsageDescription</key>
-    <string>Timia 读取您的健康与健身数据，同步到您的账号，供您在网页查看趋势与建议。</string>
-    <key>NSHealthUpdateUsageDescription</key>
-    <string>Timia 需要健康权限以同步您授权的健康与健身数据。应用不会向健康写入数据。</string>
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>healthkit</string>
-    </array>
-    <key>UILaunchScreen</key>
-    <dict/>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh_CN</string>
+	<key>CFBundleDisplayName</key>
+	<string>Timia</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Timia 读取您的健康与健身数据，同步到您的账号，供您在网页查看趋势与建议。</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Timia 需要健康权限以同步您授权的健康与健身数据。应用不会向健康写入数据。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Timia 需要访问你电脑上的开发服务器，以登录并同步健康数据。</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找。即使 App 未在运行，小组件也能使用此权限。</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Timia 需要使用麦克风录制您说的便利贴内容。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Timia 用本地语音识别把您说的话转成便利贴文字，识别在设备上完成，不会上传到任何服务器。</string>
+	<key>TIMIA_API_BASE_URL</key>
+	<string>$(TIMIA_API_BASE_URL)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>healthkit</string>
+		<string>processing</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 </dict>
 </plist>

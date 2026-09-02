@@ -8704,6 +8704,20 @@
             "type": "array",
             "title": "Sleep Nights"
           },
+          "hrv_days": {
+            "items": {
+              "$ref": "#/components/schemas/HealthHrvDayOut"
+            },
+            "type": "array",
+            "title": "Hrv Days"
+          },
+          "spo2_days": {
+            "items": {
+              "$ref": "#/components/schemas/HealthSpo2DayOut"
+            },
+            "type": "array",
+            "title": "Spo2 Days"
+          },
           "bedtime_std_minutes": {
             "anyOf": [
               {
@@ -9213,6 +9227,140 @@
           "hour"
         ],
         "title": "HealthHourBucketOut"
+      },
+      "HealthHrvDayOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "hrv_median_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hrv Median Ms"
+          },
+          "resting_hr_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resting Hr Bpm"
+          },
+          "high_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Minutes"
+          },
+          "good_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good Minutes"
+          },
+          "mid_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mid Minutes"
+          },
+          "low_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Minutes"
+          },
+          "high_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Ratio"
+          },
+          "good_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good Ratio"
+          },
+          "mid_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mid Ratio"
+          },
+          "low_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Ratio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date"
+        ],
+        "title": "HealthHrvDayOut"
       },
       "HealthInsightOut": {
         "properties": {
@@ -10159,6 +10307,173 @@
           "distance_m"
         ],
         "title": "HealthSplitOut"
+      },
+      "HealthSpo2DayOut": {
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "spo2_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spo2 Avg"
+          },
+          "spo2_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spo2 Min"
+          },
+          "spo2_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spo2 Max"
+          },
+          "spo2_day_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spo2 Day Avg"
+          },
+          "spo2_night_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spo2 Night Avg"
+          },
+          "high_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Minutes"
+          },
+          "good_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good Minutes"
+          },
+          "mid_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mid Minutes"
+          },
+          "low_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Minutes"
+          },
+          "high_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Ratio"
+          },
+          "good_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Good Ratio"
+          },
+          "mid_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mid Ratio"
+          },
+          "low_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Ratio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_date"
+        ],
+        "title": "HealthSpo2DayOut"
       },
       "HealthStandCellOut": {
         "properties": {

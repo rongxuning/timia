@@ -253,6 +253,39 @@ class HealthHeartbeatPreviewOut(BaseModel):
     intervals_ms: list[float] = Field(default_factory=list)
 
 
+class HealthHrvDayOut(BaseModel):
+    local_date: str
+    score: int | None = None
+    hrv_median_ms: float | None = None
+    resting_hr_bpm: float | None = None
+    high_minutes: float | None = None
+    good_minutes: float | None = None
+    mid_minutes: float | None = None
+    low_minutes: float | None = None
+    high_ratio: float | None = None
+    good_ratio: float | None = None
+    mid_ratio: float | None = None
+    low_ratio: float | None = None
+
+
+class HealthSpo2DayOut(BaseModel):
+    local_date: str
+    score: int | None = None
+    spo2_avg: float | None = None
+    spo2_min: float | None = None
+    spo2_max: float | None = None
+    spo2_day_avg: float | None = None
+    spo2_night_avg: float | None = None
+    high_minutes: float | None = None
+    good_minutes: float | None = None
+    mid_minutes: float | None = None
+    low_minutes: float | None = None
+    high_ratio: float | None = None
+    good_ratio: float | None = None
+    mid_ratio: float | None = None
+    low_ratio: float | None = None
+
+
 class HealthRecoveryLinkOut(BaseModel):
     at: str
     value: float
@@ -276,6 +309,8 @@ class HealthCardDetailOut(BaseModel):
     samples: list[HealthSamplePointOut] = Field(default_factory=list)
     sleep: HealthSleepNightOut | None = None
     sleep_nights: list[HealthSleepNightOut] = Field(default_factory=list)
+    hrv_days: list[HealthHrvDayOut] = Field(default_factory=list)
+    spo2_days: list[HealthSpo2DayOut] = Field(default_factory=list)
     bedtime_std_minutes: float | None = None
     heartbeat: HealthHeartbeatPreviewOut | None = None
     recovery_links: list[HealthRecoveryLinkOut] = Field(default_factory=list)

@@ -31,10 +31,10 @@ function standLabel(hours: number | null | undefined): string {
 
 function ScoreHelp({ formula, hint }: { formula: string; hint: string }) {
   return (
-    <span className="group/help relative z-10 inline-flex self-stretch hover:z-30">
+    <span className="group/help relative z-10 inline-flex shrink-0 items-center hover:z-30">
       <button
         type="button"
-        className="inline-flex aspect-square h-auto self-stretch items-center justify-center rounded-full border border-current p-0 text-[0.68em] leading-none text-neutral-muted hover:bg-gray-50 hover:text-text-secondary"
+        className="inline-flex size-3 items-center justify-center rounded-full border border-current p-0 text-[8px] leading-none text-neutral-muted hover:bg-gray-50 hover:text-text-secondary"
         aria-label="评分说明"
         onClick={(event) => {
           event.preventDefault();
@@ -280,7 +280,7 @@ export function MyHealthCards({
           >
             <div className="flex min-w-0 flex-col gap-1">
               <span className="text-sm font-semibold leading-none text-primary">{card.label}</span>
-              <span className="inline-flex items-stretch gap-1 text-sm leading-none text-text-secondary">
+              <span className="inline-flex items-center gap-1 text-sm leading-none text-text-secondary">
                 <span className="tabular-nums">{scoreLabel(scores?.[card.key], Boolean(loading))}</span>
                 <ScoreHelp
                   formula={
@@ -290,12 +290,10 @@ export function MyHealthCards({
                   hint={scoreFormulas?.[card.key]?.hint ?? "总分100分。无数据时展示 none。"}
                 />
               </span>
-              <div>
-                <span className="text-sm font-semibold text-text-primary">{card.value}</span>
-                <p className="mt-1 min-h-4 text-caption text-neutral-muted">
-                  {card.total && card.total !== "—" ? card.total : "\u00a0"}
-                </p>
-              </div>
+              <span className="text-sm font-semibold leading-none text-text-primary">{card.value}</span>
+              <span className="min-h-4 text-caption leading-none text-neutral-muted">
+                {card.total && card.total !== "—" ? card.total : "\u00a0"}
+              </span>
             </div>
             <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end">
               <HealthTrendChart

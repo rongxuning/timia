@@ -757,6 +757,434 @@ def test_health_card_detail_steps_hourly_from_samples():
     assert overview.json()["hourly"]["steps"][8]["value"] == 1200
 
 
+def test_health_card_detail_rhr_range_keeps_today_hourly():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    at = datetime(today.year, today.month, today.day, 10, 15, tzinfo=tz)
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "heart_rate",
+                    "start_at": at.isoformat(),
+                    "end_at": at.isoformat(),
+                    "value": 72,
+                    "unit": "count/min",
+                }
+            ],
+        },
+    )
+    assert posted.status_code == 200, posted.text
+    resp = client.get("/views/me/health/cards/rhr?range=7", headers=_headers(token))
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["mode"] == "range"
+    assert body["focus_date"] == today.isoformat()
+    hour = body["hourly_heart_rate"][10]
+    assert hour["value"] == 72
+    assert hour["min"] == 72
+    assert hour["max"] == 72
+
+
+def test_health_card_detail_hrv_range_keeps_today_samples():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    yesterday = today - timedelta(days=1)
+    today_at = datetime(today.year, today.month, today.day, 10, 15, tzinfo=tz)
+    yesterday_at = datetime(yesterday.year, yesterday.month, yesterday.day, 21, 40, tzinfo=tz)
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "hrv_sdnn",
+                    "start_at": today_at.isoformat(),
+                    "end_at": today_at.isoformat(),
+                    "value": 42,
+                    "unit": "ms",
+                },
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "hrv_sdnn",
+                    "start_at": yesterday_at.isoformat(),
+                    "end_at": yesterday_at.isoformat(),
+                    "value": 88,
+                    "unit": "ms",
+                },
+            ],
+        },
+    )
+    assert posted.status_code == 200, posted.text
+
+    ranged = client.get("/views/me/health/cards/hrv?range=7", headers=_headers(token))
+    assert ranged.status_code == 200, ranged.text
+    body = ranged.json()
+    assert body["mode"] == "range"
+    assert body["focus_date"] == today.isoformat()
+    assert [row["value"] for row in body["samples"]] == [42]
+    assert {row["local_date"] for row in body["hrv_days"]} == {
+        today.isoformat(),
+        yesterday.isoformat(),
+    }
+
+    ranged_30 = client.get("/views/me/health/cards/hrv?range=30", headers=_headers(token))
+    assert ranged_30.status_code == 200, ranged_30.text
+    body_30 = ranged_30.json()
+    assert body_30["focus_date"] == today.isoformat()
+    assert [row["value"] for row in body_30["samples"]] == [42]
+    assert body_30["samples"] == body["samples"]
+
+    # 日视图：带 date=today、不带 range，样本仍应是当天；近日列表含昨日。
+    today_only = client.get(
+        f"/views/me/health/cards/hrv?date={today.isoformat()}",
+        headers=_headers(token),
+    )
+    assert today_only.status_code == 200, today_only.text
+    today_body = today_only.json()
+    assert today_body["mode"] == "day"
+    assert today_body["focus_date"] == today.isoformat()
+    assert [row["value"] for row in today_body["samples"]] == [42]
+    assert {row["local_date"] for row in today_body["hrv_days"]} == {
+        today.isoformat(),
+        yesterday.isoformat(),
+    }
+
+    dated = client.get(
+        f"/views/me/health/cards/hrv?date={yesterday.isoformat()}",
+        headers=_headers(token),
+    )
+    assert dated.status_code == 200, dated.text
+    day_body = dated.json()
+    assert day_body["mode"] == "day"
+    assert day_body["focus_date"] == yesterday.isoformat()
+    assert [row["value"] for row in day_body["samples"]] == [88]
+
+
+def test_health_card_detail_hrv_days_window_and_zones():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    inside = today - timedelta(days=5)
+    outside = today - timedelta(days=12)
+    samples = []
+    for day, values in (
+        (today, [(10, 0, 30), (10, 30, 54), (11, 0, 72)]),
+        (inside, [(9, 0, 60), (10, 0, 90)]),
+        (outside, [(8, 0, 20)]),
+    ):
+        for hour, minute, value in values:
+            at = datetime(day.year, day.month, day.day, hour, minute, tzinfo=tz)
+            samples.append(
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "hrv_sdnn",
+                    "start_at": at.isoformat(),
+                    "end_at": at.isoformat(),
+                    "value": value,
+                    "unit": "ms",
+                }
+            )
+    # Sparse overnight gap should cap at 2h
+    sparse_a = datetime(inside.year, inside.month, inside.day, 1, 0, tzinfo=tz)
+    sparse_b = datetime(inside.year, inside.month, inside.day, 5, 0, tzinfo=tz)
+    samples.extend(
+        [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "hrv_sdnn",
+                "start_at": sparse_a.isoformat(),
+                "end_at": sparse_a.isoformat(),
+                "value": 20,
+                "unit": "ms",
+            },
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "hrv_sdnn",
+                "start_at": sparse_b.isoformat(),
+                "end_at": sparse_b.isoformat(),
+                "value": 20,
+                "unit": "ms",
+            },
+        ]
+    )
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "samples": samples},
+    )
+    assert posted.status_code == 200, posted.text
+
+    day_resp = client.get(
+        f"/views/me/health/cards/hrv?date={today.isoformat()}",
+        headers=_headers(token),
+    )
+    assert day_resp.status_code == 200, day_resp.text
+    day_body = day_resp.json()
+    day_dates = {row["local_date"] for row in day_body["hrv_days"]}
+    assert day_dates == {today.isoformat(), inside.isoformat()}
+    assert outside.isoformat() not in day_dates
+    assert [row["value"] for row in day_body["samples"]] == [30, 54, 72]
+
+    today_row = next(row for row in day_body["hrv_days"] if row["local_date"] == today.isoformat())
+    # median([30,54,72]) = 54 → round(100*54/60)=90
+    assert today_row["score"] == 90
+    assert today_row["hrv_median_ms"] == 54
+    # 30ms→low 30m; 54ms→high 30m; last sample has no trailing duration
+    assert today_row["low_minutes"] == 30.0
+    assert today_row["high_minutes"] == 30.0
+    assert today_row["mid_minutes"] == 0.0
+    assert today_row["good_minutes"] == 0.0
+    assert abs(today_row["low_ratio"] - 0.5) < 1e-6
+    assert abs(today_row["high_ratio"] - 0.5) < 1e-6
+
+    inside_row = next(row for row in day_body["hrv_days"] if row["local_date"] == inside.isoformat())
+    # 01:00→05:00 and 05:00→09:00 capped at 2h each (low); 09:00→10:00 = 60m high
+    assert inside_row["low_minutes"] == 240.0
+    assert inside_row["high_minutes"] == 60.0
+
+    ranged = client.get("/views/me/health/cards/hrv?range=7", headers=_headers(token))
+    assert ranged.status_code == 200, ranged.text
+    ranged_body = ranged.json()
+    assert [row["value"] for row in ranged_body["samples"]] == [30, 54, 72]
+    ranged_dates = {row["local_date"] for row in ranged_body["hrv_days"]}
+    assert ranged_dates == {today.isoformat(), inside.isoformat()}
+    assert outside.isoformat() not in ranged_dates
+    assert len(ranged_body["hrv_days"]) == 2
+
+    # range=7 window is 7 days; outside (12d ago) still excluded; same as day lookback for these points
+    ranged_30 = client.get("/views/me/health/cards/hrv?range=30", headers=_headers(token))
+    assert ranged_30.status_code == 200, ranged_30.text
+    dates_30 = {row["local_date"] for row in ranged_30.json()["hrv_days"]}
+    assert outside.isoformat() in dates_30
+    assert [row["value"] for row in ranged_30.json()["samples"]] == [30, 54, 72]
+
+
+def test_health_card_detail_spo2_range_keeps_today_samples():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    yesterday = today - timedelta(days=1)
+    today_at = datetime(today.year, today.month, today.day, 10, 15, tzinfo=tz)
+    yesterday_at = datetime(yesterday.year, yesterday.month, yesterday.day, 21, 40, tzinfo=tz)
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "oxygen_saturation",
+                    "start_at": today_at.isoformat(),
+                    "end_at": today_at.isoformat(),
+                    "value": 0.96,
+                    "unit": "%",
+                },
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "oxygen_saturation",
+                    "start_at": yesterday_at.isoformat(),
+                    "end_at": yesterday_at.isoformat(),
+                    "value": 0.94,
+                    "unit": "%",
+                },
+            ],
+        },
+    )
+    assert posted.status_code == 200, posted.text
+
+    ranged = client.get("/views/me/health/cards/spo2?range=7", headers=_headers(token))
+    assert ranged.status_code == 200, ranged.text
+    body = ranged.json()
+    assert body["mode"] == "range"
+    assert body["focus_date"] == today.isoformat()
+    assert [row["value"] for row in body["samples"]] == [0.96]
+    assert {row["local_date"] for row in body["spo2_days"]} == {
+        today.isoformat(),
+        yesterday.isoformat(),
+    }
+    hour_10 = next(row for row in body["hourly"] if row["hour"] == 10)
+    assert abs(hour_10["value"] - 0.96) < 1e-6
+
+    ranged_30 = client.get("/views/me/health/cards/spo2?range=30", headers=_headers(token))
+    assert ranged_30.status_code == 200, ranged_30.text
+    body_30 = ranged_30.json()
+    assert body_30["focus_date"] == today.isoformat()
+    assert [row["value"] for row in body_30["samples"]] == [0.96]
+    assert body_30["samples"] == body["samples"]
+    assert body_30["hourly"] == body["hourly"]
+
+    today_only = client.get(
+        f"/views/me/health/cards/spo2?date={today.isoformat()}",
+        headers=_headers(token),
+    )
+    assert today_only.status_code == 200, today_only.text
+    today_body = today_only.json()
+    assert today_body["mode"] == "day"
+    assert today_body["focus_date"] == today.isoformat()
+    assert [row["value"] for row in today_body["samples"]] == [0.96]
+    assert {row["local_date"] for row in today_body["spo2_days"]} == {
+        today.isoformat(),
+        yesterday.isoformat(),
+    }
+
+    dated = client.get(
+        f"/views/me/health/cards/spo2?date={yesterday.isoformat()}",
+        headers=_headers(token),
+    )
+    assert dated.status_code == 200, dated.text
+    day_body = dated.json()
+    assert day_body["mode"] == "day"
+    assert day_body["focus_date"] == yesterday.isoformat()
+    assert [row["value"] for row in day_body["samples"]] == [0.94]
+
+
+def test_health_card_detail_spo2_days_window_and_zones():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    inside = today - timedelta(days=5)
+    outside = today - timedelta(days=12)
+    samples = []
+    for day, values in (
+        (today, [(10, 0, 0.93), (10, 30, 0.98), (11, 0, 0.96)]),
+        (inside, [(9, 0, 0.98), (10, 0, 0.98)]),
+        (outside, [(8, 0, 0.91)]),
+    ):
+        for hour, minute, value in values:
+            at = datetime(day.year, day.month, day.day, hour, minute, tzinfo=tz)
+            samples.append(
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "oxygen_saturation",
+                    "start_at": at.isoformat(),
+                    "end_at": at.isoformat(),
+                    "value": value,
+                    "unit": "%",
+                }
+            )
+    # Sparse overnight gap should cap at 2h
+    sparse_a = datetime(inside.year, inside.month, inside.day, 1, 0, tzinfo=tz)
+    sparse_b = datetime(inside.year, inside.month, inside.day, 5, 0, tzinfo=tz)
+    samples.extend(
+        [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "oxygen_saturation",
+                "start_at": sparse_a.isoformat(),
+                "end_at": sparse_a.isoformat(),
+                "value": 0.91,
+                "unit": "%",
+            },
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "oxygen_saturation",
+                "start_at": sparse_b.isoformat(),
+                "end_at": sparse_b.isoformat(),
+                "value": 0.91,
+                "unit": "%",
+            },
+        ]
+    )
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "samples": samples},
+    )
+    assert posted.status_code == 200, posted.text
+
+    day_resp = client.get(
+        f"/views/me/health/cards/spo2?date={today.isoformat()}",
+        headers=_headers(token),
+    )
+    assert day_resp.status_code == 200, day_resp.text
+    day_body = day_resp.json()
+    day_dates = {row["local_date"] for row in day_body["spo2_days"]}
+    assert day_dates == {today.isoformat(), inside.isoformat()}
+    assert outside.isoformat() not in day_dates
+    assert [row["value"] for row in day_body["samples"]] == [0.93, 0.98, 0.96]
+
+    today_row = next(row for row in day_body["spo2_days"] if row["local_date"] == today.isoformat())
+    # avg of 0.93/0.98/0.96 = 0.956… → score clamp(round(100*(0.956-0.90)/0.08))
+    assert today_row["score"] == round(100 * (today_row["spo2_avg"] - 0.90) / 0.08)
+    assert today_row["spo2_avg"] is not None
+    # 0.93→low 30m; 0.98→high 30m; last sample has no trailing duration
+    assert today_row["low_minutes"] == 30.0
+    assert today_row["high_minutes"] == 30.0
+    assert today_row["mid_minutes"] == 0.0
+    assert today_row["good_minutes"] == 0.0
+    assert abs(today_row["low_ratio"] - 0.5) < 1e-6
+    assert abs(today_row["high_ratio"] - 0.5) < 1e-6
+
+    inside_row = next(row for row in day_body["spo2_days"] if row["local_date"] == inside.isoformat())
+    # 01:00→05:00 and 05:00→09:00 capped at 2h each (low); 09:00→10:00 = 60m high
+    assert inside_row["low_minutes"] == 240.0
+    assert inside_row["high_minutes"] == 60.0
+
+    ranged = client.get("/views/me/health/cards/spo2?range=7", headers=_headers(token))
+    assert ranged.status_code == 200, ranged.text
+    ranged_body = ranged.json()
+    assert [row["value"] for row in ranged_body["samples"]] == [0.93, 0.98, 0.96]
+    ranged_dates = {row["local_date"] for row in ranged_body["spo2_days"]}
+    assert ranged_dates == {today.isoformat(), inside.isoformat()}
+    assert outside.isoformat() not in ranged_dates
+    assert len(ranged_body["spo2_days"]) == 2
+
+    ranged_30 = client.get("/views/me/health/cards/spo2?range=30", headers=_headers(token))
+    assert ranged_30.status_code == 200, ranged_30.text
+    dates_30 = {row["local_date"] for row in ranged_30.json()["spo2_days"]}
+    assert outside.isoformat() in dates_30
+    assert [row["value"] for row in ranged_30.json()["samples"]] == [0.93, 0.98, 0.96]
+
+
+def test_health_card_detail_active_target_uses_carried_weight():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    client.patch(
+        "/health/profile",
+        headers=_headers(token),
+        json={"sex": "male", "age_years": 30, "height_cm": 175},
+    )
+    past = datetime.now(timezone.utc) - timedelta(days=3)
+    client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "body_mass",
+                    "start_at": past.isoformat(),
+                    "end_at": past.isoformat(),
+                    "value": 70,
+                    "unit": "kg",
+                }
+            ],
+        },
+    )
+    today = _shanghai_today()
+    resp = client.get(f"/views/me/health/cards/active?date={today.isoformat()}", headers=_headers(token))
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["stats"]["active_target_kcal"] == 659.5
+    overview = client.get("/views/me/health", headers=_headers(token))
+    assert overview.json()["energy_targets"]["active_target_kcal"] == 659.5
+
+
 def _three_route_points() -> list[dict]:
     return [
         {"t": 0.0, "lat": 31.23, "lng": 121.47, "alt": 5.0},

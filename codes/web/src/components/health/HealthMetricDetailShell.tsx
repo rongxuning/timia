@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatHealthTrendY, HEALTH_CARD_LABELS, HEALTH_CARD_SERIES, type HealthCardKey } from "@/components/health/healthCards";
-import { scoreScaleForMetric } from "@/components/health/healthScoreBands";
+import { SCORE_BAND_LEGEND, SCORE_BAND_ROW_CLASS, scoreScaleForMetric } from "@/components/health/healthScoreBands";
 import { HealthTrendChart } from "@/components/health/HealthTrendChart";
 import type { HealthEnergyTargets, HealthSeriesPoint } from "@/types/api/views/health";
 
@@ -42,6 +42,7 @@ export function HealthMetricDetailShell({
 }: HealthMetricDetailShellProps) {
   const title = HEALTH_CARD_LABELS[metric];
   const scoreText = score == null ? "none" : String(score);
+  const scale = scoreScaleForMetric(metric, energyTargets);
   const showFormula = Boolean(formula && formula !== "none");
   const showTotal = Boolean(totalLabel && totalLabel !== "—");
   const formulaLines = showFormula
@@ -84,7 +85,7 @@ export function HealthMetricDetailShell({
       <div className="mt-lg h-48 min-h-[12rem]">
         <HealthTrendChart
           points={series}
-          scale={scoreScaleForMetric(metric, energyTargets)}
+          scale={scale}
           className="flex h-full w-full text-primary"
           rangeDays={rangeDays}
           rangeEnd={rangeEnd}
@@ -93,6 +94,18 @@ export function HealthMetricDetailShell({
           anchor={rangeEnd ? { local_date: rangeEnd, value: anchorValue } : null}
         />
       </div>
+      {scale.kind !== "none" ? (
+        <p className="mt-sm flex flex-wrap gap-x-sm gap-y-1 text-caption tabular-nums text-text-secondary">
+          {SCORE_BAND_LEGEND.map((item) => (
+            <span
+              key={item.tone}
+              className={`rounded-md px-sm py-0.5 ${SCORE_BAND_ROW_CLASS[item.tone]}`}
+            >
+              {item.label}：{item.range}
+            </span>
+          ))}
+        </p>
+      ) : null}
       {children ? <div className="mt-lg">{children}</div> : null}
       <div className="mt-lg rounded-xl border border-dashed border-border-subtle p-lg">
         <h3 className="text-small font-medium text-text-primary">分析与建议</h3>

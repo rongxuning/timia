@@ -1923,6 +1923,10 @@ export interface components {
             sleep?: components["schemas"]["HealthSleepNightOut"] | null;
             /** Sleep Nights */
             sleep_nights?: components["schemas"]["HealthSleepNightOut"][];
+            /** Hrv Days */
+            hrv_days?: components["schemas"]["HealthHrvDayOut"][];
+            /** Spo2 Days */
+            spo2_days?: components["schemas"]["HealthSpo2DayOut"][];
             /** Bedtime Std Minutes */
             bedtime_std_minutes?: number | null;
             heartbeat?: components["schemas"]["HealthHeartbeatPreviewOut"] | null;
@@ -2066,6 +2070,33 @@ export interface components {
             min?: number | null;
             /** Max */
             max?: number | null;
+        };
+        /** HealthHrvDayOut */
+        HealthHrvDayOut: {
+            /** Local Date */
+            local_date: string;
+            /** Score */
+            score?: number | null;
+            /** Hrv Median Ms */
+            hrv_median_ms?: number | null;
+            /** Resting Hr Bpm */
+            resting_hr_bpm?: number | null;
+            /** High Minutes */
+            high_minutes?: number | null;
+            /** Good Minutes */
+            good_minutes?: number | null;
+            /** Mid Minutes */
+            mid_minutes?: number | null;
+            /** Low Minutes */
+            low_minutes?: number | null;
+            /** High Ratio */
+            high_ratio?: number | null;
+            /** Good Ratio */
+            good_ratio?: number | null;
+            /** Mid Ratio */
+            mid_ratio?: number | null;
+            /** Low Ratio */
+            low_ratio?: number | null;
         };
         /** HealthInsightOut */
         HealthInsightOut: {
@@ -2362,6 +2393,39 @@ export interface components {
              * @default false
              */
             is_total: boolean;
+        };
+        /** HealthSpo2DayOut */
+        HealthSpo2DayOut: {
+            /** Local Date */
+            local_date: string;
+            /** Score */
+            score?: number | null;
+            /** Spo2 Avg */
+            spo2_avg?: number | null;
+            /** Spo2 Min */
+            spo2_min?: number | null;
+            /** Spo2 Max */
+            spo2_max?: number | null;
+            /** Spo2 Day Avg */
+            spo2_day_avg?: number | null;
+            /** Spo2 Night Avg */
+            spo2_night_avg?: number | null;
+            /** High Minutes */
+            high_minutes?: number | null;
+            /** Good Minutes */
+            good_minutes?: number | null;
+            /** Mid Minutes */
+            mid_minutes?: number | null;
+            /** Low Minutes */
+            low_minutes?: number | null;
+            /** High Ratio */
+            high_ratio?: number | null;
+            /** Good Ratio */
+            good_ratio?: number | null;
+            /** Mid Ratio */
+            mid_ratio?: number | null;
+            /** Low Ratio */
+            low_ratio?: number | null;
         };
         /** HealthStandCellOut */
         HealthStandCellOut: {
