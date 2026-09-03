@@ -1,7 +1,9 @@
 from app.services.workout_metrics import (
     RUNNING_INDEX_FORMULA,
+    RTSS_FORMULA,
     TRAINING_LOAD_FORMULA,
     TRIMP_FORMULA,
+    _pace_from_vdot_frac,
     banister_trimp,
     downsample_series,
     estimate_power_w,
@@ -116,6 +118,16 @@ def test_km_splits_from_speed_partial_last_lap():
     assert splits[0]["avg_hr_bpm"] is None
 
 
+def test_km_splits_from_instantaneous_speed_samples():
+    """Watch often stores running_speed as start==end; use gap to next point."""
+    speed = 10.0 / 3.0
+    samples = [(float(i), speed, 0.0) for i in range(750)]
+    splits = km_splits_from_speed(samples, hr_points=[], cadence_points=[])
+    assert len(splits) == 3
+    assert abs(sum(row["distance_m"] for row in splits) - 2500) < 5
+    assert abs(splits[0]["distance_m"] - 1000) < 5
+
+
 def test_mean_grade_dense_watch_gps_track():
     """~1 Hz Watch GPS (~3 m steps) must still yield grade for ACSM."""
     deg_per_m = 1.0 / 111_320
@@ -184,13 +196,18 @@ def test_hr_zones_session_avg():
 def test_pace_zones_with_and_without_index():
     with_index = pace_zones(
         duration_seconds=2108,
-        pace_sec_per_km=421,
+        pace_sec_per_km=450,
         running_index_value=34.0,
         pace_series=None,
     )
     assert len(with_index) == 5
     assert [z["zone"] for z in with_index] == ["E", "M", "T", "I", "R"]
     assert with_index[0]["lo"] < with_index[0]["hi"]  # lo is faster (lower sec/km)
+    # VDOT→v then ×frac; Easy should be minutes/km, not tens of minutes.
+    assert 300 < with_index[0]["lo"] < 600
+    assert 400 < with_index[0]["hi"] < 700
+    # ~7'30"/km (450s) vs RI 34 lands in Easy, not Repetition.
+    assert with_index[0]["seconds"] == 2108
 
     without = pace_zones(
         duration_seconds=2108,
@@ -212,6 +229,31 @@ def test_pace_zones_with_and_without_index():
     )
 
 
+def test_pace_from_vdot_uses_oxygen_cost_not_vdot_as_speed():
+    """Bug regression: treating VDOT as m/min produced ~40'/km Easy bounds."""
+    easy_fast = _pace_from_vdot_frac(45.0, 0.74)
+    easy_slow = _pace_from_vdot_frac(45.0, 0.59)
+    assert 330 < easy_fast < 360  # ~5'30"–6'00"
+    assert 400 < easy_slow < 450  # ~6'40"–7'30"
+    assert easy_fast < easy_slow
+    # Old bug: 60000/(45*0.74) ≈ 1802 s/km
+    assert easy_fast < 600
+
+
+def test_km_splits_scale_to_target_distance():
+    """GPS path shorter than workout distance should still cut official kilometres."""
+    points = [
+        {"t": float(i), "lat": i / 111_320, "lng": 0.0, "alt": None} for i in range(0, 2001, 10)
+    ]
+    raw = km_splits(points, hr_points=[], cadence_points=[])
+    raw_total = sum(row["distance_m"] for row in raw)
+    assert raw_total < 2200
+    scaled = km_splits(points, hr_points=[], cadence_points=[], target_distance_m=5000)
+    assert abs(sum(row["distance_m"] for row in scaled) - 5000) < 1
+    assert len(scaled) == 5
+    assert abs(scaled[0]["distance_m"] - 1000) < 1
+
+
 def test_formula_constants():
     assert RUNNING_INDEX_FORMULA.formula
     assert "估算" in RUNNING_INDEX_FORMULA.hint or "实验室" in RUNNING_INDEX_FORMULA.hint
@@ -220,3 +262,5 @@ def test_formula_constants():
     assert "rTSS" in TRAINING_LOAD_FORMULA.hint
     assert "HRR" in TRIMP_FORMULA.formula
     assert "Banister" in TRIMP_FORMULA.hint
+    assert "IF" in RTSS_FORMULA.formula
+    assert "阈值" in RTSS_FORMULA.hint

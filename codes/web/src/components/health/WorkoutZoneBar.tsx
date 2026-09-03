@@ -10,17 +10,50 @@ type WorkoutZoneBarProps = {
   zones: ZoneShare[] | null | undefined;
   zoneName: (zone: ZoneShare["zone"]) => string;
   formatRange: (lo: number, hi: number) => string;
+  /** Optional second range column (e.g. bpm for heart-rate zones). */
+  formatValueRange?: (lo: number, hi: number) => string;
+  /** Heart-rate / pace zones use blue→red; default keeps the indigo ramp. */
+  palette?: "hr" | "pace" | "default";
   defaultOpen?: boolean;
   showEmpty?: boolean;
 };
 
-const ZONE_FILL = [
+/** Soft fills for segmented bar + zone swatches (1→5 / E→R). */
+export const HR_ZONE_BAR_FILL = [
+  "bg-blue-500",
+  "bg-cyan-400",
+  "bg-green-500",
+  "bg-orange-400",
+  "bg-red-500",
+] as const;
+
+export const PACE_ZONE_BAR_FILL = HR_ZONE_BAR_FILL;
+
+/** Hex colors for map track segments (E→R / 1→5). */
+export const PACE_ZONE_HEX = [
+  "#3B82F6", // blue-500 轻松
+  "#22D3EE", // cyan-400 马拉松
+  "#22C55E", // green-500 节奏
+  "#FB923C", // orange-400 间歇
+  "#EF4444", // red-500 耐力
+] as const;
+
+/** Chart background band colors matching HR zones 1–5. */
+export const HR_ZONE_BAND_FILL = [
+  "#BBDEFB",
+  "#B2EBF2",
+  "#C8E6C9",
+  "#FFE0B2",
+  "#FFCDD2",
+] as const;
+
+const DEFAULT_ZONE_FILL = [
   "bg-indigo-100",
   "bg-indigo-200",
   "bg-primary/40",
   "bg-primary/70",
   "bg-primary",
-];
+] as const;
 
 function formatStay(seconds: number): string {
   const total = Math.max(0, Math.round(seconds));
@@ -42,6 +75,8 @@ export function WorkoutZoneBar({
   zones,
   zoneName,
   formatRange,
+  formatValueRange,
+  palette = "default",
   defaultOpen = false,
   showEmpty = false,
 }: WorkoutZoneBarProps) {
@@ -51,6 +86,12 @@ export function WorkoutZoneBar({
 
   const rows = zones ?? [];
   const hasShare = rows.some((zone) => zone.seconds > 0 || zone.ratio > 0);
+  const fills =
+    palette === "hr" || palette === "pace" ? PACE_ZONE_BAR_FILL : DEFAULT_ZONE_FILL;
+  const showValue = Boolean(formatValueRange);
+  const rowClass = showValue
+    ? "grid grid-cols-[4.5rem_4.75rem_5.5rem_4.75rem_3rem] items-center gap-x-md text-left"
+    : "grid grid-cols-[4.5rem_minmax(0,1fr)_4.75rem_3rem] items-center gap-x-md text-left";
 
   return (
     <section>
@@ -79,7 +120,7 @@ export function WorkoutZoneBar({
                   zone.seconds > 0 || zone.ratio > 0 ? (
                     <span
                       key={`${zone.zone}-${index}`}
-                      className={`h-full ${ZONE_FILL[index % ZONE_FILL.length]}`}
+                      className={`h-full ${fills[index % fills.length]}`}
                       style={{ width: `${Math.max(zone.ratio * 100, 0)}%` }}
                       title={`${zoneName(zone.zone)} ${formatRatio(zone.ratio)}`}
                     />
@@ -90,14 +131,22 @@ export function WorkoutZoneBar({
             <div id={panelId} hidden={!open}>
               <ul className="mt-md grid gap-y-2">
                 {rows.map((zone, index) => (
-                  <li
-                    key={`${zone.zone}-${index}`}
-                    className="grid grid-cols-[4.5rem_minmax(0,1fr)_4.75rem_3rem] items-center gap-x-md text-left"
-                  >
-                    <span className="text-small text-text-primary">{zoneName(zone.zone)}</span>
+                  <li key={`${zone.zone}-${index}`} className={rowClass}>
+                    <span className="inline-flex items-center gap-1.5 text-small text-text-primary">
+                      <span
+                        className={`size-2 shrink-0 rounded-full ${fills[index % fills.length]}`}
+                        aria-hidden
+                      />
+                      {zoneName(zone.zone)}
+                    </span>
                     <span className="text-caption tabular-nums text-text-secondary">
                       {formatRange(zone.lo, zone.hi)}
                     </span>
+                    {showValue && formatValueRange ? (
+                      <span className="text-caption tabular-nums text-text-secondary">
+                        {formatValueRange(zone.lo, zone.hi)}
+                      </span>
+                    ) : null}
                     <span className="text-caption tabular-nums text-text-secondary">
                       {formatStay(zone.seconds)}
                     </span>
@@ -120,7 +169,7 @@ const PACE_ZONE_NAMES: Record<string, string> = {
   M: "马拉松",
   T: "节奏",
   I: "间歇",
-  R: "重复",
+  R: "耐力",
 };
 
 export function paceZoneName(zone: ZoneShare["zone"]): string {
@@ -138,6 +187,58 @@ export function formatPaceZoneRange(lo: number, hi: number): string {
 
 export function formatHrZoneRange(lo: number, hi: number): string {
   return `${Math.round(lo * 100)}%–${Math.round(hi * 100)}%`;
+}
+
+/** Convert intensity fraction (lo/hi on zone) to bpm using the same scale as backend zones. */
+export function hrZoneBpm(
+  frac: number,
+  hrMax: number,
+  hrRest: number | null | undefined,
+): number {
+  if (hrRest != null && hrMax > hrRest) {
+    return Math.round(hrRest + frac * (hrMax - hrRest));
+  }
+  return Math.round(frac * hrMax);
+}
+
+export function formatHrZoneBpmRange(
+  lo: number,
+  hi: number,
+  hrMax: number,
+  hrRest: number | null | undefined,
+): string {
+  const a = hrZoneBpm(lo, hrMax, hrRest);
+  const b = hrZoneBpm(hi, hrMax, hrRest);
+  return `${a}–${b}`;
+}
+
+/** Horizontal bpm bands for the HR chart background (zones 1–5). */
+export function hrZoneChartBands(
+  hrMax: number | null | undefined,
+  hrRest: number | null | undefined,
+): Array<{ y0: number; y1: number; fill: string }> {
+  if (hrMax == null || hrMax <= 0) return [];
+  const bounds =
+    hrRest != null && hrMax > hrRest
+      ? [
+          [0, 0.5],
+          [0.5, 0.65],
+          [0.65, 0.8],
+          [0.8, 0.9],
+          [0.9, 1],
+        ]
+      : [
+          [0, 0.6],
+          [0.6, 0.7],
+          [0.7, 0.8],
+          [0.8, 0.9],
+          [0.9, 1],
+        ];
+  return bounds.map(([lo, hi], index) => ({
+    y0: hrZoneBpm(lo, hrMax, hrRest),
+    y1: hrZoneBpm(hi, hrMax, hrRest),
+    fill: HR_ZONE_BAND_FILL[index] ?? HR_ZONE_BAND_FILL[4],
+  }));
 }
 
 function formatPace(secPerKm: number): string {

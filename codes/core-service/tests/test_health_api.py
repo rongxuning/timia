@@ -757,6 +757,48 @@ def test_health_card_detail_steps_hourly_from_samples():
     assert overview.json()["hourly"]["steps"][8]["value"] == 1200
 
 
+def test_quantity_sync_dedupes_overlapping_step_sources():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    start = datetime(today.year, today.month, today.day, 8, 0, tzinfo=tz)
+    end = start + timedelta(hours=1)
+    client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "step_count",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "value": 5000,
+                    "unit": "count",
+                    "source_bundle_id": "com.apple.health.iphone",
+                },
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "step_count",
+                    "start_at": start.isoformat(),
+                    "end_at": end.isoformat(),
+                    "value": 5000,
+                    "unit": "count",
+                    "source_bundle_id": "com.apple.health.watch",
+                },
+            ],
+        },
+    )
+    view = client.get(f"/views/me/health?date={today.isoformat()}", headers=_headers(token))
+    assert view.status_code == 200, view.text
+    assert view.json()["current"]["steps"] == 5000
+    steps = client.get(f"/views/me/health/cards/steps?date={today.isoformat()}", headers=_headers(token))
+    assert steps.status_code == 200, steps.text
+    assert steps.json()["hourly"][8]["value"] == 5000
+
+
 def test_health_card_detail_rhr_range_keeps_today_hourly():
     client = TestClient(app)
     _, token = _register_and_login(client)
@@ -1535,7 +1577,8 @@ def test_workout_detail_indoor_splits_from_running_speed():
     assert abs(sum(row["distance_m"] for row in splits if not row.get("is_total")) - 2500) < 5
 
 
-def test_workout_detail_gps_splits_win_over_speed():
+def test_workout_detail_speed_splits_preferred_over_gps():
+    """When running_speed exists, km splits follow calibrated speed (not GPS zig-zag)."""
     client = TestClient(app)
     _, token = _register_and_login(client)
     hk = str(uuid.uuid4())
@@ -1598,8 +1641,10 @@ def test_workout_detail_gps_splits_win_over_speed():
     assert detail.status_code == 200, detail.text
     splits = [row for row in (detail.json().get("splits") or []) if not row.get("is_total")]
     total_m = sum(row["distance_m"] for row in splits)
-    assert 1000 < total_m < 1300
-
+    assert abs(total_m - 2500) < 5
+    total_row = next(row for row in detail.json()["splits"] if row.get("is_total"))
+    assert abs(total_row["distance_m"] - 2500) < 1
+    assert abs(total_row["duration_seconds"] - 800) < 1
 
 def test_workout_detail_descent_from_route_alts():
     client = TestClient(app)
@@ -1789,4 +1834,85 @@ def test_workout_detail_fills_cadence_stride_from_point_step_samples():
     assert series["cadence"] is not None
     assert series["stride"] is not None
     assert series["vertical_oscillation"] is not None
+
+
+def test_health_card_detail_exercise_range_averages_and_lists_window():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    tz = ZoneInfo("Asia/Shanghai")
+    today = _shanghai_today()
+    earlier = today - timedelta(days=2)
+
+    def exercise_sample(local_day: date, minutes: float) -> dict:
+        start = datetime(local_day.year, local_day.month, local_day.day, 9, 0, tzinfo=tz)
+        end = start + timedelta(minutes=int(minutes))
+        return {
+            "hk_uuid": str(uuid.uuid4()),
+            "metric_type": "exercise_time",
+            "start_at": start.isoformat(),
+            "end_at": end.isoformat(),
+            "value": minutes,
+            "unit": "min",
+        }
+
+    def workout(local_day: date, *, hour: int, duration_minutes: int) -> dict:
+        start = datetime(local_day.year, local_day.month, local_day.day, hour, 0, tzinfo=tz)
+        end = start + timedelta(minutes=duration_minutes)
+        return {
+            "hk_uuid": str(uuid.uuid4()),
+            "activity_type": "running",
+            "start_at": start.isoformat(),
+            "end_at": end.isoformat(),
+            "duration_seconds": duration_minutes * 60,
+        }
+
+    posted = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                exercise_sample(earlier, 20),
+                exercise_sample(today, 40),
+            ],
+        },
+    )
+    assert posted.status_code == 200, posted.text
+    workouts = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                workout(earlier, hour=8, duration_minutes=30),
+                workout(today, hour=18, duration_minutes=60),
+            ],
+        },
+    )
+    assert workouts.status_code == 200, workouts.text
+
+    day = client.get(
+        f"/views/me/health/cards/exercise?date={today.isoformat()}",
+        headers=_headers(token),
+    )
+    assert day.status_code == 200, day.text
+    day_body = day.json()
+    assert day_body["mode"] == "day"
+    assert day_body["stats"]["exercise_minutes"] == 40
+    assert day_body["stats"]["workout_minutes"] == 60
+    assert len(day_body["workouts"]) == 1
+
+    ranged = client.get("/views/me/health/cards/exercise?range=7", headers=_headers(token))
+    assert ranged.status_code == 200, ranged.text
+    body = ranged.json()
+    assert body["mode"] == "range"
+    assert body["stats"]["exercise_minutes"] == 30
+    # Two daily rows with workouts 30 + 60 → average 45
+    assert body["stats"]["workout_minutes"] == 45
+    assert len(body["workouts"]) == 2
+
+    overview = client.get("/views/me/health?range=7", headers=_headers(token))
+    assert overview.status_code == 200, overview.text
+    assert overview.json()["current"]["exercise_minutes"] == 30
+    assert overview.json()["totals"]["exercise_minutes"] == 60
 

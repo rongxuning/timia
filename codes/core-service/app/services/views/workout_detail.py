@@ -41,6 +41,7 @@ from app.services.health_metrics import local_date_of
 from app.services.views.my_health import DEFAULT_TIMEZONE, workout_out
 from app.services.workout_metrics import (
     RUNNING_INDEX_FORMULA,
+    RTSS_FORMULA,
     TRAINING_LOAD_FORMULA,
     TRIMP_FORMULA,
     banister_trimp,
@@ -203,9 +204,17 @@ def build_workout_detail(
         running_index_formula=RUNNING_INDEX_FORMULA if index is not None else None,
         training_load_formula=TRAINING_LOAD_FORMULA if load is not None else None,
         trimp_formula=TRIMP_FORMULA,
+        rtss_formula=RTSS_FORMULA if rtss is not None else None,
         route=_route_out(route_points),
         splits=_splits_out(
-            route_points, hr_pairs, cadence_pairs, by_type.get(METRIC_RUNNING_SPEED, [])
+            route_points,
+            hr_pairs,
+            cadence_pairs,
+            by_type.get(METRIC_RUNNING_SPEED, []),
+            session_distance_m=session.distance_m,
+            session_duration_seconds=session.duration_seconds,
+            session_avg_hr_bpm=avg_hr,
+            session_avg_cadence_spm=avg_cadence,
         ),
         heart_rate=_series_window(hr_pairs),
         heart_rate_zones=hr_zone_rows or None,
@@ -468,13 +477,29 @@ def _splits_out(
     hr_pairs: list[tuple[float, float]],
     cadence_pairs: list[tuple[float, float]],
     speed_samples: list[tuple[float, float, float]] | None = None,
+    *,
+    session_distance_m: float | None = None,
+    session_duration_seconds: int | None = None,
+    session_avg_hr_bpm: float | None = None,
+    session_avg_cadence_spm: float | None = None,
 ) -> list[HealthSplitOut] | None:
-    if points:
-        rows = km_splits(points, hr_pairs, cadence_pairs)
-    elif speed_samples:
-        rows = km_splits_from_speed(speed_samples, hr_pairs, cadence_pairs)
-    else:
-        return None
+    # Prefer watch running_speed (calibrated distance) over GPS haversine zig-zag.
+    # Fall back when speed samples exist but cannot form a distance curve (e.g. empty).
+    rows: list[dict] = []
+    if speed_samples:
+        rows = km_splits_from_speed(
+            speed_samples,
+            hr_pairs,
+            cadence_pairs,
+            target_distance_m=session_distance_m,
+        )
+    if not rows and points:
+        rows = km_splits(
+            points,
+            hr_pairs,
+            cadence_pairs,
+            target_distance_m=session_distance_m,
+        )
     if not rows:
         return None
     splits = [
@@ -489,8 +514,18 @@ def _splits_out(
         )
         for row in rows
     ]
-    total_duration = sum(item.duration_seconds for item in splits)
-    total_distance = sum(item.distance_m for item in splits)
+    sum_duration = sum(item.duration_seconds for item in splits)
+    sum_distance = sum(item.distance_m for item in splits)
+    total_duration = (
+        float(session_duration_seconds)
+        if session_duration_seconds is not None and session_duration_seconds > 0
+        else sum_duration
+    )
+    total_distance = (
+        float(session_distance_m)
+        if session_distance_m is not None and session_distance_m > 0
+        else sum_distance
+    )
     hrs = [item.avg_hr_bpm for item in splits if item.avg_hr_bpm is not None]
     cads = [item.avg_cadence_spm for item in splits if item.avg_cadence_spm is not None]
     splits.append(
@@ -501,8 +536,16 @@ def _splits_out(
             pace_sec_per_km=(
                 (total_duration * 1000.0 / total_distance) if total_distance > 0 else None
             ),
-            avg_hr_bpm=(sum(hrs) / len(hrs)) if hrs else None,
-            avg_cadence_spm=(sum(cads) / len(cads)) if cads else None,
+            avg_hr_bpm=(
+                session_avg_hr_bpm
+                if session_avg_hr_bpm is not None
+                else ((sum(hrs) / len(hrs)) if hrs else None)
+            ),
+            avg_cadence_spm=(
+                session_avg_cadence_spm
+                if session_avg_cadence_spm is not None
+                else ((sum(cads) / len(cads)) if cads else None)
+            ),
             is_total=True,
         )
     )

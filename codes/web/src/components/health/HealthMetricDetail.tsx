@@ -48,7 +48,7 @@ export function HealthMetricDetail({
     case "basal":
       return <BasalDetail detail={detail} energyTargets={energyTargets} />;
     case "exercise":
-      return <ExerciseDetail detail={detail} />;
+      return <ExerciseDetail detail={detail} rangeMode={rangeMode} rangeDays={rangeDays} />;
     case "stand":
       return <StandDetail detail={detail} />;
     case "rhr":
@@ -156,23 +156,46 @@ function BasalDetail({
   );
 }
 
-function ExerciseDetail({ detail }: { detail: HealthCardDetail }) {
+function ExerciseDetail({
+  detail,
+  rangeMode,
+  rangeDays,
+}: {
+  detail: HealthCardDetail;
+  rangeMode?: boolean;
+  rangeDays?: number | null;
+}) {
+  const workouts = [...(detail.workouts ?? [])].sort(
+    (a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime(),
+  );
   return (
     <>
       <HealthStatGrid
         items={[
-          { label: "锻炼分钟（圆环）", value: count(detail.stats?.exercise_minutes, "分钟") },
-          { label: "训练会话时长", value: count(detail.stats?.workout_minutes, "分钟") },
+          {
+            label: rangeMode ? "平均锻炼分钟（圆环）" : "锻炼分钟（圆环）",
+            value: count(detail.stats?.exercise_minutes, "分钟"),
+          },
+          {
+            label: rangeMode ? "平均训练会话时长" : "训练会话时长",
+            value: count(detail.stats?.workout_minutes, "分钟"),
+          },
         ]}
       />
       <p className="mt-sm text-caption text-neutral-muted">
-        锻炼分钟是 Apple 活动圆环，达到一定强度才计；不等于训练会话时长。
+        {rangeMode
+          ? `${rangeDays ?? ""} 日平均值。锻炼分钟是 Apple 活动圆环，达到一定强度才计；不等于训练会话时长。`
+          : "锻炼分钟是 Apple 活动圆环，达到一定强度才计；不等于训练会话时长。"}
       </p>
-      <HealthChartFrame title="当日锻炼分钟分布">
+      <HealthChartFrame title={rangeMode ? "今日锻炼分钟分布" : "当日锻炼分钟分布"}>
         <HealthHourlyBars points={detail.hourly ?? []} format={(value) => `${Math.round(value)}`} />
       </HealthChartFrame>
-      <HealthChartFrame title="当天训练">
-        <HealthWorkoutMiniList workouts={detail.workouts ?? []} />
+      <HealthChartFrame title={rangeMode ? "期间训练" : "当天训练"}>
+        <HealthWorkoutMiniList
+          workouts={workouts}
+          empty={rangeMode ? "这段时间没有训练记录。" : undefined}
+          showStartDate
+        />
       </HealthChartFrame>
     </>
   );
@@ -447,18 +470,13 @@ function durationCell(value?: number | null): string {
 function WeightDetail({ detail }: { detail: HealthCardDetail }) {
   const slope = detail.stats?.weight_slope_kg_per_week;
   return (
-    <>
-      <HealthStatGrid
-        items={[
-          { label: "最近体重", value: kg(detail.stats?.body_mass_kg) },
-          { label: "斜率", value: slope == null ? "—" : `${slope >= 0 ? "+" : ""}${slope.toFixed(2)} kg/周` },
-          { label: "称重点", value: count(detail.stats?.sample_count, "次") },
-        ]}
-      />
-      <HealthChartFrame title="称重点" hint="每次称重，而不是日末值。不根据体重做因果判断。">
-        <HealthScatterChart points={detail.samples ?? []} format={(value) => value.toFixed(1)} />
-      </HealthChartFrame>
-    </>
+    <HealthStatGrid
+      items={[
+        { label: "最近体重", value: kg(detail.stats?.body_mass_kg) },
+        { label: "斜率", value: slope == null ? "—" : `${slope >= 0 ? "+" : ""}${slope.toFixed(2)} kg/周` },
+        { label: "称重点", value: count(detail.stats?.sample_count, "次") },
+      ]}
+    />
   );
 }
 
@@ -618,6 +636,9 @@ function SdnnHelp() {
 
 function Vo2Detail({ detail }: { detail: HealthCardDetail }) {
   const slope = detail.stats?.vo2_slope_per_week;
+  const workouts = [...(detail.workouts ?? [])].sort(
+    (a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime(),
+  );
   return (
     <>
       <HealthStatGrid
@@ -628,17 +649,21 @@ function Vo2Detail({ detail }: { detail: HealthCardDetail }) {
         ]}
       />
       <p className="mt-sm text-caption text-neutral-muted">手表在合格的户外走跑后才会估算，不是实验室测值。</p>
-      <HealthChartFrame title="估算点">
-        <HealthScatterChart points={detail.samples ?? []} format={(value) => value.toFixed(1)} />
-      </HealthChartFrame>
       <HealthChartFrame title="估算日附近的户外有氧">
-        <HealthWorkoutMiniList workouts={detail.workouts ?? []} empty="这些估算日附近没有步行、跑步或徒步。" />
+        <HealthWorkoutMiniList
+          workouts={workouts}
+          empty="这些估算日附近没有步行、跑步或徒步。"
+          showStartDate
+        />
       </HealthChartFrame>
     </>
   );
 }
 
 function RecoveryDetail({ detail }: { detail: HealthCardDetail }) {
+  const links = [...(detail.recovery_links ?? [])].sort(
+    (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
+  );
   return (
     <>
       <HealthStatGrid
@@ -651,24 +676,32 @@ function RecoveryDetail({ detail }: { detail: HealthCardDetail }) {
       <p className="mt-sm text-caption text-neutral-muted">
         有氧恢复应在训练结束后很快测量；间隔过长时数值可能偏低，图上会标出。
       </p>
-      <HealthChartFrame title="每次测量">
-        <HealthScatterChart points={detail.samples ?? []} format={(value) => `${Math.round(value)}`} />
-      </HealthChartFrame>
-      <ul className="mt-md space-y-sm">
-        {(detail.recovery_links ?? []).map((item) => (
-          <li key={item.at} className="rounded-xl border border-border-subtle px-md py-sm text-caption">
-            <p className="text-text-primary">
-              {clock(item.at)} · {Math.round(item.value)} bpm
-              {item.possibly_late ? " · 可能过晚" : ""}
-            </p>
-            <p className="mt-1 text-text-secondary">
-              {item.workout
-                ? `${clock(item.workout.end_at)} 结束 · 均心率 ${item.workout.avg_hr_bpm != null ? Math.round(item.workout.avg_hr_bpm) : "—"} · 最高 ${item.workout.max_hr_bpm != null ? Math.round(item.workout.max_hr_bpm) : "—"}`
-                : "未匹配到邻近训练"}
-            </p>
-          </li>
-        ))}
-      </ul>
+      {links.length > 0 ? (
+        <HealthChartFrame title="近期有氧恢复">
+          <ul className="space-y-sm">
+            {links.map((item) => {
+              const score = Math.max(0, Math.min(100, Math.round((100 * item.value) / 30)));
+              const tone = toneForScore(score);
+              return (
+                <li
+                  key={item.at}
+                  className={`rounded-xl px-md py-sm text-caption ${SCORE_BAND_ROW_CLASS[tone]}`}
+                >
+                  <p className="tabular-nums text-text-primary">
+                    {dateTime(item.at)} · {Math.round(item.value)} bpm
+                    {item.possibly_late ? " · 可能过晚" : ""}
+                  </p>
+                  <p className="mt-1 text-text-secondary">
+                    {item.workout
+                      ? `${dateTime(item.workout.end_at)} 结束 · 均心率 ${item.workout.avg_hr_bpm != null ? Math.round(item.workout.avg_hr_bpm) : "—"} · 最高 ${item.workout.max_hr_bpm != null ? Math.round(item.workout.max_hr_bpm) : "—"}`
+                      : "未匹配到邻近训练"}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </HealthChartFrame>
+      ) : null}
     </>
   );
 }
@@ -897,4 +930,23 @@ function clock(iso?: string | null): string {
     minute: "2-digit",
     hourCycle: "h23",
   }).format(date);
+}
+
+/** 例：2026年08月26日 07:32 */
+function dateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}年${get("month")}月${get("day")}日 ${get("hour")}:${get("minute")}`;
 }

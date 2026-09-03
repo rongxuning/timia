@@ -95,6 +95,7 @@ function HealthMetricPageInner() {
         hint={formula?.hint}
         series={page.view?.series?.[seriesKey] ?? []}
         energyTargets={page.view?.energy_targets}
+        heightCm={page.view?.profile?.height_cm}
         rangeDays={page.rangeDays}
         rangeEnd={trendEnd}
         anchorValue={page.rangeMode ? null : typeof anchorValue === "number" ? anchorValue : null}

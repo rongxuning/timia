@@ -8,7 +8,9 @@ export type HealthWorkoutsPage = components["schemas"]["HealthWorkoutsPageOut"];
 export type HealthProfile = components["schemas"]["HealthProfileViewOut"];
 export type HealthEnergyTargets = components["schemas"]["HealthEnergyTargetsOut"];
 export type HealthCardDetail = components["schemas"]["HealthCardDetailOut"];
-export type HealthWorkoutDetail = components["schemas"]["HealthWorkoutDetailOut"];
+export type HealthWorkoutDetail = components["schemas"]["HealthWorkoutDetailOut"] & {
+  rtss_formula?: { formula: string; hint: string } | null;
+};
 
 export type HealthCalendarDay = {
   local_date: string;

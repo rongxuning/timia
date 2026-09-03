@@ -73,6 +73,18 @@ TRIMP_FORMULA = HealthScoreFormulaOut(
     ),
 )
 
+RTSS_FORMULA = HealthScoreFormulaOut(
+    formula=(
+        "阈值配速由跑力×0.88 的氧气成本反解（Daniels）；"
+        "IF = 阈值配速 / 本次配速；"
+        "rTSS = 时长(小时) × IF² × 100"
+    ),
+    hint=(
+        "相对阈值配速的跑步压力分；1 小时跑在阈值配速约等于 100。"
+        "需有即时跑力与配速。这是估算，非医疗建议。"
+    ),
+)
+
 
 def _clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
@@ -304,6 +316,8 @@ def _splits_from_curve(
     cum_d: list[float],
     hr_points: list[tuple[float, float]],
     cadence_points: list[tuple[float, float]],
+    *,
+    target_distance_m: float | None = None,
 ) -> list[dict]:
     """Cut kilometre laps from a (time, cumulative-metres) curve."""
     if len(times) < 2 or len(times) != len(cum_d):
@@ -311,6 +325,15 @@ def _splits_from_curve(
     total = cum_d[-1]
     if total <= 0:
         return []
+    # Align path length to HealthKit workout distance when GPS under/over-counts.
+    if (
+        target_distance_m is not None
+        and target_distance_m > 0
+        and abs(target_distance_m - total) / total > 0.01
+    ):
+        scale = target_distance_m / total
+        cum_d = [d * scale for d in cum_d]
+        total = cum_d[-1]
 
     def time_at_distance(target: float) -> float:
         if target <= 0:
@@ -353,6 +376,8 @@ def km_splits(
     points: list[dict],
     hr_points: list[tuple[float, float]],
     cadence_points: list[tuple[float, float]],
+    *,
+    target_distance_m: float | None = None,
 ) -> list[dict]:
     """Accumulate haversine distance and cut at every 1000 m; keep partial final lap."""
     if len(points) < 2:
@@ -368,19 +393,42 @@ def km_splits(
             points[i]["lng"],
         )
         cum_d.append(cum_d[-1] + d)
-    return _splits_from_curve(times, cum_d, hr_points, cadence_points)
+    return _splits_from_curve(
+        times,
+        cum_d,
+        hr_points,
+        cadence_points,
+        target_distance_m=target_distance_m,
+    )
 
 
 def km_splits_from_speed(
     samples: list[tuple[float, float, float]],
     hr_points: list[tuple[float, float]],
     cadence_points: list[tuple[float, float]],
+    *,
+    target_distance_m: float | None = None,
 ) -> list[dict]:
-    """Integrate running_speed (m/s × duration) and cut kilometres; keep last partial lap."""
+    """Integrate running_speed (m/s × duration) and cut kilometres; keep last partial lap.
+
+    Instantaneous samples (duration<=0) use the gap to the next sample's offset.
+    """
+    usable = [(offset, speed, duration) for offset, speed, duration in samples if speed > 0]
+    if not usable:
+        return []
+
     times: list[float] = []
     cum_d: list[float] = []
-    for offset, speed, duration in samples:
-        if duration <= 0 or speed <= 0:
+    for i, (offset, speed, duration) in enumerate(usable):
+        dt = duration
+        if dt <= 0:
+            if i + 1 < len(usable):
+                dt = usable[i + 1][0] - offset
+            elif i > 0:
+                dt = offset - usable[i - 1][0]
+            else:
+                continue
+        if dt <= 0:
             continue
         if not times:
             times.append(offset)
@@ -388,9 +436,15 @@ def km_splits_from_speed(
         elif offset > times[-1]:
             times.append(offset)
             cum_d.append(cum_d[-1])
-        times.append(offset + duration)
-        cum_d.append(cum_d[-1] + speed * duration)
-    return _splits_from_curve(times, cum_d, hr_points, cadence_points)
+        times.append(offset + dt)
+        cum_d.append(cum_d[-1] + speed * dt)
+    return _splits_from_curve(
+        times,
+        cum_d,
+        hr_points,
+        cadence_points,
+        target_distance_m=target_distance_m,
+    )
 
 
 def mean_grade(points: list[dict], min_horiz_m: float = 0.0) -> float | None:
@@ -469,8 +523,27 @@ def hr_zones(
     return out
 
 
+def _vdot_velocity_m_per_min(vdot: float) -> float | None:
+    """Daniels oxygen-cost inverse: velocity (m/min) whose VO2 equals VDOT."""
+    if vdot <= 0:
+        return None
+    # VO2 = -4.60 + 0.182258·v + 0.000104·v²  →  0.000104 v² + 0.182258 v − (4.60+VDOT)=0
+    a = 0.000104
+    b = 0.182258
+    c = -(4.60 + vdot)
+    disc = b * b - 4 * a * c
+    if disc < 0:
+        return None
+    v = (-b + math.sqrt(disc)) / (2 * a)
+    return v if v > 0 else None
+
+
 def _pace_from_vdot_frac(vdot: float, frac: float) -> float:
-    v = vdot * frac  # m/min
+    """Pace (sec/km) at a fraction of vVDOT (not of VDOT itself)."""
+    v_max = _vdot_velocity_m_per_min(vdot)
+    if v_max is None:
+        return float("inf")
+    v = v_max * frac
     return 60_000.0 / v if v > 0 else float("inf")
 
 
@@ -500,16 +573,14 @@ def _pace_zone_defs(
 def _pace_zone_index(pace: float, defs: list[tuple[str, float, float]]) -> int:
     """Assign pace to a zone; extend outer zones for values outside bands."""
     # defs ordered E (slowest) → R (fastest); lo < hi in sec/km within each
-    # Prefer contiguous assignment using midpoints between adjacent bands
-    # Build cut points on pace axis (higher sec = slower)
-    # E covers slowest (highest pace), R covers fastest (lowest pace)
-
-    # Midpoint between zone i hi (slower edge of faster zone) and zone i+1...
-    # Simpler: find which band contains pace; if gap/outside, nearest.
+    if pace > defs[0][2]:
+        return 0
+    if pace < defs[-1][1]:
+        return len(defs) - 1
     for i, (_name, lo, hi) in enumerate(defs):
         if lo <= pace <= hi:
             return i
-    # Outside or in gap: nearest by center
+    # Gap between bands: nearest by center
     best_i = 0
     best_dist = float("inf")
     for i, (_name, lo, hi) in enumerate(defs):
@@ -518,11 +589,6 @@ def _pace_zone_index(pace: float, defs: list[tuple[str, float, float]]) -> int:
         if dist < best_dist:
             best_dist = dist
             best_i = i
-    # Also clamp: slower than E → E; faster than R → R
-    if pace > defs[0][2]:
-        return 0
-    if pace < defs[-1][1]:
-        return len(defs) - 1
     return best_i
 
 

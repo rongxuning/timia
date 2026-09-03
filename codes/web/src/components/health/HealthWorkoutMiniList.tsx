@@ -25,12 +25,36 @@ function clock(iso: string): string {
   }).format(date);
 }
 
+/** 例：2026年08月26日 07:32 */
+function dateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}年${get("month")}月${get("day")}日 ${get("hour")}:${get("minute")}`;
+}
+
 type HealthWorkoutMiniListProps = {
   workouts: HealthWorkout[];
   empty?: string;
+  /** 开始时间是否带日期（VO2 估算日列表跨多天时需要） */
+  showStartDate?: boolean;
 };
 
-export function HealthWorkoutMiniList({ workouts, empty }: HealthWorkoutMiniListProps) {
+export function HealthWorkoutMiniList({
+  workouts,
+  empty,
+  showStartDate = false,
+}: HealthWorkoutMiniListProps) {
   const search = useSearchParams();
   const query = search.toString();
   const suffix = query ? `?${query}` : "";
@@ -43,7 +67,7 @@ export function HealthWorkoutMiniList({ workouts, empty }: HealthWorkoutMiniList
       {workouts.map((workout) => {
         const style = workoutActivityStyle(workout.activity_type, workout.activity_type_raw);
         const parts = [
-          clock(workout.start_at),
+          showStartDate ? dateTime(workout.start_at) : clock(workout.start_at),
           durationLabel(workout.duration_seconds),
           workout.active_energy_kcal != null ? `${Math.round(workout.active_energy_kcal)} kcal` : "—",
           workout.avg_hr_bpm != null ? `${Math.round(workout.avg_hr_bpm)} bpm` : "—",

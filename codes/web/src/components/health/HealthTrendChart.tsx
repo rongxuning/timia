@@ -38,6 +38,8 @@ type HealthTrendChartProps = {
   variant?: "detail" | "card";
   anchor?: { local_date: string; value: number | null | undefined } | null;
   hours?: TrendHourPoint[] | null;
+  /** 非 0 时 Y 轴用 [min−pad, max+pad]，放大小幅波动（如 VO2 / 有氧恢复） */
+  yPad?: number;
 };
 
 type PlotPoint = {
@@ -61,6 +63,7 @@ export function HealthTrendChart({
   variant = "detail",
   anchor,
   hours,
+  yPad = 0,
 }: HealthTrendChartProps) {
   const rangeMode = Boolean(rangeDays && rangeDays > 1);
   const hourly = !rangeMode ? (hours ?? []).filter((point) => point.value != null) : [];
@@ -78,6 +81,7 @@ export function HealthTrendChart({
         formatY={formatY}
         variant={variant}
         className={className}
+        yPad={yPad}
       />
     );
   }
@@ -115,6 +119,7 @@ export function HealthTrendChart({
       formatY={formatY}
       variant={variant}
       className={className}
+      yPad={yPad}
     />
   );
 }
@@ -127,6 +132,7 @@ function TrendPlot({
   formatY,
   variant,
   className,
+  yPad = 0,
 }: {
   values: number[];
   plotPoints: PlotPoint[];
@@ -135,13 +141,17 @@ function TrendPlot({
   formatY?: (value: number) => string;
   variant: "detail" | "card";
   className?: string;
+  yPad?: number;
 }) {
   const [hover, setHover] = useState<HoverPoint | null>(null);
   const dataMin = Math.min(...values);
   const dataMax = Math.max(...values);
-  const yMin = Math.min(0, dataMin);
-  const padTop = Math.max(0, dataMin);
-  const yMax = Math.max(dataMax + padTop, yMin + 1);
+  // yPad>0 时用数据区间 ±pad 放大趋势；否则从 0 起画。
+  const tightY = yPad > 0;
+  const yMin = tightY ? dataMin - yPad : Math.min(0, dataMin);
+  const yMax = tightY
+    ? Math.max(dataMax + yPad, yMin + 1)
+    : Math.max(dataMax + Math.max(0, dataMin), yMin + 1);
   const span = yMax - yMin || 1;
   const yAt = (value: number) => (1 - (value - yMin) / span) * 100;
   const d = plotPoints
@@ -149,15 +159,24 @@ function TrendPlot({
     .join(" ");
   const labelOf = formatY ?? formatAxisNumber;
   const near = (a: number, b: number) => Math.abs(a - b) / span < 0.08;
-  const yTicks = [
-    { value: dataMax, label: labelOf(dataMax) },
-    { value: 0, label: labelOf(0) },
-    { value: dataMin, label: labelOf(dataMin) },
-  ].filter((tick, index, all) => all.findIndex((item) => near(item.value, tick.value)) === index);
-  const bipolar = scale.kind === "rhr" || scale.kind === "sleep";
+  const yTicks = (
+    tightY
+      ? [
+          { value: yMax, label: labelOf(yMax) },
+          { value: dataMax, label: labelOf(dataMax) },
+          { value: dataMin, label: labelOf(dataMin) },
+          { value: yMin, label: labelOf(yMin) },
+        ]
+      : [
+          { value: dataMax, label: labelOf(dataMax) },
+          { value: 0, label: labelOf(0) },
+          { value: dataMin, label: labelOf(dataMin) },
+        ]
+  ).filter((tick, index, all) => all.findIndex((item) => near(item.value, tick.value)) === index);
+  const bipolar = scale.kind === "rhr" || scale.kind === "sleep" || scale.kind === "bmi";
   const bands = [
-    ...scoreBandsForScale(scale, yMin, bipolar ? yMax : dataMax),
-    ...(!bipolar && yMax > dataMax ? [{ y0: dataMax, y1: yMax, tone: "high" as const }] : []),
+    ...scoreBandsForScale(scale, yMin, tightY || bipolar ? yMax : dataMax),
+    ...(!bipolar && !tightY && yMax > dataMax ? [{ y0: dataMax, y1: yMax, tone: "high" as const }] : []),
   ];
   const zeroInside = yMin < 0 && yMax > 0;
   const markers = markerPoints(plotPoints, xTicks, variant);

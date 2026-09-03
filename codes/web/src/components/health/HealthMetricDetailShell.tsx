@@ -17,6 +17,7 @@ type HealthMetricDetailShellProps = {
   hint?: string;
   series: HealthSeriesPoint[];
   energyTargets?: HealthEnergyTargets | null;
+  heightCm?: number | null;
   rangeDays?: number | null;
   rangeEnd?: string | null;
   anchorValue?: number | null;
@@ -34,6 +35,7 @@ export function HealthMetricDetailShell({
   hint,
   series,
   energyTargets,
+  heightCm,
   rangeDays,
   rangeEnd,
   anchorValue,
@@ -42,7 +44,7 @@ export function HealthMetricDetailShell({
 }: HealthMetricDetailShellProps) {
   const title = HEALTH_CARD_LABELS[metric];
   const scoreText = score == null ? "none" : String(score);
-  const scale = scoreScaleForMetric(metric, energyTargets);
+  const scale = scoreScaleForMetric(metric, energyTargets, heightCm);
   const showFormula = Boolean(formula && formula !== "none");
   const showTotal = Boolean(totalLabel && totalLabel !== "—");
   const formulaLines = showFormula
@@ -92,6 +94,7 @@ export function HealthMetricDetailShell({
           hours={hours}
           formatY={(value) => formatHealthTrendY(metric, value)}
           anchor={rangeEnd ? { local_date: rangeEnd, value: anchorValue } : null}
+          yPad={metric === "vo2" || metric === "recovery" || metric === "weight" ? 3 : 0}
         />
       </div>
       {scale.kind !== "none" ? (

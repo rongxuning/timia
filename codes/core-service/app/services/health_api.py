@@ -75,7 +75,7 @@ from app.services.health_metrics import (
     local_date_of,
     median,
     parse_timezone,
-    sum_values,
+    sum_cumulative_deduped,
 )
 from app.services.health_scores import PROFILE_SEXES
 
@@ -711,8 +711,12 @@ def recompute_daily_metrics(
 
     hr_values = [row.value for row in by_type.get(METRIC_HEART_RATE, [])]
     spo2_values = [row.value for row in by_type.get(METRIC_OXYGEN_SATURATION, [])]
-    walking = sum_values([row.value for row in by_type.get(METRIC_DISTANCE_WALKING_RUNNING, [])])
-    cycling = sum_values([row.value for row in by_type.get(METRIC_DISTANCE_CYCLING, [])])
+    walking = sum_cumulative_deduped(
+        [(row.start_at, row.end_at, row.value) for row in by_type.get(METRIC_DISTANCE_WALKING_RUNNING, [])]
+    )
+    cycling = sum_cumulative_deduped(
+        [(row.start_at, row.end_at, row.value) for row in by_type.get(METRIC_DISTANCE_CYCLING, [])]
+    )
     if walking is None and cycling is None:
         distance = None
     else:
@@ -733,17 +737,28 @@ def recompute_daily_metrics(
         db.add(row)
 
     row.timezone = timezone_name
-    row.steps = sum_values([item.value for item in by_type.get(METRIC_STEP_COUNT, [])])
-    row.distance_m = distance
-    row.flights_climbed = sum_values(
-        [item.value for item in by_type.get(METRIC_FLIGHTS_CLIMBED, [])]
+    row.steps = sum_cumulative_deduped(
+        [(item.start_at, item.end_at, item.value) for item in by_type.get(METRIC_STEP_COUNT, [])]
     )
-    row.exercise_minutes = sum_values([item.value for item in by_type.get(METRIC_EXERCISE_TIME, [])])
-    row.stand_minutes = sum_values([item.value for item in by_type.get(METRIC_STAND_TIME, [])])
+    row.distance_m = distance
+    row.flights_climbed = sum_cumulative_deduped(
+        [
+            (item.start_at, item.end_at, item.value)
+            for item in by_type.get(METRIC_FLIGHTS_CLIMBED, [])
+        ]
+    )
+    row.exercise_minutes = sum_cumulative_deduped(
+        [(item.start_at, item.end_at, item.value) for item in by_type.get(METRIC_EXERCISE_TIME, [])]
+    )
+    row.stand_minutes = sum_cumulative_deduped(
+        [(item.start_at, item.end_at, item.value) for item in by_type.get(METRIC_STAND_TIME, [])]
+    )
     row.stand_hours = len(stood) if stood else None
-    row.basal_energy_kcal = sum_values([item.value for item in by_type.get(METRIC_BASAL_ENERGY, [])])
-    row.active_energy_kcal = sum_values(
-        [item.value for item in by_type.get(METRIC_ACTIVE_ENERGY, [])]
+    row.basal_energy_kcal = sum_cumulative_deduped(
+        [(item.start_at, item.end_at, item.value) for item in by_type.get(METRIC_BASAL_ENERGY, [])]
+    )
+    row.active_energy_kcal = sum_cumulative_deduped(
+        [(item.start_at, item.end_at, item.value) for item in by_type.get(METRIC_ACTIVE_ENERGY, [])]
     )
     row.hr_min = min(hr_values) if hr_values else None
     row.hr_max = max(hr_values) if hr_values else None

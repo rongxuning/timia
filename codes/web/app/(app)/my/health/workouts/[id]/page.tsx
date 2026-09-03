@@ -51,7 +51,7 @@ function WorkoutDetailPageInner() {
             返回健康
           </Link>
           {(workout.detail.route?.points?.length ?? 0) >= 2 ? (
-            <WorkoutRouteMap route={workout.detail.route} />
+            <WorkoutRouteMap route={workout.detail.route} paceZones={workout.detail.pace_zones} />
           ) : null}
           <WorkoutDetailSummary workout={workout.detail} timezone={page.view?.timezone} />
         </div>

@@ -60,6 +60,7 @@ function MyHealthPageInner() {
             rangeDays={page.rangeDays}
             rangeEnd={rangeMode ? page.today : (view?.selected_date ?? page.selectedDate)}
             energyTargets={view?.energy_targets}
+            heightCm={view?.profile?.height_cm}
             onReorder={page.saveLayout}
             onOpenDetail={(key) => router.push(`/my/health/${key}${queryString}`)}
           />

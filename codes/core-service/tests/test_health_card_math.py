@@ -44,6 +44,18 @@ def test_bucket_cumulative_fills_empty_hours_with_zero_when_any_sample():
     assert buckets[9]["value"] == 0
 
 
+def test_bucket_cumulative_dedupes_overlapping_sources():
+    start = datetime(2026, 8, 29, 8, 0, tzinfo=SH)
+    end = datetime(2026, 8, 29, 9, 0, tzinfo=SH)
+    buckets = bucket_cumulative(
+        [(start, end, 1200.0), (start, end, 1200.0)],
+        TZ,
+        start.date(),
+    )
+    assert buckets[8]["value"] == 1200
+    assert sum(float(slot["value"] or 0) for slot in buckets) == 1200
+
+
 def test_stand_cells_and_sit_streaks():
     day = datetime(2026, 8, 29, 0, tzinfo=SH).date()
     rows = []

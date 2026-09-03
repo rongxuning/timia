@@ -201,6 +201,7 @@ class HealthWorkoutDetailOut(HealthWorkoutOut):
     running_index_formula: HealthScoreFormulaOut | None = None
     training_load_formula: HealthScoreFormulaOut | None = None
     trimp_formula: HealthScoreFormulaOut | None = None
+    rtss_formula: HealthScoreFormulaOut | None = None
     route: HealthRouteOut | None = None
     splits: list[HealthSplitOut] | None = None
     heart_rate: HealthSeriesWindowOut | None = None

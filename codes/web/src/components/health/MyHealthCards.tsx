@@ -192,6 +192,7 @@ type MyHealthCardsProps = {
   rangeDays?: number | null;
   rangeEnd?: string | null;
   energyTargets?: HealthEnergyTargets | null;
+  heightCm?: number | null;
   onReorder?: (cardOrder: string[]) => void;
   onOpenDetail?: (cardKey: string) => void;
 };
@@ -209,6 +210,7 @@ export function MyHealthCards({
   rangeDays,
   rangeEnd,
   energyTargets,
+  heightCm,
   onReorder,
   onOpenDetail,
 }: MyHealthCardsProps) {
@@ -298,13 +300,14 @@ export function MyHealthCards({
             <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-end">
               <HealthTrendChart
                 points={series?.[card.seriesKey] ?? []}
-                scale={scoreScaleForMetric(card.key as HealthCardKey, energyTargets)}
+                scale={scoreScaleForMetric(card.key as HealthCardKey, energyTargets, heightCm)}
                 className="flex h-[4.75rem] w-full min-w-0 text-primary"
                 variant="card"
                 rangeDays={rangeMode ? rangeDays : null}
                 rangeEnd={rangeEnd}
                 hours={rangeMode ? null : valuedHours(hourly?.[card.seriesKey])}
                 formatY={(value) => formatHealthTrendY(card.key as HealthCardKey, value)}
+                yPad={card.key === "vo2" || card.key === "recovery" || card.key === "weight" ? 3 : 0}
                 anchor={
                   rangeEnd && !rangeMode
                     ? {

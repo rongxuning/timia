@@ -193,19 +193,44 @@ def _basal(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback
     return detail
 
 
-def _exercise(db, user, detail, tz_name, focus, _range_start, _range_end, _lookback_start):
+def _exercise(db, user, detail, tz_name, focus, range_start, range_end, _lookback_start):
     samples = _quantities(db, user.id, [METRIC_EXERCISE_TIME], *_wide_day(focus, tz_name))
     detail.hourly = _hour_out(
         bucket_cumulative(
             [(row.start_at, row.end_at, row.value) for row in samples], tz_name, focus
         )
     )
-    daily = _daily(db, user.id, focus)
-    workouts = _workouts_for_day(db, user.id, focus, tz_name)
-    workout_minutes = sum(item.duration_seconds for item in workouts) / 60.0 if workouts else None
+    if detail.mode == "range":
+        dailies = _dailies(db, user.id, range_start, range_end)
+        exercise_values = [
+            item.exercise_minutes for item in dailies if item.exercise_minutes is not None
+        ]
+        exercise_minutes = (
+            float(sum(exercise_values) / len(exercise_values)) if exercise_values else None
+        )
+        workouts = _workouts_for_range(db, user.id, range_start, range_end, tz_name)
+        by_day: dict[date, float] = {}
+        for item in workouts:
+            day = local_date_of(item.start_at, tz_name)
+            by_day[day] = by_day.get(day, 0.0) + item.duration_seconds / 60.0
+        if dailies:
+            workout_minutes = sum(by_day.get(item.local_date, 0.0) for item in dailies) / len(
+                dailies
+            )
+        elif by_day:
+            workout_minutes = sum(by_day.values()) / len(by_day)
+        else:
+            workout_minutes = None
+    else:
+        daily = _daily(db, user.id, focus)
+        workouts = _workouts_for_day(db, user.id, focus, tz_name)
+        exercise_minutes = daily.exercise_minutes if daily else None
+        workout_minutes = (
+            sum(item.duration_seconds for item in workouts) / 60.0 if workouts else None
+        )
     detail.workouts = [workout_out(item) for item in workouts]
     detail.stats = {
-        "exercise_minutes": daily.exercise_minutes if daily else None,
+        "exercise_minutes": exercise_minutes,
         "workout_minutes": workout_minutes,
     }
     return detail
@@ -498,6 +523,7 @@ def _vo2(db, user, detail, tz_name, focus, range_start, range_end, lookback_star
             continue
         seen.add(key)
         unique.append(item)
+    unique.sort(key=lambda item: item.start_at, reverse=True)
     detail.workouts = [workout_out(item) for item in unique]
     daily = _daily(db, user.id, focus)
     slope_points = [(row.start_at, row.value) for row in points]
@@ -726,6 +752,29 @@ def _workouts_for_day(
         for row in rows
         if normalize_activity_type(row.activity_type, row.activity_type_raw) in types
     ]
+
+
+def _workouts_for_range(
+    db: Session,
+    owner_id,
+    range_start: date,
+    range_end: date,
+    timezone_name: str,
+) -> list[HealthWorkoutSession]:
+    start, _ = local_day_bounds(range_start, timezone_name)
+    _, end = local_day_bounds(range_end, timezone_name)
+    return list(
+        db.scalars(
+            select(HealthWorkoutSession)
+            .where(
+                HealthWorkoutSession.owner_user_id == owner_id,
+                HealthWorkoutSession.deleted_at.is_(None),
+                HealthWorkoutSession.start_at < end,
+                HealthWorkoutSession.end_at > start,
+            )
+            .order_by(HealthWorkoutSession.start_at)
+        )
+    )
 
 
 def _wide_day(local_date: date, timezone_name: str) -> tuple[datetime, datetime]:

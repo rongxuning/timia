@@ -1,8 +1,16 @@
 "use client";
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
 type SeriesWindow = NonNullable<HealthWorkoutDetail["heart_rate"]>;
+
+type ChartBand = {
+  y0: number;
+  y1: number;
+  fill: string;
+};
 
 type WorkoutSeriesChartProps = {
   title: string;
@@ -12,6 +20,19 @@ type WorkoutSeriesChartProps = {
   maxLabel?: string;
   extras?: Array<string | null | undefined>;
   showEmpty?: boolean;
+  /** Soft horizontal bands behind the line (e.g. HR zones). */
+  yBands?: ChartBand[];
+  /** Enable crosshair + tooltip on pointer move. Default true when there are points. */
+  interactive?: boolean;
+};
+
+type HoverPoint = {
+  x: number;
+  y: number;
+  offset: number;
+  value: number;
+  left: number;
+  top: number;
 };
 
 function formatMmSs(offsetSeconds: number): string {
@@ -26,6 +47,22 @@ function yAtValue(value: number, yMin: number, span: number, invertY: boolean): 
   return (invertY ? t : 1 - t) * 100;
 }
 
+function nearestPoint(
+  points: Array<{ x: number; y: number; offset: number; value: number }>,
+  atPercent: number,
+) {
+  let best = points[0];
+  let bestDist = Math.abs(best.x - atPercent);
+  for (const point of points) {
+    const dist = Math.abs(point.x - atPercent);
+    if (dist < bestDist) {
+      best = point;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
 export function WorkoutSeriesChart({
   title,
   series,
@@ -34,7 +71,10 @@ export function WorkoutSeriesChart({
   maxLabel = "最大",
   extras,
   showEmpty = false,
+  yBands,
+  interactive = true,
 }: WorkoutSeriesChartProps) {
+  const [hover, setHover] = useState<HoverPoint | null>(null);
   const points = series?.points ?? [];
   if (points.length === 0) {
     if (!showEmpty) return null;
@@ -61,9 +101,15 @@ export function WorkoutSeriesChart({
   const t1 = Math.max(...offsets);
   const xAt = (offset: number) => (t1 === t0 ? 50 : ((offset - t0) / (t1 - t0)) * 100);
   const yAt = (value: number) => yAtValue(value, yMin, span, invertY);
-  const d = points
+  const plotPoints = points.map((point) => ({
+    x: xAt(point.offset_seconds),
+    y: point.value,
+    offset: point.offset_seconds,
+    value: point.value,
+  }));
+  const d = plotPoints
     .map((point, index) => {
-      const x = xAt(point.offset_seconds);
+      const x = point.x;
       const y = yAt(point.value);
       return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
     })
@@ -84,6 +130,13 @@ export function WorkoutSeriesChart({
   const avg = series?.avg;
   const peak = invertY ? dataMin : (series?.max ?? dataMax);
   const extraBits = (extras ?? []).filter((item): item is string => Boolean(item));
+  const clippedBands = (yBands ?? [])
+    .map((band) => {
+      const lo = Math.max(Math.min(band.y0, band.y1), yMin);
+      const hi = Math.min(Math.max(band.y0, band.y1), yMax);
+      return { lo, hi, fill: band.fill };
+    })
+    .filter((band) => band.hi > band.lo);
 
   return (
     <section>
@@ -121,49 +174,130 @@ export function WorkoutSeriesChart({
             </div>
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="min-h-0 w-full flex-1" aria-hidden>
-              <line
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="100"
-                stroke="currentColor"
-                strokeOpacity="0.28"
-                strokeWidth="1"
-                vectorEffect="non-scaling-stroke"
-              />
-              <line
-                x1="0"
-                y1="100"
-                x2="100"
-                y2="100"
-                stroke="currentColor"
-                strokeOpacity="0.28"
-                strokeWidth="1"
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
-                d={d}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-              />
-              {points.length === 1 ? (
+            <div
+              className="relative min-h-0 flex-1"
+              onPointerMove={
+                interactive
+                  ? (event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      if (rect.width <= 0 || rect.height <= 0) return;
+                      const at = ((event.clientX - rect.left) / rect.width) * 100;
+                      const point = nearestPoint(plotPoints, at);
+                      setHover({
+                        x: point.x,
+                        y: point.value,
+                        offset: point.offset,
+                        value: point.value,
+                        left: rect.left + (point.x / 100) * rect.width,
+                        top: rect.top + (yAt(point.value) / 100) * rect.height,
+                      });
+                    }
+                  : undefined
+              }
+              onPointerLeave={interactive ? () => setHover(null) : undefined}
+            >
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+                {clippedBands.map((band) => {
+                  const yTop = Math.min(yAt(band.lo), yAt(band.hi));
+                  const yBottom = Math.max(yAt(band.lo), yAt(band.hi));
+                  return (
+                    <rect
+                      key={`${band.lo}-${band.hi}-${band.fill}`}
+                      x="0"
+                      y={yTop}
+                      width="100"
+                      height={yBottom - yTop}
+                      fill={band.fill}
+                      opacity="0.55"
+                    />
+                  );
+                })}
                 <line
-                  x1={Math.max(0, xAt(points[0].offset_seconds) - 1.5)}
-                  y1={yAt(points[0].value)}
-                  x2={Math.min(100, xAt(points[0].offset_seconds) + 1.5)}
-                  y2={yAt(points[0].value)}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="100"
+                  stroke="currentColor"
+                  strokeOpacity="0.28"
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <line
+                  x1="0"
+                  y1="100"
+                  x2="100"
+                  y2="100"
+                  stroke="currentColor"
+                  strokeOpacity="0.28"
+                  strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+                {hover ? (
+                  <line
+                    x1={hover.x}
+                    y1="0"
+                    x2={hover.x}
+                    y2="100"
+                    stroke="currentColor"
+                    strokeOpacity="0.35"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ) : null}
+                <path
+                  d={d}
+                  fill="none"
                   stroke="currentColor"
                   strokeWidth="1"
+                  strokeLinejoin="round"
                   strokeLinecap="round"
                   vectorEffect="non-scaling-stroke"
                 />
+                {points.length === 1 ? (
+                  <line
+                    x1={Math.max(0, xAt(points[0].offset_seconds) - 1.5)}
+                    y1={yAt(points[0].value)}
+                    x2={Math.min(100, xAt(points[0].offset_seconds) + 1.5)}
+                    y2={yAt(points[0].value)}
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ) : null}
+              </svg>
+              {hover ? (
+                <span
+                  className="pointer-events-none absolute z-[1] h-2 w-2 rounded-full bg-current"
+                  style={{
+                    left: `${hover.x}%`,
+                    top: `${yAt(hover.value)}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
               ) : null}
-            </svg>
+              {hover
+                ? createPortal(
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none fixed z-[80] whitespace-nowrap rounded-md border border-border-subtle bg-white px-sm py-0.5 font-caption text-caption leading-tight text-text-primary shadow-md tabular-nums"
+                      style={{
+                        left: hover.left,
+                        top: hover.top,
+                        transform:
+                          hover.x >= 72
+                            ? "translate(-100%, calc(-100% - 8px))"
+                            : hover.x <= 12
+                              ? "translate(0, calc(-100% - 8px))"
+                              : "translate(-50%, calc(-100% - 8px))",
+                      }}
+                    >
+                      {formatMmSs(hover.offset)} · {formatValue(hover.value)}
+                    </span>,
+                    document.body,
+                  )
+                : null}
+            </div>
             <div className="relative h-4">
               {xTicks.map((tick) => (
                 <span

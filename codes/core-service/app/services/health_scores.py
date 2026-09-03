@@ -52,7 +52,7 @@ SCORE_FORMULAS: dict[str, HealthScoreFormulaOut] = {
     ),
     "weight": HealthScoreFormulaOut(
         formula="none",
-        hint="暂不评分，缺少身高或个人目标体重",
+        hint="暂不评分，缺少身高（BMI 需身高）",
     ),
     "hrv": HealthScoreFormulaOut(
         formula="clamp(round(100 × ms / 60), 0, 100)",
@@ -123,6 +123,7 @@ def score_current(
     )
     active_target = ACTIVE_DEFAULT_TARGET_KCAL
     basal_score = None
+    weight_score = _score_weight_bmi(current.body_mass_kg, height_cm)
     formulas = {key: value.model_copy() for key, value in SCORE_FORMULAS.items()}
     if targets is not None:
         bmr, active_target = targets
@@ -137,6 +138,16 @@ def score_current(
             formula=f"clamp(round(100 × kcal / {active_kcal}), 0, 100)",
             hint=f"总分100分，以推算基础代谢的 40%（{active_kcal} kcal）为活动消耗目标",
         )
+    if weight_score is not None:
+        formulas["weight"] = HealthScoreFormulaOut(
+            formula=(
+                "BMI=kg/m²（中国成人 WS/T 428）；18.5≤BMI<24 → 100；"
+                "BMI<18.5 → clamp(round(100 − (18.5 − BMI) × 20), 0, 100)；"
+                "24≤BMI<28 → clamp(round(100 − (BMI − 24) × 10), 0, 100)；"
+                "BMI≥28 → clamp(round(60 − (BMI − 28) × 10), 0, 100)"
+            ),
+            hint="总分100分，以 BMI 18.5–23.9 为最佳（中国成人标准）",
+        )
     values = {
         "steps": _linear(current.steps, 10000),
         "active": _linear(current.active_energy_kcal, active_target),
@@ -148,7 +159,7 @@ def score_current(
         ),
         "rhr": _score_resting_hr(current.resting_hr_bpm),
         "sleep": _score_sleep(current.sleep_asleep_minutes),
-        "weight": None,
+        "weight": weight_score,
         "hrv": _linear(current.hrv_median_ms, 60),
         "vo2": _score_vo2(current.vo2_max),
         "recovery": _linear(current.cardio_recovery_bpm, 30),
@@ -199,3 +210,19 @@ def _score_spo2(spo2: float | None) -> int | None:
     if spo2 is None:
         return None
     return _clamp(SCORE_MAX * (spo2 - 0.90) / 0.08)
+
+
+def _score_weight_bmi(weight_kg: float | None, height_cm: float | None) -> int | None:
+    """China adult BMI bands (WS/T 428-2013): normal 18.5–23.9."""
+    if weight_kg is None or height_cm is None:
+        return None
+    if weight_kg <= 0 or height_cm <= 0:
+        return None
+    bmi = weight_kg / ((height_cm / 100.0) ** 2)
+    if 18.5 <= bmi < 24.0:
+        return SCORE_MAX
+    if bmi < 18.5:
+        return _clamp(SCORE_MAX - (18.5 - bmi) * 20)
+    if bmi < 28.0:
+        return _clamp(SCORE_MAX - (bmi - 24.0) * 10)
+    return _clamp(60 - (bmi - 28.0) * 10)

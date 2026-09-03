@@ -9,8 +9,10 @@ import {
 } from "@/components/health/WorkoutSeriesChart";
 import { WorkoutSplitsTable } from "@/components/health/WorkoutSplitsTable";
 import {
+  formatHrZoneBpmRange,
   formatHrZoneRange,
   formatPaceZoneRange,
+  hrZoneChartBands,
   hrZoneName,
   paceZoneName,
   WorkoutZoneBar,
@@ -32,6 +34,11 @@ const TRIMP_HELP = {
   formula:
     "TRIMP = Σ Δt_min · HRR · 0.64 · e^(k·HRR)；k 男 1.92 / 女 1.67 / 其他 1.80；无静息心率时 HRR = HR/HRmax",
   hint: "Banister 指数加权心率负荷。有心率序列则按点累加，否则用场均心率。需有时长、心率与最大心率。这是估算，非医疗建议。",
+};
+
+const RTSS_HELP = {
+  formula: "阈值配速由跑力×0.88 的氧气成本反解；IF = 阈值配速 / 本次配速；rTSS = 时长(小时) × IF² × 100",
+  hint: "相对阈值配速的跑步压力分；1 小时跑在阈值配速约等于 100。需有即时跑力与配速。这是估算，非医疗建议。",
 };
 
 function formatWorkoutDateTime(iso: string, timeZone: string): string {
@@ -66,14 +73,6 @@ function paceLabel(secPerKm: number | null | undefined): string {
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${minutes}'${String(seconds).padStart(2, "0")}"`;
-}
-
-function dashNumber(
-  value: number | null | undefined,
-  format: (n: number) => string,
-): string {
-  if (value == null) return "—";
-  return format(value);
 }
 
 function locationLabel(workout: HealthWorkoutDetail): string | null {
@@ -137,6 +136,107 @@ function MetricCell({
   );
 }
 
+type MetricDef = {
+  key: string;
+  label: string;
+  value: string;
+  sub?: string | null;
+  help?: { formula: string; hint: string } | null;
+};
+
+function metricsFromWorkout(workout: HealthWorkoutDetail): MetricDef[] {
+  const avgPace = resolveAvgPaceSecPerKm({
+    avg_pace_sec_per_km: workout.avg_pace_sec_per_km,
+    distance_m: workout.distance_m,
+    duration_seconds: workout.duration_seconds,
+  });
+  const watt =
+    workout.running_power_w == null ? null : `约 ${Math.round(workout.running_power_w)} 瓦`;
+  const items: Array<MetricDef | null> = [
+    workout.running_index == null
+      ? null
+      : {
+          key: "running_index",
+          label: "即时跑力",
+          value: workout.running_index.toFixed(1),
+          sub: watt,
+          help: workout.running_index_formula,
+        },
+    workout.distance_m == null || workout.distance_m <= 0
+      ? null
+      : {
+          key: "distance",
+          label: "距离（公里）",
+          value: (workout.distance_m / 1000).toFixed(2),
+        },
+    avgPace == null
+      ? null
+      : {
+          key: "pace",
+          label: "平均配速",
+          value: paceLabel(avgPace),
+        },
+    workout.training_load == null
+      ? null
+      : {
+          key: "training_load",
+          label: "训练负荷",
+          value: workout.training_load.toFixed(1),
+          help: workout.training_load_formula,
+        },
+    {
+      key: "duration",
+      label: "总时长",
+      value: durationHms(workout.duration_seconds),
+    },
+    workout.avg_hr_bpm == null
+      ? null
+      : {
+          key: "avg_hr",
+          label: "平均心率（次/分）",
+          value: String(Math.round(workout.avg_hr_bpm)),
+        },
+    workout.elevation_ascended_m == null
+      ? null
+      : {
+          key: "climb",
+          label: "累计爬升（米）",
+          value: String(Math.round(workout.elevation_ascended_m)),
+        },
+    workout.stride_m == null
+      ? null
+      : {
+          key: "stride",
+          label: "平均步幅（米）",
+          value: workout.stride_m.toFixed(2),
+        },
+    workout.avg_cadence_spm == null
+      ? null
+      : {
+          key: "cadence",
+          label: "平均步频（步/分）",
+          value: String(Math.round(workout.avg_cadence_spm)),
+        },
+    workout.trimp == null
+      ? null
+      : {
+          key: "trimp",
+          label: "TRIMP",
+          value: workout.trimp.toFixed(1),
+          help: workout.trimp_formula ?? TRIMP_HELP,
+        },
+    workout.rtss == null
+      ? null
+      : {
+          key: "rtss",
+          label: "rTSS",
+          value: workout.rtss.toFixed(1),
+          help: workout.rtss_formula ?? RTSS_HELP,
+        },
+  ];
+  return items.filter((item): item is MetricDef => item != null);
+}
+
 type WorkoutDetailSummaryProps = {
   workout: HealthWorkoutDetail;
   timezone?: string;
@@ -149,9 +249,14 @@ export function WorkoutDetailSummary({
   const style = workoutActivityStyle(workout.activity_type, workout.activity_type_raw);
   const weather = weatherLabel(workout);
   const place = locationLabel(workout);
-  const watt =
-    workout.running_power_w == null ? null : `约 ${Math.round(workout.running_power_w)} 瓦`;
-  const rtssExtra = workout.rtss == null ? null : `rTSS ${workout.rtss.toFixed(1)}`;
+  const metrics = metricsFromWorkout(workout);
+  const hrMax = workout.hr_max_used;
+  const hrRest = workout.hr_rest_used;
+  const hrBands = hrZoneChartBands(hrMax, hrRest);
+  const formatHrBpm =
+    hrMax != null && hrMax > 0
+      ? (lo: number, hi: number) => formatHrZoneBpmRange(lo, hi, hrMax, hrRest)
+      : undefined;
 
   return (
     <section className="space-y-lg">
@@ -164,56 +269,19 @@ export function WorkoutDetailSummary({
         {weather ? <p className="text-small text-text-secondary">{weather}</p> : null}
         {place ? <p className="text-small text-text-secondary">{place}</p> : null}
       </div>
-      <div className="grid grid-cols-1 gap-md sm:grid-cols-3">
-        <MetricCell
-          label="即时跑力"
-          value={dashNumber(workout.running_index, (n) => n.toFixed(1))}
-          sub={watt}
-          help={workout.running_index_formula}
-        />
-        <MetricCell
-          label="距离（公里）"
-          value={dashNumber(workout.distance_m, (n) => (n / 1000).toFixed(2))}
-        />
-        <MetricCell
-          label="平均配速"
-          value={paceLabel(
-            resolveAvgPaceSecPerKm({
-              avg_pace_sec_per_km: workout.avg_pace_sec_per_km,
-              distance_m: workout.distance_m,
-              duration_seconds: workout.duration_seconds,
-            }),
-          )}
-        />
-        <MetricCell
-          label="训练负荷"
-          value={dashNumber(workout.training_load, (n) => n.toFixed(1))}
-          help={workout.training_load_formula}
-        />
-        <MetricCell label="总时长" value={durationHms(workout.duration_seconds)} />
-        <MetricCell
-          label="平均心率（次/分）"
-          value={dashNumber(workout.avg_hr_bpm, (n) => String(Math.round(n)))}
-        />
-        <MetricCell
-          label="累计爬升（米）"
-          value={dashNumber(workout.elevation_ascended_m, (n) => String(Math.round(n)))}
-        />
-        <MetricCell
-          label="平均步幅（米）"
-          value={dashNumber(workout.stride_m, (n) => n.toFixed(2))}
-        />
-        <MetricCell
-          label="平均步频（步/分）"
-          value={dashNumber(workout.avg_cadence_spm, (n) => String(Math.round(n)))}
-        />
-        <MetricCell
-          label="TRIMP"
-          value={dashNumber(workout.trimp, (n) => n.toFixed(1))}
-          help={workout.trimp_formula ?? TRIMP_HELP}
-        />
-      </div>
-      {rtssExtra ? <p className="text-caption text-text-secondary">{rtssExtra}</p> : null}
+      {metrics.length > 0 ? (
+        <div className="grid grid-cols-1 gap-md sm:grid-cols-3">
+          {metrics.map((metric) => (
+            <MetricCell
+              key={metric.key}
+              label={metric.label}
+              value={metric.value}
+              sub={metric.sub}
+              help={metric.help}
+            />
+          ))}
+        </div>
+      ) : null}
       <WorkoutSplitsTable splits={workout.splits} />
       <WorkoutSeriesChart
         title="配速"
@@ -227,18 +295,22 @@ export function WorkoutDetailSummary({
         zones={workout.pace_zones}
         zoneName={paceZoneName}
         formatRange={formatPaceZoneRange}
+        palette="pace"
         defaultOpen
       />
       <WorkoutSeriesChart
         title="心率（次/分）"
         series={workout.heart_rate}
         formatValue={formatIntTick}
+        yBands={hrBands}
       />
       <WorkoutZoneBar
         title="心率区间"
         zones={workout.heart_rate_zones}
         zoneName={hrZoneName}
         formatRange={formatHrZoneRange}
+        formatValueRange={formatHrBpm}
+        palette="hr"
         defaultOpen
         showEmpty
       />
@@ -252,7 +324,6 @@ export function WorkoutDetailSummary({
         title="步幅（米）"
         series={workout.series?.stride}
         formatValue={formatStrideTick}
-        showEmpty
       />
       <WorkoutSeriesChart
         title="功率（瓦）"
@@ -263,7 +334,6 @@ export function WorkoutDetailSummary({
         title="垂直振幅（毫米）"
         series={workout.series?.vertical_oscillation}
         formatValue={formatIntTick}
-        showEmpty
       />
       <WorkoutSeriesChart
         title="触地时间（毫秒）"

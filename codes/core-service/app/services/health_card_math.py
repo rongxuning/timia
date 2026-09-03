@@ -13,7 +13,13 @@ from app.models.health import (
     SLEEP_STAGE_REM,
     SLEEP_STAGE_UNSPECIFIED,
 )
-from app.services.health_metrics import SLEEP_ASLEEP_STAGES, local_date_of, parse_timezone
+from app.services.health_metrics import (
+    SLEEP_ASLEEP_STAGES,
+    cumulative_rate_intervals,
+    local_date_of,
+    max_rate_segments,
+    parse_timezone,
+)
 
 WAKE_START_HOUR = 8
 WAKE_END_HOUR = 22
@@ -86,10 +92,16 @@ def bucket_cumulative(
     timezone_name: str,
     local_date: date,
 ) -> list[dict[str, float | int | None]]:
+    """Hourly buckets for cumulative quantities with Apple-style overlap dedupe.
+
+    Overlapping samples contribute the max rate (not sum of rates); the resulting
+    timeline is attributed into local hours.
+    """
     buckets = empty_hour_buckets()
     any_hit = False
-    for start_at, end_at, value in samples:
-        for hour, share in split_interval_into_hours(start_at, end_at, value, timezone_name, local_date):
+    for start, end, rate in max_rate_segments(cumulative_rate_intervals(samples)):
+        amount = rate * (end - start).total_seconds()
+        for hour, share in split_interval_into_hours(start, end, amount, timezone_name, local_date):
             add_hourly_sum(buckets, hour, share)
             any_hit = True
     if any_hit:

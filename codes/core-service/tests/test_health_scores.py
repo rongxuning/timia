@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.schemas.views.health import HealthCurrentOut
 from app.services.health_scores import (
     _score_sleep,
+    _score_weight_bmi,
     mifflin_st_jeor_bmr,
     score_current,
 )
@@ -33,9 +34,11 @@ def test_score_current_without_profile_keeps_fixed_active_and_no_basal():
     scores, formulas, targets = score_current(current)
     assert scores["active"] == 50
     assert scores["basal"] is None
+    assert scores["weight"] is None
     assert targets is None
     assert "500" in formulas["active"].hint
     assert formulas["basal"].formula == "none"
+    assert formulas["weight"].formula == "none"
 
 
 def test_score_current_with_profile_uses_bmr_targets():
@@ -47,8 +50,10 @@ def test_score_current_with_profile_uses_bmr_targets():
     assert round(targets[0]) == 1649
     assert scores["basal"] == 100
     assert scores["active"] == 100
+    assert scores["weight"] == 100  # BMI ≈ 22.9, China normal
     assert "Mifflin" in formulas["basal"].hint
     assert "40%" in formulas["active"].hint
+    assert "WS/T 428" in formulas["weight"].formula
 
 
 def test_score_sleep_peak_and_shoulders():
@@ -59,3 +64,17 @@ def test_score_sleep_peak_and_shoulders():
     assert _score_sleep(378) == 90
     assert _score_sleep(10 * 60) == 80
     assert _score_sleep(11 * 60) == 60
+
+
+def test_score_weight_bmi_china_adult_bands():
+    # 175 cm: normal 18.5–23.9 → ~56.7–73.2 kg
+    assert _score_weight_bmi(70, 175) == 100
+    assert _score_weight_bmi(56.7, 175) == 100
+    assert _score_weight_bmi(None, 175) is None
+    assert _score_weight_bmi(70, None) is None
+    # BMI 18.0 → 90; BMI 25 → 90; BMI 28 → 60; BMI 16.5 → 60
+    assert _score_weight_bmi(18.0 * (1.75**2), 175) == 90
+    assert _score_weight_bmi(25.0 * (1.75**2), 175) == 90
+    assert _score_weight_bmi(28.0 * (1.75**2), 175) == 60
+    assert _score_weight_bmi(16.5 * (1.75**2), 175) == 60
+    assert _score_weight_bmi(30.0 * (1.75**2), 175) == 40

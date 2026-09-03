@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -14,6 +14,9 @@ from app.models.health import (
     SLEEP_STAGE_REM,
     SLEEP_STAGE_UNSPECIFIED,
 )
+
+# Instant / missing-end samples get a 1s window so rate math stays uniform.
+_POINT_DURATION = timedelta(seconds=1)
 
 SLEEP_ASLEEP_STAGES = frozenset(
     {
@@ -53,6 +56,82 @@ def sum_values(values: list[float]) -> float | None:
     if not values:
         return None
     return float(sum(values))
+
+
+def _aware(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def cumulative_rate_intervals(
+    samples: list[tuple[datetime, datetime | None, float]],
+) -> list[tuple[datetime, datetime, float]]:
+    """Normalize cumulative samples to (start, end, rate) with rate = value / seconds.
+
+    Non-positive values are skipped. Zero-duration or missing end uses a 1-second window.
+    """
+    intervals: list[tuple[datetime, datetime, float]] = []
+    for start_at, end_at, value in samples:
+        try:
+            amount = float(value)
+        except (TypeError, ValueError):
+            continue
+        if amount <= 0:
+            continue
+        start = _aware(start_at)
+        if end_at is None:
+            end = start + _POINT_DURATION
+        else:
+            end = _aware(end_at)
+            if end <= start:
+                end = start + _POINT_DURATION
+        duration = (end - start).total_seconds()
+        if duration <= 0:
+            continue
+        intervals.append((start, end, amount / duration))
+    return intervals
+
+
+def max_rate_segments(
+    intervals: list[tuple[datetime, datetime, float]],
+) -> list[tuple[datetime, datetime, float]]:
+    """Sweep timeline; on overlaps keep the max rate (Apple-style cumulative dedupe)."""
+    if not intervals:
+        return []
+    points = sorted({bound for start, end, _ in intervals for bound in (start, end)})
+    segments: list[tuple[datetime, datetime, float]] = []
+    for index in range(len(points) - 1):
+        t0 = points[index]
+        t1 = points[index + 1]
+        if t1 <= t0:
+            continue
+        max_rate = 0.0
+        for start, end, rate in intervals:
+            if start <= t0 and end >= t1 and rate > max_rate:
+                max_rate = rate
+        if max_rate > 0:
+            segments.append((t0, t1, max_rate))
+    return segments
+
+
+def sum_cumulative_deduped(
+    samples: list[tuple[datetime, datetime | None, float]],
+) -> float | None:
+    """Sum cumulative quantity samples with Apple-style overlap avoidance.
+
+    Each sample is treated as a uniform rate over ``[start_at, end_at]``. Where
+    intervals overlap, the highest rate is kept (not summed), then rate×dt is
+    integrated. Empty / no positive samples → ``None`` (same contract as
+    ``sum_values``).
+    """
+    intervals = cumulative_rate_intervals(samples)
+    if not intervals:
+        return None
+    total = 0.0
+    for start, end, rate in max_rate_segments(intervals):
+        total += rate * (end - start).total_seconds()
+    return float(total)
 
 
 def last_value(rows: list[tuple[datetime, float]]) -> float | None:

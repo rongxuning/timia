@@ -7,6 +7,7 @@ export type ScoreScale =
   | { kind: "linear"; target: number }
   | { kind: "sleep" }
   | { kind: "rhr" }
+  | { kind: "bmi"; heightCm: number }
   | { kind: "vo2" }
   | { kind: "spo2" }
   | { kind: "none" };
@@ -50,6 +51,7 @@ export const SCORE_BAND_LEGEND: Array<{ tone: ScoreTone; label: string; range: s
 export function scoreScaleForMetric(
   metric: HealthCardKey,
   energyTargets?: HealthEnergyTargets | null,
+  heightCm?: number | null,
 ): ScoreScale {
   switch (metric) {
     case "steps":
@@ -77,7 +79,9 @@ export function scoreScaleForMetric(
     case "spo2":
       return { kind: "spo2" };
     case "weight":
-      return { kind: "none" };
+      return heightCm != null && heightCm > 0
+        ? { kind: "bmi", heightCm }
+        : { kind: "none" };
   }
 }
 
@@ -115,6 +119,26 @@ export function scoreBandsForScale(scale: ScoreScale, yMin: number, yMax: number
   if (scale.kind === "rhr") {
     const below = (score: number) => 50 - (100 - score) / 2;
     const above = (score: number) => 65 + (100 - score) / 2.2;
+    return clipBands(
+      [
+        { y0: Number.NEGATIVE_INFINITY, y1: below(60), tone: "low" },
+        { y0: below(60), y1: below(76), tone: "mid" },
+        { y0: below(76), y1: below(90), tone: "good" },
+        { y0: below(90), y1: above(90), tone: "high" },
+        { y0: above(90), y1: above(76), tone: "good" },
+        { y0: above(76), y1: above(60), tone: "mid" },
+        { y0: above(60), y1: Number.POSITIVE_INFINITY, tone: "low" },
+      ],
+      yMin,
+      yMax,
+    );
+  }
+  if (scale.kind === "bmi") {
+    // China adult BMI (WS/T 428): normal 18.5–23.9; chart axis is kg.
+    const m2 = (scale.heightCm / 100) ** 2;
+    const kg = (bmi: number) => bmi * m2;
+    const below = (score: number) => kg(18.5 - (100 - score) / 20);
+    const above = (score: number) => kg(24 + (100 - score) / 10);
     return clipBands(
       [
         { y0: Number.NEGATIVE_INFINITY, y1: below(60), tone: "low" },
