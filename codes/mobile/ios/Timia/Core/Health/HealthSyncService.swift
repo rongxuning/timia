@@ -58,15 +58,27 @@ struct HealthSyncService {
         UserDefaults.standard.set(iso(date), forKey: lastSyncedKey)
     }
 
+    /// Apply server watermark as the sole authority. Nil server clears local cache
+    /// so Web「清除」后 App 会重新全量同步。
+    @discardableResult
+    static func applyServerWatermark(_ server: Date?) -> Date? {
+        if let server {
+            storeLastSyncedAt(server)
+            return server
+        }
+        clearLastSyncedAt()
+        return nil
+    }
+
+    static func clearLastSyncedAt() {
+        UserDefaults.standard.removeObject(forKey: lastSyncedKey)
+    }
+
     /// Prefer the newer of local checkpoint vs server watermark so a lagging
     /// server stamp cannot wipe day-chunk progress after an interrupted sync.
+    @available(*, deprecated, message: "Use applyServerWatermark; server is authoritative")
     static func mergeWatermark(local: Date?, server: Date?) -> Date? {
-        switch (local, server) {
-        case let (l?, s?): return max(l, s)
-        case let (l?, nil): return l
-        case let (nil, s?): return s
-        case (nil, nil): return nil
-        }
+        applyServerWatermark(server ?? local)
     }
 
     static func daySlices(from start: Date, to end: Date, calendar: Calendar = .current) -> [(start: Date, end: Date)] {
@@ -148,8 +160,13 @@ struct HealthSyncService {
             upserted += dayResult.upserted
             for date in dayResult.localDates { localDates.insert(date) }
 
-            // Checkpoint after each successful day so lock/kill can resume.
-            Self.storeLastSyncedAt(slice.end)
+            // Server-authoritative day checkpoint (local cache mirrors server).
+            let stamped = try await api.checkpoint(toAt: Self.iso(slice.end))
+            if let server = Self.parseISO(stamped.lastSyncedAt) {
+                Self.storeLastSyncedAt(server)
+            } else {
+                Self.storeLastSyncedAt(slice.end)
+            }
             onProgress(base + span, "已完成 \(dayIndex)/\(dayTotal) · \(label)")
         }
 
@@ -265,9 +282,10 @@ struct HealthSyncService {
         let totalBox = TotalBox(value: total)
         let cap = Self.uploadConcurrency
 
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            var inflight = 0
-            for category in categories {
+        // Categories stay ordered so workouts land before routes (route upsert needs session).
+        for category in categories where category.count > 0 {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                var inflight = 0
                 for index in 0..<category.count {
                     let label = "\(category.label) \(index + 1)/\(category.count)"
                     let run = category.run
@@ -284,12 +302,12 @@ struct HealthSyncService {
                         onProgress(Double(s.done) / Double(s.total), s.label)
                     }
                 }
-            }
-            while inflight > 0 {
-                _ = try await group.next()
-                inflight -= 1
-                let s = await totalBox.snapshot()
-                onProgress(Double(s.done) / Double(s.total), s.label)
+                while inflight > 0 {
+                    _ = try await group.next()
+                    inflight -= 1
+                    let s = await totalBox.snapshot()
+                    onProgress(Double(s.done) / Double(s.total), s.label)
+                }
             }
         }
 

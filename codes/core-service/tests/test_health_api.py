@@ -1916,3 +1916,84 @@ def test_health_card_detail_exercise_range_averages_and_lists_window():
     assert overview.json()["current"]["exercise_minutes"] == 30
     assert overview.json()["totals"]["exercise_minutes"] == 60
 
+
+
+def test_health_sync_checkpoint_advances_watermark_without_run():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    to_at = datetime.now(timezone.utc).isoformat()
+    resp = client.post(
+        "/health/sync/checkpoint",
+        headers=_headers(token),
+        json={"to_at": to_at},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["last_synced_at"] is not None
+    status = client.get("/health/sync-status", headers=_headers(token))
+    assert status.status_code == 200, status.text
+    assert status.json()["last_synced_at"] is not None
+    assert status.json()["runs"] == []
+
+
+def test_clear_health_data_keeps_profile_and_resets_watermark():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc)
+    synced = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "metric_type": "step_count",
+                    "start_at": now.isoformat(),
+                    "end_at": now.isoformat(),
+                    "value": 500,
+                    "unit": "count",
+                }
+            ],
+        },
+    )
+    assert synced.status_code == 200, synced.text
+    profile = client.patch(
+        "/health/profile",
+        headers=_headers(token),
+        json={"sex": "male", "age_years": 30, "height_cm": 175, "max_hr_bpm": 190},
+    )
+    assert profile.status_code == 200, profile.text
+    run = client.post(
+        "/health/sync/runs",
+        headers=_headers(token),
+        json={
+            "source": "manual",
+            "status": "success",
+            "to_at": now.isoformat(),
+            "quantity_count": 1,
+            "upserted": 1,
+            "local_dates": synced.json()["local_dates"],
+        },
+    )
+    assert run.status_code == 200, run.text
+
+    cleared = client.delete("/health/data", headers=_headers(token))
+    assert cleared.status_code == 200, cleared.text
+    body = cleared.json()
+    assert body["quantity_deleted"] >= 1
+    assert body["sync_run_deleted"] >= 1
+    assert body["sync_state_cleared"] is True
+
+    status = client.get("/health/sync-status", headers=_headers(token))
+    assert status.status_code == 200, status.text
+    assert status.json()["last_synced_at"] is None
+    assert status.json()["runs"] == []
+    assert all(day["quantity_count"] == 0 for day in status.json()["days"]) or status.json()["days"] == []
+
+    kept = client.get("/health/profile", headers=_headers(token))
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["height_cm"] == 175
+    assert kept.json()["max_hr_bpm"] == 190
+
+    overview = client.get("/views/me/health", headers=_headers(token))
+    assert overview.status_code == 200, overview.text

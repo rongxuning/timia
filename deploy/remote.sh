@@ -7,7 +7,7 @@
 # Env: SKIP_BUILD=1     — pack existing timia-*:prod images (skip docker compose build)
 #      PACK_NO_CACHE=1   — force full rebuild (ignore layer cache)
 #      PACK_SERVICES=web|core-service|all  (default: all; use web when only frontend changed)
-#      PACK_ENV=.env.pack  SSH_HOST  SSH_USER  DEPLOY_PATH=/opt/timia
+#      PACK_ENV=.env.pack  (SSH_HOST/SSH_USER live in .env.pack — see .env.pack.example)
 #      REMOTE_TAR=timia-images.tar.gz  (remote $HOME, not /tmp)
 #      SSH_IDENTITY_FILE=~/.ssh/your.pem
 #      GIT_REF=release/v1.0.0  (default: current local branch)
@@ -23,11 +23,24 @@ PACK_ENV="${PACK_ENV:-.env.pack}"
 OUT_DIR="${OUT_DIR:-deploy/dist}"
 OUT_FILE="${OUT_FILE:-$OUT_DIR/timia-images.tar.gz}"
 BUNDLE="${BUNDLE:-$OUT_FILE}"
-SSH_HOST="${SSH_HOST:-}"
-SSH_USER="${SSH_USER:-}"
-DEPLOY_PATH="${DEPLOY_PATH:-/opt/timia}"
 REMOTE_TAR="${REMOTE_TAR:-timia-images.tar.gz}"
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
+
+# Shell exports win over .env.pack (so SSH_HOST=x bash deploy/remote.sh upload still works).
+_timia_saved_ssh_host="${SSH_HOST:-}"
+_timia_saved_ssh_user="${SSH_USER:-}"
+_timia_saved_ssh_identity="${SSH_IDENTITY_FILE:-}"
+_timia_saved_deploy_path="${DEPLOY_PATH:-}"
+if [[ -f "$PACK_ENV" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$PACK_ENV"
+  set +a
+fi
+SSH_HOST="${_timia_saved_ssh_host:-${SSH_HOST:-}}"
+SSH_USER="${_timia_saved_ssh_user:-${SSH_USER:-}}"
+SSH_IDENTITY_FILE="${_timia_saved_ssh_identity:-${SSH_IDENTITY_FILE:-}}"
+DEPLOY_PATH="${_timia_saved_deploy_path:-${DEPLOY_PATH:-/opt/timia}}"
 
 timia_ssh() {
   if [[ -n "${SSH_IDENTITY_FILE:-}" ]]; then
@@ -128,11 +141,6 @@ pack() {
     exit 1
   fi
 
-  set -a
-  # shellcheck disable=SC1090
-  source "$PACK_ENV"
-  set +a
-
   export TIMIA_ENV_FILE="$(cd "$(dirname "$PACK_ENV")" && pwd)/$(basename "$PACK_ENV")"
   mkdir -p "$OUT_DIR"
 
@@ -210,7 +218,7 @@ pack() {
 
 upload() {
   if [[ -z "$SSH_HOST" || -z "$SSH_USER" ]]; then
-    echo "Set SSH_HOST and SSH_USER before upload." >&2
+    echo "Set SSH_HOST and SSH_USER in $PACK_ENV (cp .env.pack.example $PACK_ENV) or export them." >&2
     exit 1
   fi
 

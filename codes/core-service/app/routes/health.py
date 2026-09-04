@@ -11,6 +11,7 @@ from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.health import (
+    HealthClearOut,
     HealthDeletionSyncIn,
     HealthHeartbeatSyncIn,
     HealthLayoutIn,
@@ -20,6 +21,8 @@ from app.schemas.health import (
     HealthQuantitySyncIn,
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
+    HealthSyncCheckpointIn,
+    HealthSyncCheckpointOut,
     HealthSyncOut,
     HealthSyncRunIn,
     HealthSyncRunOut,
@@ -28,6 +31,8 @@ from app.schemas.health import (
     HealthWorkoutSyncIn,
 )
 from app.services.health_api import (
+    advance_sync_checkpoint,
+    clear_owner_health_data,
     get_profile,
     list_sync_status,
     record_sync_run,
@@ -67,6 +72,28 @@ def post_sync_run(
     user: User = Depends(get_current_user),
 ):
     result = record_sync_run(db, user, payload)
+    db.commit()
+    return result
+
+
+@router.post("/sync/checkpoint", response_model=HealthSyncCheckpointOut)
+def post_sync_checkpoint(
+    payload: HealthSyncCheckpointIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = advance_sync_checkpoint(db, user, payload)
+    db.commit()
+    return result
+
+
+@router.delete("/data", response_model=HealthClearOut)
+def delete_health_data(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Clear synced health samples for the current user. Keeps profile and card layout."""
+    result = clear_owner_health_data(db, user)
     db.commit()
     return result
 

@@ -9,7 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -38,6 +38,7 @@ from app.models.health import (
     METRIC_VO2_MAX,
     QUANTITY_METRIC_TYPES,
     SLEEP_STAGES,
+    HealthInsightDaily,
     HealthMetricsDaily,
     HealthMetricsLayout,
     HealthProfile,
@@ -53,6 +54,7 @@ from app.models.health import (
 from app.models.health_types import KNOWN_CARD_KEYS, normalize_activity_type, normalize_card_order
 from app.models.user import User
 from app.schemas.health import (
+    HealthClearOut,
     HealthDeletionSyncIn,
     HealthHeartbeatSyncIn,
     HealthLayoutIn,
@@ -62,6 +64,8 @@ from app.schemas.health import (
     HealthQuantitySyncIn,
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
+    HealthSyncCheckpointIn,
+    HealthSyncCheckpointOut,
     HealthSyncDayStatusOut,
     HealthSyncOut,
     HealthSyncRunIn,
@@ -633,16 +637,67 @@ def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> Health
     db.add(run)
     db.flush()
     if payload.status == "success":
-        state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == user.id))
-        if state is None:
-            state = HealthSyncState(owner_user_id=user.id)
-            db.add(state)
-        if state.last_synced_at is None or payload.to_at > state.last_synced_at:
-            state.last_synced_at = payload.to_at
-        state.last_run_id = run.id
-        state.updated_at = now
+        _advance_sync_state(db, user.id, payload.to_at, last_run_id=run.id, now=now)
         db.flush()
     return _sync_run_out(run)
+
+
+def advance_sync_checkpoint(
+    db: Session, user: User, payload: HealthSyncCheckpointIn
+) -> HealthSyncCheckpointOut:
+    """Advance last_synced_at without creating a sync-run row (day resume)."""
+    now = utcnow()
+    state = _advance_sync_state(db, user.id, payload.to_at, last_run_id=None, now=now)
+    db.flush()
+    assert state.last_synced_at is not None
+    return HealthSyncCheckpointOut(last_synced_at=state.last_synced_at)
+
+
+def clear_owner_health_data(db: Session, user: User) -> HealthClearOut:
+    """Hard-delete synced health rows for the owner. Keeps profile + card layout."""
+    uid = user.id
+
+    def _count_delete(model: type) -> int:
+        result = db.execute(delete(model).where(model.owner_user_id == uid))
+        return int(result.rowcount or 0)
+
+    out = HealthClearOut(
+        route_deleted=_count_delete(HealthWorkoutRoute),
+        workout_deleted=_count_delete(HealthWorkoutSession),
+        quantity_deleted=_count_delete(HealthSampleQuantity),
+        sleep_deleted=_count_delete(HealthSampleSleep),
+        stand_hour_deleted=_count_delete(HealthSampleStandHour),
+        heartbeat_series_deleted=_count_delete(HealthSeriesHeartbeat),
+        metrics_daily_deleted=_count_delete(HealthMetricsDaily),
+        insight_daily_deleted=_count_delete(HealthInsightDaily),
+        sync_run_deleted=_count_delete(HealthSyncRun),
+    )
+    state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == uid))
+    if state is not None:
+        db.delete(state)
+        out.sync_state_cleared = True
+    db.flush()
+    return out
+
+
+def _advance_sync_state(
+    db: Session,
+    owner_id: uuid.UUID,
+    to_at: datetime,
+    *,
+    last_run_id: uuid.UUID | None,
+    now: datetime,
+) -> HealthSyncState:
+    state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == owner_id))
+    if state is None:
+        state = HealthSyncState(owner_user_id=owner_id)
+        db.add(state)
+    if state.last_synced_at is None or to_at > state.last_synced_at:
+        state.last_synced_at = to_at
+    if last_run_id is not None:
+        state.last_run_id = last_run_id
+    state.updated_at = now
+    return state
 
 
 def _sync_run_out(row: HealthSyncRun) -> HealthSyncRunOut:

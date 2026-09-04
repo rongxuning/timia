@@ -187,6 +187,27 @@ class HealthSyncStatusOut(BaseModel):
     runs: list[HealthSyncRunOut] = Field(default_factory=list)
 
 
+class HealthSyncCheckpointIn(BaseModel):
+    to_at: datetime
+
+
+class HealthSyncCheckpointOut(BaseModel):
+    last_synced_at: datetime
+
+
+class HealthClearOut(BaseModel):
+    quantity_deleted: int = 0
+    sleep_deleted: int = 0
+    stand_hour_deleted: int = 0
+    heartbeat_series_deleted: int = 0
+    workout_deleted: int = 0
+    route_deleted: int = 0
+    metrics_daily_deleted: int = 0
+    insight_daily_deleted: int = 0
+    sync_run_deleted: int = 0
+    sync_state_cleared: bool = False
+
+
 class HealthLayoutIn(BaseModel):
     card_order: list[str] = Field(min_length=1, max_length=32)
 

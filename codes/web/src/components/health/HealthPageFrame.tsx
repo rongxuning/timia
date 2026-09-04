@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { HealthDataManage } from "@/components/health/HealthDataManage";
 import { HealthMiniCalendar } from "@/components/health/HealthMiniCalendar";
 import { HealthProfileForm } from "@/components/health/HealthProfileForm";
 import { HealthRangePicker } from "@/components/health/HealthRangePicker";
@@ -25,7 +26,7 @@ export function HealthPageFrame({ page, children }: HealthPageFrameProps) {
           </div>
         )}
         <div className="grid items-start gap-lg lg:grid-cols-[260px_minmax(0,1fr)]">
-          <aside className="space-y-lg self-start lg:sticky lg:top-lg">
+          <aside className="space-y-md self-start lg:sticky lg:top-lg">
             <HealthMiniCalendar
               month={view?.month ?? month}
               selectedDate={rangeMode ? null : (view?.selected_date ?? selectedDate)}
@@ -42,6 +43,7 @@ export function HealthPageFrame({ page, children }: HealthPageFrameProps) {
               onSave={page.saveProfile}
             />
             <HealthSourcePicker value={source} onChange={page.setSource} />
+            <HealthDataManage token={page.token} onCleared={page.reload} />
           </aside>
           <div className="min-w-0 space-y-lg overflow-x-clip">
             {loading && !view ? <p className="text-small text-text-secondary">加载中…</p> : children}

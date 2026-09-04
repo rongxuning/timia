@@ -77,6 +77,14 @@ struct HealthSyncStatus: Decodable, Sendable {
     var runs: [HealthSyncRun]?
 }
 
+struct HealthSyncCheckpointIn: Encodable, Sendable {
+    var toAt: String
+}
+
+struct HealthSyncCheckpointOut: Decodable, Sendable {
+    var lastSyncedAt: String
+}
+
 struct HealthQuantitySamplePayload: Encodable, Sendable {
     var hkUuid: String
     var metricType: String
@@ -203,6 +211,15 @@ struct HealthSyncAPI: Sendable {
 
     func finishRun(_ payload: HealthSyncRunIn) async throws -> HealthSyncRun {
         try await client.request("/health/sync/runs", method: "POST", body: payload, response: HealthSyncRun.self)
+    }
+
+    func checkpoint(toAt: String) async throws -> HealthSyncCheckpointOut {
+        try await client.request(
+            "/health/sync/checkpoint",
+            method: "POST",
+            body: HealthSyncCheckpointIn(toAt: toAt),
+            response: HealthSyncCheckpointOut.self
+        )
     }
 
     func syncSamples(_ payload: HealthQuantitySyncPayload) async throws -> HealthSyncOut {

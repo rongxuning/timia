@@ -1,3 +1,4 @@
+import HealthKit
 import SwiftUI
 import UIKit
 
@@ -80,7 +81,7 @@ struct HealthSyncView: View {
                             .font(.footnote)
                             .foregroundStyle(.orange)
                     }
-                    Text("首次会读取近 90 天，按天上传并保存进度；锁屏中断后可从断点继续。之后从上次同步起增量同步，新数据也会在写入「健康」后后台上传。")
+                    Text("水位与同步记录保存在服务端；本机按天上传原始数据。首次约 90 天，中断后从服务端断点继续。新数据也会在写入「健康」后后台上传。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -196,14 +197,7 @@ struct HealthSyncView: View {
             }
             syncedDays = status.days.filter { $0.totalCount > 0 }
             let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
-            let merged = HealthSyncService.mergeWatermark(
-                local: HealthSyncService.cachedLastSyncedAt(),
-                server: server
-            )
-            if let merged {
-                lastSyncedAt = merged
-                HealthSyncService.storeLastSyncedAt(merged)
-            }
+            lastSyncedAt = HealthSyncService.applyServerWatermark(server)
         } catch {
             // Status fetch is best-effort: don't surface failures here so the
             // user can still retry sync from the existing checkpoint.
@@ -241,11 +235,9 @@ struct HealthSyncView: View {
             isSyncing = false
         }
         do {
-            let watermark = HealthSyncService.mergeWatermark(
-                local: HealthSyncService.cachedLastSyncedAt(),
-                server: lastSyncedAt
-            )
-            lastSyncedAt = watermark
+            // Pull authoritative watermark before choosing the window.
+            await refreshStatus()
+            let watermark = lastSyncedAt
             let start = HealthSyncService.startDate(lastSyncedAt: watermark)
             let end = Date()
             let days = HealthSyncService.daySlices(from: start, to: end).count
@@ -258,16 +250,14 @@ struct HealthSyncView: View {
                 progress = max(0.02, fraction)
                 progressText = label
             }
-            lastSyncedAt = HealthSyncService.cachedLastSyncedAt() ?? end
+            await refreshStatus()
             pendingDays = []
             clearLastError()
             await HealthBackgroundDelivery.shared.start(api: session.api)
-            await refreshStatus()
             await loadPendingDays()
         } catch {
-            // Keep day checkpoints; next tap resumes from lastSyncedAt.
-            // Also keep pendingDays so the user can see what's still queued.
-            lastSyncedAt = HealthSyncService.cachedLastSyncedAt() ?? lastSyncedAt
+            // Day checkpoints are on the server; refresh to show resume point.
+            await refreshStatus()
             let failure = mapFailure(error)
             syncError = failure
             let summary = summarize(failure)

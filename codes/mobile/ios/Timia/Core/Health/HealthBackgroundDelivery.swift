@@ -35,13 +35,17 @@ final class HealthBackgroundDelivery {
 
     private func handleUpdate() async {
         guard let api, !inFlight else { return }
-        guard HealthSyncService.cachedLastSyncedAt() != nil else { return }
         inFlight = true
         defer { inFlight = false }
-        let start = HealthSyncService.startDate(lastSyncedAt: HealthSyncService.cachedLastSyncedAt())
-        let end = Date()
         do {
-            let service = HealthSyncService(api: HealthSyncAPI(client: api))
+            let syncAPI = HealthSyncAPI(client: api)
+            let status = try await syncAPI.syncStatus(timezone: TimeZone.current.identifier)
+            let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
+            let watermark = HealthSyncService.applyServerWatermark(server)
+            guard watermark != nil else { return }
+            let start = HealthSyncService.startDate(lastSyncedAt: watermark)
+            let end = Date()
+            let service = HealthSyncService(api: syncAPI)
             try await service.syncWindow(from: start, to: end, source: .background) { _, _ in }
         } catch {
             // Keep the observer alive; day checkpoints + next wake or manual sync retry.

@@ -23,12 +23,12 @@ export function HealthSourcePicker({ value, onChange }: HealthSourcePickerProps)
   const visible = SOURCES.filter((item) => item.visible);
 
   return (
-    <section className="rounded-xl border border-border-subtle bg-white p-lg">
+    <section className="rounded-xl border border-border-subtle bg-white px-md py-sm">
       <div className="flex items-baseline gap-sm">
         <h2 className="shrink-0 font-headline text-small text-text-primary">数据源</h2>
-        <p className="min-w-0 text-caption text-neutral-muted">选择当前展示的设备与平台</p>
+        <p className="min-w-0 text-caption text-neutral-muted">设备与平台</p>
       </div>
-      <div className="mt-md flex flex-wrap gap-sm">
+      <div className="mt-sm flex flex-wrap gap-sm">
         {visible.map((item) => {
           const active = value === item.id;
           return (
@@ -38,8 +38,8 @@ export function HealthSourcePicker({ value, onChange }: HealthSourcePickerProps)
               onClick={() => onChange(item.id)}
               className={
                 active
-                  ? "rounded-xl bg-primary px-3 py-2 text-caption font-medium text-on-primary"
-                  : "rounded-xl border border-border-subtle bg-white px-3 py-2 text-caption text-text-secondary hover:bg-gray-50"
+                  ? "rounded-lg bg-primary px-3 py-1.5 text-caption font-medium text-on-primary"
+                  : "rounded-lg border border-border-subtle bg-white px-3 py-1.5 text-caption text-text-secondary hover:bg-gray-50"
               }
               aria-pressed={active}
             >

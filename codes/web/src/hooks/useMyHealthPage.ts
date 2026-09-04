@@ -136,5 +136,6 @@ export function useMyHealthPage() {
     setRangeDays: (days: number) => replaceQuery({ range: days, date: null }),
     saveProfile,
     saveLayout,
+    reload,
   };
 }

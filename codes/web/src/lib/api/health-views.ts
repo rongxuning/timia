@@ -77,3 +77,23 @@ export function fetchHealthWorkouts(
 export function fetchHealthWorkoutDetail(token: string, id: string): Promise<HealthWorkoutDetail> {
   return apiFetch<HealthWorkoutDetail>(`/views/me/health/workouts/${id}`, { token });
 }
+
+export type HealthClearResult = {
+  quantity_deleted: number;
+  sleep_deleted: number;
+  stand_hour_deleted: number;
+  heartbeat_series_deleted: number;
+  workout_deleted: number;
+  route_deleted: number;
+  metrics_daily_deleted: number;
+  insight_daily_deleted: number;
+  sync_run_deleted: number;
+  sync_state_cleared: boolean;
+};
+
+export function clearHealthData(token: string): Promise<HealthClearResult> {
+  return apiFetch<HealthClearResult>("/health/data", {
+    token,
+    method: "DELETE",
+  });
+}
