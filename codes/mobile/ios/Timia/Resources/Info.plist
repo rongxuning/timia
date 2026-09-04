@@ -41,11 +41,6 @@
 	<string>Timia 用本地语音识别把您说的话转成便利贴文字，识别在设备上完成，不会上传到任何服务器。</string>
 	<key>TIMIA_API_BASE_URL</key>
 	<string>$(TIMIA_API_BASE_URL)</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>healthkit</string>
-		<string>processing</string>
-	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
