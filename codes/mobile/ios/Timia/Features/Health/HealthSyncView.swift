@@ -1,4 +1,33 @@
 import SwiftUI
+import UIKit
+
+enum HealthSyncFailure: Equatable {
+    case unauthorized
+    case offline
+    case server(status: Int, message: String)
+    case timeout
+    case permission
+    case other(message: String)
+
+    var alertTitle: String { "同步失败" }
+
+    var userMessage: String {
+        switch self {
+        case .unauthorized:
+            return "登录已过期，请重新登录后再试。"
+        case .offline:
+            return "网络好像断了，恢复后点「重试」继续。"
+        case let .server(status, message):
+            return "服务端返回 \(status)：\(message)。稍后重试。"
+        case .timeout:
+            return "请求超时，下次同步会从断点继续。"
+        case .permission:
+            return "健康数据权限被收回。请到「设置 → 健康 → Timia」重新授权。"
+        case let .other(message):
+            return message
+        }
+    }
+}
 
 struct HealthSyncView: View {
     @EnvironmentObject private var session: AppSession
@@ -9,9 +38,13 @@ struct HealthSyncView: View {
     @State private var isSyncing = false
     @State private var progressText = ""
     @State private var progress: Double = 0
-    @State private var errorMessage: String?
+    @State private var syncError: HealthSyncFailure?
+    @State private var lastErrorSummary: String?
     @State private var quantityGapHint: String?
     @State private var lastSyncedAt: Date?
+    @State private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+
+    private static let lastErrorSummaryKey = "timia.health.lastErrorSummary"
 
     var body: some View {
         List {
@@ -24,14 +57,30 @@ struct HealthSyncView: View {
                         Task { await authorize() }
                     }
                 } else {
-                    Button("同步") {
-                        Task { await sync() }
+                    HStack {
+                        Button(isSyncing ? "同步中…" : "同步") {
+                            Task { await sync() }
+                        }
+                        .disabled(isSyncing)
+                        if let lastErrorSummary, !isSyncing {
+                            Spacer()
+                            Button {
+                                Task { await sync() }
+                            } label: {
+                                Label("重试", systemImage: "arrow.clockwise")
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
-                    .disabled(isSyncing)
                     if let lastSyncedAt {
                         LabeledContent("上次同步", value: lastSyncedAt.formatted(date: .abbreviated, time: .shortened))
                     }
-                    Text("首次会读取近 90 天；之后从上次同步起增量同步。新数据也会在写入 iPhone「健康」后后台上传。")
+                    if let lastErrorSummary, !isSyncing {
+                        Text("上次失败：\(lastErrorSummary)")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
+                    Text("首次会读取近 90 天，按天上传并保存进度；锁屏中断后可从断点继续。之后从上次同步起增量同步，新数据也会在写入「健康」后后台上传。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -55,8 +104,8 @@ struct HealthSyncView: View {
                     Text(
                         permissions.didRequest
                             ? (lastSyncedAt == nil
-                                ? "点同步后会读取近 90 天数据并按日汇总。"
-                                : "点同步后会从上次同步起增量读取新数据。")
+                                ? "授权后点同步会按天读取近 90 天数据；中断后可续传。"
+                                : (isSyncing ? "正在按天同步…" : "当前没有待同步的数据。"))
                             : "授权后即可读取本机健康数据。"
                     )
                     .foregroundStyle(.secondary)
@@ -97,9 +146,11 @@ struct HealthSyncView: View {
         .navigationTitle("健康数据")
         .task {
             lastSyncedAt = HealthSyncService.cachedLastSyncedAt()
+            lastErrorSummary = UserDefaults.standard.string(forKey: Self.lastErrorSummaryKey)
             await refreshStatus()
+            await loadPendingDays()
         }
-        .refreshable { await refreshStatus() }
+        .refreshable { await refreshStatus(); await loadPendingDays() }
         .overlay {
             if isSyncing {
                 ZStack {
@@ -119,19 +170,20 @@ struct HealthSyncView: View {
                 .allowsHitTesting(true)
             }
         }
-        .alert("同步失败", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
+        .alert(syncError?.alertTitle ?? "同步失败", isPresented: Binding(
+            get: { syncError != nil },
+            set: { if !$0 { syncError = nil } }
         )) {
-            Button("好", role: .cancel) { errorMessage = nil }
+            Button("好", role: .cancel) { syncError = nil }
         } message: {
-            Text(errorMessage ?? "")
+            Text(syncError?.userMessage ?? "")
         }
     }
 
     private func authorize() async {
         _ = await permissions.requestIfNeeded()
         await HealthBackgroundDelivery.shared.start(api: session.api)
+        await loadPendingDays()
     }
 
     private func refreshStatus() async {
@@ -143,41 +195,153 @@ struct HealthSyncView: View {
                     + run.standHourCount + run.heartbeatSeriesCount + run.workoutCount + run.routeCount > 0
             }
             syncedDays = status.days.filter { $0.totalCount > 0 }
-            if let raw = status.lastSyncedAt, let date = HealthSyncService.parseISO(raw) {
-                lastSyncedAt = date
-                HealthSyncService.storeLastSyncedAt(date)
+            let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
+            let merged = HealthSyncService.mergeWatermark(
+                local: HealthSyncService.cachedLastSyncedAt(),
+                server: server
+            )
+            if let merged {
+                lastSyncedAt = merged
+                HealthSyncService.storeLastSyncedAt(merged)
             }
         } catch {
-            errorMessage = error.localizedDescription
+            // Status fetch is best-effort: don't surface failures here so the
+            // user can still retry sync from the existing checkpoint.
+        }
+    }
+
+    private func loadPendingDays() async {
+        guard HKHealthStore.isHealthDataAvailable(), permissions.didRequest else {
+            return
+        }
+        let start: Date
+        if let lastSyncedAt {
+            start = HealthSyncService.startDate(lastSyncedAt: lastSyncedAt)
+        } else {
+            return
+        }
+        do {
+            let export = try await HealthKitStore().exportSamples(from: start, to: Date())
+            let pending = HealthSyncService.pendingDays(from: export)
+            pendingDays = pending
+        } catch {
+            // Leave previous pendingDays in place; don't spam the user.
         }
     }
 
     private func sync() async {
         guard await permissions.requestIfNeeded() else { return }
         isSyncing = true
-        progress = 0.05
-        progressText = "正在读取健康数据…"
-        defer { isSyncing = false }
+        progress = 0.02
+        progressText = "正在同步…"
+        syncError = nil
+        beginSyncBackgroundTask()
+        defer {
+            endSyncBackgroundTask()
+            isSyncing = false
+        }
         do {
-            let start = HealthSyncService.startDate(lastSyncedAt: lastSyncedAt)
+            let watermark = HealthSyncService.mergeWatermark(
+                local: HealthSyncService.cachedLastSyncedAt(),
+                server: lastSyncedAt
+            )
+            lastSyncedAt = watermark
+            let start = HealthSyncService.startDate(lastSyncedAt: watermark)
             let end = Date()
+            let days = HealthSyncService.daySlices(from: start, to: end).count
+            quantityGapHint = nil
+            if watermark == nil {
+                progressText = "首次同步近 \(HealthSyncService.firstLookbackDays) 天（约 \(days) 片）…"
+            }
             let service = HealthSyncService(api: HealthSyncAPI(client: session.api))
-            let export = try await service.exportSince(start, to: end)
-            pendingDays = HealthSyncService.pendingDays(from: export)
-            quantityGapHint = export.samples.isEmpty && lastSyncedAt == nil
-                ? "没有读到步数、消耗或心率样本。请在「设置 > 健康 > 数据访问与设备」中允许 Timia 读取这些类型后再同步。"
-                : nil
-            try await service.upload(export, source: .manual, from: start, to: end) { fraction, label in
-                progress = fraction
+            try await service.syncWindow(from: start, to: end, source: .manual) { fraction, label in
+                progress = max(0.02, fraction)
                 progressText = label
             }
-            lastSyncedAt = end
+            lastSyncedAt = HealthSyncService.cachedLastSyncedAt() ?? end
             pendingDays = []
+            clearLastError()
             await HealthBackgroundDelivery.shared.start(api: session.api)
             await refreshStatus()
+            await loadPendingDays()
         } catch {
-            errorMessage = error.localizedDescription
+            // Keep day checkpoints; next tap resumes from lastSyncedAt.
+            // Also keep pendingDays so the user can see what's still queued.
+            lastSyncedAt = HealthSyncService.cachedLastSyncedAt() ?? lastSyncedAt
+            let failure = mapFailure(error)
+            syncError = failure
+            let summary = summarize(failure)
+            lastErrorSummary = summary
+            UserDefaults.standard.set(summary, forKey: Self.lastErrorSummaryKey)
+            await loadPendingDays()
         }
+    }
+
+    private func mapFailure(_ error: Error) -> HealthSyncFailure {
+        if let api = error as? APIError {
+            switch api {
+            case .unauthorized:
+                return .unauthorized
+            case .invalidConfiguration:
+                return .other(message: "API 地址配置无效")
+            case .invalidResponse:
+                return .other(message: "服务器返回了无法识别的数据。")
+            case .transport(let message):
+                let lower = message.lowercased()
+                if lower.contains("timeout") || lower.contains("timed out") {
+                    return .timeout
+                }
+                if lower.contains("offline") || lower.contains("not connected")
+                    || lower.contains("network") || lower.contains("internet") {
+                    return .offline
+                }
+                return .other(message: "网络异常：\(message)")
+            case let .server(status, message):
+                if status == 401 { return .unauthorized }
+                return .server(status: status, message: message)
+            }
+        }
+        let nsError = error as NSError
+        if nsError.domain == "NSHealthShareDeniedErrorDomain" || nsError.code == 5 {
+            return .permission
+        }
+        return .other(message: error.localizedDescription)
+    }
+
+    private func summarize(_ failure: HealthSyncFailure) -> String {
+        switch failure {
+        case .unauthorized: return "登录已过期"
+        case .offline: return "网络断开"
+        case .timeout: return "请求超时"
+        case .permission: return "健康权限被收回"
+        case let .server(status, _): return "服务端错误 \(status)"
+        case let .other(message):
+            return message.count > 30 ? String(message.prefix(30)) + "…" : message
+        }
+    }
+
+    private func clearLastError() {
+        lastErrorSummary = nil
+        UserDefaults.standard.removeObject(forKey: Self.lastErrorSummaryKey)
+    }
+
+    private func beginSyncBackgroundTask() {
+        endSyncBackgroundTask()
+        var taskID = UIBackgroundTaskIdentifier.invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: "health-sync") {
+            if taskID != .invalid {
+                UIApplication.shared.endBackgroundTask(taskID)
+                taskID = .invalid
+            }
+        }
+        backgroundTaskID = taskID
+    }
+
+    private func endSyncBackgroundTask() {
+        let taskID = backgroundTaskID
+        guard taskID != .invalid else { return }
+        backgroundTaskID = .invalid
+        UIApplication.shared.endBackgroundTask(taskID)
     }
 
     private func runTime(_ run: HealthSyncRun) -> String {

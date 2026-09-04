@@ -31,6 +31,7 @@ struct HealthSyncService {
     static let lastSyncedKey = "timia.health.lastSyncedAt"
     static let overlap: TimeInterval = 2 * 60 * 60
     static let firstLookbackDays = 90
+    static let uploadConcurrency = 4
 
     var api: HealthSyncAPI
     var store = HealthKitStore()
@@ -57,6 +58,36 @@ struct HealthSyncService {
         UserDefaults.standard.set(iso(date), forKey: lastSyncedKey)
     }
 
+    /// Prefer the newer of local checkpoint vs server watermark so a lagging
+    /// server stamp cannot wipe day-chunk progress after an interrupted sync.
+    static func mergeWatermark(local: Date?, server: Date?) -> Date? {
+        switch (local, server) {
+        case let (l?, s?): return max(l, s)
+        case let (l?, nil): return l
+        case let (nil, s?): return s
+        case (nil, nil): return nil
+        }
+    }
+
+    static func daySlices(from start: Date, to end: Date, calendar: Calendar = .current) -> [(start: Date, end: Date)] {
+        guard start < end else { return [] }
+        var slices: [(start: Date, end: Date)] = []
+        var cursor = start
+        while cursor < end {
+            let dayStart = calendar.startOfDay(for: cursor)
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? end
+            let sliceEnd = min(nextDay, end)
+            slices.append((cursor, sliceEnd))
+            cursor = sliceEnd
+        }
+        return slices
+    }
+
+    static func dayLabel(for date: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
     func exportSince(_ start: Date, to end: Date = Date()) async throws -> HealthKitExport {
         try await store.exportSamples(from: start, to: end)
     }
@@ -67,9 +98,75 @@ struct HealthSyncService {
         source: HealthSyncSource,
         onProgress: @escaping (Double, String) -> Void
     ) async throws {
-        onProgress(0.05, "正在读取健康数据…")
-        let export = try await exportSince(start, to: end)
-        try await upload(export, source: source, from: start, to: end, onProgress: onProgress)
+        let slices = Self.daySlices(from: start, to: end)
+        guard !slices.isEmpty else {
+            onProgress(1, "没有需要同步的时间范围")
+            try await finish(
+                source: source,
+                start: start,
+                end: end,
+                quantityCount: 0,
+                sleepCount: 0,
+                standHourCount: 0,
+                heartbeatCount: 0,
+                workoutCount: 0,
+                routeCount: 0,
+                upserted: 0,
+                dates: []
+            )
+            return
+        }
+
+        var upserted = 0
+        var quantityCount = 0
+        var sleepCount = 0
+        var standHourCount = 0
+        var heartbeatCount = 0
+        var workoutCount = 0
+        var routeCount = 0
+        var localDates: Set<String> = []
+        let dayTotal = slices.count
+
+        for (index, slice) in slices.enumerated() {
+            let dayIndex = index + 1
+            let label = Self.dayLabel(for: slice.start)
+            let base = Double(index) / Double(dayTotal)
+            let span = 1.0 / Double(dayTotal)
+
+            onProgress(base, "正在读取 \(dayIndex)/\(dayTotal) · \(label)")
+            let export = try await exportSince(slice.start, to: slice.end)
+            quantityCount += export.samples.count
+            sleepCount += export.sleep.count
+            standHourCount += export.standHours.count
+            heartbeatCount += export.heartbeats.count
+            workoutCount += export.workouts.count
+            routeCount += export.routes.count
+
+            let dayResult = try await uploadBatches(export, onProgress: { fraction, step in
+                onProgress(base + span * fraction * 0.95, "\(dayIndex)/\(dayTotal) · \(label) · \(step)")
+            })
+            upserted += dayResult.upserted
+            for date in dayResult.localDates { localDates.insert(date) }
+
+            // Checkpoint after each successful day so lock/kill can resume.
+            Self.storeLastSyncedAt(slice.end)
+            onProgress(base + span, "已完成 \(dayIndex)/\(dayTotal) · \(label)")
+        }
+
+        try await finish(
+            source: source,
+            start: start,
+            end: end,
+            quantityCount: quantityCount,
+            sleepCount: sleepCount,
+            standHourCount: standHourCount,
+            heartbeatCount: heartbeatCount,
+            workoutCount: workoutCount,
+            routeCount: routeCount,
+            upserted: upserted,
+            dates: Array(localDates).sorted()
+        )
+        onProgress(1, "同步完成")
     }
 
     func upload(
@@ -79,6 +176,32 @@ struct HealthSyncService {
         to end: Date,
         onProgress: @escaping (Double, String) -> Void
     ) async throws {
+        let result = try await uploadBatches(export, onProgress: onProgress)
+        try await finish(
+            source: source,
+            start: start,
+            end: end,
+            quantityCount: export.samples.count,
+            sleepCount: export.sleep.count,
+            standHourCount: export.standHours.count,
+            heartbeatCount: export.heartbeats.count,
+            workoutCount: export.workouts.count,
+            routeCount: export.routes.count,
+            upserted: result.upserted,
+            dates: Array(result.localDates).sorted()
+        )
+        onProgress(1, "同步完成")
+    }
+
+    private struct UploadBatchResult {
+        var upserted: Int
+        var localDates: Set<String>
+    }
+
+    private func uploadBatches(
+        _ export: HealthKitExport,
+        onProgress: @escaping (Double, String) -> Void
+    ) async throws -> UploadBatchResult {
         let sampleBatches = export.samples.chunked(into: 500)
         let sleepBatches = export.sleep.chunked(into: 200)
         let standBatches = export.standHours.chunked(into: 200)
@@ -90,60 +213,88 @@ struct HealthSyncService {
                 + workoutBatches.count + routeBatches.count + heartbeatBatches.count,
             1
         )
-        var done = 0
-        var upserted = 0
-        var localDates: Set<String> = []
-
-        func step(_ label: String) {
-            done += 1
-            onProgress(Double(done) / Double(total), label)
-        }
-
-        func absorb(_ result: HealthSyncOut) {
-            upserted += result.upserted
-            for date in result.localDates { localDates.insert(date) }
-        }
 
         if sampleBatches.isEmpty, sleepBatches.isEmpty, standBatches.isEmpty,
            workoutBatches.isEmpty, routeBatches.isEmpty, heartbeatBatches.isEmpty {
-            onProgress(1, "没有需要上传的数据")
-            try await finish(source: source, start: start, end: end, export: export, upserted: 0, dates: [])
-            return
+            onProgress(1, "无样本")
+            return UploadBatchResult(upserted: 0, localDates: [])
         }
 
-        for batch in sampleBatches {
-            absorb(try await api.syncSamples(HealthQuantitySyncPayload(timezone: timezone, samples: batch)))
-            step("正在同步指标 \(done)/\(total)")
+        struct Category: Sendable {
+            let label: String
+            let count: Int
+            let run: @Sendable (Int) async throws -> HealthSyncOut
         }
-        for batch in sleepBatches {
-            absorb(try await api.syncSleep(HealthSleepSyncPayload(timezone: timezone, samples: batch)))
-            step("正在同步睡眠 \(done)/\(total)")
+
+        let api = self.api
+        let tz = self.timezone
+        let categories: [Category] = [
+            Category(label: "指标", count: sampleBatches.count) { index in
+                try await api.syncSamples(
+                    HealthQuantitySyncPayload(timezone: tz, samples: sampleBatches[index])
+                )
+            },
+            Category(label: "睡眠", count: sleepBatches.count) { index in
+                try await api.syncSleep(
+                    HealthSleepSyncPayload(timezone: tz, samples: sleepBatches[index])
+                )
+            },
+            Category(label: "站立", count: standBatches.count) { index in
+                try await api.syncStandHours(
+                    HealthStandHourSyncPayload(timezone: tz, samples: standBatches[index])
+                )
+            },
+            Category(label: "训练", count: workoutBatches.count) { index in
+                try await api.syncWorkouts(
+                    HealthWorkoutSyncPayload(timezone: tz, workouts: workoutBatches[index])
+                )
+            },
+            Category(label: "路线", count: routeBatches.count) { index in
+                try await api.syncWorkoutRoutes(
+                    HealthWorkoutRouteSyncPayload(timezone: tz, routes: routeBatches[index])
+                )
+            },
+            Category(label: "心跳", count: heartbeatBatches.count) { index in
+                try await api.syncHeartbeat(
+                    HealthHeartbeatSyncPayload(timezone: tz, series: heartbeatBatches[index])
+                )
+            },
+        ]
+
+        let aggregator = ResultAggregator()
+        let totalBox = TotalBox(value: total)
+        let cap = Self.uploadConcurrency
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            var inflight = 0
+            for category in categories {
+                for index in 0..<category.count {
+                    let label = "\(category.label) \(index + 1)/\(category.count)"
+                    let run = category.run
+                    group.addTask { [aggregator, totalBox, label] in
+                        let out = try await run(index)
+                        await aggregator.absorb(out)
+                        await totalBox.bump(label: label)
+                    }
+                    inflight += 1
+                    if inflight >= cap {
+                        _ = try await group.next()
+                        inflight -= 1
+                        let s = await totalBox.snapshot()
+                        onProgress(Double(s.done) / Double(s.total), s.label)
+                    }
+                }
+            }
+            while inflight > 0 {
+                _ = try await group.next()
+                inflight -= 1
+                let s = await totalBox.snapshot()
+                onProgress(Double(s.done) / Double(s.total), s.label)
+            }
         }
-        for batch in standBatches {
-            absorb(try await api.syncStandHours(HealthStandHourSyncPayload(timezone: timezone, samples: batch)))
-            step("正在同步站立 \(done)/\(total)")
-        }
-        for batch in workoutBatches {
-            absorb(try await api.syncWorkouts(HealthWorkoutSyncPayload(timezone: timezone, workouts: batch)))
-            step("正在同步训练 \(done)/\(total)")
-        }
-        for batch in routeBatches {
-            absorb(try await api.syncWorkoutRoutes(HealthWorkoutRouteSyncPayload(timezone: timezone, routes: batch)))
-            step("正在同步路线 \(done)/\(total)")
-        }
-        for batch in heartbeatBatches {
-            absorb(try await api.syncHeartbeat(HealthHeartbeatSyncPayload(timezone: timezone, series: batch)))
-            step("正在同步心跳序列 \(done)/\(total)")
-        }
-        try await finish(
-            source: source,
-            start: start,
-            end: end,
-            export: export,
-            upserted: upserted,
-            dates: Array(localDates).sorted()
-        )
-        onProgress(1, "同步完成")
+
+        let (upserted, localDates) = await aggregator.snapshot()
+        return UploadBatchResult(upserted: upserted, localDates: localDates)
     }
 
     static func pendingDays(from export: HealthKitExport) -> [HealthPendingDay] {
@@ -194,7 +345,12 @@ struct HealthSyncService {
         source: HealthSyncSource,
         start: Date,
         end: Date,
-        export: HealthKitExport,
+        quantityCount: Int,
+        sleepCount: Int,
+        standHourCount: Int,
+        heartbeatCount: Int,
+        workoutCount: Int,
+        routeCount: Int,
         upserted: Int,
         dates: [String]
     ) async throws {
@@ -204,12 +360,12 @@ struct HealthSyncService {
                 status: "success",
                 fromAt: Self.iso(start),
                 toAt: Self.iso(end),
-                quantityCount: export.samples.count,
-                sleepCount: export.sleep.count,
-                standHourCount: export.standHours.count,
-                heartbeatSeriesCount: export.heartbeats.count,
-                workoutCount: export.workouts.count,
-                routeCount: export.routes.count,
+                quantityCount: quantityCount,
+                sleepCount: sleepCount,
+                standHourCount: standHourCount,
+                heartbeatSeriesCount: heartbeatCount,
+                workoutCount: workoutCount,
+                routeCount: routeCount,
                 upserted: upserted,
                 localDates: dates,
                 error: nil
@@ -249,5 +405,36 @@ private extension Array {
         return stride(from: 0, to: count, by: size).map {
             Array(self[$0..<Swift.min($0 + size, count)])
         }
+    }
+}
+
+private actor ResultAggregator {
+    private var upserted = 0
+    private var localDates = Set<String>()
+
+    func absorb(_ result: HealthSyncOut) {
+        upserted += result.upserted
+        for date in result.localDates { localDates.insert(date) }
+    }
+
+    func snapshot() -> (Int, Set<String>) {
+        (upserted, localDates)
+    }
+}
+
+private actor TotalBox {
+    let total: Int
+    private var done: Int = 0
+    private var lastLabel: String = ""
+
+    init(value: Int) { self.total = max(value, 1) }
+
+    func bump(label: String) {
+        done += 1
+        lastLabel = label
+    }
+
+    func snapshot() -> (done: Int, total: Int, label: String) {
+        (done, total, lastLabel)
     }
 }

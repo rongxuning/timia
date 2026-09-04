@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.models._mixins import utcnow
@@ -118,44 +119,63 @@ def sync_quantity_samples(db: Session, user: User, payload: HealthQuantitySyncIn
         raise
     if len(payload.samples) > BATCH_SAMPLES_MAX:
         raise HTTPException(status_code=400, detail="batch_too_large")
-    dates: set[date] = set()
+    if not payload.samples:
+        return HealthSyncOut(upserted=0, local_dates=[])
     for item in payload.samples:
         if item.metric_type not in QUANTITY_METRIC_TYPES:
             raise HTTPException(status_code=400, detail="unknown_metric_type")
+    now = utcnow()
+    dates: set[date] = set()
+    rows: list[dict[str, Any]] = []
+    for item in payload.samples:
         start_at = _aware(item.start_at)
         end_at = _aware(item.end_at)
         dates.add(local_date_of(start_at, tz_name))
-        row = _get_quantity(db, user.id, item.hk_uuid)
-        if row is None:
-            db.add(
-                HealthSampleQuantity(
-                    owner_user_id=user.id,
-                    hk_uuid=item.hk_uuid,
-                    metric_type=item.metric_type,
-                    start_at=start_at,
-                    end_at=end_at,
-                    value=item.value,
-                    unit=item.unit,
-                    source_bundle_id=item.source_bundle_id,
-                    source_name=item.source_name,
-                    extra_metadata=item.metadata,
-                )
-            )
-        else:
-            row.metric_type = item.metric_type
-            row.start_at = start_at
-            row.end_at = end_at
-            row.value = item.value
-            row.unit = item.unit
-            row.source_bundle_id = item.source_bundle_id
-            row.source_name = item.source_name
-            row.extra_metadata = item.metadata
-            row.deleted_at = None
-            row.updated_at = utcnow()
+        rows.append(
+            {
+                "owner_user_id": user.id,
+                "hk_uuid": item.hk_uuid,
+                "metric_type": item.metric_type,
+                "start_at": start_at,
+                "end_at": end_at,
+                "value": item.value,
+                "unit": item.unit,
+                "source_bundle_id": item.source_bundle_id,
+                "source_name": item.source_name,
+                "extra_metadata": item.metadata,
+                "deleted_at": None,
+                "updated_at": now,
+            }
+        )
+    _bulk_upsert_quantity(db, rows)
     db.flush()
     for local_date in dates:
         recompute_daily_metrics(db, user.id, local_date, tz_name)
-    return HealthSyncOut(upserted=len(payload.samples), local_dates=_date_list(dates))
+    return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
+
+
+def _bulk_upsert_quantity(db: Session, rows: list[dict[str, Any]]) -> None:
+    """One-shot INSERT ... ON CONFLICT for the whole quantity batch."""
+    if not rows:
+        return
+    metadata_col = HealthSampleQuantity.__table__.c.metadata
+    stmt = pg_insert(HealthSampleQuantity).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_health_sample_quantity_owner_hk",
+        set_={
+            "metric_type": stmt.excluded.metric_type,
+            "start_at": stmt.excluded.start_at,
+            "end_at": stmt.excluded.end_at,
+            "value": stmt.excluded.value,
+            "unit": stmt.excluded.unit,
+            "source_bundle_id": stmt.excluded.source_bundle_id,
+            "source_name": stmt.excluded.source_name,
+            metadata_col.key: stmt.excluded[metadata_col.key],
+            "deleted_at": None,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> HealthSyncOut:
@@ -166,10 +186,15 @@ def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> H
         raise
     if len(payload.samples) > BATCH_SLEEP_MAX:
         raise HTTPException(status_code=400, detail="batch_too_large")
-    dates: set[date] = set()
+    if not payload.samples:
+        return HealthSyncOut(upserted=0, local_dates=[])
     for item in payload.samples:
         if item.stage not in SLEEP_STAGES:
             raise HTTPException(status_code=400, detail="unknown_sleep_stage")
+    now = utcnow()
+    dates: set[date] = set()
+    rows: list[dict[str, Any]] = []
+    for item in payload.samples:
         start_at = _aware(item.start_at)
         end_at = _aware(item.end_at)
         sample_tz = item.timezone or tz_name
@@ -178,33 +203,45 @@ def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> H
         except ValueError as err:
             _invalid_timezone(err)
         dates.add(local_date_of(end_at, sample_tz))
-        row = _get_sleep(db, user.id, item.hk_uuid)
-        if row is None:
-            db.add(
-                HealthSampleSleep(
-                    owner_user_id=user.id,
-                    hk_uuid=item.hk_uuid,
-                    start_at=start_at,
-                    end_at=end_at,
-                    stage=item.stage,
-                    timezone=sample_tz,
-                    source_bundle_id=item.source_bundle_id,
-                    source_name=item.source_name,
-                )
-            )
-        else:
-            row.start_at = start_at
-            row.end_at = end_at
-            row.stage = item.stage
-            row.timezone = sample_tz
-            row.source_bundle_id = item.source_bundle_id
-            row.source_name = item.source_name
-            row.deleted_at = None
-            row.updated_at = utcnow()
+        rows.append(
+            {
+                "owner_user_id": user.id,
+                "hk_uuid": item.hk_uuid,
+                "start_at": start_at,
+                "end_at": end_at,
+                "stage": item.stage,
+                "timezone": sample_tz,
+                "source_bundle_id": item.source_bundle_id,
+                "source_name": item.source_name,
+                "deleted_at": None,
+                "updated_at": now,
+            }
+        )
+    _bulk_upsert_sleep(db, rows)
     db.flush()
     for local_date in dates:
         recompute_daily_metrics(db, user.id, local_date, tz_name)
-    return HealthSyncOut(upserted=len(payload.samples), local_dates=_date_list(dates))
+    return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
+
+
+def _bulk_upsert_sleep(db: Session, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    stmt = pg_insert(HealthSampleSleep).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_health_sample_sleep_owner_hk",
+        set_={
+            "start_at": stmt.excluded.start_at,
+            "end_at": stmt.excluded.end_at,
+            "stage": stmt.excluded.stage,
+            "timezone": stmt.excluded.timezone,
+            "source_bundle_id": stmt.excluded.source_bundle_id,
+            "source_name": stmt.excluded.source_name,
+            "deleted_at": None,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def sync_stand_hours(db: Session, user: User, payload: HealthStandHourSyncIn) -> HealthSyncOut:
@@ -215,36 +252,52 @@ def sync_stand_hours(db: Session, user: User, payload: HealthStandHourSyncIn) ->
         raise
     if len(payload.samples) > BATCH_STAND_HOUR_MAX:
         raise HTTPException(status_code=400, detail="batch_too_large")
+    if not payload.samples:
+        return HealthSyncOut(upserted=0, local_dates=[])
+    now = utcnow()
     dates: set[date] = set()
+    rows: list[dict[str, Any]] = []
     for item in payload.samples:
         start_at = _aware(item.start_at)
         end_at = _aware(item.end_at)
         dates.add(local_date_of(start_at, tz_name))
-        row = _get_stand_hour(db, user.id, item.hk_uuid)
-        if row is None:
-            db.add(
-                HealthSampleStandHour(
-                    owner_user_id=user.id,
-                    hk_uuid=item.hk_uuid,
-                    start_at=start_at,
-                    end_at=end_at,
-                    stood=item.stood,
-                    source_bundle_id=item.source_bundle_id,
-                    source_name=item.source_name,
-                )
-            )
-        else:
-            row.start_at = start_at
-            row.end_at = end_at
-            row.stood = item.stood
-            row.source_bundle_id = item.source_bundle_id
-            row.source_name = item.source_name
-            row.deleted_at = None
-            row.updated_at = utcnow()
+        rows.append(
+            {
+                "owner_user_id": user.id,
+                "hk_uuid": item.hk_uuid,
+                "start_at": start_at,
+                "end_at": end_at,
+                "stood": item.stood,
+                "source_bundle_id": item.source_bundle_id,
+                "source_name": item.source_name,
+                "deleted_at": None,
+                "updated_at": now,
+            }
+        )
+    _bulk_upsert_stand_hour(db, rows)
     db.flush()
     for local_date in dates:
         recompute_daily_metrics(db, user.id, local_date, tz_name)
-    return HealthSyncOut(upserted=len(payload.samples), local_dates=_date_list(dates))
+    return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
+
+
+def _bulk_upsert_stand_hour(db: Session, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    stmt = pg_insert(HealthSampleStandHour).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_health_sample_stand_hour_owner_hk",
+        set_={
+            "start_at": stmt.excluded.start_at,
+            "end_at": stmt.excluded.end_at,
+            "stood": stmt.excluded.stood,
+            "source_bundle_id": stmt.excluded.source_bundle_id,
+            "source_name": stmt.excluded.source_name,
+            "deleted_at": None,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def sync_heartbeat_series(db: Session, user: User, payload: HealthHeartbeatSyncIn) -> HealthSyncOut:
@@ -255,39 +308,55 @@ def sync_heartbeat_series(db: Session, user: User, payload: HealthHeartbeatSyncI
         raise
     if len(payload.series) > BATCH_HEARTBEAT_MAX:
         raise HTTPException(status_code=400, detail="batch_too_large")
+    if not payload.series:
+        return HealthSyncOut(upserted=0, local_dates=[])
+    now = utcnow()
     dates: set[date] = set()
+    rows: list[dict[str, Any]] = []
     for item in payload.series:
         start_at = _aware(item.start_at)
         end_at = _aware(item.end_at)
         dates.add(local_date_of(start_at, tz_name))
         intervals = [interval.model_dump() for interval in item.intervals]
-        row = _get_heartbeat(db, user.id, item.hk_uuid)
-        if row is None:
-            db.add(
-                HealthSeriesHeartbeat(
-                    owner_user_id=user.id,
-                    hk_uuid=item.hk_uuid,
-                    start_at=start_at,
-                    end_at=end_at,
-                    interval_count=len(intervals),
-                    intervals=intervals,
-                    source_bundle_id=item.source_bundle_id,
-                    source_name=item.source_name,
-                )
-            )
-        else:
-            row.start_at = start_at
-            row.end_at = end_at
-            row.interval_count = len(intervals)
-            row.intervals = intervals
-            row.source_bundle_id = item.source_bundle_id
-            row.source_name = item.source_name
-            row.deleted_at = None
-            row.updated_at = utcnow()
+        rows.append(
+            {
+                "owner_user_id": user.id,
+                "hk_uuid": item.hk_uuid,
+                "start_at": start_at,
+                "end_at": end_at,
+                "interval_count": len(intervals),
+                "intervals": intervals,
+                "source_bundle_id": item.source_bundle_id,
+                "source_name": item.source_name,
+                "deleted_at": None,
+                "updated_at": now,
+            }
+        )
+    _bulk_upsert_heartbeat(db, rows)
     db.flush()
     for local_date in dates:
         recompute_daily_metrics(db, user.id, local_date, tz_name)
-    return HealthSyncOut(upserted=len(payload.series), local_dates=_date_list(dates))
+    return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
+
+
+def _bulk_upsert_heartbeat(db: Session, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    stmt = pg_insert(HealthSeriesHeartbeat).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_health_series_heartbeat_owner_hk",
+        set_={
+            "start_at": stmt.excluded.start_at,
+            "end_at": stmt.excluded.end_at,
+            "interval_count": stmt.excluded.interval_count,
+            "intervals": stmt.excluded.intervals,
+            "source_bundle_id": stmt.excluded.source_bundle_id,
+            "source_name": stmt.excluded.source_name,
+            "deleted_at": None,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> HealthSyncOut:
@@ -298,69 +367,86 @@ def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> Heal
         raise
     if len(payload.workouts) > BATCH_WORKOUT_MAX:
         raise HTTPException(status_code=400, detail="batch_too_large")
+    if not payload.workouts:
+        return HealthSyncOut(upserted=0, local_dates=[])
+    now = utcnow()
     dates: set[date] = set()
+    rows: list[dict[str, Any]] = []
     for item in payload.workouts:
         start_at = _aware(item.start_at)
         end_at = _aware(item.end_at)
         dates.add(local_date_of(start_at, tz_name))
         activity = normalize_activity_type(item.activity_type, item.activity_type_raw)
-        row = _get_workout(db, user.id, item.hk_uuid)
-        if row is None:
-            db.add(
-                HealthWorkoutSession(
-                    owner_user_id=user.id,
-                    hk_uuid=item.hk_uuid,
-                    activity_type=activity,
-                    activity_type_raw=item.activity_type_raw or item.activity_type,
-                    start_at=start_at,
-                    end_at=end_at,
-                    duration_seconds=item.duration_seconds,
-                    active_energy_kcal=item.active_energy_kcal,
-                    distance_m=item.distance_m,
-                    avg_hr_bpm=item.avg_hr_bpm,
-                    max_hr_bpm=item.max_hr_bpm,
-                    avg_cadence_spm=item.avg_cadence_spm,
-                    avg_pace_sec_per_km=item.avg_pace_sec_per_km,
-                    elevation_ascended_m=item.elevation_ascended_m,
-                    elevation_descended_m=item.elevation_descended_m,
-                    weather_temp_c=item.weather_temp_c,
-                    weather_humidity=item.weather_humidity,
-                    location_country=item.location_country,
-                    location_admin=item.location_admin,
-                    location_city=item.location_city,
-                    source_bundle_id=item.source_bundle_id,
-                    source_name=item.source_name,
-                    extra_metadata=item.metadata,
-                )
-            )
-        else:
-            row.activity_type = activity
-            row.activity_type_raw = item.activity_type_raw or item.activity_type
-            row.start_at = start_at
-            row.end_at = end_at
-            row.duration_seconds = item.duration_seconds
-            row.active_energy_kcal = item.active_energy_kcal
-            row.distance_m = item.distance_m
-            row.avg_hr_bpm = item.avg_hr_bpm
-            row.max_hr_bpm = item.max_hr_bpm
-            row.avg_cadence_spm = item.avg_cadence_spm
-            row.avg_pace_sec_per_km = item.avg_pace_sec_per_km
-            row.elevation_ascended_m = item.elevation_ascended_m
-            row.elevation_descended_m = item.elevation_descended_m
-            row.weather_temp_c = item.weather_temp_c
-            row.weather_humidity = item.weather_humidity
-            row.location_country = item.location_country
-            row.location_admin = item.location_admin
-            row.location_city = item.location_city
-            row.source_bundle_id = item.source_bundle_id
-            row.source_name = item.source_name
-            row.extra_metadata = item.metadata
-            row.deleted_at = None
-            row.updated_at = utcnow()
+        rows.append(
+            {
+                "owner_user_id": user.id,
+                "hk_uuid": item.hk_uuid,
+                "activity_type": activity,
+                "activity_type_raw": item.activity_type_raw or item.activity_type,
+                "start_at": start_at,
+                "end_at": end_at,
+                "duration_seconds": item.duration_seconds,
+                "active_energy_kcal": item.active_energy_kcal,
+                "distance_m": item.distance_m,
+                "avg_hr_bpm": item.avg_hr_bpm,
+                "max_hr_bpm": item.max_hr_bpm,
+                "avg_cadence_spm": item.avg_cadence_spm,
+                "avg_pace_sec_per_km": item.avg_pace_sec_per_km,
+                "elevation_ascended_m": item.elevation_ascended_m,
+                "elevation_descended_m": item.elevation_descended_m,
+                "weather_temp_c": item.weather_temp_c,
+                "weather_humidity": item.weather_humidity,
+                "location_country": item.location_country,
+                "location_admin": item.location_admin,
+                "location_city": item.location_city,
+                "source_bundle_id": item.source_bundle_id,
+                "source_name": item.source_name,
+                "extra_metadata": item.metadata,
+                "deleted_at": None,
+                "updated_at": now,
+            }
+        )
+    _bulk_upsert_workout(db, rows)
     db.flush()
     for local_date in dates:
         recompute_daily_metrics(db, user.id, local_date, tz_name)
-    return HealthSyncOut(upserted=len(payload.workouts), local_dates=_date_list(dates))
+    return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
+
+
+def _bulk_upsert_workout(db: Session, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    metadata_col = HealthWorkoutSession.__table__.c.metadata
+    stmt = pg_insert(HealthWorkoutSession).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_health_workout_session_owner_hk",
+        set_={
+            "activity_type": stmt.excluded.activity_type,
+            "activity_type_raw": stmt.excluded.activity_type_raw,
+            "start_at": stmt.excluded.start_at,
+            "end_at": stmt.excluded.end_at,
+            "duration_seconds": stmt.excluded.duration_seconds,
+            "active_energy_kcal": stmt.excluded.active_energy_kcal,
+            "distance_m": stmt.excluded.distance_m,
+            "avg_hr_bpm": stmt.excluded.avg_hr_bpm,
+            "max_hr_bpm": stmt.excluded.max_hr_bpm,
+            "avg_cadence_spm": stmt.excluded.avg_cadence_spm,
+            "avg_pace_sec_per_km": stmt.excluded.avg_pace_sec_per_km,
+            "elevation_ascended_m": stmt.excluded.elevation_ascended_m,
+            "elevation_descended_m": stmt.excluded.elevation_descended_m,
+            "weather_temp_c": stmt.excluded.weather_temp_c,
+            "weather_humidity": stmt.excluded.weather_humidity,
+            "location_country": stmt.excluded.location_country,
+            "location_admin": stmt.excluded.location_admin,
+            "location_city": stmt.excluded.location_city,
+            "source_bundle_id": stmt.excluded.source_bundle_id,
+            "source_name": stmt.excluded.source_name,
+            metadata_col.key: stmt.excluded[metadata_col.key],
+            "deleted_at": None,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def sync_workout_routes(db: Session, user: User, payload: HealthWorkoutRouteSyncIn) -> HealthSyncOut:
@@ -407,11 +493,14 @@ def sync_deletions(db: Session, user: User, payload: HealthDeletionSyncIn) -> He
         raise
     if len(payload.deletions) > BATCH_DELETION_MAX:
         raise HTTPException(status_code=400, detail="batch_too_large")
-    dates: set[date] = set()
-    now = utcnow()
+    if not payload.deletions:
+        return HealthSyncOut(upserted=0, local_dates=[])
     for item in payload.deletions:
         if item.kind not in DELETION_KINDS:
             raise HTTPException(status_code=400, detail="unknown_deletion_kind")
+    now = utcnow()
+    dates: set[date] = set()
+    for item in payload.deletions:
         row, stamp = _load_for_delete(db, user.id, item.hk_uuid, item.kind)
         if row is None or stamp is None:
             continue
@@ -516,7 +605,7 @@ def list_sync_status(
     return HealthSyncStatusOut(
         timezone=tz_name,
         last_synced_at=state.last_synced_at if state else None,
-        days=[buckets[key] for key in sorted(buckets)],
+        days=[buckets[key] for key in sorted(buckets, reverse=True)],
         runs=[_sync_run_out(row) for row in runs],
     )
 

@@ -42,10 +42,9 @@ final class HealthBackgroundDelivery {
         let end = Date()
         do {
             let service = HealthSyncService(api: HealthSyncAPI(client: api))
-            let export = try await service.exportSince(start, to: end)
-            try await service.upload(export, source: .background, from: start, to: end) { _, _ in }
+            try await service.syncWindow(from: start, to: end, source: .background) { _, _ in }
         } catch {
-            // Keep the observer alive; the next wake or manual sync retries.
+            // Keep the observer alive; day checkpoints + next wake or manual sync retry.
         }
     }
 

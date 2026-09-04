@@ -28,36 +28,42 @@ struct HealthKitStore {
 
     func exportSamples(from start: Date, to end: Date = Date()) async throws -> HealthKitExport {
         guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitStoreError.unavailable }
-        let samples = await fetchQuantities(from: start, to: end)
-        let sleep = await fetchSleep(from: start, to: end)
-        let standHours = await fetchStandHours(from: start, to: end)
-        let (workouts, routes) = await fetchWorkouts(from: start, to: end)
-        let heartbeats = await fetchHeartbeats(from: start, to: end)
+        async let samplesTask: [HealthQuantitySamplePayload] = fetchQuantities(from: start, to: end)
+        async let sleepTask: [HealthSleepSamplePayload] = fetchSleep(from: start, to: end)
+        async let standTask: [HealthStandHourPayload] = fetchStandHours(from: start, to: end)
+        async let workoutsTask: ([HealthWorkoutPayload], [HealthWorkoutRoutePayload]) = fetchWorkouts(from: start, to: end)
+        async let heartbeatsTask: [HealthHeartbeatSeriesPayload] = fetchHeartbeats(from: start, to: end)
+        let (workouts, routes) = await workoutsTask
         return HealthKitExport(
-            samples: samples,
-            sleep: sleep,
-            standHours: standHours,
+            samples: await samplesTask,
+            sleep: await sleepTask,
+            standHours: await standTask,
             workouts: workouts,
             routes: routes,
-            heartbeats: heartbeats
+            heartbeats: await heartbeatsTask
         )
     }
 
     private func fetchQuantities(from start: Date, to end: Date) async -> [HealthQuantitySamplePayload] {
+        let perSpec: [[HealthQuantitySamplePayload]] = await withTaskGroup(of: [HealthQuantitySamplePayload].self) { group in
+            for spec in Self.quantitySpecs {
+                group.addTask { [self] in
+                    // Series query completes with 0 rows (not an error) for discrete types
+                    // like steps and energy. Only falling back on throw would skip them.
+                    let series = (try? await self.queryQuantitySeries(spec, from: start, to: end)) ?? []
+                    if !series.isEmpty { return series }
+                    return (try? await self.queryQuantitySamples(spec, from: start, to: end)) ?? []
+                }
+            }
+            var results: [[HealthQuantitySamplePayload]] = []
+            for await rows in group { results.append(rows) }
+            return results
+        }
         var collected: [HealthQuantitySamplePayload] = []
         var seen = Set<String>()
-        func append(_ rows: [HealthQuantitySamplePayload]) {
+        for rows in perSpec {
             for row in rows where seen.insert(row.hkUuid).inserted {
                 collected.append(row)
-            }
-        }
-        for spec in Self.quantitySpecs {
-            // Series query completes with 0 rows (not an error) for discrete types
-            // like steps and energy. Only falling back on throw would skip them.
-            let series = (try? await queryQuantitySeries(spec, from: start, to: end)) ?? []
-            append(series)
-            if series.isEmpty {
-                append((try? await queryQuantitySamples(spec, from: start, to: end)) ?? [])
             }
         }
         return collected
@@ -157,22 +163,35 @@ struct HealthKitStore {
         to end: Date
     ) async -> ([HealthWorkoutPayload], [HealthWorkoutRoutePayload]) {
         let samples = (try? await sampleQuery(HKObjectType.workoutType(), from: start, to: end)) ?? []
-        var workouts: [HealthWorkoutPayload] = []
-        var routes: [HealthWorkoutRoutePayload] = []
-        for sample in samples {
-            guard let workout = sample as? HKWorkout else { continue }
-            workouts.append(await workoutPayload(workout))
-            if let route = await fetchRoute(for: workout) {
-                routes.append(route)
+        let workoutList = samples.compactMap { $0 as? HKWorkout }
+        async let payloads: [HealthWorkoutPayload] = withTaskGroup(of: (Int, HealthWorkoutPayload).self) { group in
+            for (index, workout) in workoutList.enumerated() {
+                group.addTask { [self] in
+                    return (index, await self.workoutPayload(workout))
+                }
             }
+            var collected: [(Int, HealthWorkoutPayload)] = []
+            for await item in group { collected.append(item) }
+            return collected.sorted { $0.0 < $1.0 }.map { $0.1 }
         }
-        return (workouts, routes)
+        async let routes: [HealthWorkoutRoutePayload] = withTaskGroup(of: HealthWorkoutRoutePayload?.self) { group in
+            for workout in workoutList {
+                group.addTask { [self] in
+                    return await self.fetchRoute(for: workout)
+                }
+            }
+            var collected: [HealthWorkoutRoutePayload] = []
+            for await item in group {
+                if let item { collected.append(item) }
+            }
+            return collected
+        }
+        return (await payloads, await routes)
     }
 
     private func workoutPayload(_ workout: HKWorkout) async -> HealthWorkoutPayload {
         let distanceM = workout.totalDistance?.doubleValue(for: .meter())
         let bpmUnit = HKUnit.count().unitDivided(by: .minute())
-        let place = await reversePlace(for: workout)
         return HealthWorkoutPayload(
             hkUuid: workout.uuid.uuidString.lowercased(),
             activityType: Self.activityType(workout.workoutActivityType),
@@ -191,9 +210,9 @@ struct HealthKitStore {
             elevationDescendedM: Self.elevationM(workout, key: HKMetadataKeyElevationDescended),
             weatherTempC: Self.weatherTempC(workout),
             weatherHumidity: Self.weatherHumidity(workout),
-            locationCountry: place?.country,
-            locationAdmin: place?.admin,
-            locationCity: place?.city,
+            locationCountry: nil,
+            locationAdmin: nil,
+            locationCity: nil,
             sourceBundleId: workout.sourceRevision.source.bundleIdentifier,
             sourceName: workout.sourceRevision.source.name
         )
@@ -336,13 +355,6 @@ struct HealthKitStore {
         return value > 1 ? value / 100 : value
     }
 
-    private func reversePlace(for workout: HKWorkout) async -> (country: String?, admin: String?, city: String?)? {
-        guard let location = await firstRouteLocation(for: workout) else { return nil }
-        let marks = try? await CLGeocoder().reverseGeocodeLocation(location)
-        guard let mark = marks?.first else { return nil }
-        return (mark.country, mark.administrativeArea, mark.locality ?? mark.subLocality)
-    }
-
     private func fetchRoute(for workout: HKWorkout) async -> HealthWorkoutRoutePayload? {
         let predicate = HKQuery.predicateForObjects(from: workout)
         let samples: [HKSample] = await withCheckedContinuation { continuation in
@@ -399,36 +411,6 @@ struct HealthKitStore {
         guard count > maxCount, maxCount >= 2 else { return items }
         return (0..<maxCount).map { i in
             items[i * (count - 1) / (maxCount - 1)]
-        }
-    }
-
-    private func firstRouteLocation(for workout: HKWorkout) async -> CLLocation? {
-        let predicate = HKQuery.predicateForObjects(from: workout)
-        let routes: [HKSample] = await withCheckedContinuation { continuation in
-            let once = ResumeOnce()
-            let query = HKSampleQuery(
-                sampleType: HKSeriesType.workoutRoute(),
-                predicate: predicate,
-                limit: 1,
-                sortDescriptors: nil
-            ) { _, samples, _ in
-                once.resume { continuation.resume(returning: samples ?? []) }
-            }
-            store.execute(query)
-        }
-        guard let route = routes.first as? HKWorkoutRoute else { return nil }
-        return await withCheckedContinuation { continuation in
-            let once = ResumeOnce()
-            let found = LocationBox()
-            let query = HKWorkoutRouteQuery(route: route) { _, locations, done, error in
-                if found.item == nil, let first = locations?.first {
-                    found.item = first
-                }
-                if done || error != nil {
-                    once.resume { continuation.resume(returning: found.item) }
-                }
-            }
-            store.execute(query)
         }
     }
 
@@ -711,10 +693,6 @@ struct HealthKitStore {
             unitName: "ms"
         ),
     ]
-}
-
-private final class LocationBox: @unchecked Sendable {
-    var item: CLLocation?
 }
 
 private final class RowBox<T>: @unchecked Sendable {
