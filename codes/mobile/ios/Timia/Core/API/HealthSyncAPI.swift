@@ -224,19 +224,47 @@ struct HealthSyncAPI: Sendable {
     }
 
     func syncSamples(_ payload: HealthQuantitySyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/samples", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/samples",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncSleep(_ payload: HealthSleepSyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/sleep", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/sleep",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncStandHours(_ payload: HealthStandHourSyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/stand-hours", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/stand-hours",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncWorkouts(_ payload: HealthWorkoutSyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/workouts", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/workouts",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncWorkoutRoutes(_ payload: HealthWorkoutRouteSyncPayload) async throws -> HealthSyncOut {
@@ -244,6 +272,8 @@ struct HealthSyncAPI: Sendable {
             "/health/sync/workout-routes",
             method: "POST",
             body: payload,
+            compress: true,
+            timeoutInterval: 60,
             response: HealthSyncOut.self
         )
     }
@@ -253,6 +283,8 @@ struct HealthSyncAPI: Sendable {
             "/health/sync/heartbeat-series",
             method: "POST",
             body: payload,
+            compress: true,
+            timeoutInterval: 60,
             response: HealthSyncOut.self
         )
     }
