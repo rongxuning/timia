@@ -127,6 +127,12 @@ struct HealthSyncService {
         try await store.exportSamples(from: start, to: end)
     }
 
+    /// Optional day export for the syncWindow prefetch pipeline (`nil` slice → `nil` export).
+    private func exportDayIfNeeded(_ slice: (start: Date, end: Date)?) async throws -> HealthKitExport? {
+        guard let slice else { return nil }
+        return try await exportSince(slice.start, to: slice.end)
+    }
+
     /// Chooses first-sync / anchored incremental / short-window heal.
     func syncFromWatermark(
         _ watermark: Date?,
@@ -267,6 +273,8 @@ struct HealthSyncService {
         var localDates: Set<String> = []
         let dayTotal = slices.count
         let drain = HealthSyncDrain(api: api, queue: queue)
+        /// Prefetched HealthKit export for the next day (memory only — never checkpoint early).
+        var prefetchedNext: HealthKitExport? = nil
 
         for (index, slice) in slices.enumerated() {
             let dayIndex = index + 1
@@ -274,8 +282,15 @@ struct HealthSyncService {
             let base = Double(index) / Double(dayTotal)
             let span = 1.0 / Double(dayTotal)
 
-            onProgress(base, "正在读取 \(dayIndex)/\(dayTotal) · \(label)")
-            let export = try await exportSince(slice.start, to: slice.end)
+            let export: HealthKitExport
+            if let cached = prefetchedNext {
+                prefetchedNext = nil
+                onProgress(base, "使用预读取 \(dayIndex)/\(dayTotal) · \(label)")
+                export = cached
+            } else {
+                onProgress(base, "正在读取 \(dayIndex)/\(dayTotal) · \(label)")
+                export = try await exportSince(slice.start, to: slice.end)
+            }
             quantityCount += export.samples.count
             sleepCount += export.sleep.count
             standHourCount += export.standHours.count
@@ -287,36 +302,54 @@ struct HealthSyncService {
             let enqueued = try await enqueueExport(export, localDate: label)
             for date in exportLocalDates(export) { localDates.insert(date) }
 
+            // Pipeline: while draining day N, prefetch day N+1 into memory (no enqueue/checkpoint yet).
+            let nextIndex = index + 1
+            let nextSlice: (start: Date, end: Date)? = nextIndex < dayTotal ? slices[nextIndex] : nil
+            if let nextSlice {
+                let nextLabel = Self.dayLabel(for: nextSlice.start)
+                onProgress(base + span * 0.18, "\(dayIndex)/\(dayTotal) · 预读取 \(nextLabel)")
+            }
+            async let nextDayExport = exportDayIfNeeded(nextSlice)
+
             // Drain until this day's outbox is empty before checkpointing.
-            if enqueued > 0 || (try await queue.pendingCount(localDate: label)) > 0 {
-                var dayUploaded = 0
-                while true {
-                    let remaining = try await queue.pendingCount(localDate: label)
-                    if remaining == 0 { break }
-                    let n = try await drain.drain(budget: .foreground) { step in
-                        onProgress(
-                            base + span * (0.2 + 0.75 * min(1, Double(dayUploaded + 1) / Double(max(remaining, 1)))),
-                            "\(dayIndex)/\(dayTotal) · \(label) · \(step)"
-                        )
-                    }
-                    dayUploaded += n
-                    upserted += n
-                    if n == 0 {
-                        let still = try await queue.pendingCount(localDate: label)
-                        throw HealthSyncDrainError.noProgress(remaining: still)
+            do {
+                if enqueued > 0 || (try await queue.pendingCount(localDate: label)) > 0 {
+                    var dayUploaded = 0
+                    while true {
+                        let remaining = try await queue.pendingCount(localDate: label)
+                        if remaining == 0 { break }
+                        let n = try await drain.drain(budget: .foreground) { step in
+                            onProgress(
+                                base + span * (0.2 + 0.75 * min(1, Double(dayUploaded + 1) / Double(max(remaining, 1)))),
+                                "\(dayIndex)/\(dayTotal) · \(label) · \(step)"
+                            )
+                        }
+                        dayUploaded += n
+                        upserted += n
+                        if n == 0 {
+                            let still = try await queue.pendingCount(localDate: label)
+                            throw HealthSyncDrainError.noProgress(remaining: still)
+                        }
                     }
                 }
-            }
 
-            // Server-authoritative day checkpoint (local cache mirrors server).
-            await logFailedRowsLeftBehind(localDate: label, context: "syncWindow")
-            let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
-            if let server = Self.parseISO(stamped.lastSyncedAt) {
-                Self.storeLastSyncedAt(server)
-            } else {
-                Self.storeLastSyncedAt(slice.end)
+                // Server-authoritative day checkpoint (local cache mirrors server).
+                // Only day N — prefetched N+1 stays in memory until its own turn.
+                await logFailedRowsLeftBehind(localDate: label, context: "syncWindow")
+                let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
+                if let server = Self.parseISO(stamped.lastSyncedAt) {
+                    Self.storeLastSyncedAt(server)
+                } else {
+                    Self.storeLastSyncedAt(slice.end)
+                }
+                onProgress(base + span, "已完成 \(dayIndex)/\(dayTotal) · \(label)")
+
+                prefetchedNext = try await nextDayExport
+            } catch {
+                // Drain/checkpoint failed: still await prefetch so work is not abandoned mid-flight.
+                prefetchedNext = try? await nextDayExport
+                throw error
             }
-            onProgress(base + span, "已完成 \(dayIndex)/\(dayTotal) · \(label)")
         }
 
         try await finish(

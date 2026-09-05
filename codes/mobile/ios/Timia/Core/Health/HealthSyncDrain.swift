@@ -30,7 +30,13 @@ enum HealthSyncDrainError: Error, LocalizedError, Sendable {
 struct HealthSyncDrain {
     var api: HealthSyncAPI
     var queue: HealthSyncQueue = .shared
+    /// Overall in-flight upload cap (same-category or cross-category Group A).
     var uploadConcurrency: Int = HealthSyncService.uploadConcurrency
+
+    /// Categories safe to upload concurrently with each other.
+    private static let parallelGroupA: Set<HealthSyncOutboxCategory> = [
+        .samples, .sleep, .standHours, .heartbeats,
+    ]
 
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -59,7 +65,7 @@ struct HealthSyncDrain {
                 }
 
                 let room = min(uploadConcurrency, budget.maxBatches - uploaded)
-                let batch = try await nextSameCategoryBatch(limit: room)
+                let batch = try await nextUploadWave(limit: room)
                 if batch.isEmpty {
                     break
                 }
@@ -67,11 +73,10 @@ struct HealthSyncDrain {
                 let ids = batch.map(\.id)
                 try await queue.markUploading(ids: ids)
 
-                let category = batch[0].category
-                let label = Self.categoryLabel(category)
+                let label = Self.waveLabel(batch)
                 onProgress?("上传 \(label) \(uploaded + 1)")
 
-                // Same-category concurrency (cap = uploadConcurrency), matching prior uploadBatches.
+                // Cap overall concurrency (within-category or Group A cross-category).
                 try await withThrowingTaskGroup(of: Void.self) { group in
                     var inflight = 0
                     for row in batch {
@@ -107,9 +112,11 @@ struct HealthSyncDrain {
         }
     }
 
-    // MARK: - Batch selection (deletions first; workouts before routes)
+    // MARK: - Wave selection
+    // Deletions first → Group A (samples ∥ sleep ∥ standHours ∥ heartbeats)
+    // → workouts → routes (blocked while same/earlier-day workouts pending).
 
-    private func nextSameCategoryBatch(limit: Int) async throws -> [HealthSyncOutboxRow] {
+    private func nextUploadWave(limit: Int) async throws -> [HealthSyncOutboxRow] {
         let pending = try await queue.nextPending(limit: max(limit * 16, 64))
         guard !pending.isEmpty else { return [] }
 
@@ -119,18 +126,35 @@ struct HealthSyncDrain {
             return Array(deletionRows.prefix(limit))
         }
 
-        for row in pending {
-            if row.category == .routes {
-                let blocked = try await queue.hasBlockingWorkouts(
-                    forRouteId: row.id,
-                    localDate: row.localDate
-                )
-                if blocked { continue }
-            }
-            let category = row.category
-            return Array(pending.filter { $0.category == category }.prefix(limit))
+        // Group A: mix safe categories in one wave up to the concurrency cap.
+        var groupA: [HealthSyncOutboxRow] = []
+        groupA.reserveCapacity(limit)
+        for row in pending where Self.parallelGroupA.contains(row.category) {
+            groupA.append(row)
+            if groupA.count >= limit { break }
         }
-        return []
+        if !groupA.isEmpty {
+            return groupA
+        }
+
+        // Workouts before routes (routes may depend on workout upserts for the same day).
+        let workoutRows = pending.filter { $0.category == .workouts }
+        if !workoutRows.isEmpty {
+            return Array(workoutRows.prefix(limit))
+        }
+
+        var routeRows: [HealthSyncOutboxRow] = []
+        routeRows.reserveCapacity(limit)
+        for row in pending where row.category == .routes {
+            let blocked = try await queue.hasBlockingWorkouts(
+                forRouteId: row.id,
+                localDate: row.localDate
+            )
+            if blocked { continue }
+            routeRows.append(row)
+            if routeRows.count >= limit { break }
+        }
+        return routeRows
     }
 
     // MARK: - Upload one outbox row
@@ -205,6 +229,14 @@ struct HealthSyncDrain {
                 underlying: error.localizedDescription
             )
         }
+    }
+
+    private static func waveLabel(_ rows: [HealthSyncOutboxRow]) -> String {
+        let categories = Set(rows.map(\.category))
+        if categories.count == 1, let only = categories.first {
+            return categoryLabel(only)
+        }
+        return "并行"
     }
 
     private static func categoryLabel(_ category: HealthSyncOutboxCategory) -> String {
