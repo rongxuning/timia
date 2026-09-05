@@ -254,6 +254,7 @@ struct HealthSyncView: View {
             pendingDays = []
             clearLastError()
             await HealthBackgroundDelivery.shared.start(api: session.api)
+            await ScreenNotificationManager.shared.refresh(api: session.api)
             await loadPendingDays()
         } catch {
             // Day checkpoints are on the server; refresh to show resume point.

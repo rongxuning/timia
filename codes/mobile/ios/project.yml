@@ -34,10 +34,34 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
     dependencies:
       - sdk: HealthKit.framework
+      - sdk: ActivityKit.framework
+      - target: TimiaWidget
+        embed: true
     scheme:
       testTargets:
         - TimiaTests
         - TimiaUITests
+  TimiaWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TimiaWidget
+      - path: Timia/Core/ScreenNotification/TimiaScreenActivityAttributes.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: online.timia.ios.widget
+        PRODUCT_NAME: TimiaWidget
+        INFOPLIST_FILE: TimiaWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TimiaWidget/TimiaWidget.entitlements
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1,2"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+        SKIP_INSTALL: YES
+        DEVELOPMENT_TEAM: QTV9DUCAY7
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework
+      - sdk: ActivityKit.framework
   TimiaTests:
     type: bundle.unit-test
     platform: iOS

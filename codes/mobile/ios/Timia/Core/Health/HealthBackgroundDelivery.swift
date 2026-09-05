@@ -47,6 +47,7 @@ final class HealthBackgroundDelivery {
             let end = Date()
             let service = HealthSyncService(api: syncAPI)
             try await service.syncWindow(from: start, to: end, source: .background) { _, _ in }
+            await ScreenNotificationManager.shared.refresh(api: api)
         } catch {
             // Keep the observer alive; day checkpoints + next wake or manual sync retry.
         }
