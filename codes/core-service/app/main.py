@@ -17,6 +17,7 @@ from app.routes.users import router as users_router
 from app.routes.web_auth import router as web_auth_router
 from app.routes.workspaces import router as workspaces_router
 from app.core.config import settings
+from app.middleware.gzip_request import GzipRequestMiddleware
 from app.routes.dev_db_tables import router as dev_db_tables_router
 from app.routes.views.schedule import router as views_schedule_router
 from app.routes.views.workspace import router as views_workspace_router
@@ -38,6 +39,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GzipRequestMiddleware)
 
 app.include_router(auth_router)
 app.include_router(web_auth_router)

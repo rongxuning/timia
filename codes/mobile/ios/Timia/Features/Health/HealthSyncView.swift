@@ -197,7 +197,7 @@ struct HealthSyncView: View {
             }
             syncedDays = status.days.filter { $0.totalCount > 0 }
             let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
-            lastSyncedAt = HealthSyncService.applyServerWatermark(server)
+            lastSyncedAt = await HealthSyncService.applyServerWatermark(server)
         } catch {
             // Status fetch is best-effort: don't surface failures here so the
             // user can still retry sync from the existing checkpoint.
@@ -208,16 +208,22 @@ struct HealthSyncView: View {
         guard HKHealthStore.isHealthDataAvailable(), permissions.didRequest else {
             return
         }
-        let start: Date
-        if let lastSyncedAt {
-            start = HealthSyncService.startDate(lastSyncedAt: lastSyncedAt)
-        } else {
-            return
-        }
+        guard lastSyncedAt != nil else { return }
         do {
-            let export = try await HealthKitStore().exportSamples(from: start, to: Date())
-            let pending = HealthSyncService.pendingDays(from: export)
-            pendingDays = pending
+            let export: HealthKitExport
+            if await HealthSyncService.anchorsHealthy() {
+                // Preview only — do not persist returned anchors or drop keys on transient errors.
+                let (delta, _) = try await HealthKitStore().exportAnchoredChanges(dropFailedKeys: false)
+                export = delta
+            } else {
+                let start = Calendar.current.date(
+                    byAdding: .day,
+                    value: -HealthSyncService.backgroundLookbackDays,
+                    to: Date()
+                ) ?? Date()
+                export = try await HealthKitStore().exportSamples(from: start, to: Date())
+            }
+            pendingDays = HealthSyncService.pendingDays(from: export)
         } catch {
             // Leave previous pendingDays in place; don't spam the user.
         }
@@ -238,15 +244,18 @@ struct HealthSyncView: View {
             // Pull authoritative watermark before choosing the window.
             await refreshStatus()
             let watermark = lastSyncedAt
-            let start = HealthSyncService.startDate(lastSyncedAt: watermark)
-            let end = Date()
-            let days = HealthSyncService.daySlices(from: start, to: end).count
             quantityGapHint = nil
             if watermark == nil {
+                let start = HealthSyncService.startDate(lastSyncedAt: nil)
+                let days = HealthSyncService.daySlices(from: start, to: Date()).count
                 progressText = "首次同步近 \(HealthSyncService.firstLookbackDays) 天（约 \(days) 片）…"
+            } else if await HealthSyncService.anchorsHealthy() {
+                progressText = "增量同步…"
+            } else {
+                progressText = "锚点修复 · 近 \(HealthSyncService.backgroundLookbackDays) 天…"
             }
             let service = HealthSyncService(api: HealthSyncAPI(client: session.api))
-            try await service.syncWindow(from: start, to: end, source: .manual) { fraction, label in
+            try await service.syncFromWatermark(watermark, source: .manual) { fraction, label in
                 progress = max(0.02, fraction)
                 progressText = label
             }

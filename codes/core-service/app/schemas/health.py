@@ -189,6 +189,7 @@ class HealthSyncStatusOut(BaseModel):
 
 class HealthSyncCheckpointIn(BaseModel):
     to_at: datetime
+    timezone: str = Field(default="Asia/Shanghai", min_length=1, max_length=64)
 
 
 class HealthSyncCheckpointOut(BaseModel):

@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -118,6 +119,19 @@ class HealthSampleQuantity(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "start_at",
         ),
         Index("ix_health_sample_quantity_owner_start", "owner_user_id", "start_at"),
+        Index(
+            "ix_health_sample_quantity_owner_type_start_alive",
+            "owner_user_id",
+            "metric_type",
+            "start_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_health_sample_quantity_owner_start_alive",
+            "owner_user_id",
+            "start_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
@@ -140,6 +154,12 @@ class HealthSampleSleep(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("owner_user_id", "hk_uuid", name="uq_health_sample_sleep_owner_hk"),
         Index("ix_health_sample_sleep_owner_start", "owner_user_id", "start_at"),
+        Index(
+            "ix_health_sample_sleep_owner_start_alive",
+            "owner_user_id",
+            "start_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
@@ -160,6 +180,12 @@ class HealthSampleStandHour(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("owner_user_id", "hk_uuid", name="uq_health_sample_stand_hour_owner_hk"),
         Index("ix_health_sample_stand_hour_owner_start", "owner_user_id", "start_at"),
+        Index(
+            "ix_health_sample_stand_hour_owner_start_alive",
+            "owner_user_id",
+            "start_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
@@ -179,6 +205,12 @@ class HealthSeriesHeartbeat(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("owner_user_id", "hk_uuid", name="uq_health_series_heartbeat_owner_hk"),
         Index("ix_health_series_heartbeat_owner_start", "owner_user_id", "start_at"),
+        Index(
+            "ix_health_series_heartbeat_owner_start_alive",
+            "owner_user_id",
+            "start_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
@@ -199,6 +231,12 @@ class HealthWorkoutSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("owner_user_id", "hk_uuid", name="uq_health_workout_session_owner_hk"),
         Index("ix_health_workout_session_owner_start", "owner_user_id", "start_at"),
+        Index(
+            "ix_health_workout_session_owner_start_alive",
+            "owner_user_id",
+            "start_at",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     owner_user_id: Mapped[uuid.UUID] = mapped_column(

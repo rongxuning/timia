@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum APIError: LocalizedError, Equatable {
     case invalidConfiguration
@@ -21,6 +22,8 @@ enum APIError: LocalizedError, Equatable {
 struct EmptyResponse: Decodable, Sendable {}
 
 struct APIClient: Sendable {
+    private static let healthSyncLog = Logger(subsystem: "Timia.HealthSync", category: "Upload")
+
     let baseURL: URL
     let credentials: CredentialManager
     var onUnauthorized: @Sendable () -> Void
@@ -44,6 +47,8 @@ struct APIClient: Sendable {
         query: [URLQueryItem] = [],
         body: (any Encodable & Sendable)? = nil,
         authenticated: Bool = true,
+        compress: Bool = false,
+        timeoutInterval: TimeInterval? = nil,
         response: Response.Type = Response.self
     ) async throws -> Response {
         guard var components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false) else {
@@ -54,10 +59,21 @@ struct APIClient: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = 30
+        request.timeoutInterval = timeoutInterval ?? 30
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
-            request.httpBody = try Self.encoder.encode(AnyEncodable(body))
+            let json = try Self.encoder.encode(AnyEncodable(body))
+            if compress {
+                let gzipped = try Self.gzipCompress(json)
+                request.httpBody = gzipped
+                request.setValue("gzip", forHTTPHeaderField: "Content-Encoding")
+                let gzipRatio = gzipped.count > 0 ? Double(json.count) / Double(gzipped.count) : 0
+                Self.healthSyncLog.debug(
+                    "gzip_ratio=\(gzipRatio, format: .fixed(precision: 2), privacy: .public) batch_bytes=\(json.count, privacy: .public) path=\(path, privacy: .public)"
+                )
+            } else {
+                request.httpBody = json
+            }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         if authenticated {
@@ -121,6 +137,10 @@ struct APIClient: Sendable {
         encoder.keyEncodingStrategy = .convertToSnakeCase
         return encoder
     }()
+
+    private static func gzipCompress(_ data: Data) throws -> Data {
+        try data.gzipCompressed()
+    }
 }
 
 private struct ErrorEnvelope: Decodable { let detail: String? }

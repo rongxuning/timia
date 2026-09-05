@@ -79,13 +79,14 @@ struct HealthSyncStatus: Decodable, Sendable {
 
 struct HealthSyncCheckpointIn: Encodable, Sendable {
     var toAt: String
+    var timezone: String
 }
 
 struct HealthSyncCheckpointOut: Decodable, Sendable {
     var lastSyncedAt: String
 }
 
-struct HealthQuantitySamplePayload: Encodable, Sendable {
+struct HealthQuantitySamplePayload: Codable, Sendable {
     var hkUuid: String
     var metricType: String
     var startAt: String
@@ -96,12 +97,12 @@ struct HealthQuantitySamplePayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthQuantitySyncPayload: Encodable, Sendable {
+struct HealthQuantitySyncPayload: Codable, Sendable {
     var timezone: String
     var samples: [HealthQuantitySamplePayload]
 }
 
-struct HealthSleepSamplePayload: Encodable, Sendable {
+struct HealthSleepSamplePayload: Codable, Sendable {
     var hkUuid: String
     var startAt: String
     var endAt: String
@@ -111,12 +112,12 @@ struct HealthSleepSamplePayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthSleepSyncPayload: Encodable, Sendable {
+struct HealthSleepSyncPayload: Codable, Sendable {
     var timezone: String
     var samples: [HealthSleepSamplePayload]
 }
 
-struct HealthStandHourPayload: Encodable, Sendable {
+struct HealthStandHourPayload: Codable, Sendable {
     var hkUuid: String
     var startAt: String
     var endAt: String
@@ -125,12 +126,12 @@ struct HealthStandHourPayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthStandHourSyncPayload: Encodable, Sendable {
+struct HealthStandHourSyncPayload: Codable, Sendable {
     var timezone: String
     var samples: [HealthStandHourPayload]
 }
 
-struct HealthWorkoutPayload: Encodable, Sendable {
+struct HealthWorkoutPayload: Codable, Sendable {
     var hkUuid: String
     var activityType: String
     var activityTypeRaw: String?
@@ -154,34 +155,34 @@ struct HealthWorkoutPayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthWorkoutSyncPayload: Encodable, Sendable {
+struct HealthWorkoutSyncPayload: Codable, Sendable {
     var timezone: String
     var workouts: [HealthWorkoutPayload]
 }
 
-struct HealthWorkoutRoutePoint: Encodable, Sendable {
+struct HealthWorkoutRoutePoint: Codable, Sendable {
     var t: Double
     var lat: Double
     var lng: Double
     var alt: Double?
 }
 
-struct HealthWorkoutRoutePayload: Encodable, Sendable {
+struct HealthWorkoutRoutePayload: Codable, Sendable {
     var hkUuid: String
     var points: [HealthWorkoutRoutePoint]
 }
 
-struct HealthWorkoutRouteSyncPayload: Encodable, Sendable {
+struct HealthWorkoutRouteSyncPayload: Codable, Sendable {
     var timezone: String
     var routes: [HealthWorkoutRoutePayload]
 }
 
-struct HealthHeartbeatIntervalPayload: Encodable, Sendable {
+struct HealthHeartbeatIntervalPayload: Codable, Sendable {
     var t: Double
     var gap: Bool
 }
 
-struct HealthHeartbeatSeriesPayload: Encodable, Sendable {
+struct HealthHeartbeatSeriesPayload: Codable, Sendable {
     var hkUuid: String
     var startAt: String
     var endAt: String
@@ -190,9 +191,21 @@ struct HealthHeartbeatSeriesPayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthHeartbeatSyncPayload: Encodable, Sendable {
+struct HealthHeartbeatSyncPayload: Codable, Sendable {
     var timezone: String
     var series: [HealthHeartbeatSeriesPayload]
+}
+
+struct HealthDeletionItemPayload: Codable, Sendable {
+    /// HealthKit object UUID (lowercase).
+    var hkUuid: String
+    /// Server `DELETION_KINDS`: quantity | sleep | stand_hour | heartbeat_series | workout
+    var kind: String
+}
+
+struct HealthDeletionSyncPayload: Codable, Sendable {
+    var timezone: String
+    var deletions: [HealthDeletionItemPayload]
 }
 
 struct HealthSyncAPI: Sendable {
@@ -213,29 +226,57 @@ struct HealthSyncAPI: Sendable {
         try await client.request("/health/sync/runs", method: "POST", body: payload, response: HealthSyncRun.self)
     }
 
-    func checkpoint(toAt: String) async throws -> HealthSyncCheckpointOut {
+    func checkpoint(toAt: String, timezone: String = TimeZone.current.identifier) async throws -> HealthSyncCheckpointOut {
         try await client.request(
             "/health/sync/checkpoint",
             method: "POST",
-            body: HealthSyncCheckpointIn(toAt: toAt),
+            body: HealthSyncCheckpointIn(toAt: toAt, timezone: timezone),
             response: HealthSyncCheckpointOut.self
         )
     }
 
     func syncSamples(_ payload: HealthQuantitySyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/samples", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/samples",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncSleep(_ payload: HealthSleepSyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/sleep", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/sleep",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncStandHours(_ payload: HealthStandHourSyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/stand-hours", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/stand-hours",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncWorkouts(_ payload: HealthWorkoutSyncPayload) async throws -> HealthSyncOut {
-        try await client.request("/health/sync/workouts", method: "POST", body: payload, response: HealthSyncOut.self)
+        try await client.request(
+            "/health/sync/workouts",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
     }
 
     func syncWorkoutRoutes(_ payload: HealthWorkoutRouteSyncPayload) async throws -> HealthSyncOut {
@@ -243,6 +284,8 @@ struct HealthSyncAPI: Sendable {
             "/health/sync/workout-routes",
             method: "POST",
             body: payload,
+            compress: true,
+            timeoutInterval: 60,
             response: HealthSyncOut.self
         )
     }
@@ -252,6 +295,19 @@ struct HealthSyncAPI: Sendable {
             "/health/sync/heartbeat-series",
             method: "POST",
             body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
+    }
+
+    func syncDeletions(_ payload: HealthDeletionSyncPayload) async throws -> HealthSyncOut {
+        try await client.request(
+            "/health/sync/deletions",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
             response: HealthSyncOut.self
         )
     }
