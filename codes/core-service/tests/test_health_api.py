@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gzip
+import json
 import secrets
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -1997,3 +1999,97 @@ def test_clear_health_data_keeps_profile_and_resets_watermark():
 
     overview = client.get("/views/me/health", headers=_headers(token))
     assert overview.status_code == 200, overview.text
+
+
+def test_health_sync_samples_accepts_gzip_body():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "timezone": "Asia/Shanghai",
+        "samples": [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "step_count",
+                "start_at": now,
+                "end_at": now,
+                "value": 100,
+                "unit": "count",
+            }
+        ],
+    }
+    compressed = gzip.compress(json.dumps(payload).encode("utf-8"))
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=compressed,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
+
+
+def test_health_sync_samples_rejects_bad_gzip():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=b"not-gzip",
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "content_encoding_invalid"
+
+
+def test_health_sync_samples_accepts_gzip_body():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "timezone": "Asia/Shanghai",
+        "samples": [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "step_count",
+                "start_at": now,
+                "end_at": now,
+                "value": 100,
+                "unit": "count",
+            }
+        ],
+    }
+    compressed = gzip.compress(json.dumps(payload).encode("utf-8"))
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=compressed,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
+
+
+def test_health_sync_samples_rejects_bad_gzip():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=b"not-gzip",
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "content_encoding_invalid"
