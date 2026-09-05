@@ -16,6 +16,7 @@
 		1A2B3C4D5E6F708192A3B4C5 /* Data+Gzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3C4D5E6F708192A3B4C5D6 /* Data+Gzip.swift */; };
 		BF9498FE725CF129FBB321A7 /* HealthSyncQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10ECF9F40F34A36283D8140D /* HealthSyncQueue.swift */; };
 		3DCB1ACE863B44C8970CDDA5 /* HealthSyncDrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4011A1ECBE9247DE909B02AC /* HealthSyncDrain.swift */; };
+		7A1B2C3D4E5F60718293A4B5 /* HealthKitAnchorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2C3D4E5F60718293A4B5C6 /* HealthKitAnchorStore.swift */; };
 		16E99362D39572A6C5FB47C9 /* WorkspaceActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A7C44F73401A44586DF4EC /* WorkspaceActivityView.swift */; };
 		172948F3E2131FEAD88ADBBD /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD38F9E831FF4FA469537A7C /* AccountView.swift */; };
 		1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */; };
@@ -100,6 +101,7 @@
 		2B3C4D5E6F708192A3B4C5D6 /* Data+Gzip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Gzip.swift"; sourceTree = "<group>"; };
 		10ECF9F40F34A36283D8140D /* HealthSyncQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueue.swift; sourceTree = "<group>"; };
 		4011A1ECBE9247DE909B02AC /* HealthSyncDrain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncDrain.swift; sourceTree = "<group>"; };
+		8B2C3D4E5F60718293A4B5C6 /* HealthKitAnchorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitAnchorStore.swift; sourceTree = "<group>"; };
 		2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteInputView.swift; sourceTree = "<group>"; };
 		30DD19186DC70910982C8C46 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
 		34781A49682D42B8CDCA4233 /* HealthSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncService.swift; sourceTree = "<group>"; };
@@ -394,6 +396,7 @@
 			isa = PBXGroup;
 			children = (
 				4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */,
+				8B2C3D4E5F60718293A4B5C6 /* HealthKitAnchorStore.swift */,
 				358364DC9FBB2361030EFF90 /* HealthKitStore.swift */,
 				A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */,
 				4011A1ECBE9247DE909B02AC /* HealthSyncDrain.swift */,
@@ -547,6 +550,7 @@
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
 				896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */,
 				A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */,
+				7A1B2C3D4E5F60718293A4B5 /* HealthKitAnchorStore.swift in Sources */,
 				5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */,
 				3F50C6F41051B52FFB19B5D8 /* HealthPermissionManager.swift in Sources */,
 				14ACCBB6B6F8A34391230101 /* HealthSyncAPI.swift in Sources */,

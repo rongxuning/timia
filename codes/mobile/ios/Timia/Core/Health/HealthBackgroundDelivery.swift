@@ -51,7 +51,7 @@ final class HealthBackgroundDelivery {
             defer { endBackgroundTask() }
 
             let service = HealthSyncService(api: syncAPI)
-            // Until Task 7 anchors: short lookback into outbox + budgeted drain (never full 90-day window).
+            // Anchored delta → enqueue → budgeted drain (heals with short window if anchors unhealthy).
             _ = try await service.syncBackgroundBudgeted(budget: .background)
         } catch {
             // Keep the observer alive; day checkpoints + next wake or manual sync retry.

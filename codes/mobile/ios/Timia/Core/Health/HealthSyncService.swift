@@ -30,10 +30,11 @@ enum HealthSyncSource: String, Sendable {
 @MainActor
 struct HealthSyncService {
     static let lastSyncedKey = "timia.health.lastSyncedAt"
+    /// Legacy fixed overlap for time-window incremental when anchors are unavailable.
     static let overlap: TimeInterval = 2 * 60 * 60
     static let firstLookbackDays = 90
     static let uploadConcurrency = 4
-    /// Until HK anchors (Task 7), background only time-exports this many calendar days.
+    /// Heal / pre-anchor short lookback when anchors are missing or corrupt.
     static let backgroundLookbackDays = 2
 
     private static let log = Logger(subsystem: "online.timia.ios", category: "HealthSync")
@@ -42,9 +43,14 @@ struct HealthSyncService {
     var store = HealthKitStore()
     var timezone: String = TimeZone.current.identifier
     var queue: HealthSyncQueue = .shared
+    var anchorStore: HealthKitAnchorStore = .shared
 
-    static func startDate(lastSyncedAt: Date?) -> Date {
+    /// Time-window start. With healthy HK anchors, incremental sync does not use this (no 2h overlap).
+    static func startDate(lastSyncedAt: Date?, anchorsHealthy: Bool = false) -> Date {
         if let lastSyncedAt {
+            if anchorsHealthy {
+                return lastSyncedAt
+            }
             return lastSyncedAt.addingTimeInterval(-overlap)
         }
         return Calendar.current.date(byAdding: .day, value: -firstLookbackDays, to: Date()) ?? Date()
@@ -80,10 +86,15 @@ struct HealthSyncService {
         UserDefaults.standard.removeObject(forKey: lastSyncedKey)
     }
 
-    /// Clears local watermark cache and durable outbox (clear-data / nil server watermark).
+    /// Clears local watermark, HK anchors, and durable outbox (clear-data / nil server watermark).
     static func clearLocalSyncState() async {
         clearLastSyncedAt()
+        await HealthKitAnchorStore.shared.clearAll()
         try? await HealthSyncQueue.shared.clearAll()
+    }
+
+    static func anchorsHealthy() async -> Bool {
+        await HealthKitAnchorStore.shared.hasHealthyAnchors(expectedKeys: HealthKitStore.anchorKeys)
     }
 
     /// Prefer the newer of local checkpoint vs server watermark so a lagging
@@ -114,6 +125,113 @@ struct HealthSyncService {
 
     func exportSince(_ start: Date, to end: Date = Date()) async throws -> HealthKitExport {
         try await store.exportSamples(from: start, to: end)
+    }
+
+    /// Chooses first-sync / anchored incremental / short-window heal.
+    func syncFromWatermark(
+        _ watermark: Date?,
+        source: HealthSyncSource,
+        onProgress: @escaping (Double, String) -> Void
+    ) async throws {
+        if watermark == nil {
+            var end = Date()
+            let start = Self.startDate(lastSyncedAt: nil)
+            try await syncWindow(from: start, to: end, source: source, onProgress: onProgress)
+            // Catch up samples that arrived while the long first sync was running.
+            let tip = Date()
+            if tip.timeIntervalSince(end) > 60 {
+                try await syncWindow(from: end, to: tip, source: source) { fraction, label in
+                    onProgress(0.95 + 0.04 * fraction, label)
+                }
+                end = tip
+            }
+            onProgress(0.99, "保存增量锚点")
+            try await persistCurrentAnchors(asOf: tip)
+            return
+        }
+
+        if await Self.anchorsHealthy() {
+            do {
+                try await syncAnchored(source: source, onProgress: onProgress)
+                return
+            } catch HealthKitStoreError.needsAnchorHeal(let keys) {
+                Self.log.warning(
+                    "Anchor query failed for \(keys.joined(separator: ","), privacy: .public); healing"
+                )
+            }
+        }
+
+        // Heal: short time window once, then rewrite anchors (no 2h overlap semantics).
+        let end = Date()
+        let start = Calendar.current.date(
+            byAdding: .day,
+            value: -Self.backgroundLookbackDays,
+            to: end
+        ) ?? end.addingTimeInterval(-TimeInterval(Self.backgroundLookbackDays) * 24 * 3600)
+        onProgress(0.02, "锚点修复 · 近 \(Self.backgroundLookbackDays) 天")
+        try await syncWindow(from: start, to: end, source: source, onProgress: onProgress)
+        try await persistCurrentAnchors(asOf: Date())
+    }
+
+    /// Incremental path: anchored export → enqueue → drain; no fixed 2h overlap.
+    func syncAnchored(
+        source: HealthSyncSource,
+        onProgress: @escaping (Double, String) -> Void
+    ) async throws {
+        let end = Date()
+        onProgress(0.05, "读取增量变更")
+        let (export, newAnchors) = try await store.exportAnchoredChanges()
+        // Deletions collected for Task 8; not uploaded yet.
+        _ = export.deletions
+
+        onProgress(0.15, "写入队列")
+        let enqueued = try await enqueueExportByLocalDate(export)
+        // Advance anchors only after durable enqueue so a crash mid-drain still uploads.
+        await anchorStore.saveAll(newAnchors)
+
+        let drain = HealthSyncDrain(api: api, queue: queue)
+        var upserted = 0
+        if enqueued > 0 || (try await queue.pendingCount()) > 0 {
+            while true {
+                let remaining = try await queue.pendingCount()
+                if remaining == 0 { break }
+                let n = try await drain.drain(budget: .foreground) { step in
+                    onProgress(min(0.95, 0.2 + Double(upserted) * 0.05), step)
+                }
+                upserted += n
+                if n == 0 {
+                    throw HealthSyncDrainError.noProgress(remaining: remaining)
+                }
+            }
+        }
+
+        let dates = Array(exportLocalDates(export)).sorted()
+        for date in dates {
+            await logFailedRowsLeftBehind(localDate: date, context: "syncAnchored")
+        }
+        if try await queue.pendingCount() == 0 {
+            let stamped = try await api.checkpoint(toAt: Self.iso(end), timezone: timezone)
+            if let server = Self.parseISO(stamped.lastSyncedAt) {
+                Self.storeLastSyncedAt(server)
+            } else {
+                Self.storeLastSyncedAt(end)
+            }
+        }
+
+        try await finish(
+            source: source,
+            start: end,
+            end: end,
+            quantityCount: export.samples.count,
+            sleepCount: export.sleep.count,
+            standHourCount: export.standHours.count,
+            heartbeatCount: export.heartbeats.count,
+            workoutCount: export.workouts.count,
+            routeCount: export.routes.count,
+            upserted: upserted,
+            dates: dates
+        )
+        onProgress(1, "同步完成")
     }
 
     func syncWindow(
@@ -219,13 +337,64 @@ struct HealthSyncService {
         onProgress(1, "同步完成")
     }
 
-    /// Background path until Task 7 anchors: export at most `backgroundLookbackDays`,
-    /// enqueue into outbox, budgeted drain, checkpoint only fully-drained days in order.
+    /// Background: anchored export → enqueue → budgeted drain. Heals with a 2-day window when anchors are unhealthy.
     func syncBackgroundBudgeted(
         budget: HealthSyncDrainBudget = .background,
         onProgress: ((String) -> Void)? = nil
     ) async throws -> Int {
         let end = Date()
+
+        if await Self.anchorsHealthy() {
+            do {
+                return try await syncBackgroundAnchored(budget: budget, end: end, onProgress: onProgress)
+            } catch HealthKitStoreError.needsAnchorHeal(let keys) {
+                Self.log.warning(
+                    "Background anchor failure for \(keys.joined(separator: ","), privacy: .public); healing"
+                )
+            }
+        }
+
+        return try await syncBackgroundHeal(budget: budget, end: end, onProgress: onProgress)
+    }
+
+    private func syncBackgroundAnchored(
+        budget: HealthSyncDrainBudget,
+        end: Date,
+        onProgress: ((String) -> Void)?
+    ) async throws -> Int {
+        onProgress?("后台增量导出")
+        let (export, newAnchors) = try await store.exportAnchoredChanges()
+        _ = export.deletions
+        _ = try await enqueueExportByLocalDate(export)
+        await anchorStore.saveAll(newAnchors)
+
+        let drain = HealthSyncDrain(api: api, queue: queue)
+        let uploaded = try await drain.drain(budget: budget, onProgress: onProgress)
+
+        let dates = Array(exportLocalDates(export)).sorted()
+        if dates.isEmpty {
+            if try await queue.pendingCount() == 0 {
+                await checkpointTo(end, context: "syncBackgroundAnchored")
+            }
+        } else {
+            for date in dates {
+                let remaining = try await queue.pendingCount(localDate: date)
+                guard remaining == 0 else { break }
+                await logFailedRowsLeftBehind(localDate: date, context: "syncBackgroundAnchored")
+                // Checkpoint through end of that local calendar day (or `end` for today).
+                let dayEnd = min(end, Self.endOfLocalDay(date) ?? end)
+                await checkpointTo(dayEnd, context: "syncBackgroundAnchored")
+            }
+        }
+
+        return uploaded
+    }
+
+    private func syncBackgroundHeal(
+        budget: HealthSyncDrainBudget,
+        end: Date,
+        onProgress: ((String) -> Void)?
+    ) async throws -> Int {
         let start = Calendar.current.date(
             byAdding: .day,
             value: -Self.backgroundLookbackDays,
@@ -235,7 +404,7 @@ struct HealthSyncService {
         let slices = Self.daySlices(from: start, to: end)
         for slice in slices {
             let label = Self.dayLabel(for: slice.start)
-            onProgress?("后台导出 \(label)")
+            onProgress?("后台修复导出 \(label)")
             let export = try await exportSince(slice.start, to: slice.end)
             _ = try await enqueueExport(export, localDate: label)
         }
@@ -243,21 +412,48 @@ struct HealthSyncService {
         let drain = HealthSyncDrain(api: api, queue: queue)
         let uploaded = try await drain.drain(budget: budget, onProgress: onProgress)
 
-        // Advance watermark only for leading days whose outbox is empty.
         for slice in slices {
             let label = Self.dayLabel(for: slice.start)
             let remaining = try await queue.pendingCount(localDate: label)
             guard remaining == 0 else { break }
-            await logFailedRowsLeftBehind(localDate: label, context: "syncBackgroundBudgeted")
-            let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
+            await logFailedRowsLeftBehind(localDate: label, context: "syncBackgroundHeal")
+            await checkpointTo(slice.end, context: "syncBackgroundHeal")
+        }
+
+        // Rewrite anchors after heal export is enqueued (even if drain partially incomplete).
+        try await persistCurrentAnchors(asOf: Date())
+        return uploaded
+    }
+
+    func persistCurrentAnchors(asOf date: Date = Date()) async throws {
+        let anchors = try await store.captureCurrentAnchors(asOf: date)
+        await anchorStore.saveAll(anchors)
+    }
+
+    private func checkpointTo(_ date: Date, context: String) async {
+        do {
+            let stamped = try await api.checkpoint(toAt: Self.iso(date), timezone: timezone)
             if let server = Self.parseISO(stamped.lastSyncedAt) {
                 Self.storeLastSyncedAt(server)
             } else {
-                Self.storeLastSyncedAt(slice.end)
+                Self.storeLastSyncedAt(date)
             }
+        } catch {
+            Self.log.error("Checkpoint failed (\(context, privacy: .public)): \(error.localizedDescription, privacy: .public)")
         }
+    }
 
-        return uploaded
+    private static func endOfLocalDay(_ localDate: String) -> Date? {
+        let parts = localDate.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        var comps = DateComponents()
+        comps.year = parts[0]
+        comps.month = parts[1]
+        comps.day = parts[2]
+        comps.hour = 23
+        comps.minute = 59
+        comps.second = 59
+        return Calendar.current.date(from: comps)
     }
 
     func upload(
@@ -334,6 +530,73 @@ struct HealthSyncService {
         }
 
         return count
+    }
+
+    /// Split an anchored (or multi-day) export into per-local-date outbox rows.
+    @discardableResult
+    func enqueueExportByLocalDate(_ export: HealthKitExport) async throws -> Int {
+        var byDate: [String: HealthKitExport] = [:]
+
+        func bucket(_ iso: String) -> String { Self.localDay(of: iso) }
+
+        for sample in export.samples {
+            let key = bucket(sample.endAt)
+            var day = byDate[key] ?? HealthKitExport(
+                samples: [], sleep: [], standHours: [], workouts: [], routes: [], heartbeats: [], deletions: []
+            )
+            day.samples.append(sample)
+            byDate[key] = day
+        }
+        for sample in export.sleep {
+            let key = bucket(sample.endAt)
+            var day = byDate[key] ?? HealthKitExport(
+                samples: [], sleep: [], standHours: [], workouts: [], routes: [], heartbeats: [], deletions: []
+            )
+            day.sleep.append(sample)
+            byDate[key] = day
+        }
+        for sample in export.standHours {
+            let key = bucket(sample.endAt)
+            var day = byDate[key] ?? HealthKitExport(
+                samples: [], sleep: [], standHours: [], workouts: [], routes: [], heartbeats: [], deletions: []
+            )
+            day.standHours.append(sample)
+            byDate[key] = day
+        }
+        for sample in export.heartbeats {
+            let key = bucket(sample.endAt)
+            var day = byDate[key] ?? HealthKitExport(
+                samples: [], sleep: [], standHours: [], workouts: [], routes: [], heartbeats: [], deletions: []
+            )
+            day.heartbeats.append(sample)
+            byDate[key] = day
+        }
+        for workout in export.workouts {
+            let key = bucket(workout.endAt)
+            var day = byDate[key] ?? HealthKitExport(
+                samples: [], sleep: [], standHours: [], workouts: [], routes: [], heartbeats: [], deletions: []
+            )
+            day.workouts.append(workout)
+            byDate[key] = day
+        }
+        for route in export.routes {
+            // Routes share workout hk_uuid; attach to matching workout day when possible.
+            let key = byDate.first(where: { _, exp in
+                exp.workouts.contains { $0.hkUuid == route.hkUuid }
+            })?.key ?? Self.dayLabel(for: Date())
+            var day = byDate[key] ?? HealthKitExport(
+                samples: [], sleep: [], standHours: [], workouts: [], routes: [], heartbeats: [], deletions: []
+            )
+            day.routes.append(route)
+            byDate[key] = day
+        }
+
+        var total = 0
+        for date in byDate.keys.sorted() {
+            guard let dayExport = byDate[date] else { continue }
+            total += try await enqueueExport(dayExport, localDate: date)
+        }
+        return total
     }
 
     private func exportLocalDates(_ export: HealthKitExport) -> Set<String> {
