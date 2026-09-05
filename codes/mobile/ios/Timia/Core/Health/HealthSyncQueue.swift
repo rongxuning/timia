@@ -155,6 +155,43 @@ actor HealthSyncQueue {
         try stepDone(stmt)
     }
 
+    /// Return a row to `pending` after a retryable failure (transport / 5xx).
+    func requeue(id: Int64, attempts: Int) throws {
+        try openIfNeeded()
+        let sql = "UPDATE outbox SET status = 'pending', attempts = ? WHERE id = ?;"
+        let stmt = try prepare(sql)
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_int(stmt, 1, Int32(attempts))
+        sqlite3_bind_int64(stmt, 2, id)
+        try stepDone(stmt)
+    }
+
+    /// Recover rows left in `uploading` after process death so drain can resume.
+    func resetUploadingToPending() throws {
+        try openIfNeeded()
+        try exec("UPDATE outbox SET status = 'pending' WHERE status = 'uploading';")
+    }
+
+    /// True when a workouts row would block uploading this route (earlier id or same/earlier local_date).
+    func hasBlockingWorkouts(forRouteId routeId: Int64, localDate: String) throws -> Bool {
+        try openIfNeeded()
+        let sql = """
+            SELECT 1 FROM outbox
+            WHERE category = 'workouts'
+              AND status IN ('pending', 'uploading')
+              AND (id < ? OR local_date <= ?)
+            LIMIT 1;
+            """
+        let stmt = try prepare(sql)
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_int64(stmt, 1, routeId)
+        sqlite3_bind_text(stmt, 2, localDate, -1, Self.SQLITE_TRANSIENT)
+        let code = sqlite3_step(stmt)
+        if code == SQLITE_ROW { return true }
+        if code == SQLITE_DONE { return false }
+        throw HealthSyncQueueError.stepFailed(lastErrorMessage())
+    }
+
     /// Rows still in the outbox (ACK deletes). Includes pending / uploading / failed.
     func pendingCount() throws -> Int {
         try openIfNeeded()

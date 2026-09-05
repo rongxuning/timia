@@ -86,7 +86,7 @@ struct HealthSyncCheckpointOut: Decodable, Sendable {
     var lastSyncedAt: String
 }
 
-struct HealthQuantitySamplePayload: Encodable, Sendable {
+struct HealthQuantitySamplePayload: Codable, Sendable {
     var hkUuid: String
     var metricType: String
     var startAt: String
@@ -97,12 +97,12 @@ struct HealthQuantitySamplePayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthQuantitySyncPayload: Encodable, Sendable {
+struct HealthQuantitySyncPayload: Codable, Sendable {
     var timezone: String
     var samples: [HealthQuantitySamplePayload]
 }
 
-struct HealthSleepSamplePayload: Encodable, Sendable {
+struct HealthSleepSamplePayload: Codable, Sendable {
     var hkUuid: String
     var startAt: String
     var endAt: String
@@ -112,12 +112,12 @@ struct HealthSleepSamplePayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthSleepSyncPayload: Encodable, Sendable {
+struct HealthSleepSyncPayload: Codable, Sendable {
     var timezone: String
     var samples: [HealthSleepSamplePayload]
 }
 
-struct HealthStandHourPayload: Encodable, Sendable {
+struct HealthStandHourPayload: Codable, Sendable {
     var hkUuid: String
     var startAt: String
     var endAt: String
@@ -126,12 +126,12 @@ struct HealthStandHourPayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthStandHourSyncPayload: Encodable, Sendable {
+struct HealthStandHourSyncPayload: Codable, Sendable {
     var timezone: String
     var samples: [HealthStandHourPayload]
 }
 
-struct HealthWorkoutPayload: Encodable, Sendable {
+struct HealthWorkoutPayload: Codable, Sendable {
     var hkUuid: String
     var activityType: String
     var activityTypeRaw: String?
@@ -155,34 +155,34 @@ struct HealthWorkoutPayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthWorkoutSyncPayload: Encodable, Sendable {
+struct HealthWorkoutSyncPayload: Codable, Sendable {
     var timezone: String
     var workouts: [HealthWorkoutPayload]
 }
 
-struct HealthWorkoutRoutePoint: Encodable, Sendable {
+struct HealthWorkoutRoutePoint: Codable, Sendable {
     var t: Double
     var lat: Double
     var lng: Double
     var alt: Double?
 }
 
-struct HealthWorkoutRoutePayload: Encodable, Sendable {
+struct HealthWorkoutRoutePayload: Codable, Sendable {
     var hkUuid: String
     var points: [HealthWorkoutRoutePoint]
 }
 
-struct HealthWorkoutRouteSyncPayload: Encodable, Sendable {
+struct HealthWorkoutRouteSyncPayload: Codable, Sendable {
     var timezone: String
     var routes: [HealthWorkoutRoutePayload]
 }
 
-struct HealthHeartbeatIntervalPayload: Encodable, Sendable {
+struct HealthHeartbeatIntervalPayload: Codable, Sendable {
     var t: Double
     var gap: Bool
 }
 
-struct HealthHeartbeatSeriesPayload: Encodable, Sendable {
+struct HealthHeartbeatSeriesPayload: Codable, Sendable {
     var hkUuid: String
     var startAt: String
     var endAt: String
@@ -191,7 +191,7 @@ struct HealthHeartbeatSeriesPayload: Encodable, Sendable {
     var sourceName: String?
 }
 
-struct HealthHeartbeatSyncPayload: Encodable, Sendable {
+struct HealthHeartbeatSyncPayload: Codable, Sendable {
     var timezone: String
     var series: [HealthHeartbeatSeriesPayload]
 }

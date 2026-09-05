@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import UIKit
 
 /// Registers HealthKit observer queries so iOS can wake Timia for near-real-time sync.
 @MainActor
@@ -10,6 +11,7 @@ final class HealthBackgroundDelivery {
     private var started = false
     private var inFlight = false
     private var api: APIClient?
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
 
     private init() {}
 
@@ -41,15 +43,37 @@ final class HealthBackgroundDelivery {
             let syncAPI = HealthSyncAPI(client: api)
             let status = try await syncAPI.syncStatus(timezone: TimeZone.current.identifier)
             let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
-            let watermark = HealthSyncService.applyServerWatermark(server)
+            let watermark = await HealthSyncService.applyServerWatermark(server)
+            // First sync (nil watermark) remains foreground-only.
             guard watermark != nil else { return }
-            let start = HealthSyncService.startDate(lastSyncedAt: watermark)
-            let end = Date()
+
+            beginBackgroundTask()
+            defer { endBackgroundTask() }
+
             let service = HealthSyncService(api: syncAPI)
-            try await service.syncWindow(from: start, to: end, source: .background) { _, _ in }
+            // Until Task 7 anchors: short lookback into outbox + budgeted drain (never full 90-day window).
+            _ = try await service.syncBackgroundBudgeted(budget: .background)
         } catch {
             // Keep the observer alive; day checkpoints + next wake or manual sync retry.
         }
+    }
+
+    private func beginBackgroundTask() {
+        endBackgroundTask()
+        var taskID = UIBackgroundTaskIdentifier.invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: "health-sync-bg") { [weak self] in
+            Task { @MainActor in
+                self?.endBackgroundTask()
+            }
+        }
+        backgroundTaskID = taskID
+    }
+
+    private func endBackgroundTask() {
+        let taskID = backgroundTaskID
+        guard taskID != .invalid else { return }
+        backgroundTaskID = .invalid
+        UIApplication.shared.endBackgroundTask(taskID)
     }
 
     private var observerTypes: [HKSampleType] {

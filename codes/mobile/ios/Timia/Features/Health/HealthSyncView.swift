@@ -197,7 +197,7 @@ struct HealthSyncView: View {
             }
             syncedDays = status.days.filter { $0.totalCount > 0 }
             let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
-            lastSyncedAt = HealthSyncService.applyServerWatermark(server)
+            lastSyncedAt = await HealthSyncService.applyServerWatermark(server)
         } catch {
             // Status fetch is best-effort: don't surface failures here so the
             // user can still retry sync from the existing checkpoint.
