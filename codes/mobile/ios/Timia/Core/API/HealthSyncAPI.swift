@@ -196,6 +196,18 @@ struct HealthHeartbeatSyncPayload: Codable, Sendable {
     var series: [HealthHeartbeatSeriesPayload]
 }
 
+struct HealthDeletionItemPayload: Codable, Sendable {
+    /// HealthKit object UUID (lowercase).
+    var hkUuid: String
+    /// Server `DELETION_KINDS`: quantity | sleep | stand_hour | heartbeat_series | workout
+    var kind: String
+}
+
+struct HealthDeletionSyncPayload: Codable, Sendable {
+    var timezone: String
+    var deletions: [HealthDeletionItemPayload]
+}
+
 struct HealthSyncAPI: Sendable {
     let client: APIClient
 
@@ -281,6 +293,17 @@ struct HealthSyncAPI: Sendable {
     func syncHeartbeat(_ payload: HealthHeartbeatSyncPayload) async throws -> HealthSyncOut {
         try await client.request(
             "/health/sync/heartbeat-series",
+            method: "POST",
+            body: payload,
+            compress: true,
+            timeoutInterval: 60,
+            response: HealthSyncOut.self
+        )
+    }
+
+    func syncDeletions(_ payload: HealthDeletionSyncPayload) async throws -> HealthSyncOut {
+        try await client.request(
+            "/health/sync/deletions",
             method: "POST",
             body: payload,
             compress: true,

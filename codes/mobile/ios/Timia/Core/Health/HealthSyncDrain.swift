@@ -107,11 +107,17 @@ struct HealthSyncDrain {
         }
     }
 
-    // MARK: - Batch selection (same category; workouts before routes)
+    // MARK: - Batch selection (deletions first; workouts before routes)
 
     private func nextSameCategoryBatch(limit: Int) async throws -> [HealthSyncOutboxRow] {
         let pending = try await queue.nextPending(limit: max(limit * 16, 64))
         guard !pending.isEmpty else { return [] }
+
+        // Prefer deletions so soft-deletes land before upserts that could clear deleted_at.
+        let deletionRows = pending.filter { $0.category == .deletions }
+        if !deletionRows.isEmpty {
+            return Array(deletionRows.prefix(limit))
+        }
 
         for row in pending {
             if row.category == .routes {
@@ -120,10 +126,6 @@ struct HealthSyncDrain {
                     localDate: row.localDate
                 )
                 if blocked { continue }
-            }
-            if row.category == .deletions {
-                // Task 8 wires deletions; skip until then so they do not stall the drain.
-                continue
             }
             let category = row.category
             return Array(pending.filter { $0.category == category }.prefix(limit))
@@ -190,7 +192,8 @@ struct HealthSyncDrain {
                 let payload = try decoder.decode(HealthHeartbeatSyncPayload.self, from: row.payload)
                 return try await api.syncHeartbeat(payload)
             case .deletions:
-                throw HealthSyncDrainError.unsupportedCategory(.deletions)
+                let payload = try decoder.decode(HealthDeletionSyncPayload.self, from: row.payload)
+                return try await api.syncDeletions(payload)
             }
         } catch let error as HealthSyncDrainError {
             throw error

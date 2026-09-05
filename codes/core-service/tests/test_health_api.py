@@ -1438,6 +1438,86 @@ def test_deleted_workout_rejects_route_resync():
     assert again.json()["detail"] == "workout_not_found"
 
 
+def test_deletion_soft_deletes_quantity_and_recomputes_on_checkpoint():
+    """Soft-delete via /sync/deletions; daily metrics update only after checkpoint."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    start = datetime.now(timezone.utc).replace(microsecond=0)
+    start_iso = start.isoformat()
+
+    synced = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": hk,
+                    "metric_type": "step_count",
+                    "start_at": start_iso,
+                    "end_at": start_iso,
+                    "value": 1200,
+                    "unit": "count",
+                }
+            ],
+        },
+    )
+    assert synced.status_code == 200, synced.text
+    assert synced.json()["upserted"] == 1
+
+    _checkpoint(client, token, start_iso)
+    after_sync = client.get("/views/me/health", headers=_headers(token))
+    assert after_sync.status_code == 200, after_sync.text
+    assert after_sync.json()["current"]["steps"] == 1200
+
+    deleted = client.post(
+        "/health/sync/deletions",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "deletions": [{"hk_uuid": hk, "kind": "quantity"}],
+        },
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["upserted"] == 1
+    assert start.astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat() in deleted.json()["local_dates"]
+
+    # Deletion alone does not recompute daily metrics (deferred to checkpoint).
+    before_cp = client.get("/views/me/health", headers=_headers(token))
+    assert before_cp.status_code == 200, before_cp.text
+    assert before_cp.json()["current"]["steps"] == 1200
+
+    _checkpoint(client, token, start_iso)
+    after_cp = client.get("/views/me/health", headers=_headers(token))
+    assert after_cp.status_code == 200, after_cp.text
+    assert after_cp.json()["current"]["steps"] in (None, 0)
+
+
+def test_deletion_batch_too_large_and_unknown_kind():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    too_many = [{"hk_uuid": str(uuid.uuid4()), "kind": "quantity"} for _ in range(501)]
+    resp = client.post(
+        "/health/sync/deletions",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "deletions": too_many},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "batch_too_large"
+
+    bad = client.post(
+        "/health/sync/deletions",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "deletions": [{"hk_uuid": str(uuid.uuid4()), "kind": "not_a_kind"}],
+        },
+    )
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "unknown_deletion_kind"
+
+
 def _km_route_points() -> list[dict]:
     """Three points along a meridian, about 1.11 km total."""
     return [

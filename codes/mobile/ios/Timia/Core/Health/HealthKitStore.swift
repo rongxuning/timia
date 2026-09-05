@@ -8,6 +8,8 @@ struct HealthKitDeletedObject: Sendable {
     var hkUuid: String
     /// Per-type anchor key (quantity metric / sleep / stand_hour / workout / heartbeat).
     var typeKey: String
+    /// Server `DELETION_KINDS` value mapped from `typeKey`.
+    var kind: String
 }
 
 struct HealthKitExport: Sendable {
@@ -17,7 +19,7 @@ struct HealthKitExport: Sendable {
     var workouts: [HealthWorkoutPayload]
     var routes: [HealthWorkoutRoutePayload]
     var heartbeats: [HealthHeartbeatSeriesPayload]
-    /// Soft-deleted HK objects from anchored queries; Task 8 uploads these.
+    /// Soft-deleted HK objects from anchored queries; uploaded via `/health/sync/deletions`.
     var deletions: [HealthKitDeletedObject] = []
 }
 
@@ -731,8 +733,28 @@ struct HealthKitStore {
     }
 
     private func mapDeleted(_ deleted: [HKDeletedObject], typeKey: String) -> [HealthKitDeletedObject] {
-        deleted.map {
-            HealthKitDeletedObject(hkUuid: $0.uuid.uuidString.lowercased(), typeKey: typeKey)
+        guard let kind = Self.deletionKind(forTypeKey: typeKey) else { return [] }
+        return deleted.map {
+            HealthKitDeletedObject(
+                hkUuid: $0.uuid.uuidString.lowercased(),
+                typeKey: typeKey,
+                kind: kind
+            )
+        }
+    }
+
+    /// Maps anchor / metric type keys to server `DELETION_KINDS` strings.
+    static func deletionKind(forTypeKey typeKey: String) -> String? {
+        switch typeKey {
+        case AnchorKey.sleep: return "sleep"
+        case AnchorKey.standHour: return "stand_hour"
+        case AnchorKey.workout: return "workout"
+        case AnchorKey.heartbeat: return "heartbeat_series"
+        default:
+            if quantitySpecs.contains(where: { $0.metric == typeKey }) {
+                return "quantity"
+            }
+            return nil
         }
     }
 

@@ -181,8 +181,6 @@ struct HealthSyncService {
         let end = Date()
         onProgress(0.05, "读取增量变更")
         let (export, newAnchors) = try await store.exportAnchoredChanges()
-        // Deletions collected for Task 8; not uploaded yet.
-        _ = export.deletions
 
         onProgress(0.15, "写入队列")
         let enqueued = try await enqueueExportByLocalDate(export)
@@ -364,7 +362,6 @@ struct HealthSyncService {
     ) async throws -> Int {
         onProgress?("后台增量导出")
         let (export, newAnchors) = try await store.exportAnchoredChanges()
-        _ = export.deletions
         _ = try await enqueueExportByLocalDate(export)
         await anchorStore.saveAll(newAnchors)
 
@@ -495,7 +492,7 @@ struct HealthSyncService {
         onProgress(1, "同步完成")
     }
 
-    /// Chunk export into outbox rows. Category order: samples→sleep→stand→workouts→routes→heartbeats.
+    /// Chunk export into outbox rows. Category order: deletions→samples→sleep→stand→workouts→routes→heartbeats.
     @discardableResult
     func enqueueExport(_ export: HealthKitExport, localDate: String) async throws -> Int {
         let tz = timezone
@@ -510,6 +507,16 @@ struct HealthSyncService {
             count += 1
         }
 
+        // Deletions first (≤500) so drain uploads soft-deletes before upserts.
+        let deletionItems = export.deletions.map {
+            HealthDeletionItemPayload(hkUuid: $0.hkUuid, kind: $0.kind)
+        }
+        for chunk in deletionItems.chunked(into: 500) {
+            try await enqueue(
+                .deletions,
+                payload: HealthDeletionSyncPayload(timezone: tz, deletions: chunk)
+            )
+        }
         for chunk in export.samples.chunked(into: 500) {
             try await enqueue(.samples, payload: HealthQuantitySyncPayload(timezone: tz, samples: chunk))
         }
@@ -533,8 +540,24 @@ struct HealthSyncService {
     }
 
     /// Split an anchored (or multi-day) export into per-local-date outbox rows.
+    /// Deletions have no sample timestamps — enqueued once under today's local date, before day buckets.
     @discardableResult
     func enqueueExportByLocalDate(_ export: HealthKitExport) async throws -> Int {
+        var total = 0
+
+        if !export.deletions.isEmpty {
+            let deletionOnly = HealthKitExport(
+                samples: [],
+                sleep: [],
+                standHours: [],
+                workouts: [],
+                routes: [],
+                heartbeats: [],
+                deletions: export.deletions
+            )
+            total += try await enqueueExport(deletionOnly, localDate: Self.dayLabel(for: Date()))
+        }
+
         var byDate: [String: HealthKitExport] = [:]
 
         func bucket(_ iso: String) -> String { Self.localDay(of: iso) }
@@ -591,7 +614,6 @@ struct HealthSyncService {
             byDate[key] = day
         }
 
-        var total = 0
         for date in byDate.keys.sorted() {
             guard let dayExport = byDate[date] else { continue }
             total += try await enqueueExport(dayExport, localDate: date)
