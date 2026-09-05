@@ -53,6 +53,8 @@ final class HealthBackgroundDelivery {
             let service = HealthSyncService(api: syncAPI)
             // Anchored delta → enqueue → budgeted drain (heals with short window if anchors unhealthy).
             _ = try await service.syncBackgroundBudgeted(budget: .background)
+            // Refresh lock-screen Live Activity after background health sync (#16).
+            await ScreenNotificationManager.shared.refresh(api: api)
         } catch {
             // Keep the observer alive; day checkpoints + next wake or manual sync retry.
         }

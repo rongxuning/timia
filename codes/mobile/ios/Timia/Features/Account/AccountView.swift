@@ -26,6 +26,7 @@ struct AccountView: View {
                     Label("健康数据", systemImage: "heart.text.square")
                 }
             }
+            ScreenNotificationSettingsSection()
             if user.isSystemAdmin {
                 Section("管理") {
                     NavigationLink("成员") { UserDirectoryView() }

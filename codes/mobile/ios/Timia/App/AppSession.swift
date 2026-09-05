@@ -72,6 +72,7 @@ final class AppSession: ObservableObject {
     func signOut() {
         state = .signedOut
         Task { @MainActor in
+            await ScreenNotificationManager.shared.endActivity()
             guard let token = await credentials.takeAccessTokenAndClearSession() else { return }
             var request = URLRequest(url: baseURL.appending(path: "/auth/mobile/logout"))
             request.httpMethod = "POST"
@@ -82,6 +83,7 @@ final class AppSession: ObservableObject {
     }
 
     private func invalidateSession() async {
+        await ScreenNotificationManager.shared.endActivity()
         await credentials.clearSession()
         state = .signedOut
     }
