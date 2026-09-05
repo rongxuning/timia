@@ -21,7 +21,7 @@ enum HealthSyncTelemetry {
     }
 }
 
-struct HealthSyncDrainBudget: Sendable {
+struct HealthSyncDrainBudget: Sendable, Equatable {
     var maxBatches: Int
     var maxDuration: TimeInterval
 
@@ -227,6 +227,10 @@ struct HealthSyncDrain {
                 try await queue.requeue(id: row.id, attempts: nextAttempts)
                 throw error
             }
+        } catch let error as HealthSyncDrainError {
+            // Corrupt / undecodable outbox payloads will never succeed — fail permanently.
+            try await queue.markFailed(id: row.id, attempts: row.attempts + 1)
+            throw error
         } catch {
             try await queue.requeue(id: row.id, attempts: row.attempts + 1)
             throw error

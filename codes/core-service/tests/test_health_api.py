@@ -2213,3 +2213,38 @@ def test_health_sync_samples_rejects_bad_gzip():
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "content_encoding_invalid"
+
+
+def test_health_sync_samples_rejects_oversize_gzip_body(monkeypatch):
+    """Decompressed body above the middleware cap returns 413."""
+    from app.middleware import gzip_request as gzip_mod
+
+    monkeypatch.setattr(gzip_mod, "_MAX_DECOMPRESSED_BYTES", 64)
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "timezone": "Asia/Shanghai",
+        "samples": [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "step_count",
+                "start_at": now,
+                "end_at": now,
+                "value": 100,
+                "unit": "count",
+            }
+        ],
+    }
+    compressed = gzip.compress(json.dumps(payload).encode("utf-8"))
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=compressed,
+    )
+    assert resp.status_code == 413
+    assert resp.json()["detail"] == "gzip_body_too_large"
