@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
@@ -93,6 +94,8 @@ BATCH_WORKOUT_ROUTE_MAX = 10
 BATCH_WORKOUT_ROUTE_POINTS_MAX = 1800
 BATCH_DELETION_MAX = 500
 
+logger = logging.getLogger("health.sync")
+
 
 def _ensure_timezone(name: str) -> str:
     parse_timezone(name)
@@ -117,9 +120,11 @@ def _date_list(dates: set[date]) -> list[str]:
 
 def _recompute_dates(
     db: Session, owner_user_id: uuid.UUID, dates: set[date], timezone_name: str
-) -> None:
-    for local_date in sorted(dates):
+) -> int:
+    ordered = sorted(dates)
+    for local_date in ordered:
         recompute_daily_metrics(db, owner_user_id, local_date, timezone_name)
+    return len(ordered)
 
 
 def sync_quantity_samples(db: Session, user: User, payload: HealthQuantitySyncIn) -> HealthSyncOut:
@@ -649,7 +654,13 @@ def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> Health
                     cursor += timedelta(days=1)
             else:
                 dates.add(d_to)
-        _recompute_dates(db, user.id, dates, tz_name)
+        recompute_count = _recompute_dates(db, user.id, dates, tz_name)
+        logger.info(
+            "sync.finish_run recompute_count=%s user_id=%s source=%s",
+            recompute_count,
+            user.id,
+            payload.source,
+        )
         db.flush()
     return _sync_run_out(run)
 
@@ -667,7 +678,13 @@ def advance_sync_checkpoint(
         _invalid_timezone(err)
         raise
     d0 = local_date_of(to_at, tz_name)
-    _recompute_dates(db, user.id, {d0, d0 - timedelta(days=1)}, tz_name)
+    recompute_count = _recompute_dates(db, user.id, {d0, d0 - timedelta(days=1)}, tz_name)
+    logger.info(
+        "sync.checkpoint recompute_count=%s user_id=%s to_at=%s",
+        recompute_count,
+        user.id,
+        payload.to_at.isoformat(),
+    )
     db.flush()
     assert state.last_synced_at is not None
     return HealthSyncCheckpointOut(last_synced_at=state.last_synced_at)

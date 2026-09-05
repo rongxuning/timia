@@ -124,7 +124,10 @@ struct HealthSyncService {
     }
 
     func exportSince(_ start: Date, to end: Date = Date()) async throws -> HealthKitExport {
-        try await store.exportSamples(from: start, to: end)
+        let exportStarted = Date()
+        let export = try await store.exportSamples(from: start, to: end)
+        HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
+        return export
     }
 
     /// Optional day export for the syncWindow prefetch pipeline (`nil` slice → `nil` export).
@@ -186,7 +189,9 @@ struct HealthSyncService {
     ) async throws {
         let end = Date()
         onProgress(0.05, "读取增量变更")
+        let exportStarted = Date()
         let (export, newAnchors) = try await store.exportAnchoredChanges()
+        HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
 
         onProgress(0.15, "写入队列")
         let enqueued = try await enqueueExportByLocalDate(export)
@@ -394,7 +399,9 @@ struct HealthSyncService {
         onProgress: ((String) -> Void)?
     ) async throws -> Int {
         onProgress?("后台增量导出")
+        let exportStarted = Date()
         let (export, newAnchors) = try await store.exportAnchoredChanges()
+        HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
         _ = try await enqueueExportByLocalDate(export)
         await anchorStore.saveAll(newAnchors)
 

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum APIError: LocalizedError, Equatable {
     case invalidConfiguration
@@ -21,6 +22,8 @@ enum APIError: LocalizedError, Equatable {
 struct EmptyResponse: Decodable, Sendable {}
 
 struct APIClient: Sendable {
+    private static let healthSyncLog = Logger(subsystem: "Timia.HealthSync", category: "Upload")
+
     let baseURL: URL
     let credentials: CredentialManager
     var onUnauthorized: @Sendable () -> Void
@@ -64,9 +67,10 @@ struct APIClient: Sendable {
                 let gzipped = try Self.gzipCompress(json)
                 request.httpBody = gzipped
                 request.setValue("gzip", forHTTPHeaderField: "Content-Encoding")
-                #if DEBUG
-                print("[APIClient] gzip \(path): \(json.count) -> \(gzipped.count) bytes")
-                #endif
+                let gzipRatio = gzipped.count > 0 ? Double(json.count) / Double(gzipped.count) : 0
+                Self.healthSyncLog.debug(
+                    "gzip_ratio=\(gzipRatio, format: .fixed(precision: 2), privacy: .public) batch_bytes=\(json.count, privacy: .public) path=\(path, privacy: .public)"
+                )
             } else {
                 request.httpBody = json
             }

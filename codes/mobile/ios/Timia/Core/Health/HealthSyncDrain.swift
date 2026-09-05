@@ -1,4 +1,25 @@
 import Foundation
+import os
+
+enum HealthSyncTelemetry {
+    private static let log = Logger(subsystem: "Timia.HealthSync", category: "Sync")
+
+    static func logExport(exportMs: Int) {
+        log.info("export_ms=\(exportMs, privacy: .public)")
+    }
+
+    static func logDrain(
+        uploadMs: Int,
+        drainBatches: Int,
+        batchBytes: Int,
+        outboxPending: Int,
+        bgBudgetHit: Bool
+    ) {
+        log.info(
+            "upload_ms=\(uploadMs, privacy: .public) drain_batches=\(drainBatches, privacy: .public) batch_bytes=\(batchBytes, privacy: .public) outbox_pending=\(outboxPending, privacy: .public) bg_budget_hit=\(bgBudgetHit, privacy: .public)"
+        )
+    }
+}
 
 struct HealthSyncDrainBudget: Sendable {
     var maxBatches: Int
@@ -56,11 +77,15 @@ struct HealthSyncDrain {
         try await queue.resetUploadingToPending()
 
         let started = Date()
+        let uploadStarted = Date()
         var uploaded = 0
+        var totalBatchBytes = 0
+        var durationBudgetHit = false
 
         do {
             while uploaded < budget.maxBatches {
                 if Date().timeIntervalSince(started) >= budget.maxDuration {
+                    durationBudgetHit = true
                     break
                 }
 
@@ -69,6 +94,8 @@ struct HealthSyncDrain {
                 if batch.isEmpty {
                     break
                 }
+
+                totalBatchBytes += batch.reduce(0) { $0 + $1.payload.count }
 
                 let ids = batch.map(\.id)
                 try await queue.markUploading(ids: ids)
@@ -100,11 +127,25 @@ struct HealthSyncDrain {
                 }
 
                 if Date().timeIntervalSince(started) >= budget.maxDuration {
+                    durationBudgetHit = true
                     break
                 }
             }
 
             try await queue.resetUploadingToPending()
+            let outboxPending = try await queue.pendingCount()
+            let uploadMs = Int(Date().timeIntervalSince(uploadStarted) * 1000)
+            let batchBudgetHit = uploaded >= budget.maxBatches && outboxPending > 0
+            let bgBudgetHit = budget != .foreground
+                && outboxPending > 0
+                && (durationBudgetHit || batchBudgetHit)
+            HealthSyncTelemetry.logDrain(
+                uploadMs: uploadMs,
+                drainBatches: uploaded,
+                batchBytes: totalBatchBytes,
+                outboxPending: outboxPending,
+                bgBudgetHit: bgBudgetHit
+            )
             return uploaded
         } catch {
             try? await queue.resetUploadingToPending()
