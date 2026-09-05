@@ -14,6 +14,7 @@
 		13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */; };
 		14ACCBB6B6F8A34391230101 /* HealthSyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E957781609437059641828 /* HealthSyncAPI.swift */; };
 		1A2B3C4D5E6F708192A3B4C5 /* Data+Gzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3C4D5E6F708192A3B4C5D6 /* Data+Gzip.swift */; };
+		BF9498FE725CF129FBB321A7 /* HealthSyncQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10ECF9F40F34A36283D8140D /* HealthSyncQueue.swift */; };
 		16E99362D39572A6C5FB47C9 /* WorkspaceActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A7C44F73401A44586DF4EC /* WorkspaceActivityView.swift */; };
 		172948F3E2131FEAD88ADBBD /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD38F9E831FF4FA469537A7C /* AccountView.swift */; };
 		1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */; };
@@ -96,6 +97,7 @@
 		29102C072744826E8F5BF01C /* WorkspacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacesView.swift; sourceTree = "<group>"; };
 		2965DAAE7EE6D180ED42C7CB /* WorkspaceDiscussionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiscussionsView.swift; sourceTree = "<group>"; };
 		2B3C4D5E6F708192A3B4C5D6 /* Data+Gzip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Gzip.swift"; sourceTree = "<group>"; };
+		10ECF9F40F34A36283D8140D /* HealthSyncQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueue.swift; sourceTree = "<group>"; };
 		2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteInputView.swift; sourceTree = "<group>"; };
 		30DD19186DC70910982C8C46 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
 		34781A49682D42B8CDCA4233 /* HealthSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncService.swift; sourceTree = "<group>"; };
@@ -392,6 +394,7 @@
 				4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */,
 				358364DC9FBB2361030EFF90 /* HealthKitStore.swift */,
 				A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */,
+				10ECF9F40F34A36283D8140D /* HealthSyncQueue.swift */,
 				34781A49682D42B8CDCA4233 /* HealthSyncService.swift */,
 			);
 			path = Health;
@@ -544,6 +547,7 @@
 				5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */,
 				3F50C6F41051B52FFB19B5D8 /* HealthPermissionManager.swift in Sources */,
 				14ACCBB6B6F8A34391230101 /* HealthSyncAPI.swift in Sources */,
+				BF9498FE725CF129FBB321A7 /* HealthSyncQueue.swift in Sources */,
 				B815953B627371B090232172 /* HealthSyncService.swift in Sources */,
 				B267B536A67D29DEF35763C5 /* HealthSyncView.swift in Sources */,
 				55AE29F0FC265551628E74F7 /* KeychainStore.swift in Sources */,
