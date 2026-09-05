@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct HealthPendingDay: Identifiable, Sendable {
     var localDate: String
@@ -34,6 +35,8 @@ struct HealthSyncService {
     static let uploadConcurrency = 4
     /// Until HK anchors (Task 7), background only time-exports this many calendar days.
     static let backgroundLookbackDays = 2
+
+    private static let log = Logger(subsystem: "online.timia.ios", category: "HealthSync")
 
     var api: HealthSyncAPI
     var store = HealthKitStore()
@@ -190,6 +193,7 @@ struct HealthSyncService {
             }
 
             // Server-authoritative day checkpoint (local cache mirrors server).
+            await logFailedRowsLeftBehind(localDate: label, context: "syncWindow")
             let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
             if let server = Self.parseISO(stamped.lastSyncedAt) {
                 Self.storeLastSyncedAt(server)
@@ -244,6 +248,7 @@ struct HealthSyncService {
             let label = Self.dayLabel(for: slice.start)
             let remaining = try await queue.pendingCount(localDate: label)
             guard remaining == 0 else { break }
+            await logFailedRowsLeftBehind(localDate: label, context: "syncBackgroundBudgeted")
             let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
             if let server = Self.parseISO(stamped.lastSyncedAt) {
                 Self.storeLastSyncedAt(server)
@@ -383,6 +388,13 @@ struct HealthSyncService {
         }
 
         return buckets.values.sorted { $0.localDate > $1.localDate }
+    }
+
+    private func logFailedRowsLeftBehind(localDate: String, context: String) async {
+        guard let failed = try? await queue.failedCount(localDate: localDate), failed > 0 else { return }
+        Self.log.warning(
+            "Checkpointing \(localDate, privacy: .public) with \(failed) failed outbox row(s) left behind (\(context, privacy: .public))"
+        )
     }
 
     private func finish(

@@ -192,16 +192,36 @@ actor HealthSyncQueue {
         throw HealthSyncQueueError.stepFailed(lastErrorMessage())
     }
 
-    /// Rows still in the outbox (ACK deletes). Includes pending / uploading / failed.
+    private static let uploadPendingStatuses = "('pending', 'uploading')"
+
+    /// Rows that still need upload (pending or uploading). Excludes permanent `failed` rows.
     func pendingCount() throws -> Int {
         try openIfNeeded()
-        return try scalarInt("SELECT COUNT(*) FROM outbox;")
+        return try scalarInt(
+            "SELECT COUNT(*) FROM outbox WHERE status IN \(Self.uploadPendingStatuses);"
+        )
     }
 
-    /// Remaining rows for a local calendar day — used to gate day checkpoints.
+    /// Upload-pending rows for a local calendar day — used to gate day checkpoints.
     func pendingCount(localDate: String) throws -> Int {
         try openIfNeeded()
-        let sql = "SELECT COUNT(*) FROM outbox WHERE local_date = ?;"
+        let sql = """
+            SELECT COUNT(*) FROM outbox
+            WHERE local_date = ? AND status IN \(Self.uploadPendingStatuses);
+            """
+        let stmt = try prepare(sql)
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, localDate, -1, Self.SQLITE_TRANSIENT)
+        guard sqlite3_step(stmt) == SQLITE_ROW else {
+            throw HealthSyncQueueError.stepFailed(lastErrorMessage())
+        }
+        return Int(sqlite3_column_int(stmt, 0))
+    }
+
+    /// Permanent-failure rows for a local calendar day (e.g. 4xx); retained for debug / UI.
+    func failedCount(localDate: String) throws -> Int {
+        try openIfNeeded()
+        let sql = "SELECT COUNT(*) FROM outbox WHERE local_date = ? AND status = 'failed';"
         let stmt = try prepare(sql)
         defer { sqlite3_finalize(stmt) }
         sqlite3_bind_text(stmt, 1, localDate, -1, Self.SQLITE_TRANSIENT)
