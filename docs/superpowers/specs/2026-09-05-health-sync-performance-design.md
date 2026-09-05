@@ -209,20 +209,20 @@ Each phase is independently mergeable. Rollback: feature-flag gzip; leave uncomp
 
 ### Server
 
-- `codes/core-service/app/services/health_api.py` — coalesce recompute; optional dirty set.
-- `codes/core-service/app/routes/health.py` — unchanged contracts preferred; middleware wiring if needed.
-- New gzip middleware (or Starlette/FastAPI request body hook).
-- `codes/core-service/app/migrations/versions/00xx_health_partial_indexes.py`.
-- `codes/core-service/tests/test_health_api.py` (+ gzip / coalesce tests).
+- `codes/core-service/app/services/health_api.py` — defer recompute to checkpoint/finish-run.
+- `codes/core-service/app/routes/health.py` — contracts unchanged preferred; middleware wiring if needed.
+- New: `codes/core-service/app/middleware/gzip_request.py`.
+- `codes/core-service/app/migrations/versions/0032_health_partial_indexes.py`.
+- `codes/core-service/tests/test_health_api.py` (+ gzip / deferred-recompute tests).
 
 ### iOS
 
-- `codes/mobile/ios/Timia/Core/Health/HealthSyncService.swift` — orchestrate export vs drain.
+- `codes/mobile/ios/Timia/Core/Health/HealthSyncService.swift` — orchestrate export → enqueue → drain → checkpoint.
 - New: `HealthSyncQueue.swift`, `HealthKitAnchorStore.swift`, `HealthSyncDrain.swift`.
-- `HealthBackgroundDelivery.swift` — budgeted drain.
-- `HealthSyncAPI.swift` — gzip bodies, timeout.
+- `HealthBackgroundDelivery.swift` — budgeted drain; keep nil-watermark gate.
+- `codes/mobile/ios/Timia/Core/API/HealthSyncAPI.swift` — gzip bodies, 60s timeout.
 - `HealthKitStore.swift` — anchored queries + deletion callbacks.
-- `HealthSyncView.swift` — use shared drain; keep UX progress.
+- `codes/mobile/ios/Timia/Features/Health/HealthSyncView.swift` — shared drain; keep `beginBackgroundTask`.
 
 ## Relationship to prior specs
 
