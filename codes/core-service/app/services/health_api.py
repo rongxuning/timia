@@ -115,6 +115,13 @@ def _date_list(dates: set[date]) -> list[str]:
     return sorted(item.isoformat() for item in dates)
 
 
+def _recompute_dates(
+    db: Session, owner_user_id: uuid.UUID, dates: set[date], timezone_name: str
+) -> None:
+    for local_date in sorted(dates):
+        recompute_daily_metrics(db, owner_user_id, local_date, timezone_name)
+
+
 def sync_quantity_samples(db: Session, user: User, payload: HealthQuantitySyncIn) -> HealthSyncOut:
     try:
         tz_name = _ensure_timezone(payload.timezone)
@@ -153,8 +160,6 @@ def sync_quantity_samples(db: Session, user: User, payload: HealthQuantitySyncIn
         )
     _bulk_upsert_quantity(db, rows)
     db.flush()
-    for local_date in dates:
-        recompute_daily_metrics(db, user.id, local_date, tz_name)
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
 
@@ -223,8 +228,6 @@ def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> H
         )
     _bulk_upsert_sleep(db, rows)
     db.flush()
-    for local_date in dates:
-        recompute_daily_metrics(db, user.id, local_date, tz_name)
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
 
@@ -280,8 +283,6 @@ def sync_stand_hours(db: Session, user: User, payload: HealthStandHourSyncIn) ->
         )
     _bulk_upsert_stand_hour(db, rows)
     db.flush()
-    for local_date in dates:
-        recompute_daily_metrics(db, user.id, local_date, tz_name)
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
 
@@ -338,8 +339,6 @@ def sync_heartbeat_series(db: Session, user: User, payload: HealthHeartbeatSyncI
         )
     _bulk_upsert_heartbeat(db, rows)
     db.flush()
-    for local_date in dates:
-        recompute_daily_metrics(db, user.id, local_date, tz_name)
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
 
@@ -412,8 +411,6 @@ def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> Heal
         )
     _bulk_upsert_workout(db, rows)
     db.flush()
-    for local_date in dates:
-        recompute_daily_metrics(db, user.id, local_date, tz_name)
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
 
@@ -517,8 +514,6 @@ def sync_deletions(db: Session, user: User, payload: HealthDeletionSyncIn) -> He
                 route.deleted_at = now
                 route.updated_at = now
     db.flush()
-    for local_date in dates:
-        recompute_daily_metrics(db, user.id, local_date, tz_name)
     return HealthSyncOut(upserted=len(payload.deletions), local_dates=_date_list(dates))
 
 
@@ -638,6 +633,23 @@ def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> Health
     db.flush()
     if payload.status == "success":
         _advance_sync_state(db, user.id, payload.to_at, last_run_id=run.id, now=now)
+        tz_name = "Asia/Shanghai"
+        dates: set[date] = set()
+        if payload.local_dates:
+            for raw in payload.local_dates:
+                dates.add(date.fromisoformat(raw))
+        else:
+            to_at = _aware(payload.to_at)
+            d_to = local_date_of(to_at, tz_name)
+            if payload.from_at is not None:
+                d_from = local_date_of(_aware(payload.from_at), tz_name)
+                cursor = d_from
+                while cursor <= d_to:
+                    dates.add(cursor)
+                    cursor += timedelta(days=1)
+            else:
+                dates.add(d_to)
+        _recompute_dates(db, user.id, dates, tz_name)
         db.flush()
     return _sync_run_out(run)
 
@@ -648,6 +660,14 @@ def advance_sync_checkpoint(
     """Advance last_synced_at without creating a sync-run row (day resume)."""
     now = utcnow()
     state = _advance_sync_state(db, user.id, payload.to_at, last_run_id=None, now=now)
+    to_at = _aware(payload.to_at)
+    try:
+        tz_name = _ensure_timezone(payload.timezone)
+    except ValueError as err:
+        _invalid_timezone(err)
+        raise
+    d0 = local_date_of(to_at, tz_name)
+    _recompute_dates(db, user.id, {d0, d0 - timedelta(days=1)}, tz_name)
     db.flush()
     assert state.last_synced_at is not None
     return HealthSyncCheckpointOut(last_synced_at=state.last_synced_at)

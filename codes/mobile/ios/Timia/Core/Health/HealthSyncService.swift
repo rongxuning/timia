@@ -161,7 +161,7 @@ struct HealthSyncService {
             for date in dayResult.localDates { localDates.insert(date) }
 
             // Server-authoritative day checkpoint (local cache mirrors server).
-            let stamped = try await api.checkpoint(toAt: Self.iso(slice.end))
+            let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
             if let server = Self.parseISO(stamped.lastSyncedAt) {
                 Self.storeLastSyncedAt(server)
             } else {

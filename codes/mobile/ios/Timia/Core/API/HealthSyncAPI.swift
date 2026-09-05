@@ -79,6 +79,7 @@ struct HealthSyncStatus: Decodable, Sendable {
 
 struct HealthSyncCheckpointIn: Encodable, Sendable {
     var toAt: String
+    var timezone: String
 }
 
 struct HealthSyncCheckpointOut: Decodable, Sendable {
@@ -213,11 +214,11 @@ struct HealthSyncAPI: Sendable {
         try await client.request("/health/sync/runs", method: "POST", body: payload, response: HealthSyncRun.self)
     }
 
-    func checkpoint(toAt: String) async throws -> HealthSyncCheckpointOut {
+    func checkpoint(toAt: String, timezone: String = TimeZone.current.identifier) async throws -> HealthSyncCheckpointOut {
         try await client.request(
             "/health/sync/checkpoint",
             method: "POST",
-            body: HealthSyncCheckpointIn(toAt: toAt),
+            body: HealthSyncCheckpointIn(toAt: toAt, timezone: timezone),
             response: HealthSyncCheckpointOut.self
         )
     }

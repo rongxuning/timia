@@ -20,6 +20,39 @@ def _headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _checkpoint(
+    client: TestClient,
+    token: str,
+    to_at: str,
+    timezone_name: str = "Asia/Shanghai",
+) -> None:
+    resp = client.post(
+        "/health/sync/checkpoint",
+        headers=_headers(token),
+        json={"to_at": to_at, "timezone": timezone_name},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+def _finish_run_success(
+    client: TestClient,
+    token: str,
+    to_at: str,
+    local_dates: list[str],
+) -> None:
+    resp = client.post(
+        "/health/sync/runs",
+        headers=_headers(token),
+        json={
+            "source": "manual",
+            "status": "success",
+            "to_at": to_at,
+            "local_dates": local_dates,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+
 def _register_and_login(client: TestClient) -> tuple[str, str]:
     suffix = secrets.token_hex(8)
     email = f"health-{suffix}@example.com"
@@ -227,10 +260,49 @@ def test_quantity_upsert_is_idempotent_and_rolls_daily():
     assert second.status_code == 200
     assert second.json()["upserted"] == 1
 
+    _checkpoint(client, token, start)
+
     view = client.get("/views/me/health", headers=_headers(token))
     assert view.status_code == 200, view.text
     body = view.json()
     assert body["current"]["steps"] == 250
+
+
+def test_daily_metrics_recompute_on_checkpoint_not_each_batch():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    start = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "timezone": "Asia/Shanghai",
+        "samples": [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "step_count",
+                "start_at": start,
+                "end_at": start,
+                "value": 500,
+                "unit": "count",
+            }
+        ],
+    }
+    synced = client.post("/health/sync/samples", headers=_headers(token), json=payload)
+    assert synced.status_code == 200, synced.text
+    assert synced.json()["upserted"] == 1
+
+    before = client.get("/views/me/health", headers=_headers(token))
+    assert before.status_code == 200, before.text
+    assert before.json()["current"]["steps"] in (None, 0)
+
+    cp = client.post(
+        "/health/sync/checkpoint",
+        headers=_headers(token),
+        json={"to_at": start, "timezone": "Asia/Shanghai"},
+    )
+    assert cp.status_code == 200, cp.text
+
+    after = client.get("/views/me/health", headers=_headers(token))
+    assert after.status_code == 200, after.text
+    assert after.json()["current"]["steps"] == 500
 
 
 def test_users_cannot_see_each_others_health():
@@ -255,6 +327,7 @@ def test_users_cannot_see_each_others_health():
             ],
         },
     )
+    _checkpoint(client, token_a, now)
     view = client.get("/views/me/health", headers=_headers(token_b))
     assert view.status_code == 200
     assert view.json()["current"]["steps"] is None
@@ -291,6 +364,7 @@ def test_sleep_sync_excludes_in_bed_from_asleep_total():
         },
     )
     assert resp.status_code == 200, resp.text
+    _checkpoint(client, token, in_bed_end)
     view = client.get("/views/me/health", headers=_headers(token))
     current = view.json()["current"]
     assert current["sleep_in_bed_minutes"] == 8 * 60
@@ -320,6 +394,7 @@ def test_health_view_accepts_date_and_range():
     )
     assert synced.status_code == 200, synced.text
     local_date = synced.json()["local_dates"][0]
+    _checkpoint(client, token, past.isoformat())
     view = client.get(f"/views/me/health?date={local_date}", headers=_headers(token))
     assert view.status_code == 200, view.text
     assert view.json()["mode"] == "day"
@@ -377,6 +452,7 @@ def test_health_view_calendar_marks_metrics_and_workouts():
             ],
         },
     )
+    _checkpoint(client, token, now.isoformat())
     view = client.get("/views/me/health", headers=_headers(token))
     assert view.status_code == 200
     days = {item["local_date"]: item for item in view.json()["calendar_days"]}
@@ -406,6 +482,7 @@ def test_health_view_carries_forward_latest_weight():
             ],
         },
     )
+    _checkpoint(client, token, past.isoformat())
     view = client.get("/views/me/health", headers=_headers(token))
     assert view.status_code == 200
     assert view.json()["current"]["body_mass_kg"] == 62.5
@@ -680,6 +757,7 @@ def test_health_profile_persists_and_unlocks_energy_scores():
             ],
         },
     )
+    _checkpoint(client, token, now.isoformat())
     view = client.get("/views/me/health", headers=_headers(token))
     assert view.status_code == 200, view.text
     body = view.json()
@@ -748,6 +826,7 @@ def test_health_card_detail_steps_hourly_from_samples():
             ],
         },
     )
+    _checkpoint(client, token, end.isoformat())
     resp = client.get(f"/views/me/health/cards/steps?date={today.isoformat()}", headers=_headers(token))
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -793,6 +872,7 @@ def test_quantity_sync_dedupes_overlapping_step_sources():
             ],
         },
     )
+    _checkpoint(client, token, end.isoformat())
     view = client.get(f"/views/me/health?date={today.isoformat()}", headers=_headers(token))
     assert view.status_code == 200, view.text
     assert view.json()["current"]["steps"] == 5000
@@ -870,6 +950,7 @@ def test_health_card_detail_hrv_range_keeps_today_samples():
         },
     )
     assert posted.status_code == 200, posted.text
+    _finish_run_success(client, token, today_at.isoformat(), posted.json()["local_dates"])
 
     ranged = client.get("/views/me/health/cards/hrv?range=7", headers=_headers(token))
     assert ranged.status_code == 200, ranged.text
@@ -969,6 +1050,7 @@ def test_health_card_detail_hrv_days_window_and_zones():
         json={"timezone": "Asia/Shanghai", "samples": samples},
     )
     assert posted.status_code == 200, posted.text
+    _finish_run_success(client, token, samples[-1]["end_at"], posted.json()["local_dates"])
 
     day_resp = client.get(
         f"/views/me/health/cards/hrv?date={today.isoformat()}",
@@ -1049,6 +1131,7 @@ def test_health_card_detail_spo2_range_keeps_today_samples():
         },
     )
     assert posted.status_code == 200, posted.text
+    _finish_run_success(client, token, today_at.isoformat(), posted.json()["local_dates"])
 
     ranged = client.get("/views/me/health/cards/spo2?range=7", headers=_headers(token))
     assert ranged.status_code == 200, ranged.text
@@ -1150,6 +1233,7 @@ def test_health_card_detail_spo2_days_window_and_zones():
         json={"timezone": "Asia/Shanghai", "samples": samples},
     )
     assert posted.status_code == 200, posted.text
+    _finish_run_success(client, token, samples[-1]["end_at"], posted.json()["local_dates"])
 
     day_resp = client.get(
         f"/views/me/health/cards/spo2?date={today.isoformat()}",
@@ -1221,6 +1305,7 @@ def test_health_card_detail_active_target_uses_carried_weight():
             ],
         },
     )
+    _checkpoint(client, token, past.isoformat())
     today = _shanghai_today()
     resp = client.get(f"/views/me/health/cards/active?date={today.isoformat()}", headers=_headers(token))
     assert resp.status_code == 200, resp.text
@@ -1892,6 +1977,8 @@ def test_health_card_detail_exercise_range_averages_and_lists_window():
         },
     )
     assert workouts.status_code == 200, workouts.text
+    local_dates = sorted(set(posted.json()["local_dates"] + workouts.json()["local_dates"]))
+    _finish_run_success(client, token, datetime.now(timezone.utc).isoformat(), local_dates)
 
     day = client.get(
         f"/views/me/health/cards/exercise?date={today.isoformat()}",
