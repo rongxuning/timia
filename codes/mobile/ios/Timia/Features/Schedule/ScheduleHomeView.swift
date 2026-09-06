@@ -1145,6 +1145,10 @@ private struct DayScheduleView: View {
         _reportedDayKey = State(initialValue: ScheduleFormat.dayKey(startOfDay))
     }
 
+    private var selectedDayTasks: [ScheduleTask] {
+        daysByAnchor[ScheduleFormat.dayKey(selectedDate)]?.items ?? []
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             DateStrip(
@@ -1155,6 +1159,12 @@ private struct DayScheduleView: View {
             )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 4)
+
+            AllDayRow(
+                tasks: selectedDayTasks.filter(ScheduleFormat.isAllDay),
+                onTaskTap: onTaskTap
+            )
+            .accessibilityIdentifier("calendar-day-all-day")
 
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
@@ -1271,11 +1281,6 @@ private struct DayTimelineSection: View {
                 .padding(.leading, 8)
                 .accessibilityIdentifier("calendar-day-label-\(ScheduleFormat.dayKey(date))")
 
-            AllDayRow(
-                tasks: tasks.filter(ScheduleFormat.isAllDay),
-                onTaskTap: onTaskTap
-            )
-
             Color.clear.frame(height: 20)
 
             TimelineGrid(
@@ -1332,9 +1337,32 @@ private struct WeekScheduleView: View {
         _reportedWeekKey = State(initialValue: ScheduleFormat.weekKey(weekStart))
     }
 
+    private var visibleWeekStart: Date {
+        ScheduleFormat.week(containing: selectedDate).first ?? selectedDate
+    }
+
+    private var visibleWeek: CalendarWeek? {
+        weeksByAnchor[ScheduleFormat.weekKey(visibleWeekStart)]
+    }
+
+    private var visibleWeekDays: [Date] {
+        if let values = visibleWeek?.days.compactMap({ ScheduleFormat.date($0.key) }), values.count == 7 {
+            return values
+        }
+        return ScheduleFormat.week(containing: visibleWeekStart)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             PagedWeekHeader(visibleStart: stripStart, onVisibleStartChange: onStripStartChange)
+
+            WeekAllDayRow(
+                days: visibleWeekDays,
+                segments: visibleWeek?.segments ?? [],
+                onTaskTap: onTaskTap
+            )
+            .accessibilityIdentifier("calendar-week-all-day")
+
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 0) {
@@ -1472,12 +1500,6 @@ private struct WeekTimelineSection: View {
                 .frame(height: 40)
                 .padding(.leading, 8)
                 .accessibilityIdentifier("calendar-week-label-\(ScheduleFormat.weekKey(weekStart))")
-
-            WeekAllDayRow(
-                days: days,
-                segments: week?.segments ?? [],
-                onTaskTap: onTaskTap
-            )
 
             Color.clear.frame(height: 20)
 
