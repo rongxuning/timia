@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -59,7 +59,12 @@ def get_sync_status(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    today = local_date_of(datetime.now(timezone.utc), tz_name)
+    try:
+        today = local_date_of(datetime.now(timezone.utc), tz_name)
+    except ValueError as err:
+        if str(err) == "invalid_timezone":
+            raise HTTPException(status_code=400, detail="invalid_timezone") from err
+        raise
     start = date_from or (today - timedelta(days=90))
     end = date_to or today
     return list_sync_status(db, user, tz_name, start, end)

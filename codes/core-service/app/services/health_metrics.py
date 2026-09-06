@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -27,10 +28,45 @@ SLEEP_ASLEEP_STAGES = frozenset(
     }
 )
 
+# iOS TimeZone(secondsFromGMT:) identifiers look like GMT+0800 / UTC+8.
+_FIXED_OFFSET_TZ = re.compile(
+    r"^(?:GMT|UTC)(?P<sign>[+-])(?P<hours>\d{1,2})(?::?(?P<minutes>\d{2}))?$",
+    re.IGNORECASE,
+)
+
+
+def normalize_timezone_name(name: str) -> str:
+    """Map common client aliases to IANA / Etc zones ZoneInfo understands."""
+    text = (name or "").strip()
+    if not text:
+        raise ValueError("invalid_timezone")
+    try:
+        ZoneInfo(text)
+        return text
+    except (ZoneInfoNotFoundError, KeyError, ValueError):
+        pass
+
+    match = _FIXED_OFFSET_TZ.fullmatch(text)
+    if match is None:
+        raise ValueError("invalid_timezone")
+    hours = int(match.group("hours"))
+    minutes = int(match.group("minutes") or "0")
+    if hours > 14 or minutes > 59:
+        raise ValueError("invalid_timezone")
+    if minutes != 0:
+        # Etc/GMT only supports whole-hour offsets.
+        raise ValueError("invalid_timezone")
+    # POSIX Etc/GMT sign is inverted vs civil GMT+N.
+    offset_hours = hours if match.group("sign") == "+" else -hours
+    if offset_hours == 0:
+        return "Etc/GMT"
+    etc_sign = "-" if offset_hours > 0 else "+"
+    return f"Etc/GMT{etc_sign}{abs(offset_hours)}"
+
 
 def parse_timezone(name: str) -> ZoneInfo:
     try:
-        return ZoneInfo(name)
+        return ZoneInfo(normalize_timezone_name(name))
     except (ZoneInfoNotFoundError, KeyError, ValueError) as exc:
         raise ValueError("invalid_timezone") from exc
 
@@ -40,7 +76,6 @@ def local_date_of(dt: datetime, timezone_name: str) -> date:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=tz)
     return dt.astimezone(tz).date()
-
 
 def median(values: list[float]) -> float | None:
     if not values:

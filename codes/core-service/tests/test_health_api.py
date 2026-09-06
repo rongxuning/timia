@@ -2248,3 +2248,101 @@ def test_health_sync_samples_rejects_oversize_gzip_body(monkeypatch):
     )
     assert resp.status_code == 413
     assert resp.json()["detail"] == "gzip_body_too_large"
+
+
+def test_quantity_sync_dedupes_duplicate_hk_uuid_in_same_batch():
+    """Postgres ON CONFLICT cannot update the same row twice in one statement."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    start = datetime.now(timezone.utc).isoformat()
+    later = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    resp = client.post(
+        "/health/sync/samples",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "samples": [
+                {
+                    "hk_uuid": hk,
+                    "metric_type": "step_count",
+                    "start_at": start,
+                    "end_at": start,
+                    "value": 100,
+                    "unit": "count",
+                },
+                {
+                    "hk_uuid": hk,
+                    "metric_type": "step_count",
+                    "start_at": later,
+                    "end_at": later,
+                    "value": 200,
+                    "unit": "count",
+                },
+            ],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
+    _checkpoint(client, token, later)
+    view = client.get("/views/me/health", headers=_headers(token))
+    assert view.status_code == 200, view.text
+    assert view.json()["current"]["steps"] == 200
+
+
+def test_workout_sync_dedupes_duplicate_hk_uuid_in_same_batch():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    resp = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": "2026-09-05T07:00:00+08:00",
+                    "end_at": "2026-09-05T08:00:00+08:00",
+                    "duration_seconds": 3600,
+                    "distance_m": 5000,
+                },
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": "2026-09-05T07:00:00+08:00",
+                    "end_at": "2026-09-05T07:30:00+08:00",
+                    "duration_seconds": 1800,
+                    "distance_m": 2500,
+                },
+            ],
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
+
+
+def test_sync_status_rejects_invalid_timezone_with_400():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    resp = client.get(
+        "/health/sync-status",
+        headers=_headers(token),
+        params={"timezone": "Not/ARealZone"},
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "invalid_timezone"
+
+
+def test_sync_status_accepts_fixed_offset_timezone_aliases():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    for tz_name in ("GMT+8", "GMT+0800", "UTC+8", "Etc/GMT-8"):
+        resp = client.get(
+            "/health/sync-status",
+            headers=_headers(token),
+            params={"timezone": tz_name},
+        )
+        assert resp.status_code == 200, f"{tz_name}: {resp.text}"
+        assert resp.json()["timezone"] == "Etc/GMT-8"

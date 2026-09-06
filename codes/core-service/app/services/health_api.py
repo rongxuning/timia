@@ -80,6 +80,7 @@ from app.services.health_metrics import (
     last_value,
     local_date_of,
     median,
+    normalize_timezone_name,
     parse_timezone,
     sum_cumulative_deduped,
 )
@@ -98,8 +99,7 @@ logger = logging.getLogger("health.sync")
 
 
 def _ensure_timezone(name: str) -> str:
-    parse_timezone(name)
-    return name
+    return normalize_timezone_name(name)
 
 
 def _aware(dt: datetime) -> datetime:
@@ -116,6 +116,14 @@ def _invalid_timezone(err: ValueError) -> None:
 
 def _date_list(dates: set[date]) -> list[str]:
     return sorted(item.isoformat() for item in dates)
+
+
+def _dedupe_by_hk_uuid(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep last row per hk_uuid. Postgres ON CONFLICT cannot touch a row twice."""
+    by_uuid: dict[Any, dict[str, Any]] = {}
+    for row in rows:
+        by_uuid[row["hk_uuid"]] = row
+    return list(by_uuid.values())
 
 
 def _recompute_dates(
@@ -163,6 +171,7 @@ def sync_quantity_samples(db: Session, user: User, payload: HealthQuantitySyncIn
                 "updated_at": now,
             }
         )
+    rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_quantity(db, rows)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
@@ -213,9 +222,10 @@ def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> H
         end_at = _aware(item.end_at)
         sample_tz = item.timezone or tz_name
         try:
-            parse_timezone(sample_tz)
+            sample_tz = _ensure_timezone(sample_tz)
         except ValueError as err:
             _invalid_timezone(err)
+            raise
         dates.add(local_date_of(end_at, sample_tz))
         rows.append(
             {
@@ -231,6 +241,7 @@ def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> H
                 "updated_at": now,
             }
         )
+    rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_sleep(db, rows)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
@@ -286,6 +297,7 @@ def sync_stand_hours(db: Session, user: User, payload: HealthStandHourSyncIn) ->
                 "updated_at": now,
             }
         )
+    rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_stand_hour(db, rows)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
@@ -342,6 +354,7 @@ def sync_heartbeat_series(db: Session, user: User, payload: HealthHeartbeatSyncI
                 "updated_at": now,
             }
         )
+    rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_heartbeat(db, rows)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
@@ -414,6 +427,7 @@ def sync_workouts(db: Session, user: User, payload: HealthWorkoutSyncIn) -> Heal
                 "updated_at": now,
             }
         )
+    rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_workout(db, rows)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
