@@ -4,7 +4,7 @@
 
 **Goal:** 在 iOS 日历日/周模式的 `TimelineGrid` 上支持（1）≥2h 空闲自动折叠与展开入口；（2）长按拖拽定时任务改期（整点 snap、保时长）。
 
-**Architecture:** 抽出纯逻辑 `IdleCollapsePlanner` / `TimelineGeometry` / `RescheduleMath`（可单测）；`TimelineGrid` 全部坐标经几何映射；折叠状态用 `UserDefaults` + 本 session 局部展开；拖拽经长按+Drag，松手后乐观更新日历 cache 并 `PATCH` `ItemUpdatePayload`。
+**Architecture:** 抽出纯逻辑 `IdleCollapsePlanner` / `TimelineGeometry` / `RescheduleMath`（可单测）；`TimelineGrid` 全部坐标经几何映射；折叠状态仅用 `UserDefaults` 顶栏总开关（无逐段展开）；拖拽经长按+Drag，松手后乐观更新日历 cache 并 `PATCH` `ItemUpdatePayload`。
 
 **Tech Stack:** SwiftUI (iOS 17+)、XCTest（`TimiaTests`）、现有 `session.api.request` PATCH、XcodeGen `project.yml`（folder sources，新 Swift 文件自动入 target）。
 
@@ -28,7 +28,7 @@
 
 ![日模式折叠后](../../design-references/assets/ios-day-timeline-collapsed.png)
 
-要点：顶栏「折叠空闲」开关；大段空闲收成 `02:00 – 08:00 · 展开` 条；有任务时段正常展开；今日保留当前时间线。
+要点：最上方「折叠空闲/展开全部」总开关；大段空闲收成不可点的压缩条（可显示 `02:00 – 08:00`）；有任务时段正常展开；今日保留当前时间线。
 
 ### 周模式 — 并集对齐折叠
 
@@ -40,7 +40,7 @@
 
 ![日模式拖拽](../../design-references/assets/ios-day-timeline-drag.png)
 
-要点：长按后 ghost 跟随；落点 **整点** 吸附线；原位可留虚影；拖到折叠条先自动展开该段。
+要点：长按后 ghost 跟随；落点 **整点** 吸附线；原位可留虚影；拖拽中临时强制展开全部。
 
 ### 结构示意
 
@@ -72,7 +72,7 @@ sequenceDiagram
   participant API as Backend
   U->>G: 长按任务 ≥0.35s
   G->>G: isDragging=true, scrollDisabled
-  U->>G: 拖动 / 经折叠条则展开
+  U->>G: 拖动（拖中临时全展开）
   U->>G: 松手
   G->>Math: snapHour + duration
   G->>S: onReschedule(task, start, end)
@@ -262,13 +262,12 @@ git commit -m "feat(ios): add IdleCollapsePlanner for timeline empty gaps"
 - Produces:
   - `enum TimelineSegment: Equatable { case visible(MinuteRange); case collapsed(MinuteRange) }`
   - `struct TimelineGeometry`
-  - `init(dayMinutes:collapsibleIdles:locallyExpandedIDs:hourHeight:collapsedHeight:collapseEnabled:)`
+  - `init(dayMinutes:collapsibleIdles:hourHeight:collapsedHeight:collapseEnabled:)`
   - `var contentHeight: CGFloat`
   - `func y(forMinutes: Int) -> CGFloat`
   - `func minutes(atY: CGFloat) -> Int`
   - `func height(forDurationMinutes: Int, startingAt: Int) -> CGFloat`
   - `var segments: [TimelineSegment]`
-  - `static func gapID(_ range: MinuteRange) -> String` // `"\(start)-\(end)"`
 
 - [ ] **Step 1: Write failing tests**
 
@@ -276,7 +275,6 @@ git commit -m "feat(ios): add IdleCollapsePlanner for timeline empty gaps"
 func testFullDayVisibleHeight() {
     let g = TimelineGeometry(
         collapsibleIdles: [],
-        locallyExpandedIDs: [],
         hourHeight: 74,
         collapsedHeight: 28,
         collapseEnabled: true
@@ -288,7 +286,6 @@ func testCollapsedGapShrinksHeight() {
     let gap = MinuteRange(start: 0, end: 6 * 60) // 6h → 28pt instead of 6*74
     let g = TimelineGeometry(
         collapsibleIdles: [gap],
-        locallyExpandedIDs: [],
         hourHeight: 74,
         collapsedHeight: 28,
         collapseEnabled: true
@@ -300,7 +297,6 @@ func testCollapsedGapShrinksHeight() {
 func testMinutesRoundTripOutsideCollapse() {
     let g = TimelineGeometry(
         collapsibleIdles: [MinuteRange(start: 0, end: 6 * 60)],
-        locallyExpandedIDs: [],
         hourHeight: 74,
         collapsedHeight: 28,
         collapseEnabled: true
@@ -314,9 +310,9 @@ func testMinutesRoundTripOutsideCollapse() {
 
 - [ ] **Step 3: Implement**
 
-构建 `segments`：从 0…1440 扫描，若命中未本地展开的 collapsible idle → `collapsed`，否则切成 `visible`。  
+构建 `segments`：从 0…1440 扫描，若 `collapseEnabled` 且命中 collapsible idle → `collapsed`，否则切成 `visible`。  
 `y(forMinutes:)` / `minutes(atY:)` 按 segment 累加高度（visible: `duration/60*hourHeight`，collapsed: `collapsedHeight`）。  
-落在 collapsed 段的 `minutes(atY:)` 返回该段中点分钟（拖拽层会先展开，此值为兜底）。
+落在 collapsed 段的 `minutes(atY:)` 返回该段中点分钟（拖拽中会临时全展开，此值为兜底）。
 
 - [ ] **Step 4: Tests pass**
 
@@ -382,29 +378,31 @@ git commit -m "feat(ios): add RescheduleMath with hour snap and duration keep"
 
 ```swift
 @AppStorage("schedule.idleCollapseEnabled") private var idleCollapseEnabled = true
-@State private var locallyExpandedGapIDs: Set<String> = []
+@State private var dragForcesExpandAll = false // 拖拽中临时全展开
 ```
+
+有效折叠：`effectiveCollapse = idleCollapseEnabled && !dragForcesExpandAll`
 
 - [ ] **Step 2: 扩展 `TimelineGrid`**
 
-增加参数：`idleCollapseEnabled`、`locallyExpandedGapIDs`、`onToggleGap`、`onToggleCollapseEnabled`（或由父级传 Binding）。
+增加参数：`idleCollapseEnabled`、`onToggleCollapseEnabled`（Binding 即可）。**不要**逐段展开回调。
 
 在 `body` 内：
 
-1. 从 timed tasks 的 `ScheduleFormat.placement` 得到 busy → planner → geometry  
+1. 从 timed tasks 的 `ScheduleFormat.placement` 得到 busy → planner → geometry（仅全局 `collapseEnabled`）  
 2. 用 `geometry.contentHeight` 替代 `24 * hourHeight`  
 3. 小时标签 / 虚线 / 任务 offset / `CurrentTimeLine` 全部改 `geometry.y(forMinutes:)`  
-4. 对每个 `collapsed` segment 渲染 `CollapseGapBar`（文案 `HH:mm – HH:mm · 展开`），点击 → `locallyExpandedGapIDs.insert(gapID)`  
-5. 点空白：`geometry.minutes(atY:)` 后仍 **15 分钟** snap 新建  
-6. 日 section 顶部加按钮：`idleCollapseEnabled ? "展开全部" : "折叠空闲"`
+4. 对每个 `collapsed` segment 渲染**不可交互**的 `IdleGapBar`（可显示 `HH:mm – HH:mm`，无展开按钮）  
+5. 点空白（非压缩条）：`geometry.minutes(atY:)` 后仍 **15 分钟** snap 新建；点压缩条不新建  
+6. **日 section 最上方**加唯一按钮：`idleCollapseEnabled ? "展开全部" : "折叠空闲"`
 
 今日：`protectNow` 使用当前分钟。
 
 - [ ] **Step 3: 手测清单（模拟器）**
 
-- 仅 09:00–10:00 一个任务 → 上下出现折叠条，总高度明显变短  
-- 点折叠条 → 该段展开  
-- 「展开全部」→ 24h 全高；再「折叠空闲」收起  
+- 仅 09:00–10:00 一个任务 → 上下出现压缩条，总高度明显变短  
+- 点压缩条 → **不**展开该段  
+- 顶栏「展开全部」→ 24h 全高；再「折叠空闲」收起全部空闲  
 - 点空白新建时间正确  
 - 今日当前红线仍可见  
 
@@ -419,11 +417,11 @@ git commit -m "feat(ios): add RescheduleMath with hour snap and duration keep"
 
 - [ ] **Step 1:** 对 `days` 每列算 busy，再 `unionBusy` → 同一套 `collapsibleIdles` → **一份** `TimelineGeometry` 供七列共用 y。
 
-- [ ] **Step 2:** 折叠条横跨 `labelWidth` 右侧全部 day columns（通栏）；点击展开逻辑同日模式。
+- [ ] **Step 2:** 压缩条横跨 `labelWidth` 右侧全部 day columns（通栏）；**不可点展开**；顶栏总开关控制整周。
 
 - [ ] **Step 3: 手测**
 
-- 仅周三有会 → 其它公共空闲仍可折；折叠条七列对齐  
+- 仅周三有会 → 其它公共空闲仍可折；压缩条七列对齐；顶栏开关一次全开/全折  
 - 七天都有不同时段任务时，仅真正公共空闲折叠  
 
 - [ ] **Step 4: Commit** `feat(ios): align week timeline idle collapse via union busy`
@@ -449,7 +447,7 @@ LongPressGesture(minimumDuration: 0.35)
 ```
 
 - 长按成功：`draggingTaskID = task.id`；`scrollDisabled(true)`（外层 ScrollView / section）  
-- 拖动：更新 `dragLocation`；若 `minutes` 落在 collapsed → `locallyExpandedGapIDs.insert`  
+- 拖动：更新 `dragLocation`；进入拖拽时 `dragForcesExpandAll = true`，松手后清回 false  
 - 松手：`RescheduleMath.computeNewRange(..., dropMinutes: snapToHour(...))`；若与原时间相同则 no-op；否则 `onReschedule`  
 - 位移很小且未进入 drag：视为 tap → `onTaskTap`  
 - 拖拽中不触发空白新建  
@@ -476,7 +474,7 @@ private func rescheduleCalendarTask(_ task: ScheduleTask, newStart: Date, newEnd
 - 长按拖到另一整点 → 时间更新且 reload/cache 一致  
 - 拖回原整点 → 无网络请求  
 - archived 任务无法进入拖拽  
-- 拖过折叠条会展开  
+- 拖拽中时间轴临时全展开，松手后恢复顶栏折叠态  
 
 - [ ] **Step 4: Commit** `feat(ios): drag to reschedule timed tasks on day timeline`
 
@@ -491,7 +489,7 @@ private func rescheduleCalendarTask(_ task: ScheduleTask, newStart: Date, newEnd
 
 - [ ] **Step 2:** 与 Task 6 共用 `onReschedule`；跨列改日期+整点时刻。
 
-- [ ] **Step 3: 手测跨天改期、折叠条自动展开、滚动在拖中锁定。**
+- [ ] **Step 3: 手测跨天改期、拖中临时全展开、滚动在拖中锁定。**
 
 - [ ] **Step 4: Commit** `feat(ios): cross-day drag reschedule on week timeline`
 
@@ -536,7 +534,8 @@ cd codes/mobile/ios && xcodebuild test -scheme Timia \
 | 整点 snap 拖拽、15min 新建 | 3, 4, 6 |
 | 保时长 PATCH | 3, 6 |
 | 全天/resize 不做 | 约束 + Task 6 过滤 |
-| 拖经折叠条展开 | 6, 7 |
+| 拖中临时全展开 | 6, 7 |
+| 仅顶栏总开关、无逐段按钮 | 4, 5 |
 | 今日当前时间保护 | 1, 4 |
 
 ## Placeholder / consistency check
