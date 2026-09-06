@@ -24,6 +24,16 @@ def test_local_date_uses_timezone_not_utc():
     assert str(local_date_of(dt, "Asia/Shanghai")) == "2026-08-27"
 
 
+def test_normalize_fixed_offset_timezone_aliases():
+    from app.services.health_metrics import normalize_timezone_name
+
+    assert normalize_timezone_name("GMT+8") == "Etc/GMT-8"
+    assert normalize_timezone_name("GMT+0800") == "Etc/GMT-8"
+    assert normalize_timezone_name("UTC+8") == "Etc/GMT-8"
+    assert normalize_timezone_name("Etc/GMT-8") == "Etc/GMT-8"
+    assert normalize_timezone_name("Asia/Shanghai") == "Asia/Shanghai"
+
+
 def test_sleep_asleep_excludes_in_bed():
     night_end = datetime(2026, 8, 27, 7, 0, tzinfo=SHANGHAI)
     samples = [
