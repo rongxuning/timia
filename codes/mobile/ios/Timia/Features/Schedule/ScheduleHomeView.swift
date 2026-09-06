@@ -89,7 +89,6 @@ struct ScheduleHomeView: View {
     @State private var isRangePickerExpanded = false
     @FocusState private var isNaturalLanguageInputFocused: Bool
     @AppStorage("schedule.idleCollapseEnabled") private var idleCollapseEnabled = true
-    @State private var dragForcesExpandAll = false
 
     var body: some View {
         ZStack {
@@ -327,8 +326,7 @@ struct ScheduleHomeView: View {
                     onReschedule: { task, newStart, newEnd in
                         Task { await rescheduleCalendarTask(task, newStart: newStart, newEnd: newEnd) }
                     },
-                    idleCollapseEnabled: $idleCollapseEnabled,
-                    dragForcesExpandAll: $dragForcesExpandAll
+                    idleCollapseEnabled: $idleCollapseEnabled
                 )
             case .week:
                 WeekScheduleView(
@@ -342,8 +340,7 @@ struct ScheduleHomeView: View {
                     onReschedule: { task, newStart, newEnd in
                         Task { await rescheduleCalendarTask(task, newStart: newStart, newEnd: newEnd) }
                     },
-                    idleCollapseEnabled: $idleCollapseEnabled,
-                    dragForcesExpandAll: $dragForcesExpandAll
+                    idleCollapseEnabled: $idleCollapseEnabled
                 )
             case .month:
                 MonthScheduleView(
@@ -1259,13 +1256,12 @@ private struct DayScheduleView: View {
     let onTaskTap: (ScheduleTask) -> Void
     let onReschedule: (ScheduleTask, Date, Date) -> Void
     @Binding var idleCollapseEnabled: Bool
-    @Binding var dragForcesExpandAll: Bool
 
+    @State private var interaction: TimelineInteractionState
     @State private var anchorDay: Date
     @State private var reportedDayKey: String
     @State private var hasPositionedInitialDay = false
     @State private var isTrackingVisibleDay = false
-    @State private var isTimelineScrollDisabled = false
 
     init(
         selectedDate: Date,
@@ -1277,8 +1273,7 @@ private struct DayScheduleView: View {
         onCreateTime: @escaping (Date) -> Void,
         onTaskTap: @escaping (ScheduleTask) -> Void,
         onReschedule: @escaping (ScheduleTask, Date, Date) -> Void,
-        idleCollapseEnabled: Binding<Bool>,
-        dragForcesExpandAll: Binding<Bool>
+        idleCollapseEnabled: Binding<Bool>
     ) {
         let startOfDay = Calendar.current.startOfDay(for: selectedDate)
         self.selectedDate = selectedDate
@@ -1291,7 +1286,7 @@ private struct DayScheduleView: View {
         self.onTaskTap = onTaskTap
         self.onReschedule = onReschedule
         _idleCollapseEnabled = idleCollapseEnabled
-        _dragForcesExpandAll = dragForcesExpandAll
+        _interaction = State(initialValue: TimelineInteractionState(idleCollapseEnabled: idleCollapseEnabled.wrappedValue))
         _anchorDay = State(initialValue: startOfDay)
         _reportedDayKey = State(initialValue: ScheduleFormat.dayKey(startOfDay))
     }
@@ -1317,10 +1312,15 @@ private struct DayScheduleView: View {
             )
             .accessibilityIdentifier("calendar-day-all-day")
 
+            IdleCollapseToggleBar(
+                idleCollapseEnabled: interaction.idleCollapseEnabled,
+                onToggle: toggleIdleCollapse
+            )
+
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 0) {
-                        ForEach(-120...120, id: \.self) { offset in
+                        ForEach(CalendarInfiniteWindow.dayOffsets, id: \.self) { offset in
                             let date = Calendar.current.date(
                                 byAdding: .day,
                                 value: offset,
@@ -1334,9 +1334,7 @@ private struct DayScheduleView: View {
                                 onCreateTime: onCreateTime,
                                 onTaskTap: onTaskTap,
                                 onReschedule: onReschedule,
-                                idleCollapseEnabled: $idleCollapseEnabled,
-                                dragForcesExpandAll: $dragForcesExpandAll,
-                                isTimelineScrollDisabled: $isTimelineScrollDisabled
+                                interaction: $interaction
                             )
                             .id(dayKey)
                             .background {
@@ -1355,7 +1353,16 @@ private struct DayScheduleView: View {
                 }
                 .coordinateSpace(name: "calendar-day-scroll")
                 .scrollIndicators(.hidden)
-                .scrollDisabled(isTimelineScrollDisabled)
+                .scrollDisabled(interaction.scrollDisabled)
+                .onAppear {
+                    prepareTimelineInteraction()
+                }
+                .onDisappear {
+                    interaction.resetTransient()
+                }
+                .onChange(of: idleCollapseEnabled) { _, newValue in
+                    interaction.idleCollapseEnabled = newValue
+                }
                 .task {
                     guard !hasPositionedInitialDay else { return }
                     hasPositionedInitialDay = true
@@ -1415,6 +1422,22 @@ private struct DayScheduleView: View {
         }
         try? await Task.sleep(for: .milliseconds(180))
     }
+
+    private func toggleIdleCollapse() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            interaction.toggleCollapse()
+            idleCollapseEnabled = interaction.idleCollapseEnabled
+        }
+    }
+
+    private func prepareTimelineInteraction() {
+        interaction.idleCollapseEnabled = idleCollapseEnabled
+        interaction.resetTransient()
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            interaction.armInteractions()
+        }
+    }
 }
 
 private struct DayTimelineSection: View {
@@ -1423,9 +1446,7 @@ private struct DayTimelineSection: View {
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
     let onReschedule: (ScheduleTask, Date, Date) -> Void
-    @Binding var idleCollapseEnabled: Bool
-    @Binding var dragForcesExpandAll: Bool
-    @Binding var isTimelineScrollDisabled: Bool
+    @Binding var interaction: TimelineInteractionState
 
     private var tasks: [ScheduleTask] { detail?.items ?? [] }
 
@@ -1443,17 +1464,6 @@ private struct DayTimelineSection: View {
 
             Color.clear.frame(height: 20)
 
-            IdleCollapseToggleBar(
-                idleCollapseEnabled: idleCollapseEnabled,
-                onToggle: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        idleCollapseEnabled.toggle()
-                    }
-                }
-            )
-            .padding(.horizontal, 8)
-            .padding(.bottom, 8)
-
             TimelineGrid(
                 days: [date],
                 tasks: tasks.filter { !ScheduleFormat.isAllDay($0) },
@@ -1461,9 +1471,7 @@ private struct DayTimelineSection: View {
                 onCreateTime: onCreateTime,
                 onTaskTap: onTaskTap,
                 onReschedule: onReschedule,
-                idleCollapseEnabled: $idleCollapseEnabled,
-                dragForcesExpandAll: $dragForcesExpandAll,
-                isScrollDisabled: $isTimelineScrollDisabled
+                interaction: $interaction
             )
         }
     }
@@ -1487,13 +1495,12 @@ private struct WeekScheduleView: View {
     let onTaskTap: (ScheduleTask) -> Void
     let onReschedule: (ScheduleTask, Date, Date) -> Void
     @Binding var idleCollapseEnabled: Bool
-    @Binding var dragForcesExpandAll: Bool
 
+    @State private var interaction: TimelineInteractionState
     @State private var anchorWeek: Date
     @State private var reportedWeekKey: String
     @State private var hasPositionedInitialWeek = false
     @State private var isTrackingVisibleWeek = false
-    @State private var isTimelineScrollDisabled = false
 
     init(
         selectedDate: Date,
@@ -1504,8 +1511,7 @@ private struct WeekScheduleView: View {
         onCreateTime: @escaping (Date) -> Void,
         onTaskTap: @escaping (ScheduleTask) -> Void,
         onReschedule: @escaping (ScheduleTask, Date, Date) -> Void,
-        idleCollapseEnabled: Binding<Bool>,
-        dragForcesExpandAll: Binding<Bool>
+        idleCollapseEnabled: Binding<Bool>
     ) {
         let weekStart = ScheduleFormat.week(containing: selectedDate).first ?? selectedDate
         self.selectedDate = selectedDate
@@ -1517,7 +1523,7 @@ private struct WeekScheduleView: View {
         self.onTaskTap = onTaskTap
         self.onReschedule = onReschedule
         _idleCollapseEnabled = idleCollapseEnabled
-        _dragForcesExpandAll = dragForcesExpandAll
+        _interaction = State(initialValue: TimelineInteractionState(idleCollapseEnabled: idleCollapseEnabled.wrappedValue))
         _anchorWeek = State(initialValue: weekStart)
         _reportedWeekKey = State(initialValue: ScheduleFormat.weekKey(weekStart))
     }
@@ -1548,10 +1554,15 @@ private struct WeekScheduleView: View {
             )
             .accessibilityIdentifier("calendar-week-all-day")
 
+            IdleCollapseToggleBar(
+                idleCollapseEnabled: interaction.idleCollapseEnabled,
+                onToggle: toggleIdleCollapse
+            )
+
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 0) {
-                        ForEach(-104...104, id: \.self) { offset in
+                        ForEach(CalendarInfiniteWindow.weekOffsets, id: \.self) { offset in
                             let weekStart = Calendar.current.date(
                                 byAdding: .weekOfYear,
                                 value: offset,
@@ -1565,9 +1576,7 @@ private struct WeekScheduleView: View {
                                 onCreateTime: onCreateTime,
                                 onTaskTap: onTaskTap,
                                 onReschedule: onReschedule,
-                                idleCollapseEnabled: $idleCollapseEnabled,
-                                dragForcesExpandAll: $dragForcesExpandAll,
-                                isTimelineScrollDisabled: $isTimelineScrollDisabled
+                                interaction: $interaction
                             )
                             .id(weekKey)
                             .background {
@@ -1582,11 +1591,19 @@ private struct WeekScheduleView: View {
                             }
                         }
                     }
-                    .scrollTargetLayout()
                 }
                 .coordinateSpace(name: "calendar-week-scroll")
                 .scrollIndicators(.hidden)
-                .scrollDisabled(isTimelineScrollDisabled)
+                .scrollDisabled(interaction.scrollDisabled)
+                .onAppear {
+                    prepareTimelineInteraction()
+                }
+                .onDisappear {
+                    interaction.resetTransient()
+                }
+                .onChange(of: idleCollapseEnabled) { _, newValue in
+                    interaction.idleCollapseEnabled = newValue
+                }
                 .task {
                     guard !hasPositionedInitialWeek else { return }
                     hasPositionedInitialWeek = true
@@ -1604,6 +1621,7 @@ private struct WeekScheduleView: View {
                     }
                     isTrackingVisibleWeek = false
                     reportedWeekKey = ScheduleFormat.weekKey(target)
+                    recenterAnchorIfNeeded(for: target)
                     onVisibleWeek(target)
                     Task {
                         await scroll(to: target, proxy: proxy, animated: true, pinToHour: false)
@@ -1657,6 +1675,29 @@ private struct WeekScheduleView: View {
         }
         try? await Task.sleep(for: .milliseconds(180))
     }
+
+    private func toggleIdleCollapse() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            interaction.toggleCollapse()
+            idleCollapseEnabled = interaction.idleCollapseEnabled
+        }
+    }
+
+    private func prepareTimelineInteraction() {
+        interaction.idleCollapseEnabled = idleCollapseEnabled
+        interaction.resetTransient()
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            interaction.armInteractions()
+        }
+    }
+
+    private func recenterAnchorIfNeeded(for date: Date) {
+        let weekStart = ScheduleFormat.week(containing: date).first ?? date
+        if CalendarInfiniteWindow.shouldRecenterWeekAnchor(from: anchorWeek, to: weekStart) {
+            anchorWeek = weekStart
+        }
+    }
 }
 
 private struct WeekTimelineSection: View {
@@ -1665,9 +1706,7 @@ private struct WeekTimelineSection: View {
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
     let onReschedule: (ScheduleTask, Date, Date) -> Void
-    @Binding var idleCollapseEnabled: Bool
-    @Binding var dragForcesExpandAll: Bool
-    @Binding var isTimelineScrollDisabled: Bool
+    @Binding var interaction: TimelineInteractionState
 
     private var days: [Date] {
         if let values = week?.days.compactMap({ ScheduleFormat.date($0.key) }), values.count == 7 {
@@ -1697,17 +1736,6 @@ private struct WeekTimelineSection: View {
 
             Color.clear.frame(height: 20)
 
-            IdleCollapseToggleBar(
-                idleCollapseEnabled: idleCollapseEnabled,
-                onToggle: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        idleCollapseEnabled.toggle()
-                    }
-                }
-            )
-            .padding(.horizontal, 8)
-            .padding(.bottom, 8)
-
             TimelineGrid(
                 days: days,
                 tasks: tasks.filter { !ScheduleFormat.isAllDay($0) },
@@ -1715,9 +1743,7 @@ private struct WeekTimelineSection: View {
                 onCreateTime: onCreateTime,
                 onTaskTap: onTaskTap,
                 onReschedule: onReschedule,
-                idleCollapseEnabled: $idleCollapseEnabled,
-                dragForcesExpandAll: $dragForcesExpandAll,
-                isScrollDisabled: $isTimelineScrollDisabled
+                interaction: $interaction
             )
         }
     }
@@ -2171,38 +2197,22 @@ private struct IdleCollapseToggleBar: View {
     let onToggle: () -> Void
 
     var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 8) {
-                Image(systemName: "rectangle.compress.vertical")
-                    .font(.subheadline.weight(.semibold))
+        HStack {
+            Button(action: onToggle) {
+                Image(systemName: IdleCollapseToggleStyle.symbolName)
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(idleCollapseEnabled ? "展开全部" : "折叠空闲")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                if idleCollapseEnabled {
-                    Text("已开启")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color(hex: "#1D4ED8"))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color(hex: "#DBEAFE"), in: Capsule())
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.down")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .frame(width: 36, height: 28)
+                    .contentShape(Rectangle())
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(TimiaTheme.border.opacity(0.45), lineWidth: 0.7)
-            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("calendar-idle-collapse-toggle")
+            .accessibilityLabel(IdleCollapseToggleStyle.accessibilityLabel(collapseEnabled: idleCollapseEnabled))
+            .accessibilityValue(IdleCollapseToggleStyle.accessibilityValue(collapseEnabled: idleCollapseEnabled))
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("calendar-idle-collapse-toggle")
-        .accessibilityValue(idleCollapseEnabled ? "已开启" : "已关闭")
+        .padding(.leading, 10)
+        .padding(.bottom, 4)
     }
 }
 
@@ -2248,9 +2258,7 @@ private struct TimelineGrid: View {
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
     var onReschedule: ((ScheduleTask, Date, Date) -> Void)? = nil
-    @Binding var idleCollapseEnabled: Bool
-    @Binding var dragForcesExpandAll: Bool
-    var isScrollDisabled: Binding<Bool>? = nil
+    @Binding var interaction: TimelineInteractionState
 
     @State private var draggingTaskID: String?
     @State private var dragLocation: CGPoint = .zero
@@ -2264,7 +2272,7 @@ private struct TimelineGrid: View {
     private var isDayMode: Bool { days.count == 1 }
 
     private var effectiveCollapse: Bool {
-        idleCollapseEnabled && !dragForcesExpandAll
+        interaction.effectiveCollapse
     }
 
     var body: some View {
@@ -2287,7 +2295,7 @@ private struct TimelineGrid: View {
             ZStack(alignment: .topLeading) {
                 Color.clear
                     .contentShape(Rectangle())
-                    .gesture(
+                    .simultaneousGesture(
                         SpatialTapGesture()
                             .onEnded { value in
                                 guard draggingTaskID == nil else { return }
@@ -2404,7 +2412,7 @@ private struct TimelineGrid: View {
             ZStack(alignment: .topLeading) {
                 Color.clear
                     .contentShape(Rectangle())
-                    .gesture(
+                    .simultaneousGesture(
                         SpatialTapGesture()
                             .onEnded { value in
                                 guard draggingTaskID == nil else { return }
@@ -2876,9 +2884,9 @@ private struct TimelineGrid: View {
                 switch value {
                 case .first(true):
                     if draggingTaskID == nil {
+                        guard interaction.interactionsArmed else { return }
                         draggingTaskID = task.id
-                        dragForcesExpandAll = true
-                        isScrollDisabled?.wrappedValue = true
+                        interaction.beginDrag()
                         seedDragLocation(
                             placement: placement,
                             lane: lane,
@@ -2890,9 +2898,9 @@ private struct TimelineGrid: View {
                     }
                 case .second(true, let drag?):
                     if draggingTaskID == nil {
+                        guard interaction.interactionsArmed else { return }
                         draggingTaskID = task.id
-                        dragForcesExpandAll = true
-                        isScrollDisabled?.wrappedValue = true
+                        interaction.beginDrag()
                         seedDragLocation(
                             placement: placement,
                             lane: lane,
@@ -2960,8 +2968,7 @@ private struct TimelineGrid: View {
         draggingTaskID = nil
         dragLocation = .zero
         dragDidMove = false
-        dragForcesExpandAll = false
-        isScrollDisabled?.wrappedValue = false
+        interaction.endDrag()
     }
 }
 

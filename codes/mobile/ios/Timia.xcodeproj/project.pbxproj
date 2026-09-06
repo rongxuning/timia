@@ -78,6 +78,18 @@
 		CC1B52BFC7BF60E2A6F6E764 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4AC7CD3B9472E07D504BBB48 /* ActivityKit.framework */; };
 		690CD57DE6D30DFBE8E1CE20 /* TimiaLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 889C42F2F415DDB348118773 /* TimiaLiveActivityWidget.swift */; };
 		DAE4CA03962EACCEE2DBFEED /* TimiaScreenActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CC853543D5010208AEB483C /* TimiaScreenActivityAttributes.swift */; };
+		A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */; };
+		A11A0E0A1E77000100000002 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */; };
+		A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */; };
+		A11A0E0A1E77000100000021 /* IdleCollapsePlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000020 /* IdleCollapsePlanner.swift */; };
+		A11A0E0A1E77000100000031 /* TimelineGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000030 /* TimelineGeometry.swift */; };
+		A11A0E0A1E77000100000041 /* RescheduleMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000040 /* RescheduleMath.swift */; };
+		A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */; };
+		A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */; };
+		A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */; };
+		A11A0E0A1E77000100000081 /* IdleCollapsePlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000080 /* IdleCollapsePlannerTests.swift */; };
+		A11A0E0A1E77000100000091 /* TimelineGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000090 /* TimelineGeometryTests.swift */; };
+		A11A0E0A1E770001000000A1 /* RescheduleMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E770001000000A0 /* RescheduleMathTests.swift */; };
 		7706962B0E7905563518B1AC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46DD5E62124BE565150F54C4 /* WidgetKit.framework */; };
 		F40D6347CE9BA609BEAE9CBD /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A8385D41DB1FFDA6EF7E931 /* SwiftUI.framework */; };
 		F146D6863FD489B737A02781 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4AC7CD3B9472E07D504BBB48 /* ActivityKit.framework */; };
@@ -194,6 +206,17 @@
 		FF33F57000AEAE8C19E55B8C /* StickyNoteDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteDraftStore.swift; sourceTree = "<group>"; };
 
 		9CC853543D5010208AEB483C /* TimiaScreenActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaScreenActivityAttributes.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPalette.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionState.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000020 /* IdleCollapsePlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlanner.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000030 /* TimelineGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometry.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000040 /* RescheduleMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RescheduleMath.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionStateTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapseToggleStyleTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000080 /* IdleCollapsePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlannerTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000090 /* TimelineGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometryTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E770001000000A0 /* RescheduleMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RescheduleMathTests.swift; sourceTree = "<group>"; };
 		188D4D8D3F917C52C363D2D9 /* ScreenNotificationPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationPreference.swift; sourceTree = "<group>"; };
 		11D1C1CB7FEDC40520743413 /* ScreenNotificationContentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationContentBuilder.swift; sourceTree = "<group>"; };
 		DC650868C6AF62686CDA295E /* ScreenNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationManager.swift; sourceTree = "<group>"; };
@@ -294,8 +317,14 @@
 				6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */,
 				49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */,
 				14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */,
+				A11A0E0A1E77000100000080 /* IdleCollapsePlannerTests.swift */,
+				A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */,
 				BF87CB31941D67EF7FA11F42 /* ScreenNotificationContentBuilderTests.swift */,
+				A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */,
+				A11A0E0A1E77000100000090 /* TimelineGeometryTests.swift */,
+				A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */,
 				C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */,
+				A11A0E0A1E770001000000A0 /* RescheduleMathTests.swift */,
 			);
 			path = TimiaTests;
 			sourceTree = "<group>";
@@ -330,8 +359,12 @@
 			children = (
 				87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */,
 				640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */,
+				A11A0E0A1E77000100000020 /* IdleCollapsePlanner.swift */,
+				A11A0E0A1E77000100000040 /* RescheduleMath.swift */,
 				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
 				B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */,
+				A11A0E0A1E77000100000030 /* TimelineGeometry.swift */,
+				A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */,
 				BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */,
 			);
 			path = Schedule;
@@ -505,6 +538,7 @@
 				DC650868C6AF62686CDA295E /* ScreenNotificationManager.swift */,
 				188D4D8D3F917C52C363D2D9 /* ScreenNotificationPreference.swift */,
 				8C6177F5063312A8B49ACDBF /* ScreenNotificationPrompt.swift */,
+				A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */,
 				9CC853543D5010208AEB483C /* TimiaScreenActivityAttributes.swift */,
 			);
 			path = ScreenNotification;
@@ -678,6 +712,11 @@
 				3AD75F572D9D211A220708FD /* ScreenNotificationPrompt.swift in Sources */,
 				3F6A7FDC853DBA05BC84ADB5 /* ScreenNotificationSettingsSection.swift in Sources */,
 				F1312AF461AAAFC823A11F5F /* TimiaScreenActivityAttributes.swift in Sources */,
+				A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */,
+				A11A0E0A1E77000100000021 /* IdleCollapsePlanner.swift in Sources */,
+				A11A0E0A1E77000100000041 /* RescheduleMath.swift in Sources */,
+				A11A0E0A1E77000100000031 /* TimelineGeometry.swift in Sources */,
+				A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */,
 				CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */,
 				878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */,
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
@@ -745,6 +784,12 @@
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
 				F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */,
 				67337846EE2B4A05D787BFEF /* ScreenNotificationContentBuilderTests.swift in Sources */,
+				A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */,
+				A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */,
+				A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */,
+				A11A0E0A1E77000100000081 /* IdleCollapsePlannerTests.swift in Sources */,
+				A11A0E0A1E77000100000091 /* TimelineGeometryTests.swift in Sources */,
+				A11A0E0A1E770001000000A1 /* RescheduleMathTests.swift in Sources */,
 				56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -755,6 +800,7 @@
 			files = (
 				690CD57DE6D30DFBE8E1CE20 /* TimiaLiveActivityWidget.swift in Sources */,
 				DAE4CA03962EACCEE2DBFEED /* TimiaScreenActivityAttributes.swift in Sources */,
+				A11A0E0A1E77000100000002 /* TimiaLiveActivityPalette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
