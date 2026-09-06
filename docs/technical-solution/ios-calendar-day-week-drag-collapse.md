@@ -1,7 +1,8 @@
 # Timia iOS — 日/周模式任务拖拽与空闲时段折叠方案
 
 > 方案日期：2026-09-06  
-> 状态：**待审阅**（本文档仅设计，不含实现）  
+> 状态：**已确认**（2026-09-06 拍板；实现计划见 `docs/superpowers/plans/2026-09-06-ios-calendar-drag-collapse.md`）  
+
 > 适用范围：iOS `ScheduleHomeView` 日历内容下的 **日模式 / 周模式** 时间轴  
 > 对齐参考：`docs/technical-solution/web-calendar-item-drag.md`  
 > 数据模型：`ScheduleTask.startAt` / `endAt`（ISO 8601）  
@@ -43,22 +44,20 @@
 
 ---
 
-## 3. 审阅前默认假设（可改）
+## 3. 已确认假设（2026-09-06 拍板）
 
-为便于出完整方案，以下按「可直接实现」拍板；审阅时请标出要改的项。
-
-| ID | 假设 | 依据 |
+| ID | 假设 | 状态 |
 |----|------|------|
-| A1 | 拖拽语义与 Web 对齐：保时长、只动单条 occurrence、`archived` 不可拖 | Web 方案 Q1/可拖范围 |
-| A2 | 定时任务可拖；全天任务 **本期不做**日/周时间轴拖拽（周全天行改日期可作 Phase 2） | 诉求聚焦时间轴 |
-| A3 | iOS snap **15 分钟**（与现有点空白新建一致）；Web 为整点 | 平台手感 |
-| A4 | 触发：长按约 **0.35s** 进入拖拽，避免与纵向滚动、单击进编辑冲突 | 常见日历交互 |
-| A5 | 折叠对象：连续空闲 **≥ 2 小时**（可配置常量）；有任务覆盖的小时永不折叠 | 平衡密度与可读性 |
-| A6 | 默认：进入日/周日历时若存在可折叠空闲则 **自动折叠**；用户可一键展开全部 / 再折叠 | 「大量空闲」诉求 |
-| A7 | 折叠偏好：记住「是否启用空闲折叠」到 `UserDefaults`；单段临时展开不持久 | 减少打扰 |
-| A8 | 本日若含「当前时刻」，折叠时仍保留当前小时所在 **可见段**（或保证当前时间线可见） | 日视图可用性 |
-| A9 | 周模式按 **列（天）独立**计算空闲与折叠段；折叠条可按行对齐展示（见 §6.3） | 周视图各天忙闲不同 |
-| A10 | 不做拖到折叠条「内部」落点；拖到折叠条上视为落在该空闲段的 **中点或展开后再落**（推荐：命中折叠条时自动临时展开该段） | 降低误操作 |
+| A1 | 拖拽语义与 Web 对齐：保时长、只动单条 occurrence、`archived` 不可拖 | ✅ |
+| A2 | 定时任务可拖；全天任务 **本期不做**；**不做**拖拽改时长（resize） | ✅ 确认不纳入本期 |
+| A3 | 拖拽落点 snap **整点（60 分钟）**，与 Web 对齐；点空白新建仍可保持现有 15 分钟 | ✅ 对齐 Web |
+| A4 | 触发：长按约 **0.35s** 进入拖拽，避免与纵向滚动、单击进编辑冲突 | ✅ |
+| A5 | 折叠对象：连续空闲 **≥ 2 小时**；有任务覆盖的小时永不折叠 | ✅ 合适 |
+| A6 | 默认：进入日/周日历时若存在可折叠空闲则 **自动折叠**；用户可一键展开全部 / 再折叠 | ✅ 是 |
+| A7 | 折叠偏好：记住「是否启用空闲折叠」到 `UserDefaults`；单段临时展开不持久 | ✅ |
+| A8 | 本日若含「当前时刻」，折叠时仍保留当前小时所在 **可见段**（或保证当前时间线可见） | ✅ |
+| A9 | 周模式：**七天 busy 并集** 后算空闲并折叠，折叠条跨列对齐（W1） | ✅ 并集对齐 |
+| A10 | 命中折叠条时自动临时展开该段，再精确落点 | ✅ |
 
 ---
 
@@ -101,7 +100,7 @@
 ```
 单击任务     → 打开 TaskEditorView（现状）
 长按任务     → 进入 dragging：放大/半透明 ghost + 触觉反馈
-拖动         → ghost 跟随；落点预览线/高亮列（周）；15min snap
+拖动         → ghost 跟随；落点预览线/高亮列（周）；**整点 snap**
 松手         → 计算新 start/end → 乐观更新本地缓存 → PATCH → 成功用响应刷新；失败回滚 + 提示
 拖到原位置   → 不发请求
 拖到折叠条   → 临时展开该空闲段，继续拖（或松手落在展开后的对应分钟）
@@ -120,7 +119,7 @@
 ### 5.3 落点计算
 
 ```text
-visualY → TimelineGeometry.minutes(atY:) → snap15 → clamp [0, 24*60 - minDuration]
+visualY → TimelineGeometry.minutes(atY:) → snapHour (60) → clamp [0, 24*60 - minDuration]
 dayIndex ← x 相对 labelWidth / dayWidth（周模式）
 newStart = startOfDay(days[dayIndex]) + snappedMinutes
 duration = max(原 end-start, 缺省 60min)
@@ -230,7 +229,7 @@ locallyExpandedGapIDs: Set<String> // 内存，key = "\(dayOrWeekKey):\(start)-\
 
 ### 6.5 与新建 / 当前时间线
 
-- 点空白：`minutes(atY:)` → 15min snap → `onCreateTime`（逻辑不变）。  
+- 点空白：`minutes(atY:)` → 整点 snap → `onCreateTime`（逻辑不变）。  
 - 点在折叠条：视为「展开该段」，不新建（避免盲建）。  
 - `CurrentTimeLine`：用 `y(forMinutes: now)`；若所在段被折叠，依赖 A8 保护或隐藏线并在折叠条上标「现在」。
 
@@ -308,14 +307,14 @@ var onReschedule: (ScheduleTask, Date, Date) -> Void  // newStart, newEnd
 | 长按与 `ScrollView` 抢手势 | 长按识别成功后 `scrollDisabled`；调 `minimumDuration` |
 | `ScheduleHomeView` 过大难测 | 算法外置 + 单测 |
 | 折叠后高度变化导致分页跳动 | 折叠状态按「日/周 section」局部，避免改相邻页；动画中禁用 scrollTo |
-| 与 Web snap 不一致（15 vs 60） | 文档写明平台差异；产品若要求一致再改常量 |
+| 拖拽整点 vs 新建 15 分钟 | 刻意区分：拖拽对齐 Web 整点；新建保持 15 分钟 |
 | 跨日 timed 任务仍只画在 start 日 | 保持现状；拖完 reload 后仍按现 placement |
 
 ---
 
 ## 10. 验证计划（实现后）
 
-1. **单测**：`IdleCollapsePlanner`（无任务整天、单点任务、跨小时、阈值边界、周并集）；`TimelineGeometry`（往返 y↔minutes、折叠条命中）；`RescheduleMath`（15 snap、保时长、跨日）。  
+1. **单测**：`IdleCollapsePlanner`（无任务整天、单点任务、跨小时、阈值边界、周并集）；`TimelineGeometry`（往返 y↔minutes、折叠条命中）；`RescheduleMath`（整点 snap、保时长、跨日）。  
 2. **手测日模式**：稀疏日程自动折叠 → 展开条 → 展开全部 → 再折叠；点空白新建落在真实时间；当前时间线可见。  
 3. **手测周模式**：仅一天有早会时，深夜公共空闲可折；七天对齐。  
 4. **拖拽**：日/周改期成功；同位置不请求；archived 不可拖；409 回滚；拖过折叠条自动展开后落点准确。  
@@ -323,24 +322,25 @@ var onReschedule: (ScheduleTask, Date, Date) -> Void  // newStart, newEnd
 
 ---
 
-## 11. 请审阅确认的问题
+## 11. 拍板记录（2026-09-06）
 
-请在审阅时明确（或接受 §3 默认假设）：
-
-1. **折叠阈值**：≥2h 是否合适？是否改 1h / 3h？  
-2. **默认是否自动折叠**：是 / 否（仅手动）？  
-3. **周模式**：接受「七天并集 busy 才折叠」（W1）还是每列独立（W2）？  
-4. **拖拽 snap**：15 分钟 vs 与 Web 一样整点？  
-5. **全天任务**：本期是否完全不做拖拽？  
-6. **是否需要拖拽改时长（resize）** 纳入本期？  
-7. **折叠入口位置**：时间轴顶栏开关 + 折叠条，是否足够？是否要进日历设置页？
+| 问题 | 决定 |
+|------|------|
+| 折叠阈值 ≥2h | **合适** |
+| 默认自动折叠 | **是** |
+| 周模式 | **并集对齐（W1）** |
+| 拖拽 snap | **对齐 Web（整点）** |
+| 全天 / resize | **不纳入本期** |
+| 折叠入口 | 时间轴顶栏开关 + 折叠条（未要求进设置页） |
 
 ---
 
-## 12. 推荐结论（供拍板）
+## 12. 结论
 
-- **折叠**：C1 压缩条 + `TimelineGeometry`；日模式独立算；周模式 **并集 busy + 对齐折叠条**；默认自动折叠；阈值 2h；总开关 + 分段展开。  
-- **拖拽**：D1 长按拖移；保时长；15min snap；仅定时任务；与折叠共用几何；API 复用 PATCH。  
-- **落地**：先折叠（P0–P1）再拖拽（P2–P3）；算法单测先行。  
-
-审阅通过后再写实现计划并改代码。
+- **折叠**：C1 压缩条 + `TimelineGeometry`；日模式按天算；周模式 **并集 busy + 对齐折叠条**；默认自动折叠；阈值 2h。  
+- **拖拽**：D1 长按拖移；保时长；**整点 snap**；仅定时任务；与折叠共用几何；API 复用 PATCH。  
+- **实现计划**：`docs/superpowers/plans/2026-09-06-ios-calendar-drag-collapse.md`  
+- **示意图**：
+  - `docs/design-references/assets/ios-day-timeline-collapsed.png`
+  - `docs/design-references/assets/ios-week-timeline-collapsed.png`
+  - `docs/design-references/assets/ios-day-timeline-drag.png`
