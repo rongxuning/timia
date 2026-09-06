@@ -101,6 +101,7 @@ class PlanSubscribedRowOut(BaseModel):
     workspace_name: str
     project_id: str
     project_name: str
+    current_period_imported: bool = False
     segments: list[PlanSubscribedSegmentOut] = Field(default_factory=list)
     pending_run: PlanPendingRunOut | None = None
 

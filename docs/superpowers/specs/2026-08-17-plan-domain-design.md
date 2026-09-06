@@ -203,13 +203,13 @@ docker compose exec -T core-service uv run python -m app.jobs.plan_reminders
 
 （具体 compose 服务名以仓库为准；逻辑放 `app/jobs/plan_reminders.py` 纯函数，便于单测。）
 
-对每个进行中分段，令 `D` = 该订阅下 **尚未有任何 run** 的最近未来（或尚未开始的）周期起点：
+对每个进行中分段，令 `D` = 提醒已开启的**最晚**未占用周期（见 `docs/superpowers/specs/2026-09-07-plan-subscription-reminder-import-design.md`）：
 
-- **提醒窗口**（订阅者 `timezone`）：本地日历日 = `D` 的前一天，且本地小时 ≥ 20。例如周模板、下周周日为 `D` → 周六 20:00 起出现待确认；日模板、明天为 `D` → 今天 20:00 起提醒明天。
-- 窗口内且该 `subscription_id + D` 尚无 run → 插入 `pending` + `upcoming_period` 通知。
-- 周期已结束（本地日期 > 该周期最后一天）且仍为 `pending` → `expired`，不创建任务。
+- **提醒开始**（订阅者 `timezone`）：本地时间 ≥ `D` 前一天 20:00。例如周模板、下周周日为 `D` → 周六 20:00 起出现待确认；错过窗口后仍补跑，直到被下一周期提醒替换。
+- 已开启且该 `subscription_id + D` 尚无占用 run → 插入 `pending` + `upcoming_period` 通知。
+- 旧 `pending` 仅在新周期提醒创建时标 `expired`（并标对应通知已读），不因周期结束单独过期。
 
-订阅当天已导入本周期，因此 cron 只为 **之后的周期** 建 pending，不会在订阅请求里再灌下一周期。靠唯一约束防重复提醒。不引入 Celery。
+订阅当天已导入本周期。cron 可为当前未导入周期补 pending。靠唯一约束防重复提醒。不引入 Celery。
 
 规划菜单角标 = 当前用户未读通知数 + pending 批次数（去重展示即可）。「订阅中」顶部待确认卡片：确认 / 跳过。
 

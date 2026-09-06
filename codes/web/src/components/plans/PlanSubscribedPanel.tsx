@@ -15,6 +15,7 @@ import {
 import { getToken } from "@/lib/auth";
 import type { PlanFilterValues } from "./PlanFilters";
 import { PlanFavoriteButton } from "./PlanFavoriteButton";
+import { PlanImportCurrentDialog } from "./PlanImportCurrentDialog";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
 import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
@@ -38,6 +39,7 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [favoritingId, setFavoritingId] = useState<string | null>(null);
+  const [importingId, setImportingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     const token = getToken();
@@ -180,20 +182,30 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
             className="space-y-4 rounded-xl border border-border-subtle bg-white p-lg"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <Link
                   href={`/plans/${row.template_id}`}
-                  className="font-subhead text-lg font-bold text-text-primary transition-colors hover:text-indigo-600"
+                  className="min-w-0 truncate font-subhead text-lg font-bold text-text-primary transition-colors hover:text-indigo-600"
                 >
                   {row.title}
                 </Link>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
                 <PlanFavoriteButton
                   isFavorite={Boolean(row.is_favorite)}
                   disabled={favoritingId === row.template_id}
                   onToggle={() => onFavoriteToggle(row, !row.is_favorite)}
                 />
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {row.current_period_imported ? null : (
+                  <button
+                    type="button"
+                    className="rounded-xl bg-primary px-4 py-2 text-small text-on-primary transition-colors hover:bg-primary-hover disabled:opacity-50"
+                    disabled={busyId === row.id}
+                    onClick={() => setImportingId(row.id)}
+                  >
+                    导入本期
+                  </button>
+                )}
                 <button
                   type="button"
                   className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-small text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100 disabled:opacity-50"
@@ -323,6 +335,18 @@ export function PlanSubscribedPanel({ filters }: { filters: PlanFilterValues }) 
           </article>
         );
       })}
+      {importingId ? (
+        <PlanImportCurrentDialog
+          open
+          token={getToken() ?? ""}
+          subscriptionId={importingId}
+          periodKind={items.find((item) => item.id === importingId)?.period_kind ?? "week"}
+          onClose={() => setImportingId(null)}
+          onSuccess={() => {
+            void refreshAfterMutation();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -78,7 +78,7 @@
   - `resolve_slot_bounds(*, period_kind: str, period_start: date, rel_month: int | None, rel_day: int, start_minute: int, end_minute: int, all_day: bool, timezone_name: str) -> tuple[datetime, datetime] | None`
   - `in_reminder_window(period_start: date, now: datetime, timezone_name: str) -> bool`
   - `pending_should_expire(period_kind: str, period_start: date, now: datetime, timezone_name: str) -> bool`
-  - `upcoming_period_start(period_kind: str, now: datetime, timezone_name: str, existing_period_starts: set[date]) -> date`
+  - `upcoming_period_start(period_kind: str, now: datetime, timezone_name: str, existing_period_starts: set[date]) -> date | None`
 
 - [ ] **Step 1: Write failing tests**
 

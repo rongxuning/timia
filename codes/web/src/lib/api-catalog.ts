@@ -1761,6 +1761,20 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     responseJson: { httpStatus: 204, jsonBody: null },
   },
   {
+    method: "GET",
+    path: "/plan-subscriptions/{subscription_id}/current-period",
+    name: "预览导入本期",
+    requestJson: { headers: authBearer, pathParams: planSubscriptionPath, query: null, jsonBody: null },
+    responseJson: "PlanCurrentPeriodPreviewOut",
+  },
+  {
+    method: "POST",
+    path: "/plan-subscriptions/{subscription_id}/import-current-period",
+    name: "导入本期",
+    requestJson: { headers: authBearer, pathParams: planSubscriptionPath, query: null, jsonBody: null },
+    responseJson: "PlanApplyRunOut",
+  },
+  {
     method: "POST",
     path: "/plan-apply-runs/{run_id}/confirm",
     name: "确认批次",

@@ -94,9 +94,19 @@ def resolve_slot_bounds(
     return start, end
 
 
-def in_reminder_window(period_start: date, now: datetime, timezone_name: str) -> bool:
+def reminder_open_at(period_start: date, timezone_name: str) -> datetime:
+    tz = resolve_timezone(timezone_name)
+    return datetime.combine(period_start - timedelta(days=1), time(20, 0), tzinfo=tz)
+
+
+def reminder_has_started(period_start: date, now: datetime, timezone_name: str) -> bool:
     local = now.astimezone(resolve_timezone(timezone_name))
-    return local.date() == period_start - timedelta(days=1) and local.hour >= 20
+    return local >= reminder_open_at(period_start, timezone_name)
+
+
+def in_reminder_window(period_start: date, now: datetime, timezone_name: str) -> bool:
+    """True from D-1 20:00 onward (opening gate, no longer a same-day-only window)."""
+    return reminder_has_started(period_start, now, timezone_name)
 
 
 def pending_should_expire(
@@ -111,10 +121,19 @@ def upcoming_period_start(
     now: datetime,
     timezone_name: str,
     existing_period_starts: set[date],
-) -> date:
-    candidate = next_period_start(
-        period_kind, current_period_start(period_kind, now, timezone_name)
-    )
+) -> date | None:
+    """Latest period whose reminder has opened and is not occupied; else None."""
+    current = current_period_start(period_kind, now, timezone_name)
+    candidate = current
+    nxt = next_period_start(period_kind, candidate)
+    while reminder_has_started(nxt, now, timezone_name):
+        candidate = nxt
+        nxt = next_period_start(period_kind, candidate)
     while candidate in existing_period_starts:
-        candidate = next_period_start(period_kind, candidate)
+        nxt = next_period_start(period_kind, candidate)
+        if not reminder_has_started(nxt, now, timezone_name):
+            return None
+        candidate = nxt
+    if not reminder_has_started(candidate, now, timezone_name):
+        return None
     return candidate

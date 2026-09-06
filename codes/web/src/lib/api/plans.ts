@@ -28,6 +28,7 @@ export type PlanPendingRunOut = components["schemas"]["PlanPendingRunOut"];
 export type PlanNotificationListOut = components["schemas"]["PlanNotificationListOut"];
 export type PlanNotificationOut = components["schemas"]["PlanNotificationOut"];
 export type PlanFavoriteOut = { template_id: string; is_favorite: boolean };
+export type PlanCurrentPeriodPreviewOut = components["schemas"]["PlanCurrentPeriodPreviewOut"];
 
 export type FetchPlanListParams = {
   tab?: string;
@@ -222,6 +223,26 @@ export function subscribePlan(
 
 export async function cancelPlanSubscription(token: string, subscriptionId: string): Promise<void> {
   await apiFetch<void>(`/plan-subscriptions/${subscriptionId}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export function fetchSubscriptionCurrentPeriod(
+  token: string,
+  subscriptionId: string,
+): Promise<PlanCurrentPeriodPreviewOut> {
+  return apiFetch<PlanCurrentPeriodPreviewOut>(
+    `/plan-subscriptions/${subscriptionId}/current-period`,
+    { token },
+  );
+}
+
+export function importSubscriptionCurrentPeriod(
+  token: string,
+  subscriptionId: string,
+): Promise<PlanApplyRunOut> {
+  return apiFetch<PlanApplyRunOut>(`/plan-subscriptions/${subscriptionId}/import-current-period`, {
     method: "POST",
     token,
   });

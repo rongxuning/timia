@@ -12,6 +12,7 @@ from app.schemas.plan import (
     PlanCommentCreate,
     PlanCommentOut,
     PlanCommentUpdate,
+    PlanCurrentPeriodPreviewOut,
     PlanFavoriteOut,
     PlanFavoriteUpdate,
     PlanConfirmRunOut,
@@ -43,6 +44,8 @@ from app.services.plan_apply import (
     build_apply_run_out,
     cancel_subscription,
     confirm_apply_run,
+    import_current_period,
+    preview_current_period,
     skip_apply_run,
     subscribe_plan,
 )
@@ -204,6 +207,31 @@ def cancel_plan_subscription(
     user: User = Depends(get_current_user),
 ):
     cancel_subscription(db, user, subscription_id)
+
+
+@subscription_router.get(
+    "/{subscription_id}/current-period",
+    response_model=PlanCurrentPeriodPreviewOut,
+)
+def get_subscription_current_period(
+    subscription_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return preview_current_period(db, user, subscription_id)
+
+
+@subscription_router.post(
+    "/{subscription_id}/import-current-period",
+    response_model=PlanApplyRunOut,
+)
+def import_subscription_current_period(
+    subscription_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    run = import_current_period(db, user, subscription_id)
+    return build_apply_run_out(db, run)
 
 
 @apply_run_router.post("/{run_id}/confirm", response_model=PlanConfirmRunOut)
