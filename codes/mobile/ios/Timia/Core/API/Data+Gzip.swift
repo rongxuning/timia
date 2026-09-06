@@ -30,16 +30,22 @@ extension Data {
         try withUnsafeBytes { (src: UnsafeRawBufferPointer) in
             guard let srcBase = src.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
 
-            var stream = compression_stream()
+            let dstBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+            defer { dstBuffer.deallocate() }
+
+            var stream = compression_stream(
+                dst_ptr: dstBuffer,
+                dst_size: 0,
+                src_ptr: srcBase,
+                src_size: 0,
+                state: nil
+            )
             let initStatus = compression_stream_init(&stream, COMPRESSION_STREAM_ENCODE, COMPRESSION_ZLIB)
             guard initStatus != COMPRESSION_STATUS_ERROR else { throw GzipError.compressionFailed }
             defer { compression_stream_destroy(&stream) }
 
             stream.src_ptr = srcBase
             stream.src_size = count
-
-            let dstBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-            defer { dstBuffer.deallocate() }
 
             repeat {
                 stream.dst_ptr = dstBuffer

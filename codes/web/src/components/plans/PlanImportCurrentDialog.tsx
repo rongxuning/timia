@@ -101,6 +101,7 @@ export function PlanImportCurrentDialog({
   const target = preview
     ? formatWorkspaceProjectLabel(preview.workspace_name, preview.project_name)
     : "";
+  const tasks = preview?.tasks ?? [];
 
   return (
     <div className="fixed inset-0 z-50">
@@ -127,11 +128,11 @@ export function PlanImportCurrentDialog({
             <div className="space-y-3">
               <p className="text-small text-text-secondary">周期 {range}</p>
               <p className="text-small text-text-secondary">写入 {target}</p>
-              {preview.tasks.length === 0 ? (
+              {tasks.length === 0 ? (
                 <p className="text-small text-text-secondary">本周期没有可导入的任务</p>
               ) : (
                 <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
-                  {preview.tasks.map((task, index) => (
+                  {tasks.map((task, index) => (
                     <li key={`${task.title}-${task.start_at}-${index}`} className="px-3 py-2.5">
                       <p className="text-small text-text-primary">{task.title}</p>
                       <p className="text-caption text-text-secondary">
