@@ -60,11 +60,13 @@ alwaysApply: false
 
 ## 界面文案语言
 
-在 `codes/web` 新增或修改页面、组件时，**用户可见的 UI 文案**（标题、副标题、按钮、导航、表单标签与占位符、空状态、错误提示、对话框、`aria-label`、`title`、`alt` 等）使用**简体中文**。产品英文名 “Timia” 可保留。若需展示 API 枚举值（如 `todo`、`owner`），在界面上优先用中文说明或并列展示。
+用户可见文案（标题、按钮、导航、表单、空状态、错误、对话框、`aria-label`、`title`、`alt`）走 `next-intl` 的 `useTranslations` / `messages/*.json`，不要在新代码里写死某一种语言。默认语言是简体中文（cookie `locale` 缺失时为 `zh`）。产品名 “Timia” 不译。API 枚举在界面上用 i18n key（后续模块建 `enums.*`）；未迁模块可暂时保持硬编码中文。
+
+`html lang` 与日期/数字格式跟当前 locale（`zh` → `zh-CN`，`en` → `en-US`），不要写死 `zh-CN`。
 
 ## 可访问性
 
-- 日期格式、`lang`（根布局已为 `zh-CN`）与 `aria-*` 与上述文案语言一致。
+- 日期格式、`lang`（`html lang` 跟当前 locale）与 `aria-*` 与上述文案语言一致。
 - 图标按钮补 `title` 或 `aria-label`；表单控件与 `label` / `htmlFor` 关联。
 
 ## 新增页面时的检查清单
@@ -72,5 +74,5 @@ alwaysApply: false
 1. 使用主题色与语义字号，避免硬编码仅存在于单页的色值。
 2. 主按钮与卡片圆角、阴影级别与登录页 / 工作空间首页保持一致。
 3. 焦点环使用 `primary/10`，保证键盘可见性。
-4. 加载、空状态、错误三条路径都有明确**简体中文**文案与样式（`text-text-secondary` / `text-error`）。
+4. 加载、空状态、错误三条路径都有明确的 i18n 文案（默认中文）与样式（`text-text-secondary` / `text-error`）。
 5. 与壳层并用时尊重 `pt-14`、`md:ml-48` 与顶栏 `z-50`，避免内容被固定头遮挡。

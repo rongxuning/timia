@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:i18n": "node --experimental-strip-types --test src/i18n/*.test.ts && node scripts/check-i18n-keys.mjs",
     "codegen:types": "openapi-typescript ../core-service/openapi.json -o src/types/api/generated.ts"
   },
   "dependencies": {
@@ -14,6 +15,7 @@
     "maplibre-gl": "^6.6.0",
     "mermaid": "latest",
     "next": "latest",
+    "next-intl": "^4.14.2",
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "latest",

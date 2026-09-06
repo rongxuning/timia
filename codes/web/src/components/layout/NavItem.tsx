@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export type NavItemProps = {
   href: string;
@@ -12,9 +13,10 @@ export type NavItemProps = {
 };
 
 export function NavItem({ href, icon, label, active, hidden, badge }: NavItemProps) {
+  const t = useTranslations("nav");
   const showBadge = typeof badge === "number" && badge > 0;
   const badgeText = showBadge && badge > 99 ? "99+" : String(badge ?? "");
-  const ariaLabel = showBadge ? `${label}，${badge} 条提醒` : label;
+  const ariaLabel = showBadge ? t("badgeAria", { label, count: badge ?? 0 }) : label;
 
   return (
     <Link
