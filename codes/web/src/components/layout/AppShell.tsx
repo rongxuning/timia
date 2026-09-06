@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { apiFetch, bootstrapSession, type ApiError } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { convertStickyNoteToTask } from "@/lib/api/sticky-notes";
@@ -75,6 +76,7 @@ function FloatingButtons({
   const [stickyNoteOpen, setStickyNoteOpen] = useState(false);
   const { openCreate, close: closeTaskCreate } = useTaskCreateDrawer();
   const previousPathnameRef = useRef(pathname);
+  const t = useTranslations("nav");
 
   function openTaskFromStickyNote(noteId: string, prefill: TaskCreatePrefill) {
     console.info("[sticky-note] openTaskFromStickyNote", { noteId, parseId: prefill.parseId });
@@ -95,7 +97,7 @@ function FloatingButtons({
   return (
     <>
       <FloatingDraggableButton
-        ariaLabel="新建任务"
+        ariaLabel={t("newTask")}
         initialRight={88}
         className="flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary-hover active:cursor-grabbing"
         onClick={() => openCreate()}
@@ -107,7 +109,7 @@ function FloatingButtons({
 
       {/* Sticky note button (right) */}
       <FloatingDraggableButton
-        ariaLabel="打开便利贴"
+        ariaLabel={t("openStickyNote")}
         className="flex h-12 w-12 cursor-grab items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary-hover active:cursor-grabbing"
         onClick={() => setStickyNoteOpen(true)}
       >

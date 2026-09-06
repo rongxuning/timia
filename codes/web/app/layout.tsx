@@ -2,6 +2,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Be_Vietnam_Pro, Epilogue, JetBrains_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { htmlLang, type Locale } from "@/i18n/config";
 
 const epilogue = Epilogue({
   subsets: ["latin"],
@@ -21,18 +24,23 @@ const jetBrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Timia · 协作管理",
-  icons: {
-    icon: [{ url: "/icon.png?v=20260724-t", sizes: "512x512", type: "image/png" }],
-    shortcut: [{ url: "/favicon.ico?v=20260724-t", type: "image/x-icon" }],
-    apple: [{ url: "/icon.png?v=20260724-t", sizes: "512x512", type: "image/png" }],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("meta");
+  return {
+    title: t("title"),
+    icons: {
+      icon: [{ url: "/icon.png?v=20260724-t", sizes: "512x512", type: "image/png" }],
+      shortcut: [{ url: "/favicon.ico?v=20260724-t", type: "image/x-icon" }],
+      apple: [{ url: "/icon.png?v=20260724-t", sizes: "512x512", type: "image/png" }],
+    },
+  };
+}
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = (await getLocale()) as Locale;
+  const messages = await getMessages();
   return (
-    <html lang="zh-CN">
+    <html lang={htmlLang(locale)}>
       <head>
         <link
           rel="stylesheet"
@@ -47,7 +55,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           "bg-background font-body text-on-background selection:bg-primary-fixed selection:text-on-primary-fixed",
         ].join(" ")}
       >
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );
