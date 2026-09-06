@@ -78,6 +78,7 @@ struct ScheduleHomeView: View {
     @State private var overdueHasMore = false
     @State private var overdueTotal = 0
     @State private var updatingTodoTaskIds: Set<String> = []
+    @State private var updatingCalendarTaskIds: Set<String> = []
     @State private var isLoading = false
     @State private var errorTip: String?
     @State private var selectedTask: ScheduleTask?
@@ -323,6 +324,9 @@ struct ScheduleHomeView: View {
                     onStripStartChange: { dateStripStart = $0 },
                     onCreateTime: { createSelection = ScheduleCreateSelection(date: $0, hasExactTime: true) },
                     onTaskTap: { selectedTask = $0 },
+                    onReschedule: { task, newStart, newEnd in
+                        Task { await rescheduleCalendarTask(task, newStart: newStart, newEnd: newEnd) }
+                    },
                     idleCollapseEnabled: $idleCollapseEnabled,
                     dragForcesExpandAll: $dragForcesExpandAll
                 )
@@ -1069,6 +1073,134 @@ struct ScheduleHomeView: View {
         replaceTodoTask(updated)
     }
 
+    @MainActor
+    private func rescheduleCalendarTask(_ task: ScheduleTask, newStart: Date, newEnd: Date) async {
+        guard !updatingCalendarTaskIds.contains(task.id) else { return }
+        guard let originalStart = ScheduleFormat.parseISO(task.startAt) else { return }
+        let originalEnd = ScheduleFormat.parseISO(task.endAt) ?? originalStart.addingTimeInterval(3600)
+        let newStartAt = RescheduleMath.iso8601(newStart)
+        let newEndAt = RescheduleMath.iso8601(newEnd)
+        if Calendar.current.isDate(newStart, equalTo: originalStart, toGranularity: .minute),
+           Calendar.current.isDate(newEnd, equalTo: originalEnd, toGranularity: .minute) {
+            return
+        }
+
+        updatingCalendarTaskIds.insert(task.id)
+        let snapshot = task
+
+        var optimisticTask = task
+        optimisticTask.startAt = newStartAt
+        optimisticTask.endAt = newEndAt
+        replaceCalendarTask(optimisticTask)
+
+        do {
+            let response = try await session.api.request(
+                "/workspaces/\(task.workspaceId)/projects/\(task.projectId)/items/\(task.id)",
+                method: "PATCH",
+                body: ItemUpdatePayload(
+                    version: task.version,
+                    title: task.title,
+                    body: task.body,
+                    color: task.color,
+                    status: task.status,
+                    priority: task.priority ?? "1",
+                    startAt: newStartAt,
+                    endAt: newEndAt,
+                    completedAt: task.completedAt,
+                    details: task.details,
+                    assigneeUserId: task.assignee?.id,
+                    participantUserIds: task.participants?.map(\.id) ?? [],
+                    location: task.location,
+                    targetWorkspaceId: nil,
+                    targetProjectId: nil,
+                    repeatKind: nil
+                ),
+                response: ItemResponse.self
+            )
+            applyCalendarResponse(response, fallback: optimisticTask)
+        } catch {
+            replaceCalendarTask(snapshot)
+            showTip(error.localizedDescription)
+        }
+        updatingCalendarTaskIds.remove(task.id)
+    }
+
+    private func replaceCalendarTask(_ task: ScheduleTask) {
+        for key in calendarCache.keys {
+            guard let calendar = calendarCache[key] else { continue }
+            let patched = patchTaskInCalendar(calendar, task: task)
+            if patched.changed {
+                calendarCache[key] = patched.calendar
+            }
+        }
+        if let data = calendarData {
+            let patched = patchTaskInCalendar(data, task: task)
+            if patched.changed {
+                calendarData = patched.calendar
+            }
+        }
+    }
+
+    private func patchTaskInCalendar(_ calendar: ScheduleCalendar, task: ScheduleTask) -> (calendar: ScheduleCalendar, changed: Bool) {
+        var changed = false
+        var dayDetail = calendar.day
+        if let day = dayDetail, let index = day.items.firstIndex(where: { $0.id == task.id }) {
+            var items = day.items
+            items[index] = task
+            dayDetail = CalendarDayDetail(key: day.key, weekday: day.weekday, items: items)
+            changed = true
+        }
+
+        var weeks = calendar.weeks
+        if let existingWeeks = weeks {
+            weeks = existingWeeks.map { week in
+                let segments = week.segments.map { segment in
+                    guard segment.item.id == task.id else { return segment }
+                    changed = true
+                    return CalendarSegment(
+                        item: task,
+                        colStart: segment.colStart,
+                        colSpan: segment.colSpan,
+                        lane: segment.lane,
+                        roundLeft: segment.roundLeft,
+                        roundRight: segment.roundRight
+                    )
+                }
+                return CalendarWeek(days: week.days, segments: segments)
+            }
+        }
+
+        guard changed else { return (calendar, false) }
+        return (
+            ScheduleCalendar(
+                view: calendar.view,
+                anchor: calendar.anchor,
+                month: calendar.month,
+                year: calendar.year,
+                weeks: weeks,
+                months: calendar.months,
+                day: dayDetail
+            ),
+            true
+        )
+    }
+
+    private func applyCalendarResponse(_ response: ItemResponse, fallback: ScheduleTask) {
+        var updated = fallback
+        updated.title = response.title
+        updated.body = response.body
+        updated.color = response.color
+        updated.status = response.status
+        updated.priority = response.priority
+        updated.startAt = response.startAt
+        updated.endAt = response.endAt
+        updated.completedAt = response.completedAt
+        updated.details = response.details
+        updated.version = response.version
+        updated.location = response.location
+        replaceCalendarTask(updated)
+    }
+
     private func parseNaturalLanguage() async {
         dismissNaturalLanguageInput()
         let value = naturalLanguageText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1122,6 +1254,7 @@ private struct DayScheduleView: View {
     let onStripStartChange: (Date) -> Void
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
+    let onReschedule: (ScheduleTask, Date, Date) -> Void
     @Binding var idleCollapseEnabled: Bool
     @Binding var dragForcesExpandAll: Bool
 
@@ -1129,6 +1262,7 @@ private struct DayScheduleView: View {
     @State private var reportedDayKey: String
     @State private var hasPositionedInitialDay = false
     @State private var isTrackingVisibleDay = false
+    @State private var isTimelineScrollDisabled = false
 
     init(
         selectedDate: Date,
@@ -1139,6 +1273,7 @@ private struct DayScheduleView: View {
         onStripStartChange: @escaping (Date) -> Void,
         onCreateTime: @escaping (Date) -> Void,
         onTaskTap: @escaping (ScheduleTask) -> Void,
+        onReschedule: @escaping (ScheduleTask, Date, Date) -> Void,
         idleCollapseEnabled: Binding<Bool>,
         dragForcesExpandAll: Binding<Bool>
     ) {
@@ -1151,6 +1286,7 @@ private struct DayScheduleView: View {
         self.onStripStartChange = onStripStartChange
         self.onCreateTime = onCreateTime
         self.onTaskTap = onTaskTap
+        self.onReschedule = onReschedule
         _idleCollapseEnabled = idleCollapseEnabled
         _dragForcesExpandAll = dragForcesExpandAll
         _anchorDay = State(initialValue: startOfDay)
@@ -1184,8 +1320,10 @@ private struct DayScheduleView: View {
                                 detail: daysByAnchor[dayKey],
                                 onCreateTime: onCreateTime,
                                 onTaskTap: onTaskTap,
+                                onReschedule: onReschedule,
                                 idleCollapseEnabled: $idleCollapseEnabled,
-                                dragForcesExpandAll: $dragForcesExpandAll
+                                dragForcesExpandAll: $dragForcesExpandAll,
+                                isTimelineScrollDisabled: $isTimelineScrollDisabled
                             )
                             .id(dayKey)
                             .background {
@@ -1204,6 +1342,7 @@ private struct DayScheduleView: View {
                 }
                 .coordinateSpace(name: "calendar-day-scroll")
                 .scrollIndicators(.hidden)
+                .scrollDisabled(isTimelineScrollDisabled)
                 .task {
                     guard !hasPositionedInitialDay else { return }
                     hasPositionedInitialDay = true
@@ -1270,8 +1409,10 @@ private struct DayTimelineSection: View {
     let detail: CalendarDayDetail?
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
+    let onReschedule: (ScheduleTask, Date, Date) -> Void
     @Binding var idleCollapseEnabled: Bool
     @Binding var dragForcesExpandAll: Bool
+    @Binding var isTimelineScrollDisabled: Bool
 
     private var tasks: [ScheduleTask] { detail?.items ?? [] }
 
@@ -1311,8 +1452,10 @@ private struct DayTimelineSection: View {
                 anchorPrefix: ScheduleFormat.dayKey(date),
                 onCreateTime: onCreateTime,
                 onTaskTap: onTaskTap,
-                idleCollapseEnabled: idleCollapseEnabled,
-                dragForcesExpandAll: dragForcesExpandAll
+                onReschedule: onReschedule,
+                idleCollapseEnabled: $idleCollapseEnabled,
+                dragForcesExpandAll: $dragForcesExpandAll,
+                isScrollDisabled: $isTimelineScrollDisabled
             )
         }
     }
@@ -1537,8 +1680,8 @@ private struct WeekTimelineSection: View {
                 anchorPrefix: ScheduleFormat.weekKey(weekStart),
                 onCreateTime: onCreateTime,
                 onTaskTap: onTaskTap,
-                idleCollapseEnabled: idleCollapseEnabled,
-                dragForcesExpandAll: dragForcesExpandAll
+                idleCollapseEnabled: $idleCollapseEnabled,
+                dragForcesExpandAll: $dragForcesExpandAll
             )
         }
     }
@@ -2068,8 +2211,14 @@ private struct TimelineGrid: View {
     var anchorPrefix: String? = nil
     let onCreateTime: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
-    var idleCollapseEnabled: Bool = true
-    var dragForcesExpandAll: Bool = false
+    var onReschedule: ((ScheduleTask, Date, Date) -> Void)? = nil
+    @Binding var idleCollapseEnabled: Bool
+    @Binding var dragForcesExpandAll: Bool
+    var isScrollDisabled: Binding<Bool>? = nil
+
+    @State private var draggingTaskID: String?
+    @State private var dragLocation: CGPoint = .zero
+    @State private var dragDidMove = false
 
     private let hourHeight: CGFloat = 74
     private let collapsedHeight: CGFloat = 28
@@ -2105,6 +2254,7 @@ private struct TimelineGrid: View {
                     .gesture(
                         SpatialTapGesture()
                             .onEnded { value in
+                                guard draggingTaskID == nil else { return }
                                 guard value.location.x >= labelWidth else { return }
                                 guard !isCollapsed(atY: value.location.y, geometry: geometry) else { return }
                                 let rawMinutes = geometry.minutes(atY: value.location.y)
@@ -2163,6 +2313,14 @@ private struct TimelineGrid: View {
                     )
                 }
 
+                if draggingTaskID != nil {
+                    let snappedMinutes = snappedDropMinutes(atY: dragLocation.y, geometry: geometry)
+                    Rectangle()
+                        .fill(TimiaTheme.primary.opacity(0.45))
+                        .frame(width: contentWidth, height: 2)
+                        .offset(x: labelWidth, y: geometry.y(forMinutes: snappedMinutes))
+                }
+
                 ForEach(tasks) { task in
                     if let placement = taskPlacements[task.id] {
                         taskBlock(
@@ -2177,7 +2335,19 @@ private struct TimelineGrid: View {
                         )
                     }
                 }
+
+                if let draggingID = draggingTaskID,
+                   let task = tasks.first(where: { $0.id == draggingID }) {
+                    dragGhostBlock(
+                        task: task,
+                        geometry: geometry,
+                        labelWidth: labelWidth,
+                        contentWidth: contentWidth,
+                        cornerRadius: 16
+                    )
+                }
             }
+            .coordinateSpace(name: "timeline")
         }
         .frame(height: geometry.contentHeight)
         .padding(.top, 7)
@@ -2425,44 +2595,202 @@ private struct TimelineGrid: View {
             }
             return CGFloat(placement.startMinutes) / 60 * hourHeight + 4
         }()
+        let blockX = labelWidth
+            + CGFloat(placement.dayIndex) * dayWidth
+            + horizontalInset
+            + CGFloat(lane.index) * (laneWidth + laneGap)
 
-        Button { onTaskTap(task) } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(task.title)
-                    .font(isDayMode ? .subheadline.weight(.semibold) : .caption2.weight(.semibold))
-                    .lineLimit(isDayMode ? 2 : 3)
-                    .thickStrikethrough(isCompleted)
-                    .opacity(isCompleted ? 0.7 : 1)
-                if isDayMode {
-                    Text(ScheduleFormat.timeRange(task))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .foregroundStyle(style.foreground)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(isDayMode ? 10 : 4)
-            .background {
-                CalendarCompletedCardFill(
-                    color: style.background,
+        let content = taskBlockLabel(
+            task: task,
+            style: style,
+            isCompleted: isCompleted,
+            cornerRadius: cornerRadius
+        )
+        .frame(width: laneWidth, height: blockHeight)
+        .offset(x: blockX, y: blockY)
+        .accessibilityIdentifier("calendar-timeline-task-\(task.id)")
+
+        if isDayMode, isDraggable(task), let geometry {
+            content
+                .opacity(draggingTaskID == task.id ? 0.35 : 1)
+                .gesture(taskDragGesture(task: task, geometry: geometry))
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        guard draggingTaskID == nil else { return }
+                        onTaskTap(task)
+                    }
+                )
+        } else {
+            Button { onTaskTap(task) } label: {
+                taskBlockLabel(
+                    task: task,
+                    style: style,
                     isCompleted: isCompleted,
                     cornerRadius: cornerRadius
                 )
             }
-            .overlay(alignment: .leading) {
-                Capsule().fill(style.accent).frame(width: 3).padding(.vertical, 5)
+            .buttonStyle(.plain)
+            .frame(width: laneWidth, height: blockHeight)
+            .offset(x: blockX, y: blockY)
+            .accessibilityIdentifier("calendar-timeline-task-\(task.id)")
+        }
+    }
+
+    private func taskBlockLabel(
+        task: ScheduleTask,
+        style: SchedulePriorityStyle,
+        isCompleted: Bool,
+        cornerRadius: CGFloat
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(task.title)
+                .font(isDayMode ? .subheadline.weight(.semibold) : .caption2.weight(.semibold))
+                .lineLimit(isDayMode ? 2 : 3)
+                .thickStrikethrough(isCompleted)
+                .opacity(isCompleted ? 0.7 : 1)
+            if isDayMode {
+                Text(ScheduleFormat.timeRange(task))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
-        .buttonStyle(.plain)
-        .frame(width: laneWidth, height: blockHeight)
-        .offset(
-            x: labelWidth
-                + CGFloat(placement.dayIndex) * dayWidth
-                + horizontalInset
-                + CGFloat(lane.index) * (laneWidth + laneGap),
-            y: blockY
+        .foregroundStyle(style.foreground)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(isDayMode ? 10 : 4)
+        .background {
+            CalendarCompletedCardFill(
+                color: style.background,
+                isCompleted: isCompleted,
+                cornerRadius: cornerRadius
+            )
+        }
+        .overlay(alignment: .leading) {
+            Capsule().fill(style.accent).frame(width: 3).padding(.vertical, 5)
+        }
+    }
+
+    @ViewBuilder
+    private func dragGhostBlock(
+        task: ScheduleTask,
+        geometry: TimelineGeometry,
+        labelWidth: CGFloat,
+        contentWidth: CGFloat,
+        cornerRadius: CGFloat
+    ) -> some View {
+        let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
+        let isCompleted = isCalendarTaskCompleted(task.status)
+        let snappedMinutes = snappedDropMinutes(atY: dragLocation.y, geometry: geometry)
+        let previewRange = previewRange(
+            for: task,
+            dropMinutes: snappedMinutes
         )
-        .accessibilityIdentifier("calendar-timeline-task-\(task.id)")
+        let durationMinutes = max(
+            30,
+            Int(previewRange.end.timeIntervalSince(previewRange.start) / 60)
+        )
+        let blockHeight = max(
+            geometry.height(forDurationMinutes: durationMinutes, startingAt: snappedMinutes),
+            48
+        )
+        let blockY = geometry.y(forMinutes: snappedMinutes) + 4
+
+        taskBlockLabel(
+            task: task,
+            style: style,
+            isCompleted: isCompleted,
+            cornerRadius: cornerRadius
+        )
+        .frame(width: contentWidth - 18, height: blockHeight)
+        .offset(x: labelWidth + 9, y: blockY)
+        .shadow(color: TimiaTheme.shadow.opacity(0.35), radius: 8, y: 4)
+        .allowsHitTesting(false)
+    }
+
+    private func isDraggable(_ task: ScheduleTask) -> Bool {
+        task.status != "archived" && ScheduleFormat.parseISO(task.startAt) != nil
+    }
+
+    private func snappedDropMinutes(atY y: CGFloat, geometry: TimelineGeometry) -> Int {
+        let raw = geometry.minutes(atY: y)
+        return min(RescheduleMath.snapToHour(raw), 24 * 60 - 30)
+    }
+
+    private func previewRange(for task: ScheduleTask, dropMinutes: Int) -> (start: Date, end: Date) {
+        let originalStart = ScheduleFormat.parseISO(task.startAt) ?? Date()
+        let originalEnd = ScheduleFormat.parseISO(task.endAt)
+        return RescheduleMath.computeNewRange(
+            originalStart: originalStart,
+            originalEnd: originalEnd,
+            dropDay: days[0],
+            dropMinutes: dropMinutes,
+            calendar: .current
+        )
+    }
+
+    private func taskDragGesture(task: ScheduleTask, geometry: TimelineGeometry) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.35)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named("timeline")))
+            .onChanged { value in
+                switch value {
+                case .first(true):
+                    if draggingTaskID == nil {
+                        draggingTaskID = task.id
+                        dragForcesExpandAll = true
+                        isScrollDisabled?.wrappedValue = true
+                    }
+                case .second(true, let drag?):
+                    if draggingTaskID == nil {
+                        draggingTaskID = task.id
+                        dragForcesExpandAll = true
+                        isScrollDisabled?.wrappedValue = true
+                    }
+                    dragLocation = drag.location
+                    let distance = hypot(drag.translation.width, drag.translation.height)
+                    if distance > 6 {
+                        dragDidMove = true
+                    }
+                default:
+                    break
+                }
+            }
+            .onEnded { value in
+                defer { resetDragState() }
+                switch value {
+                case .second(true, let drag?):
+                    let distance = hypot(drag.translation.width, drag.translation.height)
+                    if distance <= 6 {
+                        onTaskTap(task)
+                    } else {
+                        finishDrag(task: task, atY: drag.location.y, geometry: geometry)
+                    }
+                case .first(true):
+                    onTaskTap(task)
+                default:
+                    if !dragDidMove {
+                        onTaskTap(task)
+                    }
+                }
+            }
+    }
+
+    private func finishDrag(task: ScheduleTask, atY y: CGFloat, geometry: TimelineGeometry) {
+        let snappedMinutes = snappedDropMinutes(atY: y, geometry: geometry)
+        let range = previewRange(for: task, dropMinutes: snappedMinutes)
+        guard let originalStart = ScheduleFormat.parseISO(task.startAt) else { return }
+        let originalEnd = ScheduleFormat.parseISO(task.endAt) ?? originalStart.addingTimeInterval(3600)
+        if Calendar.current.isDate(range.start, equalTo: originalStart, toGranularity: .minute),
+           Calendar.current.isDate(range.end, equalTo: originalEnd, toGranularity: .minute) {
+            return
+        }
+        onReschedule?(task, range.start, range.end)
+    }
+
+    private func resetDragState() {
+        draggingTaskID = nil
+        dragLocation = .zero
+        dragDidMove = false
+        dragForcesExpandAll = false
+        isScrollDisabled?.wrappedValue = false
     }
 }
 
