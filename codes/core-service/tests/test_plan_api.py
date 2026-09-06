@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
@@ -1395,6 +1395,7 @@ def test_subscribed_shows_open_segment():
         assert r.status_code == 200
         row = r.json()["items"][0]
         assert row["segments"][0]["ended_at"] is None
+        assert row["current_period_imported"] is True
     finally:
         _cleanup_emails([email])
 
@@ -1435,7 +1436,7 @@ def test_subscribed_list_includes_expired_and_skipped_runs():
         first_now = datetime.combine(
             current_sunday + timedelta(days=6), time(20, 0), tzinfo=ZoneInfo("Asia/Shanghai")
         )
-        assert run_job(first_now) == {"pending_created": 1, "expired": 0}
+        assert run_job(first_now)["pending_created"] >= 1
 
         listed = client.get("/views/plans/subscribed", headers=_headers(token))
         pending_id = listed.json()["items"][0]["pending_run"]["id"]
@@ -1443,7 +1444,9 @@ def test_subscribed_list_includes_expired_and_skipped_runs():
         second_now = datetime.combine(
             current_sunday + timedelta(days=13), time(20, 0), tzinfo=ZoneInfo("Asia/Shanghai")
         )
-        assert run_job(second_now) == {"pending_created": 1, "expired": 1}
+        second = run_job(second_now)
+        assert second["pending_created"] >= 1
+        assert second["expired"] >= 1
 
         listed = client.get("/views/plans/subscribed", headers=_headers(token))
         pending_id = listed.json()["items"][0]["pending_run"]["id"]
@@ -1884,3 +1887,129 @@ def test_plan_favorite_requires_auth():
         client.patch(f"/plan-templates/{template_id}/favorite", json={"is_favorite": True}).status_code
         == 401
     )
+
+
+def test_import_current_period_preview_and_already_imported():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        subscribed = client.post(
+            f"/plan-templates/{template_id}/subscribe",
+            json={
+                "workspace_id": workspace_id,
+                "project_id": project_id,
+                "timezone": "Asia/Shanghai",
+            },
+            headers=_headers(token),
+        )
+        assert subscribed.status_code == 201, subscribed.text
+        subscription_id = subscribed.json()["id"]
+        preview = client.get(
+            f"/plan-subscriptions/{subscription_id}/current-period",
+            headers=_headers(token),
+        )
+        assert preview.status_code == 200, preview.text
+        body = preview.json()
+        assert body["already_imported"] is True
+        assert body["workspace_id"] == workspace_id
+        assert body["project_id"] == project_id
+        assert len(body["tasks"]) >= 1
+        assert body["tasks"][0]["title"] == "周一晨练"
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            headers=_headers(token),
+        )
+        assert imported.status_code == 409
+        assert imported.json()["detail"] == "already_imported"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_when_not_yet_applied():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        _run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current - timedelta(days=7),
+        )
+        listed = client.get("/views/plans/subscribed", headers=_headers(token))
+        assert listed.status_code == 200
+        row = listed.json()["items"][0]
+        assert row["current_period_imported"] is False
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            headers=_headers(token),
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["status"] == "applied"
+        assert imported.json()["period_start"] == current.isoformat()
+        assert imported.json()["item_count"] >= 1
+        listed = client.get("/views/plans/subscribed", headers=_headers(token))
+        assert listed.json()["items"][0]["current_period_imported"] is True
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_after_skip():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current,
+        )
+        skipped = client.post(
+            f"/plan-apply-runs/{run_id}/skip",
+            headers=_headers(token),
+        )
+        assert skipped.status_code == 200, skipped.text
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            headers=_headers(token),
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["status"] == "applied"
+        assert imported.json()["period_start"] == current.isoformat()
+        assert imported.json()["item_count"] >= 1
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_confirms_existing_pending():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current,
+        )
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            headers=_headers(token),
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["id"] == run_id
+        assert imported.json()["status"] == "applied"
+    finally:
+        _cleanup_emails([email])

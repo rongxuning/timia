@@ -3795,6 +3795,124 @@
         }
       }
     },
+    "/plan-subscriptions/{subscription_id}/current-period": {
+      "get": {
+        "tags": [
+          "plan-subscriptions"
+        ],
+        "summary": "Get Subscription Current Period",
+        "operationId": "get_subscription_current_period_plan_subscriptions__subscription_id__current_period_get",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subscription Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCurrentPeriodPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-subscriptions/{subscription_id}/import-current-period": {
+      "post": {
+        "tags": [
+          "plan-subscriptions"
+        ],
+        "summary": "Import Subscription Current Period",
+        "operationId": "import_subscription_current_period_plan_subscriptions__subscription_id__import_current_period_post",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subscription Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanApplyRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/plan-apply-runs/{run_id}/confirm": {
       "post": {
         "tags": [
@@ -4972,6 +5090,115 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HealthSyncRunOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/checkpoint": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Checkpoint",
+        "operationId": "post_sync_checkpoint_health_sync_checkpoint_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthSyncCheckpointIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthSyncCheckpointOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/data": {
+      "delete": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Delete Health Data",
+        "description": "Clear synced health samples for the current user. Keeps profile and card layout.",
+        "operationId": "delete_health_data_health_data_delete",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthClearOut"
                 }
               }
             }
@@ -8756,6 +8983,62 @@
         ],
         "title": "HealthCardDetailOut"
       },
+      "HealthClearOut": {
+        "properties": {
+          "quantity_deleted": {
+            "type": "integer",
+            "title": "Quantity Deleted",
+            "default": 0
+          },
+          "sleep_deleted": {
+            "type": "integer",
+            "title": "Sleep Deleted",
+            "default": 0
+          },
+          "stand_hour_deleted": {
+            "type": "integer",
+            "title": "Stand Hour Deleted",
+            "default": 0
+          },
+          "heartbeat_series_deleted": {
+            "type": "integer",
+            "title": "Heartbeat Series Deleted",
+            "default": 0
+          },
+          "workout_deleted": {
+            "type": "integer",
+            "title": "Workout Deleted",
+            "default": 0
+          },
+          "route_deleted": {
+            "type": "integer",
+            "title": "Route Deleted",
+            "default": 0
+          },
+          "metrics_daily_deleted": {
+            "type": "integer",
+            "title": "Metrics Daily Deleted",
+            "default": 0
+          },
+          "insight_daily_deleted": {
+            "type": "integer",
+            "title": "Insight Daily Deleted",
+            "default": 0
+          },
+          "sync_run_deleted": {
+            "type": "integer",
+            "title": "Sync Run Deleted",
+            "default": 0
+          },
+          "sync_state_cleared": {
+            "type": "boolean",
+            "title": "Sync State Cleared",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "HealthClearOut"
+      },
       "HealthCurrentOut": {
         "properties": {
           "steps": {
@@ -10574,6 +10857,34 @@
         "type": "object",
         "title": "HealthStandHourSyncIn"
       },
+      "HealthSyncCheckpointIn": {
+        "properties": {
+          "to_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "To At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "to_at"
+        ],
+        "title": "HealthSyncCheckpointIn"
+      },
+      "HealthSyncCheckpointOut": {
+        "properties": {
+          "last_synced_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Synced At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_synced_at"
+        ],
+        "title": "HealthSyncCheckpointOut"
+      },
       "HealthSyncDayStatusOut": {
         "properties": {
           "local_date": {
@@ -11176,6 +11487,16 @@
             ]
           },
           "trimp_formula": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScoreFormulaOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rtss_formula": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/HealthScoreFormulaOut"
@@ -14041,6 +14362,99 @@
         ],
         "title": "PlanCreatorOut"
       },
+      "PlanCurrentPeriodPreviewOut": {
+        "properties": {
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Period Start"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Period End"
+          },
+          "already_imported": {
+            "type": "boolean",
+            "title": "Already Imported"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "workspace_name": {
+            "type": "string",
+            "title": "Workspace Name"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/PlanCurrentPeriodTaskOut"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period_start",
+          "period_end",
+          "already_imported",
+          "workspace_id",
+          "workspace_name",
+          "project_id",
+          "project_name"
+        ],
+        "title": "PlanCurrentPeriodPreviewOut"
+      },
+      "PlanCurrentPeriodTaskOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "all_day": {
+            "type": "boolean",
+            "title": "All Day"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "start_at",
+          "end_at",
+          "all_day"
+        ],
+        "title": "PlanCurrentPeriodTaskOut"
+      },
       "PlanDetailOut": {
         "properties": {
           "id": {
@@ -14876,6 +15290,11 @@
           "project_name": {
             "type": "string",
             "title": "Project Name"
+          },
+          "current_period_imported": {
+            "type": "boolean",
+            "title": "Current Period Imported",
+            "default": false
           },
           "segments": {
             "items": {

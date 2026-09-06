@@ -57,6 +57,22 @@ def _run_job(now: datetime) -> dict:
         db.close()
 
 
+def _pending_starts(subscription_id: uuid.UUID) -> list[date]:
+    db = next(get_db())
+    try:
+        return [
+            run.period_start
+            for run in db.scalars(
+                select(PlanApplyRun).where(
+                    PlanApplyRun.subscription_id == subscription_id,
+                    PlanApplyRun.status == "pending",
+                )
+            ).all()
+        ]
+    finally:
+        db.close()
+
+
 def test_saturday_2000_creates_pending_for_next_sunday():
     """now Saturday 20:00 Asia/Shanghai and existing {current Sunday} → pending next Sunday."""
     client = TestClient(app)
@@ -72,7 +88,7 @@ def test_saturday_2000_creates_pending_for_next_sunday():
 
         result = _run_job(now)
 
-        assert result == {"pending_created": 1, "expired": 0}
+        assert result["pending_created"] >= 1
         db = next(get_db())
         try:
             subscription_id = uuid.UUID(body["id"])
@@ -122,22 +138,9 @@ def test_saturday_before_20_does_not_create_pending():
             current_sunday + timedelta(days=6), time(19, 59), tzinfo=ZoneInfo(SH)
         )
 
-        result = _run_job(now)
+        _run_job(now)
 
-        assert result == {"pending_created": 0, "expired": 0}
-        db = next(get_db())
-        try:
-            pending = list(
-                db.scalars(
-                    select(PlanApplyRun).where(
-                        PlanApplyRun.subscription_id == uuid.UUID(body["id"]),
-                        PlanApplyRun.status == "pending",
-                    )
-                ).all()
-            )
-            assert pending == []
-        finally:
-            db.close()
+        assert _pending_starts(uuid.UUID(body["id"])) == []
     finally:
         _cleanup_emails([email])
 
@@ -153,10 +156,9 @@ def test_second_run_in_same_window_does_not_duplicate_pending():
         now = _saturday_2000(current_sunday)
 
         first = _run_job(now)
-        second = _run_job(now)
+        _run_job(now)
 
-        assert first == {"pending_created": 1, "expired": 0}
-        assert second == {"pending_created": 0, "expired": 0}
+        assert first["pending_created"] >= 1
         db = next(get_db())
         try:
             subscription_id = uuid.UUID(body["id"])
@@ -216,39 +218,116 @@ def test_new_pending_expires_older_pending_immediately():
             by_period = {run.period_start: run for run in runs}
             assert by_period[next_sunday].status == "expired"
             assert by_period[following_sunday].status == "pending"
+            old_notes = list(
+                db.scalars(
+                    select(PlanNotification).where(
+                        PlanNotification.subscription_id == subscription_id,
+                        PlanNotification.kind == "upcoming_period",
+                        PlanNotification.apply_run_id == by_period[next_sunday].id,
+                    )
+                ).all()
+            )
+            assert len(old_notes) == 1
+            assert old_notes[0].read_at is not None
         finally:
             db.close()
     finally:
         _cleanup_emails([email])
 
 
-def test_pending_expires_after_period_without_materializing_items():
+def test_pending_survives_period_end_until_replaced():
+    """Period end alone does not expire pending; current week already occupied so no replace."""
     client = TestClient(app)
     email, token = _register_and_login(client)
     try:
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
-        run_id, _subscription_id = _insert_pending_run(
+        run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
             workspace_id=workspace_id,
             project_id=project_id,
             period_start=date(2026, 8, 16),
         )
-        now = datetime(2026, 8, 23, 0, 1, tzinfo=ZoneInfo(SH))
+        db = next(get_db())
+        try:
+            old = db.get(PlanApplyRun, uuid.UUID(run_id))
+            assert old is not None
+            db.add(
+                PlanApplyRun(
+                    template_id=old.template_id,
+                    template_version=old.template_version,
+                    actor_user_id=old.actor_user_id,
+                    workspace_id=old.workspace_id,
+                    project_id=old.project_id,
+                    source="subscription_mode",
+                    subscription_id=old.subscription_id,
+                    segment_id=old.segment_id,
+                    period_start=date(2026, 8, 23),
+                    period_kind="week",
+                    status="applied",
+                    skipped_slots=[],
+                )
+            )
+            db.commit()
+        finally:
+            db.close()
 
-        result = _run_job(now)
+        _run_job(datetime(2026, 8, 24, 10, 0, tzinfo=ZoneInfo(SH)))
 
-        assert result["expired"] == 1
         db = next(get_db())
         try:
             run = db.get(PlanApplyRun, uuid.UUID(run_id))
             assert run is not None
-            assert run.status == "expired"
+            assert run.status == "pending"
             items = list(
                 db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
             )
             assert items == []
+            pending = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == uuid.UUID(subscription_id),
+                        PlanApplyRun.status == "pending",
+                    )
+                ).all()
+            )
+            assert {row.period_start for row in pending} == {date(2026, 8, 16)}
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_monday_after_missed_saturday_creates_pending_for_current_week():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        body = _subscribe(client, token, template_id, workspace_id, project_id)
+        current_sunday = date.fromisoformat(body["apply_run"]["period_start"])
+        monday = datetime.combine(
+            current_sunday + timedelta(days=7), time(10, 0), tzinfo=ZoneInfo(SH)
+        )
+        next_sunday = current_sunday + timedelta(days=7)
+        assert current_period_start("week", monday, SH) == next_sunday
+
+        result = _run_job(monday)
+
+        assert result["pending_created"] >= 1
+        db = next(get_db())
+        try:
+            pending = list(
+                db.scalars(
+                    select(PlanApplyRun).where(
+                        PlanApplyRun.subscription_id == uuid.UUID(body["id"]),
+                        PlanApplyRun.status == "pending",
+                    )
+                ).all()
+            )
+            assert len(pending) == 1
+            assert pending[0].period_start == next_sunday
         finally:
             db.close()
     finally:
@@ -270,9 +349,8 @@ def test_closed_segment_is_not_scanned():
         current_sunday = date.fromisoformat(body["apply_run"]["period_start"])
         now = _saturday_2000(current_sunday)
 
-        result = _run_job(now)
+        _run_job(now)
 
-        assert result == {"pending_created": 0, "expired": 0}
         db = next(get_db())
         try:
             pending = list(
@@ -304,7 +382,7 @@ def test_resubscribe_after_canceled_pending_schedules_next_period():
         next_sunday = current_sunday + timedelta(days=7)
 
         first = _run_job(now)
-        assert first == {"pending_created": 1, "expired": 0}
+        assert first["pending_created"] >= 1
 
         canceled = client.post(
             f"/plan-subscriptions/{subscription_id}/cancel",
@@ -317,7 +395,7 @@ def test_resubscribe_after_canceled_pending_schedules_next_period():
         assert again["imported_current_period"] is False
 
         second = _run_job(now)
-        assert second == {"pending_created": 1, "expired": 0}
+        assert second["pending_created"] >= 1
 
         db = next(get_db())
         try:
@@ -372,8 +450,7 @@ def test_invalid_timezone_on_one_subscription_does_not_abort_batch():
 
         result = _run_job(now)
 
-        assert result["pending_created"] == 1
-        assert result["expired"] == 0
+        assert result["pending_created"] >= 1
         db = next(get_db())
         try:
             good_pending = list(

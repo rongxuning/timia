@@ -38,6 +38,7 @@ export function planApiMessage(message: string): string {
     case "not_found":
       return "规划不存在或无权访问";
     case "already_applied":
+    case "already_imported":
       return "该周期已导入";
     case "already_subscribed":
       return "已开启该规划的订阅模式";

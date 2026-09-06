@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import date, datetime
 
 from sqlalchemy import select
@@ -16,11 +17,7 @@ from app.models.plan import (
     PlanSubscriptionSegment,
     PlanTemplate,
 )
-from app.services.plan_time import (
-    in_reminder_window,
-    pending_should_expire,
-    upcoming_period_start,
-)
+from app.services.plan_time import upcoming_period_start
 from app.services.plan_api import SUBSCRIPTION_MODE
 
 logger = logging.getLogger(__name__)
@@ -28,13 +25,26 @@ logger = logging.getLogger(__name__)
 _OCCUPIED_STATUSES = frozenset({"applied", "pending", "skipped", "expired"})
 
 
-def _expire_older_pending_runs(runs: list[PlanApplyRun], period_start: date) -> int:
-    expired = 0
+def _expire_older_pending_runs(runs: list[PlanApplyRun], period_start: date) -> list[uuid.UUID]:
+    expired_ids: list[uuid.UUID] = []
     for run in runs:
         if run.status == "pending" and run.period_start < period_start:
             run.status = "expired"
-            expired += 1
-    return expired
+            expired_ids.append(run.id)
+    return expired_ids
+
+
+def _mark_upcoming_notifications_read(db: Session, run_ids: list[uuid.UUID]) -> None:
+    if not run_ids:
+        return
+    for note in db.scalars(
+        select(PlanNotification).where(
+            PlanNotification.apply_run_id.in_(run_ids),
+            PlanNotification.kind == "upcoming_period",
+            PlanNotification.read_at.is_(None),
+        )
+    ).all():
+        note.read_at = utcnow()
 
 
 def run_plan_reminders(db: Session, now: datetime | None = None) -> dict:
@@ -60,15 +70,6 @@ def run_plan_reminders(db: Session, now: datetime | None = None) -> dict:
                 segment.subscription_id,
                 segment.id,
             )
-        try:
-            with db.begin_nested():
-                expired += _expire_pending_for_segment(db, segment, now)
-        except Exception:
-            logger.exception(
-                "plan reminder expire failed for subscription=%s segment=%s",
-                segment.subscription_id,
-                segment.id,
-            )
     return {"pending_created": pending_created, "expired": expired}
 
 
@@ -86,9 +87,10 @@ def _create_pending_for_segment(
     )
     existing = {run.period_start for run in runs if run.status in _OCCUPIED_STATUSES}
     period_start = upcoming_period_start(template.period_kind, now, sub.timezone, existing)
-    if not in_reminder_window(period_start, now, sub.timezone):
+    if period_start is None:
         return 0, 0
-    superseded = _expire_older_pending_runs(runs, period_start)
+    expired_ids = _expire_older_pending_runs(runs, period_start)
+    _mark_upcoming_notifications_read(db, expired_ids)
     try:
         with db.begin_nested():
             run = PlanApplyRun(
@@ -117,39 +119,9 @@ def _create_pending_for_segment(
                 )
             )
             db.flush()
-        return 1, superseded
+        return 1, len(expired_ids)
     except IntegrityError:
-        return 0, superseded
-
-
-def _expire_pending_for_segment(
-    db: Session, segment: PlanSubscriptionSegment, now: datetime
-) -> int:
-    sub = db.get(PlanSubscription, segment.subscription_id)
-    if sub is None:
-        return 0
-    template = db.get(PlanTemplate, sub.template_id)
-    if template is None:
-        return 0
-    expired = 0
-    for run in db.scalars(
-        select(PlanApplyRun).where(
-            PlanApplyRun.subscription_id == sub.id,
-            PlanApplyRun.status == "pending",
-        )
-    ).all():
-        try:
-            if pending_should_expire(template.period_kind, run.period_start, now, sub.timezone):
-                run.status = "expired"
-                expired += 1
-        except Exception:
-            logger.exception(
-                "plan reminder expire failed for subscription=%s segment=%s run=%s",
-                sub.id,
-                segment.id,
-                run.id,
-            )
-    return expired
+        return 0, len(expired_ids)
 
 
 def main() -> None:

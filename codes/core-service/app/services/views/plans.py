@@ -8,6 +8,7 @@ from collections import defaultdict
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
+from app.models._mixins import utcnow
 from app.models.item import Item
 from app.models.plan import (
     PlanApplyRun,
@@ -41,6 +42,7 @@ from app.schemas.views.plans import (
     PlanSubscribedSegmentOut,
 )
 from app.services.plan_api import build_slot_out
+from app.services.plan_time import current_period_start
 
 LIST_TABS = frozenset({"discover", "created", "imported", "subscribed"})
 SUBSCRIBED_RUN_STATUSES = frozenset({"applied", "expired", "skipped"})
@@ -702,6 +704,17 @@ def list_subscribed_plans(
                 )
             )
         pending = pending_by_sub.get(sub.id)
+        current_period_imported = False
+        template_period = template.period_kind
+        try:
+            current_start = current_period_start(template_period, utcnow(), sub.timezone)
+        except ValueError:
+            current_start = None
+        if current_start is not None:
+            current_period_imported = any(
+                run.period_start == current_start and run.status == "applied" for run in runs
+                if run.subscription_id == sub.id
+            )
         items.append(
             PlanSubscribedRowOut(
                 id=str(sub.id),
@@ -718,6 +731,7 @@ def list_subscribed_plans(
                 workspace_name=workspace.name if workspace else "",
                 project_id=str(sub.project_id),
                 project_name=project.name if project else "",
+                current_period_imported=current_period_imported,
                 segments=segment_outs,
                 pending_run=_pending_out(pending) if pending else None,
             )

@@ -17,13 +17,21 @@ from app.models.plan import (
     PlanSubscriptionSegment,
     PlanTemplate,
 )
+from app.models.project import Project
 from app.models.user import User
-from app.schemas.plan import PlanApplyRunOut, PlanSubscribeOut
+from app.models.workspace import Workspace
+from app.schemas.plan import (
+    PlanApplyRunOut,
+    PlanCurrentPeriodPreviewOut,
+    PlanCurrentPeriodTaskOut,
+    PlanSubscribeOut,
+)
 from app.services.activity import log_activity
 from app.services.permissions import require_project_content_access
 from app.services.plan_api import PLAN_MODE, SUBSCRIPTION_MODE, require_plan_visible
 from app.services.plan_time import (
     current_period_start,
+    period_end_date,
     resolve_slot_bounds,
     resolve_timezone,
     sunday_week_start,
@@ -424,5 +432,148 @@ def skip_apply_run(db: Session, user: User, run_id: uuid.UUID) -> PlanApplyRun:
     run.status = "skipped"
     run.applied_at = None
     db.commit()
+    db.refresh(run)
+    return run
+
+
+def _require_own_open_subscription(
+    db: Session, user: User, subscription_id: uuid.UUID
+) -> tuple[PlanSubscription, PlanSubscriptionSegment, PlanTemplate]:
+    subscription = db.get(PlanSubscription, subscription_id)
+    if subscription is None or subscription.subscriber_user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    segment = _open_segment(db, subscription.id)
+    if segment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    template = db.get(PlanTemplate, subscription.template_id)
+    if template is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
+    return subscription, segment, template
+
+
+def _pending_run_for_period(
+    db: Session, subscription_id: uuid.UUID, period_start: date
+) -> PlanApplyRun | None:
+    return db.scalar(
+        select(PlanApplyRun).where(
+            PlanApplyRun.subscription_id == subscription_id,
+            PlanApplyRun.period_start == period_start,
+            PlanApplyRun.status == "pending",
+        )
+    )
+
+
+def _current_period_context(
+    db: Session,
+    user: User,
+    subscription_id: uuid.UUID,
+    now: datetime | None = None,
+) -> tuple[PlanSubscription, PlanSubscriptionSegment, PlanTemplate, date]:
+    subscription, segment, template = _require_own_open_subscription(db, user, subscription_id)
+    _require_timezone(subscription.timezone)
+    clock = now if now is not None else datetime.now(dt_timezone.utc)
+    period_start = current_period_start(template.period_kind, clock, subscription.timezone)
+    return subscription, segment, template, period_start
+
+
+def preview_current_period(
+    db: Session,
+    user: User,
+    subscription_id: uuid.UUID,
+    now: datetime | None = None,
+) -> PlanCurrentPeriodPreviewOut:
+    subscription, _segment, template, period_start = _current_period_context(
+        db, user, subscription_id, now
+    )
+    require_project_content_access(db, subscription.workspace_id, subscription.project_id, user)
+    workspace = db.get(Workspace, subscription.workspace_id)
+    project = db.get(Project, subscription.project_id)
+    tasks: list[PlanCurrentPeriodTaskOut] = []
+    slots = db.scalars(
+        select(PlanSlot)
+        .where(PlanSlot.template_id == template.id)
+        .order_by(PlanSlot.sort_index, PlanSlot.created_at)
+    ).all()
+    for slot in slots:
+        bounds = resolve_slot_bounds(
+            period_kind=template.period_kind,
+            period_start=period_start,
+            rel_month=slot.rel_month,
+            rel_day=slot.rel_day,
+            start_minute=slot.start_minute,
+            end_minute=slot.end_minute,
+            all_day=slot.all_day,
+            timezone_name=subscription.timezone,
+        )
+        if bounds is None:
+            continue
+        start_at, end_at = bounds
+        tasks.append(
+            PlanCurrentPeriodTaskOut(
+                title=slot.title,
+                start_at=start_at,
+                end_at=end_at,
+                all_day=slot.all_day,
+                location=slot.location,
+            )
+        )
+    return PlanCurrentPeriodPreviewOut(
+        period_start=period_start,
+        period_end=period_end_date(template.period_kind, period_start),
+        already_imported=_applied_run_for_period(db, subscription.id, period_start) is not None,
+        workspace_id=str(subscription.workspace_id),
+        workspace_name=workspace.name if workspace else "",
+        project_id=str(subscription.project_id),
+        project_name=project.name if project else "",
+        tasks=tasks,
+    )
+
+
+def import_current_period(
+    db: Session,
+    user: User,
+    subscription_id: uuid.UUID,
+    now: datetime | None = None,
+) -> PlanApplyRun:
+    subscription, segment, template, period_start = _current_period_context(
+        db, user, subscription_id, now
+    )
+    require_project_content_access(db, subscription.workspace_id, subscription.project_id, user)
+    if _applied_run_for_period(db, subscription.id, period_start) is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_imported")
+    pending = _pending_run_for_period(db, subscription.id, period_start)
+    if pending is not None:
+        run, _template_updated = confirm_apply_run(db, user, pending.id)
+        return run
+    run = PlanApplyRun(
+        template_id=template.id,
+        template_version=template.version,
+        actor_user_id=user.id,
+        workspace_id=subscription.workspace_id,
+        project_id=subscription.project_id,
+        source=SUBSCRIPTION_MODE,
+        subscription_id=subscription.id,
+        segment_id=segment.id,
+        period_start=period_start,
+        period_kind=template.period_kind,
+        status="applied",
+        skipped_slots=[],
+    )
+    db.add(run)
+    try:
+        db.flush()
+        materialize_run(db, run, timezone_name=subscription.timezone)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError as error:
+        db.rollback()
+        orig = str(getattr(error, "orig", error))
+        if "uq_plan_apply_sub_applied" in orig:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="already_imported"
+            ) from error
+        raise
     db.refresh(run)
     return run

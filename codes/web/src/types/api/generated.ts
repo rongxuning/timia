@@ -833,6 +833,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/plan-subscriptions/{subscription_id}/current-period": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Subscription Current Period */
+        get: operations["get_subscription_current_period_plan_subscriptions__subscription_id__current_period_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plan-subscriptions/{subscription_id}/import-current-period": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Subscription Current Period */
+        post: operations["import_subscription_current_period_plan_subscriptions__subscription_id__import_current_period_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/plan-apply-runs/{run_id}/confirm": {
         parameters: {
             query?: never;
@@ -1037,6 +1071,43 @@ export interface paths {
         /** Post Sync Run */
         post: operations["post_sync_run_health_sync_runs_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/sync/checkpoint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Sync Checkpoint */
+        post: operations["post_sync_checkpoint_health_sync_checkpoint_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Health Data
+         * @description Clear synced health samples for the current user. Keeps profile and card layout.
+         */
+        delete: operations["delete_health_data_health_data_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1933,6 +2004,59 @@ export interface components {
             /** Recovery Links */
             recovery_links?: components["schemas"]["HealthRecoveryLinkOut"][];
         };
+        /** HealthClearOut */
+        HealthClearOut: {
+            /**
+             * Quantity Deleted
+             * @default 0
+             */
+            quantity_deleted: number;
+            /**
+             * Sleep Deleted
+             * @default 0
+             */
+            sleep_deleted: number;
+            /**
+             * Stand Hour Deleted
+             * @default 0
+             */
+            stand_hour_deleted: number;
+            /**
+             * Heartbeat Series Deleted
+             * @default 0
+             */
+            heartbeat_series_deleted: number;
+            /**
+             * Workout Deleted
+             * @default 0
+             */
+            workout_deleted: number;
+            /**
+             * Route Deleted
+             * @default 0
+             */
+            route_deleted: number;
+            /**
+             * Metrics Daily Deleted
+             * @default 0
+             */
+            metrics_daily_deleted: number;
+            /**
+             * Insight Daily Deleted
+             * @default 0
+             */
+            insight_daily_deleted: number;
+            /**
+             * Sync Run Deleted
+             * @default 0
+             */
+            sync_run_deleted: number;
+            /**
+             * Sync State Cleared
+             * @default false
+             */
+            sync_state_cleared: boolean;
+        };
         /** HealthCurrentOut */
         HealthCurrentOut: {
             /** Steps */
@@ -2468,6 +2592,22 @@ export interface components {
             /** Samples */
             samples?: components["schemas"]["HealthStandHourSampleIn"][];
         };
+        /** HealthSyncCheckpointIn */
+        HealthSyncCheckpointIn: {
+            /**
+             * To At
+             * Format: date-time
+             */
+            to_at: string;
+        };
+        /** HealthSyncCheckpointOut */
+        HealthSyncCheckpointOut: {
+            /**
+             * Last Synced At
+             * Format: date-time
+             */
+            last_synced_at: string;
+        };
         /** HealthSyncDayStatusOut */
         HealthSyncDayStatusOut: {
             /** Local Date */
@@ -2695,6 +2835,7 @@ export interface components {
             running_index_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
             training_load_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
             trimp_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
+            rtss_formula?: components["schemas"]["HealthScoreFormulaOut"] | null;
             route?: components["schemas"]["HealthRouteOut"] | null;
             /** Splits */
             splits?: components["schemas"]["HealthSplitOut"][] | null;
@@ -3651,6 +3792,50 @@ export interface components {
             /** Display Name */
             display_name: string;
         };
+        /** PlanCurrentPeriodPreviewOut */
+        PlanCurrentPeriodPreviewOut: {
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /** Already Imported */
+            already_imported: boolean;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Project Id */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /** Tasks */
+            tasks?: components["schemas"]["PlanCurrentPeriodTaskOut"][];
+        };
+        /** PlanCurrentPeriodTaskOut */
+        PlanCurrentPeriodTaskOut: {
+            /** Title */
+            title: string;
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /**
+             * End At
+             * Format: date-time
+             */
+            end_at: string;
+            /** All Day */
+            all_day: boolean;
+            /** Location */
+            location?: string | null;
+        };
         /** PlanDetailOut */
         PlanDetailOut: {
             /** Id */
@@ -3963,6 +4148,11 @@ export interface components {
             project_id: string;
             /** Project Name */
             project_name: string;
+            /**
+             * Current Period Imported
+             * @default false
+             */
+            current_period_imported: boolean;
             /** Segments */
             segments?: components["schemas"]["PlanSubscribedSegmentOut"][];
             pending_run?: components["schemas"]["PlanPendingRunOut"] | null;
@@ -7305,6 +7495,72 @@ export interface operations {
             };
         };
     };
+    get_subscription_current_period_plan_subscriptions__subscription_id__current_period_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCurrentPeriodPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_subscription_current_period_plan_subscriptions__subscription_id__import_current_period_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanApplyRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     confirm_plan_apply_run_plan_apply_runs__run_id__confirm_post: {
         parameters: {
             query?: never;
@@ -7884,6 +8140,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSyncRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sync_checkpoint_health_sync_checkpoint_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthSyncCheckpointIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthSyncCheckpointOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_health_data_health_data_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthClearOut"];
                 };
             };
             /** @description Validation Error */

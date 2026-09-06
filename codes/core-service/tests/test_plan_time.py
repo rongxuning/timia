@@ -5,6 +5,7 @@ from app.services.plan_time import (
     current_period_start,
     in_reminder_window,
     pending_should_expire,
+    reminder_has_started,
     resolve_slot_bounds,
     sunday_week_start,
     upcoming_period_start,
@@ -62,8 +63,10 @@ def test_reminder_window_is_previous_local_day_from_20():
     period_start = date(2026, 8, 23)  # next Sunday
     before = datetime(2026, 8, 22, 19, 59, tzinfo=ZoneInfo(SH))
     at = datetime(2026, 8, 22, 20, 0, tzinfo=ZoneInfo(SH))
+    later = datetime(2026, 8, 24, 10, 0, tzinfo=ZoneInfo(SH))
     assert in_reminder_window(period_start, before, SH) is False
     assert in_reminder_window(period_start, at, SH) is True
+    assert reminder_has_started(period_start, later, SH) is True
 
 
 def test_pending_expires_after_period_end():
@@ -82,10 +85,19 @@ def test_pending_expires_after_period_end():
 
 
 def test_upcoming_skips_period_starts_that_already_have_runs():
-    now = datetime(2026, 8, 19, 15, 0, tzinfo=ZoneInfo(SH))
-    # current week 2026-08-16 already applied; next is 2026-08-23
-    d = upcoming_period_start("week", now, SH, {date(2026, 8, 16)})
-    assert d == date(2026, 8, 23)
-    # if next week already skipped/applied, walk to 2026-08-30
-    d2 = upcoming_period_start("week", now, SH, {date(2026, 8, 16), date(2026, 8, 23)})
-    assert d2 == date(2026, 8, 30)
+    midweek = datetime(2026, 8, 19, 15, 0, tzinfo=ZoneInfo(SH))
+    assert upcoming_period_start("week", midweek, SH, {date(2026, 8, 16)}) is None
+
+    opening = datetime(2026, 8, 22, 20, 0, tzinfo=ZoneInfo(SH))
+    assert upcoming_period_start("week", opening, SH, {date(2026, 8, 16)}) == date(2026, 8, 23)
+
+    monday = datetime(2026, 8, 24, 10, 0, tzinfo=ZoneInfo(SH))
+    assert upcoming_period_start("week", monday, SH, {date(2026, 8, 16)}) == date(2026, 8, 23)
+
+    next_opening = datetime(2026, 8, 29, 20, 0, tzinfo=ZoneInfo(SH))
+    assert upcoming_period_start("week", next_opening, SH, {date(2026, 8, 16)}) == date(
+        2026, 8, 30
+    )
+    assert upcoming_period_start(
+        "week", next_opening, SH, {date(2026, 8, 16), date(2026, 8, 23)}
+    ) == date(2026, 8, 30)

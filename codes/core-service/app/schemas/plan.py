@@ -101,6 +101,25 @@ class PlanSubscribeOut(BaseModel):
     apply_run: PlanApplyRunOut | None = None
 
 
+class PlanCurrentPeriodTaskOut(BaseModel):
+    title: str
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    location: str | None = None
+
+
+class PlanCurrentPeriodPreviewOut(BaseModel):
+    period_start: date
+    period_end: date
+    already_imported: bool
+    workspace_id: str
+    workspace_name: str
+    project_id: str
+    project_name: str
+    tasks: list[PlanCurrentPeriodTaskOut] = Field(default_factory=list)
+
+
 class PlanConfirmRunOut(PlanApplyRunOut):
     template_updated: bool = False
 
