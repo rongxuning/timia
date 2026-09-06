@@ -36,12 +36,15 @@ enum ColorContrast {
 
 struct TimiaLiveActivityPalette: Equatable, Sendable {
     let backgroundHex: String
+    let backgroundOpacity: Double
     let primaryTextHex: String
     let secondaryTextHex: String
     let accentHex: String
     let actionForegroundHex: String
+    let isDark: Bool
 
-    var backgroundTint: Color { Self.color(hex: backgroundHex) }
+    var forcedColorScheme: ColorScheme { isDark ? .dark : .light }
+    var backgroundTint: Color { Self.color(hex: backgroundHex).opacity(backgroundOpacity) }
     var primaryText: Color { Self.color(hex: primaryTextHex) }
     var secondaryText: Color { Self.color(hex: secondaryTextHex) }
     var accent: Color { Self.color(hex: accentHex) }
@@ -50,20 +53,26 @@ struct TimiaLiveActivityPalette: Equatable, Sendable {
     static func make(colorScheme: ColorScheme) -> Self {
         switch colorScheme {
         case .dark:
+            // Same lock-screen Live Activity chrome as other apps:
+            // dark frosted material + white / gray labels + system blue icon.
             return Self(
-                backgroundHex: "#1C1C1E",
-                primaryTextHex: "#F5F5F7",
+                backgroundHex: "#000000",
+                backgroundOpacity: 0.58,
+                primaryTextHex: "#FFFFFF",
                 secondaryTextHex: "#C7C7CC",
-                accentHex: "#7AB0FF",
-                actionForegroundHex: "#F5F5F7"
+                accentHex: "#0A84FF",
+                actionForegroundHex: "#FFFFFF",
+                isDark: true
             )
         default:
             return Self(
-                backgroundHex: "#F2F2F7",
-                primaryTextHex: "#1C1C1E",
+                backgroundHex: "#FFFFFF",
+                backgroundOpacity: 0.78,
+                primaryTextHex: "#000000",
                 secondaryTextHex: "#3A3A3C",
-                accentHex: "#3B6BF0",
-                actionForegroundHex: "#1C1C1E"
+                accentHex: "#007AFF",
+                actionForegroundHex: "#000000",
+                isDark: false
             )
         }
     }

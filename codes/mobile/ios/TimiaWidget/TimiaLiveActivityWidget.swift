@@ -92,6 +92,7 @@ struct TimiaLiveActivityLockScreenView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
+        .environment(\.colorScheme, palette.forcedColorScheme)
         .activityBackgroundTint(palette.backgroundTint)
         .activitySystemActionForegroundColor(palette.actionForeground)
     }
