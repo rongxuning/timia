@@ -21,4 +21,16 @@ final class RescheduleMathTests: XCTestCase {
         XCTAssertEqual(cal.component(.hour, from: result.start), 15)
         XCTAssertEqual(result.end.timeIntervalSince(result.start), 2 * 3600)
     }
+
+    func testDefaultDurationWhenEndMissing() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let start = cal.date(from: DateComponents(year: 2026, month: 9, day: 6, hour: 9))!
+        let dropDay = cal.date(from: DateComponents(year: 2026, month: 9, day: 6))!
+        let result = RescheduleMath.computeNewRange(
+            originalStart: start, originalEnd: nil, dropDay: dropDay, dropMinutes: 14 * 60, calendar: cal
+        )
+        XCTAssertEqual(cal.component(.hour, from: result.start), 14)
+        XCTAssertEqual(result.end.timeIntervalSince(result.start), 3600)
+    }
 }
