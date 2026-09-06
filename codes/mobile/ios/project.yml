@@ -47,6 +47,7 @@ targets:
     sources:
       - path: TimiaWidget
       - path: Timia/Core/ScreenNotification/TimiaScreenActivityAttributes.swift
+      - path: Timia/Core/ScreenNotification/TimiaLiveActivityPalette.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: online.timia.ios.widget

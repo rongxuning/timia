@@ -87,6 +87,12 @@
 		F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */; };
 		F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25793DC2D71167F0541FC926 /* TimelineGeometry.swift */; };
 		F736E66DA14ACC5BBDA1D78B /* IdleCollapsePlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */; };
+		A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */; };
+		A11A0E0A1E77000100000002 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */; };
+		A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */; };
+		A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */; };
+		A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */; };
+		A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -215,6 +221,11 @@
 		E9515251F961F990A5022ABF /* ScreenNotificationSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationSettingsSection.swift; sourceTree = "<group>"; };
 		F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RescheduleMathTests.swift; sourceTree = "<group>"; };
 		FF33F57000AEAE8C19E55B8C /* StickyNoteDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteDraftStore.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPalette.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionState.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionStateTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapseToggleStyleTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -306,6 +317,9 @@
 				F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */,
 				088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */,
 				4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */,
+				A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */,
+				A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */,
+				A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */,
 				C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */,
 			);
 			path = TimiaTests;
@@ -346,6 +360,7 @@
 				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
 				B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */,
 				25793DC2D71167F0541FC926 /* TimelineGeometry.swift */,
+				A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */,
 				BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */,
 			);
 			path = Schedule;
@@ -462,6 +477,7 @@
 				886152E46EA86A4005A5B3AA /* ScreenNotificationManager.swift */,
 				2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */,
 				7A4118A6CA9F3D8AD476A0C6 /* ScreenNotificationPrompt.swift */,
+				A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */,
 				E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */,
 			);
 			path = ScreenNotification;
@@ -726,6 +742,8 @@
 				F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */,
 				51D5DA889805C0A221723698 /* TimiaApp.swift in Sources */,
 				C5CA1F18B20A238D656014AE /* TimiaScreenActivityAttributes.swift in Sources */,
+				A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */,
+				A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */,
 				AAB8EE3FDFB7671AB0A72B7A /* TimiaTheme.swift in Sources */,
 				1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */,
 				4AB667730AE22CE12515095D /* TodoDayCoverage.swift in Sources */,
@@ -743,6 +761,7 @@
 			files = (
 				77FAA4BA7DA83B93C6DD5D1B /* TimiaLiveActivityWidget.swift in Sources */,
 				0ACE6547A4695DCA4B985316 /* TimiaScreenActivityAttributes.swift in Sources */,
+				A11A0E0A1E77000100000002 /* TimiaLiveActivityPalette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -766,6 +785,9 @@
 				C23A2097840049B995E280F0 /* RescheduleMathTests.swift in Sources */,
 				02D08393103E9800F2643DE8 /* ScreenNotificationContentBuilderTests.swift in Sources */,
 				295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */,
+				A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */,
+				A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */,
+				A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */,
 				56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

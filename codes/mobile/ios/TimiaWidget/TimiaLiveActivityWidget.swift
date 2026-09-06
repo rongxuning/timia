@@ -13,9 +13,6 @@ struct TimiaLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimiaScreenActivityAttributes.self) { context in
             TimiaLiveActivityLockScreenView(state: context.state)
-                .padding(14)
-                .activityBackgroundTint(.white.opacity(0.92))
-                .activitySystemActionForegroundColor(.black)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -63,13 +60,18 @@ struct TimiaLiveActivityWidget: Widget {
 }
 
 struct TimiaLiveActivityLockScreenView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let state: TimiaScreenActivityAttributes.ContentState
+
+    private var palette: TimiaLiveActivityPalette {
+        TimiaLiveActivityPalette.make(colorScheme: colorScheme)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("\(state.workingCount) working")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.secondaryText)
 
             if state.healthEnabled {
                 row(
@@ -85,25 +87,29 @@ struct TimiaLiveActivityLockScreenView: View {
             if !state.healthEnabled && state.todos.isEmpty {
                 Text("暂无展示内容")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.secondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .environment(\.colorScheme, palette.forcedColorScheme)
+        .activityBackgroundTint(palette.backgroundTint)
+        .activitySystemActionForegroundColor(palette.actionForeground)
     }
 
     private func row(title: String, time: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "sparkle")
                 .font(.caption)
-                .foregroundStyle(Color(red: 0.25, green: 0.45, blue: 0.95))
+                .foregroundStyle(palette.accent)
             Text(title)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(.primary)
+                .foregroundStyle(palette.primaryText)
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text(time)
                 .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.secondaryText)
                 .lineLimit(1)
         }
     }
