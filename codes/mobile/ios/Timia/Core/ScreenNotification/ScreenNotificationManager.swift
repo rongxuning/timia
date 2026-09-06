@@ -51,17 +51,14 @@ final class ScreenNotificationManager: ObservableObject {
     }
 
     func endActivity() async {
-        guard let activity else {
+        guard let current = activity else {
             isActivityActive = false
             return
         }
-        let finalState = activity.content.state
-        await activity.end(
-            ActivityContent(state: finalState, staleDate: nil),
-            dismissalPolicy: .immediate
-        )
-        self.activity = nil
+        let finalState = current.content.state
+        activity = nil
         isActivityActive = false
+        await Self.end(LiveActivityRef(activity: current), state: finalState)
     }
 
     private func startPeriodicRefresh(api: APIClient) {
@@ -94,8 +91,8 @@ final class ScreenNotificationManager: ObservableObject {
             )
         }
 
-        if let activity {
-            await activity.update(ActivityContent(state: state, staleDate: Date().addingTimeInterval(15 * 60)))
+        if let current = activity {
+            await Self.update(LiveActivityRef(activity: current), state: state)
             isActivityActive = true
             return
         }
@@ -137,5 +134,30 @@ final class ScreenNotificationManager: ObservableObject {
             response: ScheduleCalendar.self
         )
         return calendar.day?.items ?? []
+    }
+
+    /// Activity is not Sendable; this box lets MainActor hand the handle to
+    /// ActivityKit's nonisolated update/end without a region isolation error.
+    private struct LiveActivityRef: @unchecked Sendable {
+        let activity: Activity<TimiaScreenActivityAttributes>
+    }
+
+    nonisolated private static func update(
+        _ ref: LiveActivityRef,
+        state: TimiaScreenActivityAttributes.ContentState
+    ) async {
+        await ref.activity.update(
+            ActivityContent(state: state, staleDate: Date().addingTimeInterval(15 * 60))
+        )
+    }
+
+    nonisolated private static func end(
+        _ ref: LiveActivityRef,
+        state: TimiaScreenActivityAttributes.ContentState
+    ) async {
+        await ref.activity.end(
+            ActivityContent(state: state, staleDate: nil),
+            dismissalPolicy: .immediate
+        )
     }
 }

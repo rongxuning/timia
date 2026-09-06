@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HEALTH_CARD_LABELS, isHealthCardKey } from "@/components/health/healthCards";
 import { apiFetch } from "@/lib/api";
@@ -107,8 +108,9 @@ type BreadcrumbsProps = {
 };
 
 export function Breadcrumbs(props: BreadcrumbsProps) {
+  const t = useTranslations("crumb");
   return (
-    <Suspense fallback={<nav aria-label="面包屑导航" className={props.className} />}>
+    <Suspense fallback={<nav aria-label={t("navAria")} className={props.className} />}>
       <BreadcrumbsInner {...props} />
     </Suspense>
   );
@@ -123,6 +125,8 @@ function BreadcrumbsInner({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useTranslations("crumb");
+  const locale = useLocale();
   const nameCacheEpoch = useSyncExternalStore(
     subscribeBreadcrumbNameCache,
     getBreadcrumbNameCacheEpoch,
@@ -218,28 +222,28 @@ function BreadcrumbsInner({
     if (hideOnPaths?.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return [];
 
     const defaultLabelBySegment: Record<string, string> = {
-      workspaces: "工作空间",
-      workspace: "工作空间",
-      projects: "项目",
-      project: "项目",
-      items: "任务",
-      item: "任务",
-      activity: "活动",
-      settings: "设置",
-      members: "成员",
-      documents: "文档",
-      code: "代码文档",
-      guide: "使用指南",
-      database: "数据库结构",
-      api: "后端 API",
-      my: "我的",
-      schedule: "日程",
-      analytics: "数据分析",
-      health: "健康",
-      plans: "规划",
-      new: "新建",
-      edit: "编辑",
-      period: "周期详情",
+      workspaces: t("workspaces"),
+      workspace: t("workspaces"),
+      projects: t("projects"),
+      project: t("projects"),
+      items: t("items"),
+      item: t("items"),
+      activity: t("activity"),
+      settings: t("settings"),
+      members: t("members"),
+      documents: t("documents"),
+      code: t("code"),
+      guide: t("guide"),
+      database: t("database"),
+      api: t("api"),
+      my: t("my"),
+      schedule: t("schedule"),
+      analytics: t("analytics"),
+      health: t("health"),
+      plans: t("plans"),
+      new: t("new"),
+      edit: t("edit"),
+      period: t("period"),
     };
 
     const labels = { ...defaultLabelBySegment, ...(labelBySegment ?? {}) };
@@ -269,7 +273,7 @@ function BreadcrumbsInner({
       }
       if (segment === "schedule" && prev === "my") {
         href += `/${segment}`;
-        out.push({ href, label: "我的日程" });
+        out.push({ href, label: t("mySchedule") });
         continue;
       }
 
@@ -279,7 +283,7 @@ function BreadcrumbsInner({
       }
       if (segment === "analytics" && prev === "my") {
         href += `/${segment}`;
-        out.push({ href, label: "数据分析" });
+        out.push({ href, label: t("analytics") });
         continue;
       }
 
@@ -290,7 +294,7 @@ function BreadcrumbsInner({
       if (segment === "health" && prev === "my") {
         href += `/${segment}`;
         const search = searchParams.toString();
-        out.push({ href: search ? `${href}?${search}` : href, label: "健康" });
+        out.push({ href: search ? `${href}?${search}` : href, label: t("health") });
         continue;
       }
       if (segment === "workouts" && prev === "health") {
@@ -299,7 +303,7 @@ function BreadcrumbsInner({
       }
       if (prev === "workouts" && looksLikeOpaqueId(segment)) {
         href += `/${segment}`;
-        out.push({ href, label: "训练详情" });
+        out.push({ href, label: t("workoutDetail") });
         continue;
       }
       if (prev === "health" && isHealthCardKey(segment)) {
@@ -331,9 +335,9 @@ function BreadcrumbsInner({
         // 工作空间名称由列表/子页 prime + 缓存订阅尽快显示，此处不再用「工作空间」占位以免与真实名称切换闪烁。
         const idSlotPlaceholder =
           prev === "projects" && segments[i - 3] === "workspace"
-            ? "项目"
+            ? t("projects")
             : prev === "items"
-              ? "任务"
+              ? t("items")
               : undefined;
         if (idSlotPlaceholder && looksLikeOpaqueId(segment)) {
           label = idSlotPlaceholder;
@@ -349,12 +353,12 @@ function BreadcrumbsInner({
       });
     }
     return out;
-  }, [hideOnPaths, labelBySegment, nameCacheEpoch, pathname, planLabels, projectLabels, rootHrefOverrides, searchParams, workspaceLabels]);
+  }, [hideOnPaths, labelBySegment, locale, nameCacheEpoch, pathname, planLabels, projectLabels, rootHrefOverrides, searchParams, t, workspaceLabels]);
 
   if (crumbs.length === 0) return null;
 
   return (
-    <nav aria-label="面包屑导航" className={className}>
+    <nav aria-label={t("navAria")} className={className}>
       <ol className="flex items-center gap-1 text-xs leading-none text-gray-500 min-w-0">
         {crumbs.map((c, idx) => {
           const isLast = idx === crumbs.length - 1;
@@ -369,7 +373,7 @@ function BreadcrumbsInner({
                     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
                     router.refresh();
                   }}
-                  aria-label={`刷新 ${c.label}`}
+                  aria-label={t("refreshAria", { label: c.label })}
                 >
                   {c.label}
                 </button>

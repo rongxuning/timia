@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
+import { LocaleSwitcher } from "./LocaleSwitcher";
 
 export type TopBarProps = {
   userMenuOpen: boolean;
@@ -14,6 +16,7 @@ export type TopBarProps = {
 export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
   const router = useRouter();
   const me = useCurrentMe();
+  const t = useTranslations("nav");
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
 
   return (
@@ -40,8 +43,9 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
           {userMenuOpen && (
             <div
               role="menu"
-              className="absolute right-0 mt-2 w-32 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
+              className="absolute right-0 mt-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
             >
+              <LocaleSwitcher variant="menu" />
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
@@ -52,7 +56,7 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
                   router.push("/login");
                 }}
               >
-                退出登录
+                {t("logOut")}
               </button>
             </div>
           )}

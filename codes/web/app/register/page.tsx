@@ -2,29 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import { registerErrorKey } from "@/i18n/authErrors";
 import { apiFetch } from "@/lib/api";
 
 type RegisterResponse = { id: string; email: string; display_name: string };
 
-function registerErrorMessage(detail: string): string {
-  switch (detail) {
-    case "email_taken":
-      return "该邮箱已被注册";
-    case "display_name_taken":
-      return "该显示名称已被使用";
-    case "password_too_short":
-      return "密码至少 8 位";
-    case "display_name_required":
-      return "请输入显示名称";
-    case "display_name_too_long":
-      return "显示名称过长";
-    default:
-      return detail;
-  }
-}
-
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -38,10 +25,10 @@ export default function RegisterPage() {
 
     const normalizedEmail = email.trim();
     const normalizedName = displayName.trim();
-    if (!normalizedEmail) return setError("请输入邮箱");
-    if (!normalizedName) return setError("请输入显示名");
-    if (password.length < 8) return setError("密码至少 8 位");
-    if (password !== confirmPassword) return setError("两次输入的密码不一致");
+    if (!normalizedEmail) return setError(t("needEmail"));
+    if (!normalizedName) return setError(t("needDisplayName"));
+    if (password.length < 8) return setError(t("passwordTooShort"));
+    if (password !== confirmPassword) return setError(t("passwordMismatch"));
 
     setLoading(true);
     try {
@@ -54,9 +41,9 @@ export default function RegisterPage() {
         }),
       });
       router.push(`/login?email=${encodeURIComponent(res.email)}`);
-    } catch (err: any) {
-      const detail = err?.message ?? "注册失败";
-      setError(registerErrorMessage(detail));
+    } catch (err: unknown) {
+      const detail = err && typeof err === "object" && "message" in err ? String(err.message) : "registerFailed";
+      setError(t(registerErrorKey(detail)));
     } finally {
       setLoading(false);
     }
@@ -69,11 +56,11 @@ export default function RegisterPage() {
 
       <div className="relative z-10 w-full max-w-[440px]">
         <div className="rounded-xl border border-border-subtle bg-surface p-3xl shadow-sm transition-shadow duration-300 hover:shadow-md">
-          <h1 className="mb-xl font-display text-section-heading text-center text-on-surface">创建账号</h1>
+          <h1 className="mb-xl font-display text-section-heading text-center text-on-surface">{t("createAccount")}</h1>
           <form onSubmit={onSubmit} className="space-y-xl">
             <div className="space-y-xs">
               <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="email">
-                邮箱
+                {t("email")}
               </label>
               <div className="group relative">
                 <input
@@ -82,7 +69,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
-                  placeholder="name@company.com"
+                  placeholder={t("registerEmailPlaceholder")}
                   type="email"
                   disabled={loading}
                 />
@@ -94,7 +81,7 @@ export default function RegisterPage() {
 
             <div className="space-y-xs">
               <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="displayName">
-                显示名称
+                {t("displayName")}
               </label>
               <div className="group relative">
                 <input
@@ -102,7 +89,7 @@ export default function RegisterPage() {
                   className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="例如：王伟"
+                  placeholder={t("displayNamePlaceholder")}
                   disabled={loading}
                 />
               </div>
@@ -110,7 +97,7 @@ export default function RegisterPage() {
 
             <div className="space-y-xs">
               <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="password">
-                密码
+                {t("password")}
               </label>
               <div className="group relative">
                 <input
@@ -120,7 +107,7 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   type="password"
                   autoComplete="new-password"
-                  placeholder="至少 8 位字符"
+                  placeholder={t("newPasswordPlaceholder")}
                   disabled={loading}
                 />
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
@@ -131,7 +118,7 @@ export default function RegisterPage() {
 
             <div className="space-y-xs">
               <label className="font-body text-small font-medium text-on-surface-variant" htmlFor="confirmPassword">
-                确认密码
+                {t("confirmPassword")}
               </label>
               <div className="group relative">
                 <input
@@ -141,7 +128,7 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   type="password"
                   autoComplete="new-password"
-                  placeholder="再次输入密码"
+                  placeholder={t("confirmPasswordPlaceholder")}
                   disabled={loading}
                 />
                 <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
@@ -157,24 +144,25 @@ export default function RegisterPage() {
               className="w-full rounded-xl bg-primary py-md font-section-heading text-body text-on-primary shadow-sm transition-all hover:-translate-y-px hover:bg-primary-hover active:scale-95 disabled:opacity-50"
               disabled={loading}
             >
-              {loading ? "注册中…" : "创建账号"}
+              {loading ? t("registering") : t("createAccount")}
             </button>
           </form>
 
           <p className="mt-5xl text-center text-small text-text-secondary">
-            已有账号？{" "}
+            {t("hasAccount")}{" "}
             <a className="font-semibold text-primary underline-offset-4 hover:underline decoration-2" href="/login">
-              去登录
+              {t("goLogin")}
             </a>
           </p>
         </div>
       </div>
 
       <footer className="absolute bottom-lg flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
-        <span>Copyright © 2026 Timia</span>
+        <span>{t("copyright")}</span>
+        <LocaleSwitcher variant="footer" />
         <div className="flex flex-wrap justify-center gap-lg">
           <a className="transition-colors hover:text-text-secondary" href="#">
-            隐私
+            {t("privacy")}
           </a>
         </div>
       </footer>

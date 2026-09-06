@@ -200,7 +200,8 @@ struct HealthSyncService {
 
         let drain = HealthSyncDrain(api: api, queue: queue)
         var upserted = 0
-        if enqueued > 0 || (try await queue.pendingCount()) > 0 {
+        let queued = try await queue.pendingCount()
+        if enqueued > 0 || queued > 0 {
             while true {
                 let remaining = try await queue.pendingCount()
                 if remaining == 0 { break }
@@ -318,7 +319,8 @@ struct HealthSyncService {
 
             // Drain until this day's outbox is empty before checkpointing.
             do {
-                if enqueued > 0 || (try await queue.pendingCount(localDate: label)) > 0 {
+                let queuedForDay = try await queue.pendingCount(localDate: label)
+                if enqueued > 0 || queuedForDay > 0 {
                     var dayUploaded = 0
                     while true {
                         let remaining = try await queue.pendingCount(localDate: label)

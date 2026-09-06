@@ -47,7 +47,8 @@ actor HealthSyncQueue {
     private static let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     private let dbURL: URL
-    private var db: OpaquePointer?
+    // sqlite3 handles are not Sendable; the actor already serializes all access.
+    nonisolated(unsafe) private var db: OpaquePointer?
 
     init(dbURL: URL? = nil) {
         if let dbURL {

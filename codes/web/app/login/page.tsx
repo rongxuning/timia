@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { apiFetch, type ApiError } from "@/lib/api";
+import { useTranslations } from "next-intl";
+import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import { loginErrorKey } from "@/i18n/authErrors";
+import { apiFetch } from "@/lib/api";
 import { publishAuth } from "@/lib/auth";
 import { publishSessionEvent } from "@/lib/session-sync";
 import { purgeLegacyAuthState } from "@/lib/legacy-migration";
@@ -16,24 +19,9 @@ type LoginResponse = {
 };
 type DevelopmentLoginResponse = { email: string; password: string };
 
-function loginErrorMessage(error: unknown): string {
-  if (!error || typeof error !== "object") return "登录失败，请稍后重试";
-  const apiError = error as Partial<ApiError>;
-  const message = typeof apiError.message === "string" ? apiError.message : "";
-
-  if (apiError.status === 401 || message === "invalid_credentials") {
-    return "邮箱或密码错误，请重新输入";
-  }
-  if (apiError.status === 422) return "登录信息格式有误，请检查后重试";
-  if (typeof apiError.status === "number" && apiError.status >= 500) {
-    return "服务器暂时不可用，请稍后重试";
-  }
-  if (message && /[\u4e00-\u9fff]/.test(message)) return message;
-  return "无法连接服务器，请检查网络后重试";
-}
-
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +36,7 @@ export default function LoginPage() {
 
     if (emailParam) setEmail(emailParam);
     if (sessionExpired) {
-      setSessionNotice("登录已过期，请重新登录。");
+      setSessionNotice(t("sessionExpired"));
       params.delete("reason");
     }
     if (emailParam) params.delete("email");
@@ -68,26 +56,26 @@ export default function LoginPage() {
           setPassword(login.password);
         });
     }
-  }, []);
+  }, [t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     const normalizedEmail = email.trim();
     if (!normalizedEmail && !password) {
-      setError("请输入邮箱和密码");
+      setError(t("needEmailAndPassword"));
       return;
     }
     if (!normalizedEmail) {
-      setError("请输入邮箱");
+      setError(t("needEmail"));
       return;
     }
     if (!password) {
-      setError("请输入密码");
+      setError(t("needPassword"));
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setError("请输入有效的邮箱地址");
+      setError(t("invalidEmail"));
       return;
     }
     setLoading(true);
@@ -96,7 +84,6 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
-      // AT lives in memory; RT was set as HttpOnly cookie by the server.
       publishAuth({
         token: res.access_token,
         sessionId: res.session_id,
@@ -109,7 +96,7 @@ export default function LoginPage() {
       });
       router.push("/my/schedule");
     } catch (err: unknown) {
-      setError(loginErrorMessage(err));
+      setError(t(loginErrorKey(err)));
     } finally {
       setLoading(false);
     }
@@ -121,8 +108,8 @@ export default function LoginPage() {
         <div className="rounded-xl border-4 border-black bg-surface p-xl shadow-sm">
           <div className="mb-xl flex flex-col items-center">
             <span className="font-headline text-[40px] font-semibold leading-tight tracking-tight text-on-surface">Timia</span>
-            <p className="mt-xs whitespace-nowrap text-center font-body text-caption text-text-secondary">
-              合抱之木，生于毫末；九层之台，起于累土；千里之行，始于足下
+            <p className="mt-xs text-center font-body text-caption text-text-secondary">
+              {t("tagline")}
             </p>
           </div>
 
@@ -137,7 +124,7 @@ export default function LoginPage() {
                   setError(null);
                 }}
                 autoComplete="email"
-                placeholder="Email"
+                placeholder={t("emailPlaceholder")}
                 type="email"
                 required
                 aria-invalid={!!error}
@@ -146,7 +133,7 @@ export default function LoginPage() {
                 htmlFor="email"
                 className="pointer-events-none absolute left-md top-1/2 -translate-y-1/2 font-body text-body text-outline-variant transition-all duration-200 peer-focus:top-3 peer-focus:translate-y-0 peer-focus:text-caption peer-focus:text-on-surface-variant peer-[:not(:placeholder-shown)]:top-3 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-caption peer-[:not(:placeholder-shown)]:text-on-surface-variant"
               >
-                Email
+                {t("email")}
               </label>
               <span className="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
                 mail
@@ -164,7 +151,7 @@ export default function LoginPage() {
                 }}
                 type="password"
                 autoComplete="current-password"
-                placeholder="Password"
+                placeholder={t("passwordPlaceholder")}
                 required
                 aria-invalid={!!error}
               />
@@ -172,7 +159,7 @@ export default function LoginPage() {
                 htmlFor="password"
                 className="pointer-events-none absolute left-md top-1/2 -translate-y-1/2 font-body text-body text-outline-variant transition-all duration-200 peer-focus:top-3 peer-focus:translate-y-0 peer-focus:text-caption peer-focus:text-on-surface-variant peer-[:not(:placeholder-shown)]:top-3 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-caption peer-[:not(:placeholder-shown)]:text-on-surface-variant"
               >
-                Password
+                {t("password")}
               </label>
               <span className="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant transition-colors group-focus-within:text-primary">
                 lock
@@ -192,16 +179,16 @@ export default function LoginPage() {
               className="w-full rounded-xl bg-primary py-sm font-section-heading text-body text-on-primary shadow-sm transition-colors hover:bg-primary-hover active:scale-95 disabled:opacity-50"
               disabled={loading}
             >
-              {loading ? "登录中…" : "登录"}
+              {loading ? t("loggingIn") : t("login")}
             </button>
 
             <p className="text-center text-small text-text-secondary">
-              还没有账号？{" "}
+              {t("noAccount")}{" "}
               <Link
                 className="font-semibold text-primary underline-offset-4 hover:underline decoration-2"
                 href="/register"
               >
-                注册
+                {t("register")}
               </Link>
             </p>
           </form>
@@ -209,10 +196,11 @@ export default function LoginPage() {
       </div>
 
       <footer className="absolute bottom-lg z-10 flex w-full flex-wrap items-center justify-center gap-x-lg gap-y-sm px-container-padding text-overline text-outline-variant">
-        <span>Copyright © 2026 Timia</span>
+        <span>{t("copyright")}</span>
+        <LocaleSwitcher variant="footer" />
         <div className="flex flex-wrap justify-center gap-lg">
           <a className="transition-colors hover:text-text-secondary" href="#">
-            隐私
+            {t("privacy")}
           </a>
         </div>
       </footer>

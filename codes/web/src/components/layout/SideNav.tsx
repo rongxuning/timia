@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
+import { LocaleSwitcher } from "./LocaleSwitcher";
 import { NavItem } from "./NavItem";
 
 export type SideNavProps = {
@@ -16,9 +18,10 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const me = useCurrentMe();
+  const t = useTranslations("nav");
   const isAdmin = isSystemAdmin(me?.system_role);
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
-  const displayName = me?.display_name?.trim() || "用户";
+  const displayName = me?.display_name?.trim() || t("userFallback");
   return (
     <aside className="hidden h-full w-16 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
       <div className="px-2">
@@ -37,51 +40,51 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
           <NavItem
             href="/my/schedule"
             icon="event_note"
-            label="我的日程"
+            label={t("schedule")}
             active={pathname.startsWith("/my/schedule")}
           />
           <NavItem
             href="/workspaces"
             icon="grid_view"
-            label="工作空间"
+            label={t("workspaces")}
             active={pathname === "/workspaces" || pathname.startsWith("/workspace/")}
           />
           <NavItem
             href="/my/health"
             icon="monitor_heart"
-            label="健康"
+            label={t("health")}
             active={pathname.startsWith("/my/health")}
           />
           <NavItem
             href="/plans"
             icon="calendar_month"
-            label="规划"
+            label={t("plans")}
             active={pathname.startsWith("/plans")}
           />
           <NavItem
             href="/my/analytics"
             icon="query_stats"
-            label="数据分析"
+            label={t("analytics")}
             active={pathname.startsWith("/my/analytics")}
           />
           <NavItem
             href="/member"
             icon="group"
-            label="成员"
+            label={t("members")}
             active={pathname.startsWith("/member")}
             hidden={!isAdmin}
           />
           <NavItem
             href="/documents/code"
             icon="code"
-            label="代码文档"
+            label={t("codeDocs")}
             active={pathname.startsWith("/documents/code")}
             hidden={!isAdmin}
           />
           <NavItem
             href="/documents/guide"
             icon="menu_book"
-            label="使用指南"
+            label={t("guide")}
             active={pathname.startsWith("/documents/guide")}
             hidden={!isAdmin}
           />
@@ -109,8 +112,9 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
           {userMenuOpen && (
             <div
               role="menu"
-              className="absolute bottom-0 left-full z-50 ml-2 w-32 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
+              className="absolute bottom-0 left-full z-50 ml-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
             >
+              <LocaleSwitcher variant="menu" />
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
@@ -121,7 +125,7 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
                   router.push("/login");
                 }}
               >
-                退出登录
+                {t("logOut")}
               </button>
             </div>
           )}
