@@ -16,7 +16,7 @@ struct TimiaLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("\(context.state.workingCount) working", systemImage: "sparkle")
+                    Label("\(context.state.totalCount) 待办", systemImage: "sparkle")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -27,7 +27,7 @@ struct TimiaLiveActivityWidget: Widget {
                                 .font(.caption.weight(.semibold))
                                 .lineLimit(1)
                         }
-                        if let first = context.state.todos.first {
+                        if let first = context.state.previewTodo {
                             Text(first.title)
                                 .font(.caption)
                                 .lineLimit(1)
@@ -40,7 +40,7 @@ struct TimiaLiveActivityWidget: Widget {
                             Text(context.state.healthTimeLabel)
                                 .font(.caption2.monospacedDigit())
                         }
-                        if let first = context.state.todos.first {
+                        if let first = context.state.previewTodo {
                             Text(first.timeLabel)
                                 .font(.caption2.monospacedDigit())
                         }
@@ -50,12 +50,18 @@ struct TimiaLiveActivityWidget: Widget {
             } compactLeading: {
                 Image(systemName: "sparkle")
             } compactTrailing: {
-                Text("\(context.state.workingCount)")
+                Text("\(context.state.totalCount)")
                     .font(.caption2.monospacedDigit())
             } minimal: {
                 Image(systemName: "sparkle")
             }
         }
+    }
+}
+
+private extension TimiaScreenActivityAttributes.ContentState {
+    var previewTodo: TodoRow? {
+        notStartedTodos.first ?? overdueTodos.first ?? todos.first ?? doingTodos.first
     }
 }
 
@@ -69,22 +75,42 @@ struct TimiaLiveActivityLockScreenView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("\(state.workingCount) working")
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(palette.secondaryText)
-
-            if state.healthEnabled {
-                row(
-                    title: state.healthTitle,
-                    time: state.healthTimeLabel
-                )
+            if state.workingCount > 0 {
+                section(title: "\(state.workingCount) 进行中") {
+                    if state.healthEnabled {
+                        row(title: state.healthTitle, time: state.healthTimeLabel)
+                    }
+                    ForEach(visible(state.doingTodos)) { todo in
+                        row(title: todo.title, time: todo.timeLabel)
+                    }
+                }
             }
 
-            ForEach(state.todos) { todo in
-                row(title: todo.title, time: todo.timeLabel)
+            if !state.notStartedTodos.isEmpty {
+                section(title: "\(state.notStartedCount) 未开始") {
+                    ForEach(visible(state.notStartedTodos)) { todo in
+                        row(title: todo.title, time: todo.timeLabel)
+                    }
+                }
             }
 
-            if !state.healthEnabled && state.todos.isEmpty {
+            if !state.overdueTodos.isEmpty {
+                section(title: "\(state.overdueCount) 逾期") {
+                    ForEach(visible(state.overdueTodos)) { todo in
+                        row(title: todo.title, time: todo.timeLabel)
+                    }
+                }
+            }
+
+            if !state.todos.isEmpty {
+                section(title: "\(state.allDayCount) 全天") {
+                    ForEach(visible(state.todos)) { todo in
+                        row(title: todo.title, time: todo.timeLabel)
+                    }
+                }
+            }
+
+            if state.totalCount == 0 {
                 Text("暂无展示内容")
                     .font(.subheadline)
                     .foregroundStyle(palette.secondaryText)
@@ -95,6 +121,20 @@ struct TimiaLiveActivityLockScreenView: View {
         .environment(\.colorScheme, palette.forcedColorScheme)
         .activityBackgroundTint(palette.backgroundTint)
         .activitySystemActionForegroundColor(palette.actionForeground)
+    }
+
+    @ViewBuilder
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(palette.secondaryText)
+            content()
+        }
+    }
+
+    private func visible(_ todos: [TimiaScreenActivityAttributes.ContentState.TodoRow]) -> [TimiaScreenActivityAttributes.ContentState.TodoRow] {
+        Array(todos.prefix(3))
     }
 
     private func row(title: String, time: String) -> some View {

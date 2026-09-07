@@ -17,24 +17,25 @@ enum ScreenNotificationContentBuilder {
         tasks.filter { isAllDay(startAt: $0.startAt, endAt: $0.endAt) && isPendingTodo(status: $0.status) }
     }
 
-    static func todoTimeLabel(startAt: String?, endAt: String?, calendar: Calendar = .current) -> String {
+    static func todoTimeLabel(
+        startAt: String?,
+        endAt: String?,
+        calendar: Calendar = .current,
+        now: Date = Date()
+    ) -> String {
         guard let start = parseISO(startAt) else { return "全天" }
         guard let end = parseISO(endAt) else {
-            return isAllDay(startAt: startAt, endAt: endAt) ? "全天" : timeOnly(start)
+            return isAllDay(startAt: startAt, endAt: endAt)
+                ? "全天"
+                : datedTimeRange(start: start, end: nil, calendar: calendar, now: now)
         }
         if end.timeIntervalSince(start) >= 23 * 3600 {
             if calendar.isDate(start, inSameDayAs: end.addingTimeInterval(-1)) {
                 return "全天"
             }
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "zh_CN")
-            formatter.dateFormat = "M月d日"
-            return "\(formatter.string(from: start)) – \(formatter.string(from: end.addingTimeInterval(-1)))"
+            return "\(dayLabel(start, calendar: calendar)) – \(dayLabel(end.addingTimeInterval(-1), calendar: calendar))"
         }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "HH:mm"
-        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+        return datedTimeRange(start: start, end: end, calendar: calendar, now: now)
     }
 
     static func healthTimeLabel(lastSyncedAt: Date?, now: Date = Date()) -> String {
@@ -53,23 +54,28 @@ enum ScreenNotificationContentBuilder {
         healthEnabled: Bool,
         lastSyncedAt: Date?,
         todos: [ScheduleTask],
-        now: Date = Date()
+        overdue: [ScheduleTask] = [],
+        now: Date = Date(),
+        calendar: Calendar = .current
     ) -> TimiaScreenActivityAttributes.ContentState {
-        let rows = allDayPendingTodos(from: todos).map { task in
-            TimiaScreenActivityAttributes.ContentState.TodoRow(
-                id: task.id,
-                title: task.title,
-                timeLabel: todoTimeLabel(startAt: task.startAt, endAt: task.endAt)
-            )
-        }
+        let overdueTasks = mergedOverdue(dayTasks: todos, overdue: overdue, now: now, calendar: calendar)
+        let overdueIds = Set(overdueTasks.map(\.id))
+        let remaining = todos.filter { isPendingTodo(status: $0.status) && !overdueIds.contains($0.id) }
+
+        let doing = remaining.filter { $0.status == "doing" && !isAllDay(startAt: $0.startAt, endAt: $0.endAt) }
+        let notStarted = remaining.filter { $0.status == "todo" && !isAllDay(startAt: $0.startAt, endAt: $0.endAt) }
+        let allDay = remaining.filter { isAllDay(startAt: $0.startAt, endAt: $0.endAt) }
+
         let healthVisible = healthEnabled
-        let workingCount = (healthVisible ? 1 : 0) + rows.count
         return TimiaScreenActivityAttributes.ContentState(
             healthEnabled: healthVisible,
             healthTitle: "健康数据同步",
             healthTimeLabel: healthTimeLabel(lastSyncedAt: lastSyncedAt, now: now),
-            todos: rows,
-            workingCount: workingCount
+            todos: rows(from: allDay, calendar: calendar, now: now),
+            workingCount: (healthVisible ? 1 : 0) + doing.count,
+            doingTodos: rows(from: doing, calendar: calendar, now: now),
+            notStartedTodos: rows(from: notStarted, calendar: calendar, now: now),
+            overdueTodos: rows(from: overdueTasks, calendar: calendar, now: now)
         )
     }
 
@@ -83,9 +89,75 @@ enum ScreenNotificationContentBuilder {
         )
     }
 
-    private static func timeOnly(_ date: Date) -> String {
+    private static func mergedOverdue(
+        dayTasks: [ScheduleTask],
+        overdue: [ScheduleTask],
+        now: Date,
+        calendar: Calendar
+    ) -> [ScheduleTask] {
+        var seen = Set<String>()
+        var merged: [ScheduleTask] = []
+        for task in overdue where seen.insert(task.id).inserted {
+            merged.append(task)
+        }
+        for task in dayTasks {
+            guard isOverdue(task, now: now, calendar: calendar), seen.insert(task.id).inserted else { continue }
+            merged.append(task)
+        }
+        return merged.sorted { lhs, rhs in
+            let left = parseISO(lhs.endAt) ?? parseISO(lhs.startAt) ?? .distantFuture
+            let right = parseISO(rhs.endAt) ?? parseISO(rhs.startAt) ?? .distantFuture
+            if left != right { return left < right }
+            return lhs.id < rhs.id
+        }
+    }
+
+    private static func isOverdue(_ task: ScheduleTask, now: Date, calendar: Calendar) -> Bool {
+        guard isPendingTodo(status: task.status) else { return false }
+        guard let deadline = parseISO(task.endAt) ?? parseISO(task.startAt) else { return false }
+        return calendar.startOfDay(for: deadline) < calendar.startOfDay(for: now)
+    }
+
+    private static func rows(
+        from tasks: [ScheduleTask],
+        calendar: Calendar,
+        now: Date
+    ) -> [TimiaScreenActivityAttributes.ContentState.TodoRow] {
+        tasks.map { task in
+            TimiaScreenActivityAttributes.ContentState.TodoRow(
+                id: task.id,
+                title: task.title,
+                timeLabel: todoTimeLabel(startAt: task.startAt, endAt: task.endAt, calendar: calendar, now: now)
+            )
+        }
+    }
+
+    private static func datedTimeRange(start: Date, end: Date?, calendar: Calendar, now: Date) -> String {
+        let startTime = timeOnly(start, calendar: calendar)
+        let range: String
+        if let end {
+            range = "\(startTime) – \(timeOnly(end, calendar: calendar))"
+        } else {
+            range = startTime
+        }
+        if calendar.isDate(start, inSameDayAs: now) {
+            return range
+        }
+        return "\(dayLabel(start, calendar: calendar)) \(range)"
+    }
+
+    private static func dayLabel(_ date: Date, calendar: Calendar) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "M月d日"
+        return formatter.string(from: date)
+    }
+
+    private static func timeOnly(_ date: Date, calendar: Calendar) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = calendar.timeZone
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }

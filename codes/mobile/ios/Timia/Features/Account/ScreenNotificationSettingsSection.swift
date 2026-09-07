@@ -18,7 +18,7 @@ struct ScreenNotificationSettingsSection: View {
                     }
                 )
             )
-            Text("开启后锁屏展示健康同步（若已授权）与当日全天待办。")
+            Text("开启后锁屏展示健康同步（若已授权）与当日未开始、逾期、全天待办。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             if let error = manager.lastError {
