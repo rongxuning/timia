@@ -1,9 +1,23 @@
 import Foundation
 
 enum RescheduleMath {
+    static let dropSnapMinutes = 15
+
     /// Rounds minute-of-day to the nearest hour (half-hour rounds up).
     static func snapToHour(_ minutes: Int) -> Int {
         ((minutes + 30) / 60) * 60
+    }
+
+    /// Rounds minute-of-day to the nearest 15-minute drop target.
+    static func snapToDropTarget(_ minutes: Int) -> Int {
+        let interval = dropSnapMinutes
+        let rounded = ((minutes + interval / 2) / interval) * interval
+        return min(max(rounded, 0), 24 * 60 - interval)
+    }
+
+    static func minuteLabel(_ minutes: Int) -> String {
+        let clamped = min(max(minutes, 0), 24 * 60)
+        return String(format: "%02d:%02d", clamped / 60, clamped % 60)
     }
 
     static func computeNewRange(

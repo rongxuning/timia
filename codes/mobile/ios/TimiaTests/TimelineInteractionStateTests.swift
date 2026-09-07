@@ -15,53 +15,78 @@ final class TimelineInteractionStateTests: XCTestCase {
         XCTAssertTrue(state.effectiveCollapse)
     }
 
-    func testBeginDragForcesExpandAndLocksScroll() {
+    func testCollapsedTimelineDoesNotAllowDrag() {
         var state = TimelineInteractionState(idleCollapseEnabled: true)
         state.armInteractions()
+
+        XCTAssertFalse(state.allowsTaskDrag)
         state.beginDrag()
-
-        XCTAssertTrue(state.dragForcesExpandAll)
-        XCTAssertTrue(state.scrollDisabled)
-        XCTAssertFalse(state.effectiveCollapse)
-        XCTAssertTrue(state.idleCollapseEnabled)
-    }
-
-    func testBeginDragIgnoredUntilArmed() {
-        var state = TimelineInteractionState(idleCollapseEnabled: true)
-        state.beginDrag()
-
-        XCTAssertFalse(state.dragForcesExpandAll)
         XCTAssertFalse(state.scrollDisabled)
         XCTAssertTrue(state.effectiveCollapse)
     }
 
+    func testExpandedTimelineAllowsDragWithoutExpanding() {
+        var state = TimelineInteractionState(idleCollapseEnabled: false)
+        state.armInteractions()
+        state.beginDrag()
+
+        XCTAssertTrue(state.allowsTaskDrag)
+        XCTAssertTrue(state.scrollDisabled)
+        XCTAssertFalse(state.effectiveCollapse)
+        XCTAssertFalse(state.idleCollapseEnabled)
+    }
+
+    func testBeginDragIgnoredUntilArmed() {
+        var state = TimelineInteractionState(idleCollapseEnabled: false)
+        state.beginDrag()
+
+        XCTAssertFalse(state.scrollDisabled)
+        XCTAssertTrue(state.allowsTaskDrag)
+    }
+
     func testEndDragRestoresCollapseAndUnlocksScroll() {
-        var state = TimelineInteractionState(idleCollapseEnabled: true)
+        var state = TimelineInteractionState(idleCollapseEnabled: false)
         state.armInteractions()
         state.beginDrag()
         state.endDrag()
 
-        XCTAssertFalse(state.dragForcesExpandAll)
         XCTAssertFalse(state.scrollDisabled)
+        XCTAssertFalse(state.effectiveCollapse)
+        XCTAssertTrue(state.allowsTaskDrag)
+    }
+
+    func testToggleCollapseClearsDragLock() {
+        var state = TimelineInteractionState(idleCollapseEnabled: false)
+        state.armInteractions()
+        state.beginDrag()
+        XCTAssertTrue(state.scrollDisabled)
+
+        state.toggleCollapse()
+
+        XCTAssertTrue(state.idleCollapseEnabled)
         XCTAssertTrue(state.effectiveCollapse)
+        XCTAssertFalse(state.allowsTaskDrag)
+        XCTAssertFalse(state.scrollDisabled)
     }
 
     func testResetClearsStuckDragAfterRangeSwitch() {
-        var state = TimelineInteractionState(idleCollapseEnabled: true)
+        var state = TimelineInteractionState(idleCollapseEnabled: false)
         state.armInteractions()
         state.beginDrag()
 
         state.resetTransient()
 
-        XCTAssertFalse(state.dragForcesExpandAll)
         XCTAssertFalse(state.scrollDisabled)
         XCTAssertFalse(state.interactionsArmed)
-        XCTAssertTrue(state.effectiveCollapse)
+        XCTAssertFalse(state.effectiveCollapse)
+        XCTAssertTrue(state.allowsTaskDrag)
 
         state.toggleCollapse()
-        XCTAssertFalse(state.effectiveCollapse)
-        state.toggleCollapse()
         XCTAssertTrue(state.effectiveCollapse)
+        XCTAssertFalse(state.allowsTaskDrag)
+        state.toggleCollapse()
+        XCTAssertFalse(state.effectiveCollapse)
+        XCTAssertTrue(state.allowsTaskDrag)
     }
 
     func testWeekPagingWindowIsBounded() {

@@ -313,8 +313,63 @@ final class TimiaUITests: XCTestCase {
         XCTAssertEqual(todayAllDayColumn.frame.midX, todayHeader.frame.midX, accuracy: 4)
     }
 
+    func testCalendarIdleCollapseToggleDoesNotFreeze() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        let login = app.buttons["登录"]
+        XCTAssertTrue(login.waitForExistence(timeout: 5))
+        login.tap()
+        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+
+        app.buttons["日历模式"].tap()
+        XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
+        app.buttons["日"].tap()
+        XCTAssertTrue(element("calendar-day-timeline", in: app).waitForExistence(timeout: 4))
+        XCTAssertTrue(app.staticTexts["全天"].waitForExistence(timeout: 2))
+
+        let toggle = app.buttons["calendar-idle-collapse-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        XCTAssertGreaterThan(toggle.frame.minY, app.staticTexts["全天"].frame.minY)
+        XCTAssertFalse(app.staticTexts["折叠空闲"].exists)
+        XCTAssertFalse(app.staticTexts["展开全部"].exists)
+        XCTAssertFalse(app.buttons["折叠空闲"].exists)
+        XCTAssertFalse(app.buttons["展开全部"].exists)
+
+        toggle.tap()
+        XCTAssertTrue(waitForHittable(toggle, timeout: 3))
+        XCTAssertTrue(element("calendar-day-timeline", in: app).waitForExistence(timeout: 3))
+        toggle.tap()
+        XCTAssertTrue(waitForHittable(toggle, timeout: 3))
+        XCTAssertTrue(element("calendar-day-timeline", in: app).waitForExistence(timeout: 3))
+        attachScreenshot(named: "schedule-day-idle-collapse", app: app)
+
+        app.buttons["日历模式"].tap()
+        XCTAssertTrue(app.buttons["周"].waitForExistence(timeout: 2))
+        app.buttons["周"].tap()
+        XCTAssertTrue(element("calendar-week-timeline", in: app).waitForExistence(timeout: 4))
+        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["折叠空闲"].exists)
+        XCTAssertFalse(app.staticTexts["展开全部"].exists)
+
+        toggle.tap()
+        XCTAssertTrue(waitForHittable(toggle, timeout: 3))
+        XCTAssertTrue(element("calendar-week-timeline", in: app).waitForExistence(timeout: 3))
+        toggle.tap()
+        XCTAssertTrue(waitForHittable(toggle, timeout: 3))
+        XCTAssertTrue(element("calendar-week-timeline", in: app).waitForExistence(timeout: 3))
+        attachScreenshot(named: "schedule-week-idle-collapse", app: app)
+    }
+
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "isHittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func waitForValue(_ value: String, on element: XCUIElement, timeout: TimeInterval) -> Bool {

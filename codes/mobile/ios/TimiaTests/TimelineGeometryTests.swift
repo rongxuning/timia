@@ -20,7 +20,7 @@ final class TimelineGeometryTests: XCTestCase {
             collapsedHeight: 28,
             collapseEnabled: true
         )
-        let expected = 28 + 18 * 74
+        let expected: CGFloat = 28 + 18 * 74
         XCTAssertEqual(g.contentHeight, expected, accuracy: 0.1)
     }
 
