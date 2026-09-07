@@ -87,7 +87,8 @@ final class ScreenNotificationManager: ObservableObject {
             state = ScreenNotificationContentBuilder.makeContentState(
                 healthEnabled: HealthPermissionManager.shared.didRequest,
                 lastSyncedAt: HealthSyncService.cachedLastSyncedAt(),
-                todos: []
+                todos: [],
+                overdue: []
             )
         }
 
@@ -115,25 +116,45 @@ final class ScreenNotificationManager: ObservableObject {
     private func buildContentState(api: APIClient) async throws -> TimiaScreenActivityAttributes.ContentState {
         let healthEnabled = HealthPermissionManager.shared.didRequest
         let lastSyncedAt = HealthSyncService.cachedLastSyncedAt()
-        let todos = try await fetchTodayAllDayTodos(api: api)
+        async let dayTodos = fetchTodayTodos(api: api)
+        async let overdueTodos = fetchOverdueTodos(api: api)
         return ScreenNotificationContentBuilder.makeContentState(
             healthEnabled: healthEnabled,
             lastSyncedAt: lastSyncedAt,
-            todos: todos
+            todos: try await dayTodos,
+            overdue: try await overdueTodos
         )
     }
 
-    private func fetchTodayAllDayTodos(api: APIClient) async throws -> [ScheduleTask] {
+    private func fetchTodayTodos(api: APIClient) async throws -> [ScheduleTask] {
         let calendar = try await api.request(
             "/views/schedule/calendar",
-            query: [
-                URLQueryItem(name: "scope", value: "me"),
+            query: scheduleQuery(extra: [
                 URLQueryItem(name: "view", value: "day"),
                 URLQueryItem(name: "anchor", value: ScreenNotificationContentBuilder.dayKey(Date())),
-            ],
+            ]),
             response: ScheduleCalendar.self
         )
         return calendar.day?.items ?? []
+    }
+
+    private func fetchOverdueTodos(api: APIClient) async throws -> [ScheduleTask] {
+        let overdue = try await api.request(
+            "/views/schedule/overdue",
+            query: scheduleQuery(extra: [
+                URLQueryItem(name: "limit", value: "10"),
+                URLQueryItem(name: "offset", value: "0"),
+            ]),
+            response: ScheduleOverdue.self
+        )
+        return overdue.items
+    }
+
+    private func scheduleQuery(extra: [URLQueryItem] = []) -> [URLQueryItem] {
+        [
+            URLQueryItem(name: "scope", value: "me"),
+            URLQueryItem(name: "timezone", value: TimeZone.current.identifier),
+        ] + extra
     }
 
     /// Activity is not Sendable; this box lets MainActor hand the handle to
