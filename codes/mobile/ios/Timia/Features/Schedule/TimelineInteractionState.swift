@@ -17,12 +17,15 @@ enum CalendarInfiniteWindow {
 
 struct TimelineInteractionState: Equatable, Sendable {
     var idleCollapseEnabled: Bool
-    var dragForcesExpandAll: Bool = false
     var scrollDisabled: Bool = false
     var interactionsArmed: Bool = false
 
     var effectiveCollapse: Bool {
-        idleCollapseEnabled && !dragForcesExpandAll
+        idleCollapseEnabled
+    }
+
+    var allowsTaskDrag: Bool {
+        !effectiveCollapse
     }
 
     mutating func armInteractions() {
@@ -30,31 +33,40 @@ struct TimelineInteractionState: Equatable, Sendable {
     }
 
     mutating func beginDrag() {
-        guard interactionsArmed else { return }
-        dragForcesExpandAll = true
+        guard interactionsArmed, allowsTaskDrag else { return }
         scrollDisabled = true
     }
 
     mutating func endDrag() {
-        dragForcesExpandAll = false
         scrollDisabled = false
     }
 
     mutating func resetTransient() {
-        dragForcesExpandAll = false
         scrollDisabled = false
         interactionsArmed = false
     }
 
     mutating func toggleCollapse() {
         idleCollapseEnabled.toggle()
+        scrollDisabled = false
     }
 }
 
+enum TimelineCollapseLayout {
+    /// Interpolating every loaded day/week grid between collapsed and 24h height
+    /// stalls the main thread inside the infinite LazyVStack.
+    static let disablesHeightAnimation = true
+}
+
 enum IdleCollapseToggleStyle {
-    static let symbolName = "rectangle.compress.vertical"
     static let showsTextLabels = false
     static let visibleTitles: [String] = []
+    static let gapBarsShowTimeLabels = false
+    static let placesIconBelowAllDay = true
+
+    static func symbolName(collapseEnabled: Bool) -> String {
+        collapseEnabled ? "chevron.compact.down" : "chevron.compact.up"
+    }
 
     static func accessibilityLabel(collapseEnabled: Bool) -> String {
         collapseEnabled ? "展开全部时段" : "折叠空闲时段"

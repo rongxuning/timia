@@ -2,10 +2,14 @@ import XCTest
 @testable import Timia
 
 final class IdleCollapseToggleStyleTests: XCTestCase {
-    func testUsesCompressIconWithoutVisibleLabels() {
-        XCTAssertEqual(IdleCollapseToggleStyle.symbolName, "rectangle.compress.vertical")
+    func testUsesIconOnlyControlBelowAllDay() {
+        XCTAssertEqual(IdleCollapseToggleStyle.symbolName(collapseEnabled: true), "chevron.compact.down")
+        XCTAssertEqual(IdleCollapseToggleStyle.symbolName(collapseEnabled: false), "chevron.compact.up")
         XCTAssertFalse(IdleCollapseToggleStyle.showsTextLabels)
         XCTAssertTrue(IdleCollapseToggleStyle.visibleTitles.isEmpty)
+        XCTAssertTrue(IdleCollapseToggleStyle.placesIconBelowAllDay)
+        XCTAssertFalse(IdleCollapseToggleStyle.gapBarsShowTimeLabels)
+        XCTAssertTrue(TimelineCollapseLayout.disablesHeightAnimation)
     }
 
     func testAccessibilityDescribesCollapseState() {
