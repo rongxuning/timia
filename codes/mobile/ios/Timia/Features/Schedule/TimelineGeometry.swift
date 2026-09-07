@@ -101,6 +101,24 @@ struct TimelineGeometry {
         y(forMinutes: startMinutes + durationMinutes) - y(forMinutes: startMinutes)
     }
 
+    func collapsedSegmentStarts(at minutes: Int) -> Bool {
+        segments.contains { segment in
+            if case .collapsed(let range) = segment {
+                return range.start == minutes
+            }
+            return false
+        }
+    }
+
+    func collapsedSegmentEnds(at minutes: Int) -> Bool {
+        segments.contains { segment in
+            if case .collapsed(let range) = segment {
+                return range.end == minutes
+            }
+            return false
+        }
+    }
+
     private func segmentHeight(_ segment: TimelineSegment) -> CGFloat {
         switch segment {
         case .visible(let range):

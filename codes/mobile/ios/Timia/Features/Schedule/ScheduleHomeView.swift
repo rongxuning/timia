@@ -2227,10 +2227,10 @@ private struct IdleCollapseToggleBar: View {
     var body: some View {
         HStack(spacing: 0) {
             Button(action: onToggle) {
-                Image(systemName: IdleCollapseToggleStyle.symbolName(collapseEnabled: idleCollapseEnabled))
-                    .font(.caption.weight(.semibold))
+                IdleCollapseIcon()
+                    .frame(width: 16, height: 20)
                     .foregroundStyle(.secondary)
-                    .frame(width: 48, height: 22)
+                    .frame(width: 48, height: 26)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -2244,12 +2244,24 @@ private struct IdleCollapseToggleBar: View {
 }
 
 private struct IdleGapBar: View {
+    var topRadius: CGFloat = TimelineIdleChrome.gapCornerRadius
+    var bottomRadius: CGFloat = TimelineIdleChrome.gapCornerRadius
+
+    private var shape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: topRadius,
+            bottomLeadingRadius: bottomRadius,
+            bottomTrailingRadius: bottomRadius,
+            topTrailingRadius: topRadius,
+            style: .continuous
+        )
+    }
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
+        shape
             .fill(Color.secondary.opacity(0.08))
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(TimiaTheme.border.opacity(0.35), lineWidth: 0.7)
+                shape.stroke(TimiaTheme.border.opacity(0.35), lineWidth: 0.7)
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -2273,9 +2285,17 @@ private struct TimelineGrid: View {
     @State private var dragDidMove = false
 
     private let hourHeight: CGFloat = 74
-    private let collapsedHeight: CGFloat = 28
+    private let collapsedHeight = TimelineIdleChrome.collapsedHeight
     private let startHour = 0
     private let endHour = 24
+
+    private var chromeInset: CGFloat {
+        TimelineIdleChrome.horizontalInset(isDayMode: isDayMode)
+    }
+
+    private var chromeTaskRadius: CGFloat {
+        TimelineIdleChrome.taskCornerRadius(isDayMode: isDayMode)
+    }
 
     private var isDayMode: Bool { days.count == 1 }
 
@@ -2297,8 +2317,9 @@ private struct TimelineGrid: View {
         let overlapLanes = overlapLaneMap(taskPlacements: taskPlacements)
 
         return GeometryReader { container in
-            let labelWidth: CGFloat = 48
-            let contentWidth = max(container.size.width - labelWidth - 6, 1)
+            let labelWidth = TimelineIdleChrome.labelWidth
+            let contentWidth = TimelineIdleChrome.contentWidth(in: container.size.width)
+            let taskBoundaries = taskBoundaryMinutes(taskPlacements)
 
             ZStack(alignment: .topLeading) {
                 Color.clear
@@ -2349,13 +2370,13 @@ private struct TimelineGrid: View {
                     }
                 }
 
-                ForEach(Array(geometry.segments.enumerated()), id: \.offset) { _, segment in
-                    if case .collapsed(let range) = segment {
-                        IdleGapBar()
-                            .frame(width: contentWidth, height: collapsedHeight)
-                            .offset(x: labelWidth, y: geometry.y(forMinutes: range.start))
-                    }
-                }
+                idleGapViews(
+                    geometry: geometry,
+                    contentWidth: contentWidth,
+                    horizontalInset: chromeInset,
+                    taskStarts: taskBoundaries.starts,
+                    taskEnds: taskBoundaries.ends
+                )
 
                 if Calendar.current.isDateInToday(days[0]) {
                     CurrentTimeLine(
@@ -2384,8 +2405,8 @@ private struct TimelineGrid: View {
                             geometry: geometry,
                             labelWidth: labelWidth,
                             dayWidth: contentWidth,
-                            horizontalInset: 9,
-                            cornerRadius: 16
+                            horizontalInset: chromeInset,
+                            cornerRadius: chromeTaskRadius
                         )
                     }
                 }
@@ -2397,8 +2418,8 @@ private struct TimelineGrid: View {
                         geometry: geometry,
                         labelWidth: labelWidth,
                         dayWidth: contentWidth,
-                        horizontalInset: 9,
-                        cornerRadius: 16
+                        horizontalInset: chromeInset,
+                        cornerRadius: chromeTaskRadius
                     )
                 }
             }
@@ -2420,9 +2441,10 @@ private struct TimelineGrid: View {
         let overlapLanes = overlapLaneMap(taskPlacements: taskPlacements)
 
         return GeometryReader { container in
-            let labelWidth: CGFloat = 48
-            let contentWidth = max(container.size.width - labelWidth - 6, 1)
+            let labelWidth = TimelineIdleChrome.labelWidth
+            let contentWidth = TimelineIdleChrome.contentWidth(in: container.size.width)
             let dayWidth = contentWidth / CGFloat(max(days.count, 1))
+            let taskBoundaries = taskBoundaryMinutes(taskPlacements)
 
             ZStack(alignment: .topLeading) {
                 Color.clear
@@ -2482,13 +2504,13 @@ private struct TimelineGrid: View {
                         .offset(x: labelWidth + CGFloat(column) * dayWidth)
                 }
 
-                ForEach(Array(geometry.segments.enumerated()), id: \.offset) { _, segment in
-                    if case .collapsed(let range) = segment {
-                        IdleGapBar()
-                            .frame(width: contentWidth, height: collapsedHeight)
-                            .offset(x: labelWidth, y: geometry.y(forMinutes: range.start))
-                    }
-                }
+                idleGapViews(
+                    geometry: geometry,
+                    contentWidth: contentWidth,
+                    horizontalInset: chromeInset,
+                    taskStarts: taskBoundaries.starts,
+                    taskEnds: taskBoundaries.ends
+                )
 
                 if let snappedMinutes = dragSnapMinutes {
                     DragTargetGuide(
@@ -2509,8 +2531,8 @@ private struct TimelineGrid: View {
                             geometry: geometry,
                             labelWidth: labelWidth,
                             dayWidth: dayWidth,
-                            horizontalInset: 2,
-                            cornerRadius: 7
+                            horizontalInset: chromeInset,
+                            cornerRadius: chromeTaskRadius
                         )
                     }
                 }
@@ -2522,8 +2544,8 @@ private struct TimelineGrid: View {
                         geometry: geometry,
                         labelWidth: labelWidth,
                         dayWidth: dayWidth,
-                        horizontalInset: 2,
-                        cornerRadius: 7
+                        horizontalInset: chromeInset,
+                        cornerRadius: chromeTaskRadius
                     )
                 }
             }
@@ -2559,6 +2581,43 @@ private struct TimelineGrid: View {
                 )
             }
         )
+    }
+
+    private func taskBoundaryMinutes(
+        _ placements: [String: ScheduleFormat.Placement]
+    ) -> (starts: Set<Int>, ends: Set<Int>) {
+        var starts = Set<Int>()
+        var ends = Set<Int>()
+        for placement in placements.values {
+            starts.insert(placement.startMinutes)
+            ends.insert(placement.startMinutes + placement.durationMinutes)
+        }
+        return (starts, ends)
+    }
+
+    @ViewBuilder
+    private func idleGapViews(
+        geometry: TimelineGeometry,
+        contentWidth: CGFloat,
+        horizontalInset: CGFloat,
+        taskStarts: Set<Int>,
+        taskEnds: Set<Int>
+    ) -> some View {
+        ForEach(Array(geometry.segments.enumerated()), id: \.offset) { _, segment in
+            if case .collapsed(let range) = segment {
+                let layout = TimelineIdleChrome.gapLayout(
+                    range: range,
+                    geometry: geometry,
+                    contentWidth: contentWidth,
+                    horizontalInset: horizontalInset,
+                    taskStarts: taskStarts,
+                    taskEnds: taskEnds
+                )
+                IdleGapBar(topRadius: layout.topRadius, bottomRadius: layout.bottomRadius)
+                    .frame(width: layout.width, height: layout.height)
+                    .offset(x: layout.x, y: layout.y)
+            }
+        }
     }
 
     private func makeTimelineGeometry() -> TimelineGeometry {
@@ -2666,24 +2725,25 @@ private struct TimelineGrid: View {
             (availableWidth - CGFloat(lane.count - 1) * laneGap) / CGFloat(lane.count),
             1
         )
-        let blockHeight: CGFloat = {
+        let vertical: TimelineIdleChrome.VerticalLayout = {
             if let geometry {
-                return max(
-                    geometry.height(
-                        forDurationMinutes: placement.durationMinutes,
-                        startingAt: placement.startMinutes
-                    ),
-                    48
+                return TimelineIdleChrome.taskVerticalLayout(
+                    startMinutes: placement.startMinutes,
+                    durationMinutes: placement.durationMinutes,
+                    geometry: geometry,
+                    cornerRadius: cornerRadius,
+                    minimumHeight: isDayMode ? 48 : 28
                 )
             }
-            return max(CGFloat(placement.durationMinutes) / 60 * hourHeight, 28)
+            return TimelineIdleChrome.VerticalLayout(
+                y: CGFloat(placement.startMinutes) / 60 * hourHeight + TimelineIdleChrome.blockYOffset,
+                height: max(CGFloat(placement.durationMinutes) / 60 * hourHeight, 28),
+                topRadius: cornerRadius,
+                bottomRadius: cornerRadius
+            )
         }()
-        let blockY: CGFloat = {
-            if let geometry {
-                return geometry.y(forMinutes: placement.startMinutes) + 4
-            }
-            return CGFloat(placement.startMinutes) / 60 * hourHeight + 4
-        }()
+        let blockHeight = vertical.height
+        let blockY = vertical.y
         let blockX = labelWidth
             + CGFloat(placement.dayIndex) * dayWidth
             + horizontalInset
@@ -2693,7 +2753,9 @@ private struct TimelineGrid: View {
             task: task,
             style: style,
             isCompleted: isCompleted,
-            cornerRadius: cornerRadius
+            cornerRadius: cornerRadius,
+            topRadius: vertical.topRadius,
+            bottomRadius: vertical.bottomRadius
         )
         .frame(width: laneWidth, height: blockHeight)
         .offset(x: blockX, y: blockY)
@@ -2723,7 +2785,9 @@ private struct TimelineGrid: View {
                     task: task,
                     style: style,
                     isCompleted: isCompleted,
-                    cornerRadius: cornerRadius
+                    cornerRadius: cornerRadius,
+                    topRadius: vertical.topRadius,
+                    bottomRadius: vertical.bottomRadius
                 )
             }
             .buttonStyle(.plain)
@@ -2737,9 +2801,18 @@ private struct TimelineGrid: View {
         task: ScheduleTask,
         style: SchedulePriorityStyle,
         isCompleted: Bool,
-        cornerRadius: CGFloat
+        cornerRadius: CGFloat,
+        topRadius: CGFloat? = nil,
+        bottomRadius: CGFloat? = nil
     ) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: topRadius ?? cornerRadius,
+            bottomLeadingRadius: bottomRadius ?? cornerRadius,
+            bottomTrailingRadius: bottomRadius ?? cornerRadius,
+            topTrailingRadius: topRadius ?? cornerRadius,
+            style: .continuous
+        )
+        return VStack(alignment: .leading, spacing: 3) {
             Text(task.title)
                 .font(isDayMode ? .subheadline.weight(.semibold) : .caption2.weight(.semibold))
                 .lineLimit(isDayMode ? 2 : 3)
@@ -2758,12 +2831,15 @@ private struct TimelineGrid: View {
             CalendarCompletedCardFill(
                 color: style.background,
                 isCompleted: isCompleted,
-                cornerRadius: cornerRadius
+                cornerRadius: cornerRadius,
+                topRadius: topRadius,
+                bottomRadius: bottomRadius
             )
         }
         .overlay(alignment: .leading) {
             Capsule().fill(style.accent).frame(width: 3).padding(.vertical, 5)
         }
+        .clipShape(shape)
     }
 
     @ViewBuilder
@@ -2788,23 +2864,27 @@ private struct TimelineGrid: View {
                 30,
                 Int(previewRange.end.timeIntervalSince(previewRange.start) / 60)
             )
-            let blockHeight = max(
-                geometry.height(forDurationMinutes: durationMinutes, startingAt: snappedMinutes),
-                isDayMode ? 48 : 28
+            let vertical = TimelineIdleChrome.taskVerticalLayout(
+                startMinutes: snappedMinutes,
+                durationMinutes: durationMinutes,
+                geometry: geometry,
+                cornerRadius: cornerRadius,
+                minimumHeight: isDayMode ? 48 : 28
             )
-            let blockY = geometry.y(forMinutes: snappedMinutes) + 4
             let ghostWidth = max(dayWidth - horizontalInset * 2, 1)
 
             taskBlockLabel(
                 task: task,
                 style: style,
                 isCompleted: isCompleted,
-                cornerRadius: cornerRadius
+                cornerRadius: cornerRadius,
+                topRadius: vertical.topRadius,
+                bottomRadius: vertical.bottomRadius
             )
-            .frame(width: ghostWidth, height: blockHeight)
+            .frame(width: ghostWidth, height: vertical.height)
             .offset(
                 x: labelWidth + CGFloat(targetDayIndex) * dayWidth + horizontalInset,
-                y: blockY
+                y: vertical.y
             )
             .shadow(color: TimiaTheme.shadow.opacity(0.35), radius: 8, y: 4)
             .allowsHitTesting(false)

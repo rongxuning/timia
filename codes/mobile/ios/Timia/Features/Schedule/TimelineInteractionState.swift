@@ -63,9 +63,10 @@ enum IdleCollapseToggleStyle {
     static let visibleTitles: [String] = []
     static let gapBarsShowTimeLabels = false
     static let placesIconBelowAllDay = true
+    static let usesCustomIcon = true
 
-    static func symbolName(collapseEnabled: Bool) -> String {
-        collapseEnabled ? "chevron.compact.down" : "chevron.compact.up"
+    static func symbolName(collapseEnabled _: Bool) -> String? {
+        nil
     }
 
     static func accessibilityLabel(collapseEnabled: Bool) -> String {
