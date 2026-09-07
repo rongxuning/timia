@@ -3,8 +3,9 @@ import XCTest
 
 final class IdleCollapseToggleStyleTests: XCTestCase {
     func testUsesIconOnlyControlBelowAllDay() {
-        XCTAssertEqual(IdleCollapseToggleStyle.symbolName(collapseEnabled: true), "chevron.compact.down")
-        XCTAssertEqual(IdleCollapseToggleStyle.symbolName(collapseEnabled: false), "chevron.compact.up")
+        XCTAssertTrue(IdleCollapseToggleStyle.usesCustomIcon)
+        XCTAssertNil(IdleCollapseToggleStyle.symbolName(collapseEnabled: true))
+        XCTAssertNil(IdleCollapseToggleStyle.symbolName(collapseEnabled: false))
         XCTAssertFalse(IdleCollapseToggleStyle.showsTextLabels)
         XCTAssertTrue(IdleCollapseToggleStyle.visibleTitles.isEmpty)
         XCTAssertTrue(IdleCollapseToggleStyle.placesIconBelowAllDay)

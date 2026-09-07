@@ -54,6 +54,20 @@ struct CalendarCompletedCardFill: View {
     let color: Color
     let isCompleted: Bool
     var cornerRadius: CGFloat
+    var topRadius: CGFloat? = nil
+    var bottomRadius: CGFloat? = nil
+
+    private var fillShape: UnevenRoundedRectangle {
+        let top = topRadius ?? cornerRadius
+        let bottom = bottomRadius ?? cornerRadius
+        return UnevenRoundedRectangle(
+            topLeadingRadius: top,
+            bottomLeadingRadius: bottom,
+            bottomTrailingRadius: bottom,
+            topTrailingRadius: top,
+            style: .continuous
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -62,7 +76,7 @@ struct CalendarCompletedCardFill: View {
                 CalendarCompletedHatch()
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .clipShape(fillShape)
     }
 }
 

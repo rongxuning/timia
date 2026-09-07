@@ -93,6 +93,8 @@
 		A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */; };
 		A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */; };
 		A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */; };
+		A11A0E0A1E77000100000081 /* TimelineIdleChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000080 /* TimelineIdleChrome.swift */; };
+		A11A0E0A1E77000100000091 /* TimelineIdleChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000090 /* TimelineIdleChromeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -226,6 +228,8 @@
 		A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
 		A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionStateTests.swift; sourceTree = "<group>"; };
 		A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapseToggleStyleTests.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000080 /* TimelineIdleChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChrome.swift; sourceTree = "<group>"; };
+		A11A0E0A1E77000100000090 /* TimelineIdleChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChromeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -320,6 +324,7 @@
 				A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */,
 				A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */,
 				A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */,
+				A11A0E0A1E77000100000090 /* TimelineIdleChromeTests.swift */,
 				C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */,
 			);
 			path = TimiaTests;
@@ -360,6 +365,7 @@
 				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
 				B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */,
 				25793DC2D71167F0541FC926 /* TimelineGeometry.swift */,
+				A11A0E0A1E77000100000080 /* TimelineIdleChrome.swift */,
 				A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */,
 				BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */,
 			);
@@ -744,6 +750,7 @@
 				C5CA1F18B20A238D656014AE /* TimiaScreenActivityAttributes.swift in Sources */,
 				A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */,
 				A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */,
+				A11A0E0A1E77000100000081 /* TimelineIdleChrome.swift in Sources */,
 				AAB8EE3FDFB7671AB0A72B7A /* TimiaTheme.swift in Sources */,
 				1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */,
 				4AB667730AE22CE12515095D /* TodoDayCoverage.swift in Sources */,
@@ -788,6 +795,7 @@
 				A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */,
 				A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */,
 				A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */,
+				A11A0E0A1E77000100000091 /* TimelineIdleChromeTests.swift in Sources */,
 				56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
