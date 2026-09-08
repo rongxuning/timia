@@ -83,9 +83,9 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertTrue(state.healthEnabled)
         XCTAssertEqual(state.healthTitle, "健康数据同步")
         XCTAssertEqual(state.healthTimeLabel, "2分钟前")
-        // Health alone does not contribute to workingCount (未开始+进行中+逾期).
+        // Health alone does not contribute to workingCount / Island badge.
         XCTAssertEqual(state.workingCount, 0)
-        XCTAssertEqual(state.totalCount, 1)
+        XCTAssertEqual(state.totalCount, 0)
         XCTAssertEqual(state.allDayCount, 0)
         XCTAssertTrue(state.todos.isEmpty)
     }
@@ -159,7 +159,8 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertEqual(state.notStartedCount, 1)
         XCTAssertEqual(state.overdueCount, 1)
         XCTAssertEqual(state.allDayCount, 1)
-        XCTAssertEqual(state.totalCount, 5) // 3 active + 1 all-day + 1 health
+        // Island badge matches lock-screen header (excludes health + all-day).
+        XCTAssertEqual(state.totalCount, 3)
     }
 
     func testTimedTodoDoesNotAppearInAllDaySection() {
@@ -246,7 +247,7 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertTrue(state.doingTodos.isEmpty)
         XCTAssertTrue(state.notStartedTodos.isEmpty)
         XCTAssertTrue(state.overdueTodos.isEmpty)
-        XCTAssertEqual(state.totalCount, 2) // legacy workingCount + health
+        XCTAssertEqual(state.totalCount, 1) // Island = workingCount only
     }
 
     func testTodoRowDecodesMissingStatusAsTodo() throws {
