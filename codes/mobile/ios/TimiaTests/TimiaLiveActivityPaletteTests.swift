@@ -47,4 +47,22 @@ final class TimiaLiveActivityPaletteTests: XCTestCase {
         XCTAssertEqual(dark.primaryTextHex, "#FFFFFF")
         XCTAssertEqual(light.primaryTextHex, "#000000")
     }
+
+    func testTaskProgressStyleMatchesCalendarStatusChrome() {
+        XCTAssertEqual(TaskProgressStyle.symbolName(for: "todo"), "circle")
+        XCTAssertEqual(TaskProgressStyle.symbolName(for: "doing"), "clock.fill")
+        XCTAssertEqual(TaskProgressStyle.symbolName(for: "done"), "checkmark.circle.fill")
+        XCTAssertEqual(TaskProgressStyle.symbolName(for: "archived"), "archivebox.fill")
+        XCTAssertEqual(TaskProgressStyle.symbolName(for: "unknown"), "circle")
+
+        XCTAssertEqual(TaskProgressStyle.colorHex(for: "todo"), "#64748B")
+        XCTAssertEqual(TaskProgressStyle.colorHex(for: "doing"), "#3B82F6")
+        XCTAssertEqual(TaskProgressStyle.colorHex(for: "done"), "#10B981")
+        XCTAssertEqual(TaskProgressStyle.colorHex(for: "archived"), "#8B5CF6")
+        XCTAssertEqual(TaskProgressStyle.colorHex(for: "unknown"), "#64748B")
+        XCTAssertEqual(TaskProgressStyle.accessibilityLabel(for: "todo"), "未开始")
+        XCTAssertEqual(TaskProgressStyle.accessibilityLabel(for: "doing"), "进行中")
+        XCTAssertEqual(TaskProgressStyle.accessibilityLabel(for: "done"), "已完成")
+        XCTAssertEqual(TaskProgressStyle.accessibilityLabel(for: "archived"), "已归档")
+    }
 }

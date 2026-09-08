@@ -25,10 +25,75 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
         var allDayCount: Int { todos.count }
         var totalCount: Int { workingCount + notStartedCount + overdueCount + allDayCount }
 
+        /// Max lock-screen item rows, including a trailing `more` row when truncated.
+        static let lockScreenVisibleRowLimit = 5
+
+        enum LockScreenItem: Equatable, Identifiable, Sendable {
+            case health
+            case todo(TodoRow)
+            case more
+
+            static let moreTitle = "more"
+
+            var id: String {
+                switch self {
+                case .health: "health"
+                case .todo(let row): row.id
+                case .more: "more"
+                }
+            }
+        }
+
+        var showsWorkingHeader: Bool { workingCount > 0 }
+
+        var workingHeaderTitle: String { "\(workingCount) 进行中" }
+
+        func lockScreenItems(maxRows: Int = Self.lockScreenVisibleRowLimit) -> [LockScreenItem] {
+            var items: [LockScreenItem] = []
+            if healthEnabled {
+                items.append(.health)
+            }
+            items.append(contentsOf: doingTodos.map { .todo($0) })
+            items.append(contentsOf: notStartedTodos.map { .todo($0) })
+            items.append(contentsOf: overdueTodos.map { .todo($0) })
+            items.append(contentsOf: todos.map { .todo($0) })
+
+            guard maxRows > 0 else { return [] }
+            guard items.count > maxRows else { return items }
+            // One slot is too small for a task plus more; keep one complete row.
+            if maxRows == 1 {
+                return Array(items.prefix(1))
+            }
+            return Array(items.prefix(maxRows - 1)) + [.more]
+        }
+
         struct TodoRow: Codable, Hashable, Identifiable, Sendable {
             var id: String
             var title: String
             var timeLabel: String
+            var status: String
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case title
+                case timeLabel
+                case status
+            }
+
+            init(id: String, title: String, timeLabel: String, status: String = "todo") {
+                self.id = id
+                self.title = title
+                self.timeLabel = timeLabel
+                self.status = status
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                id = try container.decode(String.self, forKey: .id)
+                title = try container.decode(String.self, forKey: .title)
+                timeLabel = try container.decode(String.self, forKey: .timeLabel)
+                status = try container.decodeIfPresent(String.self, forKey: .status) ?? "todo"
+            }
         }
 
         enum CodingKeys: String, CodingKey {

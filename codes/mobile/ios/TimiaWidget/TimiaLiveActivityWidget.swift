@@ -74,83 +74,104 @@ struct TimiaLiveActivityLockScreenView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if state.workingCount > 0 {
-                section(title: "\(state.workingCount) 进行中") {
-                    if state.healthEnabled {
-                        row(title: state.healthTitle, time: state.healthTimeLabel)
-                    }
-                    ForEach(visible(state.doingTodos)) { todo in
-                        row(title: todo.title, time: todo.timeLabel)
-                    }
-                }
-            }
-
-            if !state.notStartedTodos.isEmpty {
-                section(title: "\(state.notStartedCount) 未开始") {
-                    ForEach(visible(state.notStartedTodos)) { todo in
-                        row(title: todo.title, time: todo.timeLabel)
-                    }
-                }
-            }
-
-            if !state.overdueTodos.isEmpty {
-                section(title: "\(state.overdueCount) 逾期") {
-                    ForEach(visible(state.overdueTodos)) { todo in
-                        row(title: todo.title, time: todo.timeLabel)
-                    }
-                }
-            }
-
-            if !state.todos.isEmpty {
-                section(title: "\(state.allDayCount) 全天") {
-                    ForEach(visible(state.todos)) { todo in
-                        row(title: todo.title, time: todo.timeLabel)
-                    }
-                }
-            }
-
-            if state.totalCount == 0 {
-                Text("暂无展示内容")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.secondaryText)
-            }
+        ViewThatFits(in: .vertical) {
+            lockScreenContent(maxRows: TimiaScreenActivityAttributes.ContentState.lockScreenVisibleRowLimit)
+            lockScreenContent(maxRows: 4)
+            lockScreenContent(maxRows: 3)
+            lockScreenContent(maxRows: 2)
+            lockScreenContent(maxRows: 1)
+            lockScreenContent(maxRows: 1, includeWorkingHeader: false)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
         .environment(\.colorScheme, palette.forcedColorScheme)
         .activityBackgroundTint(palette.backgroundTint)
         .activitySystemActionForegroundColor(palette.actionForeground)
     }
 
     @ViewBuilder
-    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func lockScreenContent(maxRows: Int, includeWorkingHeader: Bool = true) -> some View {
+        let items = state.lockScreenItems(maxRows: maxRows)
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(palette.secondaryText)
-            content()
+            if includeWorkingHeader, state.showsWorkingHeader {
+                Text(state.workingHeaderTitle)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(palette.secondaryText)
+            }
+
+            ForEach(items) { item in
+                lockScreenRow(item)
+            }
+
+            if items.isEmpty {
+                Text("暂无展示内容")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.secondaryText)
+            }
+        }
+        .padding(14)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder
+    private func lockScreenRow(_ item: TimiaScreenActivityAttributes.ContentState.LockScreenItem) -> some View {
+        switch item {
+        case .health:
+            row(
+                title: state.healthTitle,
+                statusSymbol: "sparkle",
+                statusColor: palette.accent,
+                statusLabel: "健康同步",
+                time: state.healthTimeLabel,
+                muted: false
+            )
+        case .todo(let todo):
+            row(
+                title: todo.title,
+                statusSymbol: TaskProgressStyle.symbolName(for: todo.status),
+                statusColor: palette.color(fromHex: TaskProgressStyle.colorHex(for: todo.status)),
+                statusLabel: TaskProgressStyle.accessibilityLabel(for: todo.status),
+                time: todo.timeLabel,
+                muted: false
+            )
+        case .more:
+            row(
+                title: TimiaScreenActivityAttributes.ContentState.LockScreenItem.moreTitle,
+                statusSymbol: nil,
+                statusColor: palette.secondaryText,
+                statusLabel: nil,
+                time: "",
+                muted: true
+            )
         }
     }
 
-    private func visible(_ todos: [TimiaScreenActivityAttributes.ContentState.TodoRow]) -> [TimiaScreenActivityAttributes.ContentState.TodoRow] {
-        Array(todos.prefix(3))
-    }
-
-    private func row(title: String, time: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "sparkle")
-                .font(.caption)
-                .foregroundStyle(palette.accent)
+    private func row(
+        title: String,
+        statusSymbol: String?,
+        statusColor: Color,
+        statusLabel: String?,
+        time: String,
+        muted: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
             Text(title)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(palette.primaryText)
+                .foregroundStyle(muted ? palette.secondaryText : palette.primaryText)
                 .lineLimit(1)
-            Spacer(minLength: 8)
-            Text(time)
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(palette.secondaryText)
-                .lineLimit(1)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            if let statusSymbol {
+                Image(systemName: statusSymbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(statusColor)
+                    .accessibilityLabel(statusLabel ?? "")
+            }
+            if !time.isEmpty {
+                Text(time)
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(palette.secondaryText)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
         }
     }
 }
