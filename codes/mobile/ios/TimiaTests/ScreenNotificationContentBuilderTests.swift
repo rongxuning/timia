@@ -239,6 +239,90 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertEqual(state.totalCount, 1)
     }
 
+    func testLockScreenItemsFlattenBucketsWithoutStatusHeaders() {
+        let state = lockScreenState(
+            healthEnabled: true,
+            doing: [todoRow("doing", "trailmo.看店", "12:00 – 19:00")],
+            notStarted: [
+                todoRow("ns-1", "减脂塑形", "18:15 – 19:00"),
+                todoRow("ns-2", "胸背塑造", "19:00 – 20:00"),
+            ],
+            overdue: [todoRow("overdue", "soho 简厨", "09:10 – 10:00")],
+            allDay: [todoRow("all-day", "值班", "全天")]
+        )
+
+        XCTAssertEqual(
+            state.lockScreenItems(maxRows: 8).map(\.id),
+            ["health", "doing", "ns-1", "ns-2", "overdue", "all-day"]
+        )
+        XCTAssertTrue(state.showsWorkingHeader)
+        XCTAssertEqual(state.workingHeaderTitle, "2 进行中")
+    }
+
+    func testLockScreenItemsFitWithoutMoreRow() {
+        let state = lockScreenState(
+            healthEnabled: true,
+            doing: [todoRow("doing", "trailmo.看店", "12:00 – 19:00")],
+            notStarted: [
+                todoRow("ns-1", "减脂塑形", "18:15 – 19:00"),
+                todoRow("ns-2", "胸背塑造", "19:00 – 20:00"),
+            ],
+            overdue: [todoRow("overdue", "soho 简厨", "09:10 – 10:00")]
+        )
+
+        let items = state.lockScreenItems(maxRows: 5)
+        XCTAssertEqual(items.map(\.id), ["health", "doing", "ns-1", "ns-2", "overdue"])
+        XCTAssertFalse(items.contains(.more))
+    }
+
+    func testLockScreenItemsOverflowUsesCompleteMoreRow() {
+        let state = lockScreenState(
+            healthEnabled: true,
+            doing: [todoRow("doing", "trailmo.看店", "12:00 – 19:00")],
+            notStarted: [
+                todoRow("ns-1", "减脂塑形", "18:15 – 19:00"),
+                todoRow("ns-2", "胸背塑造", "19:00 – 20:00"),
+            ],
+            overdue: [todoRow("overdue", "soho 简厨", "09:10 – 10:00")],
+            allDay: [todoRow("all-day", "值班", "全天")]
+        )
+
+        let items = state.lockScreenItems(maxRows: 5)
+        XCTAssertEqual(items.count, 5)
+        XCTAssertEqual(items.last, .more)
+        XCTAssertEqual(items.dropLast().map(\.id), ["health", "doing", "ns-1", "ns-2"])
+        XCTAssertEqual(
+            items.compactMap(\.todoTitle),
+            ["trailmo.看店", "减脂塑形", "胸背塑造"]
+        )
+        XCTAssertEqual(state.lockScreenItems(), items)
+        XCTAssertEqual(
+            TimiaScreenActivityAttributes.ContentState.lockScreenVisibleRowLimit,
+            5
+        )
+        XCTAssertEqual(
+            TimiaScreenActivityAttributes.ContentState.LockScreenItem.moreTitle,
+            "more"
+        )
+    }
+
+    func testLockScreenItemsHidesWorkingHeaderWhenNothingIsWorking() {
+        let state = lockScreenState(
+            healthEnabled: false,
+            notStarted: [todoRow("ns-1", "减脂塑形", "18:15 – 19:00")]
+        )
+        XCTAssertFalse(state.showsWorkingHeader)
+        XCTAssertEqual(state.lockScreenItems(maxRows: 5).map(\.id), ["ns-1"])
+    }
+
+    func testLockScreenItemsSingleSlotOverflowIsJustMore() {
+        let state = lockScreenState(
+            healthEnabled: true,
+            doing: [todoRow("doing", "写周报", "15:00 – 16:00")]
+        )
+        XCTAssertEqual(state.lockScreenItems(maxRows: 1), [.more])
+    }
+
     func testPreferenceRoundTrip() {
         let previous = ScreenNotificationPreference.current
         defer { ScreenNotificationPreference.current = previous }
@@ -253,6 +337,33 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
 
         ScreenNotificationPreference.current = .unset
         XCTAssertEqual(ScreenNotificationPreference.current, .unset)
+    }
+
+    private func lockScreenState(
+        healthEnabled: Bool,
+        doing: [TimiaScreenActivityAttributes.ContentState.TodoRow] = [],
+        notStarted: [TimiaScreenActivityAttributes.ContentState.TodoRow] = [],
+        overdue: [TimiaScreenActivityAttributes.ContentState.TodoRow] = [],
+        allDay: [TimiaScreenActivityAttributes.ContentState.TodoRow] = []
+    ) -> TimiaScreenActivityAttributes.ContentState {
+        TimiaScreenActivityAttributes.ContentState(
+            healthEnabled: healthEnabled,
+            healthTitle: "健康数据同步",
+            healthTimeLabel: "尚未同步",
+            todos: allDay,
+            workingCount: (healthEnabled ? 1 : 0) + doing.count,
+            doingTodos: doing,
+            notStartedTodos: notStarted,
+            overdueTodos: overdue
+        )
+    }
+
+    private func todoRow(
+        _ id: String,
+        _ title: String,
+        _ time: String
+    ) -> TimiaScreenActivityAttributes.ContentState.TodoRow {
+        TimiaScreenActivityAttributes.ContentState.TodoRow(id: id, title: title, timeLabel: time)
     }
 
     private func shanghaiCalendar() -> Calendar {
@@ -289,5 +400,12 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
             projectId: "p",
             projectName: "P"
         )
+    }
+}
+
+private extension TimiaScreenActivityAttributes.ContentState.LockScreenItem {
+    var todoTitle: String? {
+        if case .todo(let row) = self { return row.title }
+        return nil
     }
 }

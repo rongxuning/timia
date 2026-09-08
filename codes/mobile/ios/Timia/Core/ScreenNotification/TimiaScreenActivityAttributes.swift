@@ -25,6 +25,44 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
         var allDayCount: Int { todos.count }
         var totalCount: Int { workingCount + notStartedCount + overdueCount + allDayCount }
 
+        /// Max lock-screen item rows, including a trailing `more` row when truncated.
+        static let lockScreenVisibleRowLimit = 5
+
+        enum LockScreenItem: Equatable, Identifiable, Sendable {
+            case health
+            case todo(TodoRow)
+            case more
+
+            static let moreTitle = "more"
+
+            var id: String {
+                switch self {
+                case .health: "health"
+                case .todo(let row): row.id
+                case .more: "more"
+                }
+            }
+        }
+
+        var showsWorkingHeader: Bool { workingCount > 0 }
+
+        var workingHeaderTitle: String { "\(workingCount) 进行中" }
+
+        func lockScreenItems(maxRows: Int = Self.lockScreenVisibleRowLimit) -> [LockScreenItem] {
+            var items: [LockScreenItem] = []
+            if healthEnabled {
+                items.append(.health)
+            }
+            items.append(contentsOf: doingTodos.map { .todo($0) })
+            items.append(contentsOf: notStartedTodos.map { .todo($0) })
+            items.append(contentsOf: overdueTodos.map { .todo($0) })
+            items.append(contentsOf: todos.map { .todo($0) })
+
+            guard maxRows > 0 else { return [] }
+            guard items.count > maxRows else { return items }
+            return Array(items.prefix(maxRows - 1)) + [.more]
+        }
+
         struct TodoRow: Codable, Hashable, Identifiable, Sendable {
             var id: String
             var title: String
