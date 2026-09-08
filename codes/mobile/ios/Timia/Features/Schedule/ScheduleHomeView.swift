@@ -524,11 +524,10 @@ struct ScheduleHomeView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
-        .background {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .ignoresSafeArea(edges: .bottom)
-        }
+        // Do not ignoreSafeArea on this inset background: inside safeAreaInset it
+        // expands the reserved bar height by the home-indicator inset (~34pt).
+        // Page surface already covers the indicator zone via .background(...).
+        .background(.ultraThinMaterial)
         .animation(.snappy(duration: 0.28), value: isRangePickerExpanded)
     }
 
