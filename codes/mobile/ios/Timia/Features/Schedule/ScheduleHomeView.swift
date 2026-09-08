@@ -92,8 +92,6 @@ struct ScheduleHomeView: View {
 
     var body: some View {
         ZStack {
-            TimiaTheme.surface.ignoresSafeArea()
-
             VStack(spacing: 0) {
                 header
 
@@ -183,6 +181,9 @@ struct ScheduleHomeView: View {
                     .zIndex(10)
             }
         }
+        // Background as modifier (not a ZStack child) so ignoresSafeArea does not
+        // expand the content layout under the bottom bar / home indicator.
+        .background(TimiaTheme.surface.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .keyboardDoneToolbar { dismissNaturalLanguageInput() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -523,7 +524,11 @@ struct ScheduleHomeView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
-        .background(.ultraThinMaterial)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .bottom)
+        }
         .animation(.snappy(duration: 0.28), value: isRangePickerExpanded)
     }
 
@@ -3620,7 +3625,8 @@ private struct TodoScheduleView: View {
                 )
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
         .background(TimiaTheme.canvas)
         .scrollDismissesKeyboard(.interactively)
