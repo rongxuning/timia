@@ -91,13 +91,12 @@ struct TimiaLiveActivityPalette: Equatable, Sendable {
     static func make(colorScheme: ColorScheme) -> Self {
         switch colorScheme {
         case .dark:
-            // Opaque system-dark surface so lock-screen text stays readable
-            // over busy wallpapers (no frosted bleed-through).
+            // Frosted dark tint so wallpaper shows through while white labels stay readable.
             return Self(
-                backgroundHex: "#1C1C1E",
-                backgroundOpacity: 1.0,
+                backgroundHex: "#000000",
+                backgroundOpacity: 0.62,
                 primaryTextHex: "#FFFFFF",
-                secondaryTextHex: "#8E8E93",
+                secondaryTextHex: "#C7C7CC",
                 accentHex: "#0A84FF",
                 actionForegroundHex: "#FFFFFF",
                 isDark: true
