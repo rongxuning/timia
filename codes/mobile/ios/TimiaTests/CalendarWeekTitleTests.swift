@@ -78,20 +78,53 @@ final class CalendarWeekTitleTests: XCTestCase {
         XCTAssertEqual(dayKey(revealed), "2026-08-16")
     }
 
-    func testRevealShiftsStripByOneDayWhenDateLeavesTheEnd() {
-        let start = date(2026, 8, 16)
-        let revealed = dateStripStartByRevealing(date(2026, 8, 23), currentStart: start, calendar: calendar)
+    func testRevealPagesStripBySevenDaysWhenDateLeavesTheEnd() {
+        // Strip 10–16; leave on 17 → adjacent cycle 17–23.
+        let start = date(2026, 9, 10)
+        let revealed = dateStripStartByRevealing(date(2026, 9, 17), currentStart: start, calendar: calendar)
 
-        XCTAssertEqual(dayKey(revealed), "2026-08-17")
-        XCTAssertEqual(dayKey(dateStripDays(starting: revealed, calendar: calendar).last), "2026-08-23")
+        XCTAssertEqual(dayKey(revealed), "2026-09-17")
+        XCTAssertEqual(
+            dateStripDays(starting: revealed, calendar: calendar).map(dayKey),
+            [
+                "2026-09-17",
+                "2026-09-18",
+                "2026-09-19",
+                "2026-09-20",
+                "2026-09-21",
+                "2026-09-22",
+                "2026-09-23",
+            ]
+        )
     }
 
-    func testRevealShiftsStripByOneDayWhenDateLeavesTheStart() {
-        let start = date(2026, 8, 16)
-        let revealed = dateStripStartByRevealing(date(2026, 8, 15), currentStart: start, calendar: calendar)
+    func testRevealPagesStripBySevenDaysWhenDateLeavesTheStart() {
+        // Strip 10–16; leave on 9 → adjacent cycle 3–9.
+        let start = date(2026, 9, 10)
+        let revealed = dateStripStartByRevealing(date(2026, 9, 9), currentStart: start, calendar: calendar)
 
-        XCTAssertEqual(dayKey(revealed), "2026-08-15")
-        XCTAssertEqual(dayKey(dateStripDays(starting: revealed, calendar: calendar).last), "2026-08-21")
+        XCTAssertEqual(dayKey(revealed), "2026-09-03")
+        XCTAssertEqual(
+            dateStripDays(starting: revealed, calendar: calendar).map(dayKey),
+            [
+                "2026-09-03",
+                "2026-09-04",
+                "2026-09-05",
+                "2026-09-06",
+                "2026-09-07",
+                "2026-09-08",
+                "2026-09-09",
+            ]
+        )
+    }
+
+    func testRevealPagesMultipleCyclesWhenDateJumpsFarPastRange() {
+        let start = date(2026, 9, 10)
+        let forward = dateStripStartByRevealing(date(2026, 9, 24), currentStart: start, calendar: calendar)
+        let backward = dateStripStartByRevealing(date(2026, 9, 2), currentStart: start, calendar: calendar)
+
+        XCTAssertEqual(dayKey(forward), "2026-09-24")
+        XCTAssertEqual(dayKey(backward), "2026-08-27")
     }
 
     func testWeekStripStartSnapsToSundayContainingDate() {

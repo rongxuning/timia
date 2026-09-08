@@ -40,10 +40,11 @@ func dateStripStartByRevealing(
     }) {
         return start
     }
-    if target < start {
-        return target
-    }
-    return dateByAddingDays(-6, to: target, calendar: calendar)
+    // Page by adjacent 7-day cycles relative to the current strip start.
+    // Example: strip 10–16, scroll to 17 → start becomes 17 (17–23).
+    let dayDelta = calendar.dateComponents([.day], from: start, to: target).day ?? 0
+    let cycles = dayDelta >= 0 ? dayDelta / 7 : (dayDelta - 6) / 7
+    return dateByAddingDays(cycles * 7, to: start, calendar: calendar)
 }
 
 func dateStripStartForWeek(containing date: Date, calendar: Calendar = .current) -> Date {
