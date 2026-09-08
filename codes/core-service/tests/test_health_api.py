@@ -6,6 +6,7 @@ import gzip
 import json
 import secrets
 import uuid
+import zlib
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -2213,6 +2214,57 @@ def test_health_sync_samples_rejects_bad_gzip():
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "content_encoding_invalid"
+
+
+def test_health_sync_samples_rejects_corrupt_gzip_deflate():
+    """Valid gzip header + bad deflate used to raise zlib.error as HTTP 500."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    payload = b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff" + b"\xff" * 32 + b"\x00" * 8
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=payload,
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "content_encoding_invalid"
+
+
+def test_health_sync_samples_accepts_zlib_payload_inside_gzip_header():
+    """Some Apple Compression clients wrap zlib bytes in a gzip header."""
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "timezone": "Asia/Shanghai",
+        "samples": [
+            {
+                "hk_uuid": str(uuid.uuid4()),
+                "metric_type": "step_count",
+                "start_at": now,
+                "end_at": now,
+                "value": 100,
+                "unit": "count",
+            }
+        ],
+    }
+    inner = zlib.compress(json.dumps(payload).encode("utf-8"))
+    wrapped = b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff" + inner + b"\x00" * 8
+    resp = client.post(
+        "/health/sync/samples",
+        headers={
+            **_headers(token),
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip",
+        },
+        content=wrapped,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["upserted"] == 1
 
 
 def test_health_sync_samples_rejects_oversize_gzip_body(monkeypatch):

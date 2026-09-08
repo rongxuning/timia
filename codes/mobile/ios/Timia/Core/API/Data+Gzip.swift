@@ -1,92 +1,91 @@
-import Compression
 import Foundation
+import zlib
 
 enum GzipError: Error {
     case compressionFailed
+    case decompressionFailed
 }
 
 extension Data {
-    /// Returns gzip-compressed data (RFC 1952) for `Content-Encoding: gzip`.
+    /// RFC 1952 gzip. Uses system zlib (`windowBits` 15+16) so the payload
+    /// matches Python `gzip.decompress` / `Content-Encoding: gzip`.
     func gzipCompressed() throws -> Data {
-        var output = Data()
-        // Minimal gzip header (deflate, no optional fields).
-        output.append(contentsOf: [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF])
-
-        let deflated = try deflateRaw()
-        output.append(deflated)
-
-        var crc = gzipCRC32().littleEndian
-        output.append(Data(bytes: &crc, count: 4))
-        var isize = UInt32(truncatingIfNeeded: count).littleEndian
-        output.append(Data(bytes: &isize, count: 4))
-        return output
+        try gzipTransform(compress: true)
     }
 
-    /// Raw DEFLATE payload extracted from zlib output (strip 2-byte header + 4-byte Adler-32).
-    private func deflateRaw() throws -> Data {
-        let bufferSize = 64 * 1024
-        var zlibOutput = Data()
+    func gzipDecompressed() throws -> Data {
+        try gzipTransform(compress: false)
+    }
 
-        try withUnsafeBytes { (src: UnsafeRawBufferPointer) in
-            guard let srcBase = src.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
-
-            let dstBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-            defer { dstBuffer.deallocate() }
-
-            var stream = compression_stream(
-                dst_ptr: dstBuffer,
-                dst_size: 0,
-                src_ptr: srcBase,
-                src_size: 0,
-                state: nil
+    private func gzipTransform(compress: Bool) throws -> Data {
+        var stream = z_stream()
+        let windowBits: Int32 = 15 + 16
+        let initStatus: Int32
+        if compress {
+            initStatus = deflateInit2_(
+                &stream,
+                Z_DEFAULT_COMPRESSION,
+                Z_DEFLATED,
+                windowBits,
+                8,
+                Z_DEFAULT_STRATEGY,
+                ZLIB_VERSION,
+                Int32(MemoryLayout<z_stream>.size)
             )
-            let initStatus = compression_stream_init(&stream, COMPRESSION_STREAM_ENCODE, COMPRESSION_ZLIB)
-            guard initStatus != COMPRESSION_STATUS_ERROR else { throw GzipError.compressionFailed }
-            defer { compression_stream_destroy(&stream) }
-
-            stream.src_ptr = srcBase
-            stream.src_size = count
-
-            repeat {
-                stream.dst_ptr = dstBuffer
-                stream.dst_size = bufferSize
-
-                let flags: Int32 = stream.src_size == 0 ? Int32(COMPRESSION_STREAM_FINALIZE.rawValue) : 0
-                let status = compression_stream_process(&stream, flags)
-                guard status != COMPRESSION_STATUS_ERROR else { throw GzipError.compressionFailed }
-
-                let produced = bufferSize - stream.dst_size
-                if produced > 0 {
-                    zlibOutput.append(dstBuffer, count: produced)
-                }
-
-                if status == COMPRESSION_STATUS_END {
-                    break
-                }
-                guard status == COMPRESSION_STATUS_OK else { throw GzipError.compressionFailed }
-            } while true
+        } else {
+            initStatus = inflateInit2_(&stream, windowBits, ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size))
         }
-
-        guard zlibOutput.count >= 6 else { throw GzipError.compressionFailed }
-        return zlibOutput.subdata(in: 2 ..< (zlibOutput.count - 4))
-    }
-
-    private func gzipCRC32() -> UInt32 {
-        var crc: UInt32 = 0xFFFF_FFFF
-        for byte in self {
-            let index = Int((crc ^ UInt32(byte)) & 0xFF)
-            crc = (crc >> 8) ^ Self.crc32Table[index]
+        guard initStatus == Z_OK else {
+            throw compress ? GzipError.compressionFailed : GzipError.decompressionFailed
         }
-        return crc ^ 0xFFFF_FFFF
-    }
-
-    private static let crc32Table: [UInt32] = {
-        (0 ..< 256).map { index -> UInt32 in
-            var value = UInt32(index)
-            for _ in 0 ..< 8 {
-                value = (value & 1) == 1 ? (0xEDB8_8320 ^ (value >> 1)) : (value >> 1)
+        defer {
+            if compress {
+                deflateEnd(&stream)
+            } else {
+                inflateEnd(&stream)
             }
-            return value
         }
-    }()
+
+        return try withUnsafeBytes { src in
+            if count > 0 {
+                guard let base = src.bindMemory(to: Bytef.self).baseAddress else {
+                    throw compress ? GzipError.compressionFailed : GzipError.decompressionFailed
+                }
+                stream.next_in = UnsafeMutablePointer(mutating: base)
+                stream.avail_in = uInt(count)
+            } else {
+                stream.next_in = nil
+                stream.avail_in = 0
+            }
+
+            var output = Data()
+            let chunkSize = 64 * 1024
+            var chunk = [Bytef](repeating: 0, count: chunkSize)
+
+            while true {
+                let status = chunk.withUnsafeMutableBufferPointer { dest -> Int32 in
+                    stream.next_out = dest.baseAddress
+                    stream.avail_out = uInt(chunkSize)
+                    if compress {
+                        return deflate(&stream, Z_FINISH)
+                    }
+                    return inflate(&stream, Z_NO_FLUSH)
+                }
+                let produced = chunkSize - Int(stream.avail_out)
+                if produced > 0 {
+                    output.append(chunk, count: produced)
+                }
+                if status == Z_STREAM_END {
+                    return output
+                }
+                // Output buffer filled; keep going. zlib uses Z_OK or Z_BUF_ERROR here.
+                let canContinue = (status == Z_OK && produced > 0)
+                    || (status == Z_BUF_ERROR && produced > 0)
+                if canContinue {
+                    continue
+                }
+                throw compress ? GzipError.compressionFailed : GzipError.decompressionFailed
+            }
+        }
+    }
 }

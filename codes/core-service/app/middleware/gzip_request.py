@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import logging
+import zlib
 
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,6 +15,7 @@ logger = logging.getLogger("health.sync")
 
 # Cap decompressed body size to mitigate gzip bombs (20 MiB).
 _MAX_DECOMPRESSED_BYTES = 20 * 1024 * 1024
+_GZIP_MAGIC = b"\x1f\x8b"
 
 
 class GzipRequestMiddleware(BaseHTTPMiddleware):
@@ -24,8 +26,13 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
 
         body = await request.body()
         try:
-            decompressed = gzip.decompress(body)
-        except OSError:
+            decompressed = _decompress_gzip_body(body)
+        except (OSError, EOFError, zlib.error) as exc:
+            logger.warning(
+                "gzip_request_invalid body_len=%s err=%s",
+                len(body),
+                exc,
+            )
             return JSONResponse(status_code=400, content={"detail": "content_encoding_invalid"})
 
         if len(decompressed) > _MAX_DECOMPRESSED_BYTES:
@@ -43,3 +50,19 @@ class GzipRequestMiddleware(BaseHTTPMiddleware):
             del headers["content-encoding"]
 
         return await call_next(request)
+
+
+def _decompress_gzip_body(body: bytes) -> bytes:
+    try:
+        return gzip.decompress(body)
+    except (OSError, EOFError, zlib.error):
+        pass
+    # Clients that wrap a zlib (RFC 1950) payload in a gzip header.
+    if len(body) > 18 and body.startswith(_GZIP_MAGIC):
+        inner = body[10:-8]
+        for wbits in (zlib.MAX_WBITS, -zlib.MAX_WBITS):
+            try:
+                return zlib.decompress(inner, wbits)
+            except zlib.error:
+                continue
+    return gzip.decompress(body)
