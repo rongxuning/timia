@@ -88,19 +88,20 @@ actor HealthSyncQueue {
         try stepDone(stmt)
     }
 
-    func nextPending(limit: Int) throws -> [HealthSyncOutboxRow] {
+    func nextPending(limit: Int, afterId: Int64 = 0) throws -> [HealthSyncOutboxRow] {
         try openIfNeeded()
         let capped = max(0, limit)
         let sql = """
             SELECT id, category, local_date, payload, attempts, status
             FROM outbox
-            WHERE status = 'pending'
+            WHERE status = 'pending' AND id > ?
             ORDER BY id ASC
             LIMIT ?;
             """
         let stmt = try prepare(sql)
         defer { sqlite3_finalize(stmt) }
-        sqlite3_bind_int(stmt, 1, Int32(capped))
+        sqlite3_bind_int64(stmt, 1, afterId)
+        sqlite3_bind_int(stmt, 2, Int32(capped))
 
         var rows: [HealthSyncOutboxRow] = []
         while true {
@@ -171,6 +172,17 @@ actor HealthSyncQueue {
     func resetUploadingToPending() throws {
         try openIfNeeded()
         try exec("UPDATE outbox SET status = 'pending' WHERE status = 'uploading';")
+    }
+
+    /// Retry rows that failed permanently (e.g. gzip 4xx) after a client/server fix.
+    func requeueFailed() throws {
+        try openIfNeeded()
+        try exec("UPDATE outbox SET status = 'pending' WHERE status = 'failed';")
+    }
+
+    func failedCount() throws -> Int {
+        try openIfNeeded()
+        return try scalarInt("SELECT COUNT(*) FROM outbox WHERE status = 'failed';")
     }
 
     /// True when a workouts row would block uploading this route (earlier id or same/earlier local_date).

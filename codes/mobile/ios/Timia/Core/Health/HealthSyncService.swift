@@ -156,6 +156,7 @@ struct HealthSyncService {
             }
             onProgress(0.99, "保存增量锚点")
             try await persistCurrentAnchors(asOf: tip)
+            onProgress(1, "同步完成")
             return
         }
 
@@ -179,7 +180,9 @@ struct HealthSyncService {
         ) ?? end.addingTimeInterval(-TimeInterval(Self.backgroundLookbackDays) * 24 * 3600)
         onProgress(0.02, "锚点修复 · 近 \(Self.backgroundLookbackDays) 天")
         try await syncWindow(from: start, to: end, source: source, onProgress: onProgress)
+        onProgress(0.99, "保存增量锚点")
         try await persistCurrentAnchors(asOf: Date())
+        onProgress(1, "同步完成")
     }
 
     /// Incremental path: anchored export → enqueue → drain; no fixed 2h overlap.
@@ -241,7 +244,6 @@ struct HealthSyncService {
             upserted: upserted,
             dates: dates
         )
-        onProgress(1, "同步完成")
     }
 
     func syncWindow(
@@ -372,7 +374,6 @@ struct HealthSyncService {
             upserted: upserted,
             dates: Array(localDates).sorted()
         )
-        onProgress(1, "同步完成")
     }
 
     /// Background: anchored export → enqueue → budgeted drain. Heals with a 2-day window when anchors are unhealthy.

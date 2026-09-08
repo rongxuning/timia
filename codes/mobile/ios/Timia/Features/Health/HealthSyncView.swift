@@ -8,6 +8,7 @@ enum HealthSyncFailure: Equatable {
     case server(status: Int, message: String)
     case timeout
     case permission
+    case outboxStuck(remaining: Int)
     case other(message: String)
 
     var alertTitle: String { "同步失败" }
@@ -24,6 +25,8 @@ enum HealthSyncFailure: Equatable {
             return "请求超时，下次同步会从断点继续。"
         case .permission:
             return "健康数据权限被收回。请到「设置 → 健康 → Timia」重新授权。"
+        case let .outboxStuck(remaining):
+            return "本地还有 \(remaining) 条待上传，这一轮发不出去。请点「清空本地队列」后重新同步。"
         case let .other(message):
             return message
         }
@@ -44,6 +47,9 @@ struct HealthSyncView: View {
     @State private var quantityGapHint: String?
     @State private var lastSyncedAt: Date?
     @State private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    @State private var outboxPendingCount = 0
+    @State private var outboxFailedCount = 0
+    @State private var confirmClearOutbox = false
 
     private static let lastErrorSummaryKey = "timia.health.lastErrorSummary"
 
@@ -84,6 +90,13 @@ struct HealthSyncView: View {
                     Text("水位与同步记录保存在服务端；本机按天上传原始数据。首次约 90 天，中断后从服务端断点继续。新数据也会在写入「健康」后后台上传。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    if outboxPendingCount + outboxFailedCount > 0 {
+                        LabeledContent("本地队列", value: queueSummary)
+                        Button("清空本地队列", role: .destructive) {
+                            confirmClearOutbox = true
+                        }
+                        .disabled(isSyncing)
+                    }
                 }
                 if let hint = permissions.lastError {
                     Text(hint).foregroundStyle(.red)
@@ -150,8 +163,13 @@ struct HealthSyncView: View {
             lastErrorSummary = UserDefaults.standard.string(forKey: Self.lastErrorSummaryKey)
             await refreshStatus()
             await loadPendingDays()
+            await refreshOutboxCounts()
         }
-        .refreshable { await refreshStatus(); await loadPendingDays() }
+        .refreshable {
+            await refreshStatus()
+            await loadPendingDays()
+            await refreshOutboxCounts()
+        }
         .overlay {
             if isSyncing {
                 ZStack {
@@ -178,6 +196,14 @@ struct HealthSyncView: View {
             Button("好", role: .cancel) { syncError = nil }
         } message: {
             Text(syncError?.userMessage ?? "")
+        }
+        .confirmationDialog("清空本地队列？", isPresented: $confirmClearOutbox, titleVisibility: .visible) {
+            Button("清空", role: .destructive) {
+                Task { await clearOutbox() }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("只删除本机还没发出去的批次，服务端已同步的数据不受影响。清空后请再点同步。")
         }
     }
 
@@ -236,10 +262,7 @@ struct HealthSyncView: View {
         progressText = "正在同步…"
         syncError = nil
         beginSyncBackgroundTask()
-        defer {
-            endSyncBackgroundTask()
-            isSyncing = false
-        }
+        defer { endSyncBackgroundTask() }
         do {
             // Pull authoritative watermark before choosing the window.
             await refreshStatus()
@@ -259,21 +282,28 @@ struct HealthSyncView: View {
                 progress = max(0.02, fraction)
                 progressText = label
             }
-            await refreshStatus()
-            pendingDays = []
+            progress = 1
+            progressText = "同步完成"
+            try? await Task.sleep(for: .milliseconds(350))
+            isSyncing = false
             clearLastError()
+            pendingDays = []
+            await refreshStatus()
             await HealthBackgroundDelivery.shared.start(api: session.api)
             await ScreenNotificationManager.shared.refresh(api: session.api)
             await loadPendingDays()
+            await refreshOutboxCounts()
         } catch {
+            isSyncing = false
             // Day checkpoints are on the server; refresh to show resume point.
-            await refreshStatus()
             let failure = mapFailure(error)
             syncError = failure
             let summary = summarize(failure)
             lastErrorSummary = summary
             UserDefaults.standard.set(summary, forKey: Self.lastErrorSummaryKey)
+            await refreshStatus()
             await loadPendingDays()
+            await refreshOutboxCounts()
         }
     }
 
@@ -301,6 +331,14 @@ struct HealthSyncView: View {
                 return .server(status: status, message: message)
             }
         }
+        if let drain = error as? HealthSyncDrainError {
+            switch drain {
+            case .noProgress(let remaining):
+                return .outboxStuck(remaining: remaining)
+            case .decodeFailed, .unsupportedCategory:
+                return .other(message: drain.localizedDescription)
+            }
+        }
         let nsError = error as NSError
         if nsError.domain == "NSHealthShareDeniedErrorDomain" || nsError.code == 5 {
             return .permission
@@ -314,6 +352,7 @@ struct HealthSyncView: View {
         case .offline: return "网络断开"
         case .timeout: return "请求超时"
         case .permission: return "健康权限被收回"
+        case .outboxStuck: return "本地队列卡住"
         case let .server(status, _): return "服务端错误 \(status)"
         case let .other(message):
             return message.count > 30 ? String(message.prefix(30)) + "…" : message
@@ -323,6 +362,26 @@ struct HealthSyncView: View {
     private func clearLastError() {
         lastErrorSummary = nil
         UserDefaults.standard.removeObject(forKey: Self.lastErrorSummaryKey)
+    }
+
+    private var queueSummary: String {
+        var parts: [String] = []
+        if outboxPendingCount > 0 { parts.append("待发 \(outboxPendingCount)") }
+        if outboxFailedCount > 0 { parts.append("失败 \(outboxFailedCount)") }
+        return parts.isEmpty ? "空" : parts.joined(separator: " · ")
+    }
+
+    private func refreshOutboxCounts() async {
+        outboxPendingCount = (try? await HealthSyncQueue.shared.pendingCount()) ?? 0
+        outboxFailedCount = (try? await HealthSyncQueue.shared.failedCount()) ?? 0
+    }
+
+    private func clearOutbox() async {
+        try? await HealthSyncQueue.shared.clearAll()
+        clearLastError()
+        syncError = nil
+        await refreshOutboxCounts()
+        await loadPendingDays()
     }
 
     private func beginSyncBackgroundTask() {

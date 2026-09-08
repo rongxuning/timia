@@ -41,7 +41,7 @@ enum HealthSyncDrainError: Error, LocalizedError, Sendable {
         case .unsupportedCategory(let category):
             return "Outbox category not supported yet: \(category.rawValue)"
         case .noProgress(let remaining):
-            return "Outbox drain made no progress with \(remaining) row(s) remaining"
+            return "本地还有 \(remaining) 条待上传，这一轮发不出去。请清空本地队列后重新同步。"
         }
     }
 }
@@ -75,6 +75,7 @@ struct HealthSyncDrain {
         onProgress: ((String) -> Void)? = nil
     ) async throws -> Int {
         try await queue.resetUploadingToPending()
+        try await queue.requeueFailed()
 
         let started = Date()
         let uploadStarted = Date()
@@ -158,44 +159,48 @@ struct HealthSyncDrain {
     // → workouts → routes (blocked while same/earlier-day workouts pending).
 
     private func nextUploadWave(limit: Int) async throws -> [HealthSyncOutboxRow] {
-        let pending = try await queue.nextPending(limit: max(limit * 16, 64))
-        guard !pending.isEmpty else { return [] }
-
-        // Prefer deletions so soft-deletes land before upserts that could clear deleted_at.
-        let deletionRows = pending.filter { $0.category == .deletions }
-        if !deletionRows.isEmpty {
-            return Array(deletionRows.prefix(limit))
-        }
-
-        // Group A: mix safe categories in one wave up to the concurrency cap.
+        let pageSize = max(limit * 32, 128)
+        var afterId: Int64 = 0
+        var deletions: [HealthSyncOutboxRow] = []
         var groupA: [HealthSyncOutboxRow] = []
-        groupA.reserveCapacity(limit)
-        for row in pending where Self.parallelGroupA.contains(row.category) {
-            groupA.append(row)
-            if groupA.count >= limit { break }
-        }
-        if !groupA.isEmpty {
-            return groupA
+        var workouts: [HealthSyncOutboxRow] = []
+        var routes: [HealthSyncOutboxRow] = []
+
+        while true {
+            let page = try await queue.nextPending(limit: pageSize, afterId: afterId)
+            if page.isEmpty { break }
+            afterId = page.last?.id ?? afterId
+
+            for row in page {
+                switch row.category {
+                case .deletions:
+                    if deletions.count < limit { deletions.append(row) }
+                case .samples, .sleep, .standHours, .heartbeats:
+                    if groupA.count < limit { groupA.append(row) }
+                case .workouts:
+                    if workouts.count < limit { workouts.append(row) }
+                case .routes:
+                    if routes.count < limit {
+                        let blocked = try await queue.hasBlockingWorkouts(
+                            forRouteId: row.id,
+                            localDate: row.localDate
+                        )
+                        if !blocked { routes.append(row) }
+                    }
+                }
+            }
+
+            if deletions.count >= limit { return Array(deletions.prefix(limit)) }
+            if groupA.count >= limit { return Array(groupA.prefix(limit)) }
+            if workouts.count >= limit { return Array(workouts.prefix(limit)) }
+            if routes.count >= limit { return Array(routes.prefix(limit)) }
+            if page.count < pageSize { break }
         }
 
-        // Workouts before routes (routes may depend on workout upserts for the same day).
-        let workoutRows = pending.filter { $0.category == .workouts }
-        if !workoutRows.isEmpty {
-            return Array(workoutRows.prefix(limit))
-        }
-
-        var routeRows: [HealthSyncOutboxRow] = []
-        routeRows.reserveCapacity(limit)
-        for row in pending where row.category == .routes {
-            let blocked = try await queue.hasBlockingWorkouts(
-                forRouteId: row.id,
-                localDate: row.localDate
-            )
-            if blocked { continue }
-            routeRows.append(row)
-            if routeRows.count >= limit { break }
-        }
-        return routeRows
+        if !deletions.isEmpty { return Array(deletions.prefix(limit)) }
+        if !groupA.isEmpty { return Array(groupA.prefix(limit)) }
+        if !workouts.isEmpty { return Array(workouts.prefix(limit)) }
+        return Array(routes.prefix(limit))
     }
 
     // MARK: - Upload one outbox row
