@@ -91,13 +91,13 @@ struct TimiaLiveActivityPalette: Equatable, Sendable {
     static func make(colorScheme: ColorScheme) -> Self {
         switch colorScheme {
         case .dark:
-            // Same lock-screen Live Activity chrome as other apps:
-            // dark frosted material + white / gray labels + system blue icon.
+            // Opaque system-dark surface so lock-screen text stays readable
+            // over busy wallpapers (no frosted bleed-through).
             return Self(
-                backgroundHex: "#000000",
-                backgroundOpacity: 0.58,
+                backgroundHex: "#1C1C1E",
+                backgroundOpacity: 1.0,
                 primaryTextHex: "#FFFFFF",
-                secondaryTextHex: "#C7C7CC",
+                secondaryTextHex: "#8E8E93",
                 accentHex: "#0A84FF",
                 actionForegroundHex: "#FFFFFF",
                 isDark: true

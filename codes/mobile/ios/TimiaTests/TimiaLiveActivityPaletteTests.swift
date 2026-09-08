@@ -5,10 +5,10 @@ import XCTest
 final class TimiaLiveActivityPaletteTests: XCTestCase {
     func testDarkModeMatchesLockScreenBannerStyle() {
         let palette = TimiaLiveActivityPalette.make(colorScheme: .dark)
-        XCTAssertEqual(palette.backgroundHex, "#000000")
+        XCTAssertEqual(palette.backgroundHex, "#1C1C1E")
+        XCTAssertEqual(palette.secondaryTextHex, "#8E8E93")
         XCTAssertEqual(palette.forcedColorScheme, .dark)
-        XCTAssertGreaterThan(palette.backgroundOpacity, 0.45)
-        XCTAssertLessThan(palette.backgroundOpacity, 0.75)
+        XCTAssertEqual(palette.backgroundOpacity, 1.0, accuracy: 0.001)
         XCTAssertGreaterThan(
             ColorContrast.ratio(palette.backgroundHex, palette.primaryTextHex),
             4.5
