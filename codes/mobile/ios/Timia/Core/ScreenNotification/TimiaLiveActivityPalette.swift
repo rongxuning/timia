@@ -34,6 +34,40 @@ enum ColorContrast {
     }
 }
 
+enum TaskProgressStyle {
+    static let todoHex = "#64748B"
+    static let doingHex = "#3B82F6"
+    static let doneHex = "#10B981"
+    static let archivedHex = "#8B5CF6"
+
+    static func colorHex(for status: String) -> String {
+        switch status {
+        case "doing": doingHex
+        case "done": doneHex
+        case "archived": archivedHex
+        default: todoHex
+        }
+    }
+
+    static func symbolName(for status: String) -> String {
+        switch status {
+        case "doing": "clock.fill"
+        case "done": "checkmark.circle.fill"
+        case "archived": "archivebox.fill"
+        default: "circle"
+        }
+    }
+
+    static func accessibilityLabel(for status: String) -> String {
+        switch status {
+        case "doing": "进行中"
+        case "done": "已完成"
+        case "archived": "已归档"
+        default: "未开始"
+        }
+    }
+}
+
 struct TimiaLiveActivityPalette: Equatable, Sendable {
     let backgroundHex: String
     let backgroundOpacity: Double
@@ -49,6 +83,10 @@ struct TimiaLiveActivityPalette: Equatable, Sendable {
     var secondaryText: Color { Self.color(hex: secondaryTextHex) }
     var accent: Color { Self.color(hex: accentHex) }
     var actionForeground: Color { Self.color(hex: actionForegroundHex) }
+
+    func color(fromHex hex: String) -> Color {
+        Self.color(hex: hex)
+    }
 
     static func make(colorScheme: ColorScheme) -> Self {
         switch colorScheme {

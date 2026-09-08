@@ -55,18 +55,13 @@ enum TimiaTheme {
 }
 
 enum TaskStatusPalette {
-    static let todo = Color(hex: "#64748B")
-    static let doing = Color(hex: "#3B82F6")
-    static let done = Color(hex: "#10B981")
-    static let archived = Color(hex: "#8B5CF6")
+    static let todo = Color(hex: TaskProgressStyle.todoHex)
+    static let doing = Color(hex: TaskProgressStyle.doingHex)
+    static let done = Color(hex: TaskProgressStyle.doneHex)
+    static let archived = Color(hex: TaskProgressStyle.archivedHex)
 
     static func color(for status: String) -> Color {
-        switch status {
-        case "doing": doing
-        case "done": done
-        case "archived": archived
-        default: todo
-        }
+        Color(hex: TaskProgressStyle.colorHex(for: status))
     }
 }
 

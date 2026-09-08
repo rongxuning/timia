@@ -116,33 +116,61 @@ struct TimiaLiveActivityLockScreenView: View {
     private func lockScreenRow(_ item: TimiaScreenActivityAttributes.ContentState.LockScreenItem) -> some View {
         switch item {
         case .health:
-            row(title: state.healthTitle, time: state.healthTimeLabel, muted: false)
+            row(
+                title: state.healthTitle,
+                statusSymbol: "sparkle",
+                statusColor: palette.accent,
+                statusLabel: "健康同步",
+                time: state.healthTimeLabel,
+                muted: false
+            )
         case .todo(let todo):
-            row(title: todo.title, time: todo.timeLabel, muted: false)
+            row(
+                title: todo.title,
+                statusSymbol: TaskProgressStyle.symbolName(for: todo.status),
+                statusColor: palette.color(fromHex: TaskProgressStyle.colorHex(for: todo.status)),
+                statusLabel: TaskProgressStyle.accessibilityLabel(for: todo.status),
+                time: todo.timeLabel,
+                muted: false
+            )
         case .more:
             row(
                 title: TimiaScreenActivityAttributes.ContentState.LockScreenItem.moreTitle,
+                statusSymbol: nil,
+                statusColor: palette.secondaryText,
+                statusLabel: nil,
                 time: "",
                 muted: true
             )
         }
     }
 
-    private func row(title: String, time: String, muted: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "sparkle")
-                .font(.caption)
-                .foregroundStyle(palette.accent)
+    private func row(
+        title: String,
+        statusSymbol: String?,
+        statusColor: Color,
+        statusLabel: String?,
+        time: String,
+        muted: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
             Text(title)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(muted ? palette.secondaryText : palette.primaryText)
                 .lineLimit(1)
-            Spacer(minLength: 8)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            if let statusSymbol {
+                Image(systemName: statusSymbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(statusColor)
+                    .accessibilityLabel(statusLabel ?? "")
+            }
             if !time.isEmpty {
                 Text(time)
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(palette.secondaryText)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
         }
     }

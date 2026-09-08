@@ -142,12 +142,16 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
 
         XCTAssertEqual(state.workingCount, 2)
         XCTAssertEqual(state.doingTodos.map(\.title), ["写周报"])
+        XCTAssertEqual(state.doingTodos.map(\.status), ["doing"])
         XCTAssertEqual(state.notStartedTodos.map(\.title), ["截止提交"])
         XCTAssertEqual(state.notStartedTodos[0].timeLabel, "09:00 – 10:00")
+        XCTAssertEqual(state.notStartedTodos.map(\.status), ["todo"])
         XCTAssertEqual(state.overdueTodos.map(\.title), ["soho 简厨"])
         XCTAssertEqual(state.overdueTodos[0].timeLabel, "9月4日 18:00 – 19:00")
+        XCTAssertEqual(state.overdueTodos.map(\.status), ["todo"])
         XCTAssertEqual(state.todos.map(\.title), ["值班"])
         XCTAssertEqual(state.todos[0].timeLabel, "全天")
+        XCTAssertEqual(state.todos.map(\.status), ["todo"])
         XCTAssertEqual(state.notStartedCount, 1)
         XCTAssertEqual(state.overdueCount, 1)
         XCTAssertEqual(state.allDayCount, 1)
@@ -237,6 +241,20 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertTrue(state.notStartedTodos.isEmpty)
         XCTAssertTrue(state.overdueTodos.isEmpty)
         XCTAssertEqual(state.totalCount, 1)
+    }
+
+    func testTodoRowDecodesMissingStatusAsTodo() throws {
+        let json = """
+        {"id":"1","title":"值班","timeLabel":"全天"}
+        """
+        let row = try JSONDecoder().decode(
+            TimiaScreenActivityAttributes.ContentState.TodoRow.self,
+            from: Data(json.utf8)
+        )
+        XCTAssertEqual(row.id, "1")
+        XCTAssertEqual(row.title, "值班")
+        XCTAssertEqual(row.timeLabel, "全天")
+        XCTAssertEqual(row.status, "todo")
     }
 
     func testLockScreenItemsFlattenBucketsWithoutStatusHeaders() {

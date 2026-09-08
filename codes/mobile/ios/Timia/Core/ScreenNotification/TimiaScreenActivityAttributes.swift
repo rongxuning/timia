@@ -71,6 +71,29 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
             var id: String
             var title: String
             var timeLabel: String
+            var status: String
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case title
+                case timeLabel
+                case status
+            }
+
+            init(id: String, title: String, timeLabel: String, status: String = "todo") {
+                self.id = id
+                self.title = title
+                self.timeLabel = timeLabel
+                self.status = status
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                id = try container.decode(String.self, forKey: .id)
+                title = try container.decode(String.self, forKey: .title)
+                timeLabel = try container.decode(String.self, forKey: .timeLabel)
+                status = try container.decodeIfPresent(String.self, forKey: .status) ?? "todo"
+            }
         }
 
         enum CodingKeys: String, CodingKey {

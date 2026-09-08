@@ -127,7 +127,8 @@ enum ScreenNotificationContentBuilder {
             TimiaScreenActivityAttributes.ContentState.TodoRow(
                 id: task.id,
                 title: task.title,
-                timeLabel: todoTimeLabel(startAt: task.startAt, endAt: task.endAt, calendar: calendar, now: now)
+                timeLabel: todoTimeLabel(startAt: task.startAt, endAt: task.endAt, calendar: calendar, now: now),
+                status: task.status
             )
         }
     }
