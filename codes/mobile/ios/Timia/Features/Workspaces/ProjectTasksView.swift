@@ -262,6 +262,7 @@ struct ProjectTasksView: View {
         updated.version = response.version
         updated.location = response.location
         replaceTask(updated)
+        ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
     }
 
     private func tasks(in group: ProjectTaskGroup) -> [ScheduleTask] {

@@ -769,7 +769,9 @@ struct TaskEditorView: View {
                     response: ItemResponse.self
                 )
             }
-            onSaved(); dismiss()
+            onSaved()
+            ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
+            dismiss()
         } catch { errorMessage = error.localizedDescription }
         isSaving = false
     }
@@ -817,7 +819,9 @@ struct TaskEditorView: View {
                 method: "DELETE",
                 response: EmptyResponse.self
             )
-            onSaved(); dismiss()
+            onSaved()
+            ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
+            dismiss()
         } catch { errorMessage = error.localizedDescription }
     }
 

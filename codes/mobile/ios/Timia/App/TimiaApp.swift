@@ -16,6 +16,7 @@ struct TimiaApp: App {
 
 private struct RootView: View {
     @EnvironmentObject private var session: AppSession
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         switch session.state {
@@ -38,6 +39,12 @@ private struct RootView: View {
             MainTabView(user: user)
                 .screenNotificationPrompt()
                 .task { await HealthBackgroundDelivery.shared.start(api: session.api) }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task {
+                        await ScreenNotificationManager.shared.refreshIfStale(api: session.api)
+                    }
+                }
         }
     }
 }

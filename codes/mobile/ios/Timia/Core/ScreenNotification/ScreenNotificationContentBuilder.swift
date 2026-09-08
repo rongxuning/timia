@@ -67,12 +67,14 @@ enum ScreenNotificationContentBuilder {
         let allDay = remaining.filter { isAllDay(startAt: $0.startAt, endAt: $0.endAt) }
 
         let healthVisible = healthEnabled
+        // Header count = 未开始 + 进行中 + 逾期（不含健康行、不含全天）
+        let workingCount = notStarted.count + doing.count + overdueTasks.count
         return TimiaScreenActivityAttributes.ContentState(
             healthEnabled: healthVisible,
             healthTitle: "健康数据同步",
             healthTimeLabel: healthTimeLabel(lastSyncedAt: lastSyncedAt, now: now),
             todos: rows(from: allDay, calendar: calendar, now: now),
-            workingCount: (healthVisible ? 1 : 0) + doing.count,
+            workingCount: workingCount,
             doingTodos: rows(from: doing, calendar: calendar, now: now),
             notStartedTodos: rows(from: notStarted, calendar: calendar, now: now),
             overdueTodos: rows(from: overdueTasks, calendar: calendar, now: now)
