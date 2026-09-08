@@ -726,7 +726,11 @@ struct ScheduleHomeView: View {
     }
 
     private func revealDateOnStrip(_ date: Date) {
-        dateStripStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
+        let nextStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
+        guard !Calendar.current.isDate(nextStart, inSameDayAs: dateStripStart) else { return }
+        withAnimation(.snappy(duration: 0.28)) {
+            dateStripStart = nextStart
+        }
     }
 
     private func loadVisibleContent(force: Bool = false) async {
@@ -1819,6 +1823,9 @@ private struct SlidingDateStrip: View {
     let onVisibleStartChange: (Date) -> Void
 
     @State private var origin: Date
+    @State private var positionedKey: String?
+    /// Ignores scrollPosition feedback while applying an external multi-day jump.
+    @State private var suppressVisibleStartSync = false
 
     init(
         selectedDate: Date,
@@ -1830,30 +1837,49 @@ private struct SlidingDateStrip: View {
         self.visibleStart = visibleStart
         self.onSelect = onSelect
         self.onVisibleStartChange = onVisibleStartChange
-        _origin = State(initialValue: Calendar.current.startOfDay(for: visibleStart))
+        let start = Calendar.current.startOfDay(for: visibleStart)
+        _origin = State(initialValue: start)
+        _positionedKey = State(initialValue: ScheduleFormat.dayKey(start))
     }
 
     var body: some View {
         GeometryReader { geo in
             let spacing: CGFloat = 7
             let dayWidth = max((geo.size.width - spacing * 6) / 7, 1)
+            let visibleKey = ScheduleFormat.dayKey(visibleStart)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: spacing) {
-                    ForEach(dayKeys, id: \.self) { key in
-                        DateStripDayCell(
-                            date: dateFromDayKey(key) ?? visibleStart,
-                            selectedDate: selectedDate,
-                            onSelect: onSelect
-                        )
-                        .frame(width: dayWidth, height: 50)
-                        .id(key)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: spacing) {
+                        ForEach(dayKeys, id: \.self) { key in
+                            DateStripDayCell(
+                                date: dateFromDayKey(key) ?? visibleStart,
+                                selectedDate: selectedDate,
+                                onSelect: onSelect
+                            )
+                            .frame(width: dayWidth, height: 50)
+                            .id(key)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
+                .scrollPosition(id: positionedKeyBinding)
+                .onAppear {
+                    positionedKey = visibleKey
+                    proxy.scrollTo(visibleKey, anchor: .leading)
+                }
+                .onChange(of: visibleKey) { oldKey, newKey in
+                    guard positionedKey != newKey else { return }
+                    // ±1 day swipes follow scrollPosition; larger jumps need scrollTo so
+                    // LazyHStack materializes the target instead of snapping back.
+                    if shouldForceScroll(from: oldKey, to: newKey) {
+                        applyExternalStart(newKey, proxy: proxy)
+                    } else {
+                        positionedKey = newKey
                     }
                 }
-                .scrollTargetLayout()
             }
-            .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-            .scrollPosition(id: visibleStartBinding)
         }
         .frame(height: 50)
         .accessibilityIdentifier("week-date-strip")
@@ -1863,16 +1889,44 @@ private struct SlidingDateStrip: View {
         (-365...365).map { ScheduleFormat.dayKey(dateByAddingDays($0, to: origin)) }
     }
 
-    private var visibleStartBinding: Binding<String?> {
+    private var positionedKeyBinding: Binding<String?> {
         Binding(
-            get: { ScheduleFormat.dayKey(visibleStart) },
+            get: { positionedKey },
             set: { newKey in
-                guard let newKey,
-                      let date = dateFromDayKey(newKey),
-                      !Calendar.current.isDate(date, inSameDayAs: visibleStart) else { return }
+                guard !suppressVisibleStartSync,
+                      let newKey,
+                      let date = dateFromDayKey(newKey) else { return }
+                if positionedKey != newKey {
+                    positionedKey = newKey
+                }
+                guard !Calendar.current.isDate(date, inSameDayAs: visibleStart) else { return }
                 onVisibleStartChange(Calendar.current.startOfDay(for: date))
             }
         )
+    }
+
+    private func shouldForceScroll(from oldKey: String, to newKey: String) -> Bool {
+        guard let oldDate = dateFromDayKey(oldKey),
+              let newDate = dateFromDayKey(newKey),
+              let dayDelta = Calendar.current.dateComponents([.day], from: oldDate, to: newDate).day else {
+            return true
+        }
+        return abs(dayDelta) > 1
+    }
+
+    private func applyExternalStart(_ key: String, proxy: ScrollViewProxy) {
+        suppressVisibleStartSync = true
+        positionedKey = key
+        withAnimation(.snappy(duration: 0.28)) {
+            proxy.scrollTo(key, anchor: .leading)
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            // Re-assert in case LazyHStack settled on a stale neighbor during load.
+            positionedKey = key
+            proxy.scrollTo(key, anchor: .leading)
+            suppressVisibleStartSync = false
+        }
     }
 }
 
