@@ -23,17 +23,24 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
         var notStartedCount: Int { notStartedTodos.count }
         var overdueCount: Int { overdueTodos.count }
         var allDayCount: Int { todos.count }
-        var totalCount: Int { workingCount + notStartedCount + overdueCount + allDayCount }
+        /// Dynamic Island / compact badge: header buckets + all-day + optional health row.
+        var totalCount: Int {
+            workingCount + allDayCount + (healthEnabled ? 1 : 0)
+        }
 
-        /// Max lock-screen item rows, including a trailing `more` row when truncated.
-        static let lockScreenVisibleRowLimit = 5
+        /// Max lock-screen item rows, including a trailing overflow row when truncated.
+        static let lockScreenVisibleRowLimit = 7
 
         enum LockScreenItem: Equatable, Identifiable, Sendable {
             case health
             case todo(TodoRow)
-            case more
+            case more(remaining: Int)
 
             static let moreTitle = "more"
+
+            static func moreTitle(remaining: Int) -> String {
+                remaining > 0 ? "还有 \(remaining) 项" : moreTitle
+            }
 
             var id: String {
                 switch self {
@@ -64,7 +71,9 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
             if maxRows == 1 {
                 return Array(items.prefix(1))
             }
-            return Array(items.prefix(maxRows - 1)) + [.more]
+            let visible = Array(items.prefix(maxRows - 1))
+            let remaining = items.count - visible.count
+            return visible + [.more(remaining: remaining)]
         }
 
         struct TodoRow: Codable, Hashable, Identifiable, Sendable {

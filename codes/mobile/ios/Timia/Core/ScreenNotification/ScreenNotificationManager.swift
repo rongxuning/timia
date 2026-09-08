@@ -6,11 +6,18 @@ import Foundation
 final class ScreenNotificationManager: ObservableObject {
     static let shared = ScreenNotificationManager()
 
+    /// Periodic poll while the activity is allowed (fallback when no mutation hook fires).
+    static let periodicRefreshInterval: Duration = .seconds(20)
+    /// Coalesce bursty schedule edits into one ActivityKit update.
+    static let mutationDebounceInterval: Duration = .milliseconds(350)
+
     @Published private(set) var isActivityActive = false
     @Published private(set) var lastError: String?
 
     private var activity: Activity<TimiaScreenActivityAttributes>?
     private var refreshTask: Task<Void, Never>?
+    private var debouncedRefreshTask: Task<Void, Never>?
+    private var lastSuccessfulRefreshAt: Date?
 
     private init() {
         activity = Activity<TimiaScreenActivityAttributes>.activities.first
@@ -35,6 +42,8 @@ final class ScreenNotificationManager: ObservableObject {
         case .denied, .unset:
             refreshTask?.cancel()
             refreshTask = nil
+            debouncedRefreshTask?.cancel()
+            debouncedRefreshTask = nil
             await endActivity()
         }
     }
@@ -47,6 +56,27 @@ final class ScreenNotificationManager: ObservableObject {
 
     func refresh(api: APIClient) async {
         guard preference == .allowed else { return }
+        await startOrUpdate(api: api)
+    }
+
+    /// Call after create / edit / status / reschedule so the lock screen tracks app changes promptly.
+    func scheduleDidChange(api: APIClient) {
+        guard preference == .allowed else { return }
+        debouncedRefreshTask?.cancel()
+        debouncedRefreshTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.mutationDebounceInterval)
+            guard !Task.isCancelled else { return }
+            await self?.startOrUpdate(api: api)
+        }
+    }
+
+    /// Refresh when returning to the foreground (skips if we just refreshed).
+    func refreshIfStale(api: APIClient, olderThan interval: TimeInterval = 5) async {
+        guard preference == .allowed else { return }
+        if let lastSuccessfulRefreshAt,
+           Date().timeIntervalSince(lastSuccessfulRefreshAt) < interval {
+            return
+        }
         await startOrUpdate(api: api)
     }
 
@@ -65,7 +95,7 @@ final class ScreenNotificationManager: ObservableObject {
         refreshTask?.cancel()
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
+                try? await Task.sleep(for: Self.periodicRefreshInterval)
                 guard !Task.isCancelled else { break }
                 await self?.startOrUpdate(api: api)
             }
@@ -82,6 +112,7 @@ final class ScreenNotificationManager: ObservableObject {
         do {
             state = try await buildContentState(api: api)
             lastError = nil
+            lastSuccessfulRefreshAt = Date()
         } catch {
             lastError = error.localizedDescription
             state = ScreenNotificationContentBuilder.makeContentState(

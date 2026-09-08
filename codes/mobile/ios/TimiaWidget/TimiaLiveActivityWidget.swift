@@ -75,14 +75,16 @@ struct TimiaLiveActivityLockScreenView: View {
 
     var body: some View {
         ViewThatFits(in: .vertical) {
-            lockScreenContent(maxRows: TimiaScreenActivityAttributes.ContentState.lockScreenVisibleRowLimit)
+            lockScreenContent(maxRows: 7)
+            lockScreenContent(maxRows: 6)
+            lockScreenContent(maxRows: 5)
             lockScreenContent(maxRows: 4)
             lockScreenContent(maxRows: 3)
             lockScreenContent(maxRows: 2)
             lockScreenContent(maxRows: 1)
             lockScreenContent(maxRows: 1, includeWorkingHeader: false)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .environment(\.colorScheme, palette.forcedColorScheme)
         .activityBackgroundTint(palette.backgroundTint)
         .activitySystemActionForegroundColor(palette.actionForeground)
@@ -91,7 +93,7 @@ struct TimiaLiveActivityLockScreenView: View {
     @ViewBuilder
     private func lockScreenContent(maxRows: Int, includeWorkingHeader: Bool = true) -> some View {
         let items = state.lockScreenItems(maxRows: maxRows)
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             if includeWorkingHeader, state.showsWorkingHeader {
                 Text(state.workingHeaderTitle)
                     .font(.caption2.weight(.medium))
@@ -104,11 +106,12 @@ struct TimiaLiveActivityLockScreenView: View {
 
             if items.isEmpty {
                 Text("暂无展示内容")
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundStyle(palette.secondaryText)
             }
         }
-        .padding(14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -133,9 +136,9 @@ struct TimiaLiveActivityLockScreenView: View {
                 time: todo.timeLabel,
                 muted: false
             )
-        case .more:
+        case .more(let remaining):
             row(
-                title: TimiaScreenActivityAttributes.ContentState.LockScreenItem.moreTitle,
+                title: TimiaScreenActivityAttributes.ContentState.LockScreenItem.moreTitle(remaining: remaining),
                 statusSymbol: nil,
                 statusColor: palette.secondaryText,
                 statusLabel: nil,
@@ -153,25 +156,26 @@ struct TimiaLiveActivityLockScreenView: View {
         time: String,
         muted: Bool
     ) -> some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: 6) {
             Text(title)
-                .font(.subheadline.weight(.medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(muted ? palette.secondaryText : palette.primaryText)
                 .lineLimit(1)
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             if let statusSymbol {
                 Image(systemName: statusSymbol)
-                    .font(.caption.weight(.semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(statusColor)
                     .accessibilityLabel(statusLabel ?? "")
             }
             if !time.isEmpty {
                 Text(time)
-                    .font(.subheadline.monospacedDigit())
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(palette.secondaryText)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
             }
         }
+        .frame(minHeight: 18)
     }
 }

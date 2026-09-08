@@ -1071,6 +1071,7 @@ struct ScheduleHomeView: View {
         updated.version = response.version
         updated.location = response.location
         replaceTodoTask(updated)
+        ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
     }
 
     @MainActor
@@ -1199,6 +1200,7 @@ struct ScheduleHomeView: View {
         updated.version = response.version
         updated.location = response.location
         replaceCalendarTask(updated)
+        ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
     }
 
     private func parseNaturalLanguage() async {
