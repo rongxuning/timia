@@ -60,6 +60,10 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
 
             guard maxRows > 0 else { return [] }
             guard items.count > maxRows else { return items }
+            // One slot is too small for a task plus more; keep one complete row.
+            if maxRows == 1 {
+                return Array(items.prefix(1))
+            }
             return Array(items.prefix(maxRows - 1)) + [.more]
         }
 

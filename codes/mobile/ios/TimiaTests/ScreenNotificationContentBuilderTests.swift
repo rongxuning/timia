@@ -315,12 +315,13 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertEqual(state.lockScreenItems(maxRows: 5).map(\.id), ["ns-1"])
     }
 
-    func testLockScreenItemsSingleSlotOverflowIsJustMore() {
+    func testLockScreenItemsSingleSlotKeepsOneCompleteRow() {
         let state = lockScreenState(
             healthEnabled: true,
             doing: [todoRow("doing", "写周报", "15:00 – 16:00")]
         )
-        XCTAssertEqual(state.lockScreenItems(maxRows: 1), [.more])
+        XCTAssertEqual(state.lockScreenItems(maxRows: 1), [.health])
+        XCTAssertNotEqual(state.lockScreenItems(maxRows: 1).last, .more)
     }
 
     func testPreferenceRoundTrip() {

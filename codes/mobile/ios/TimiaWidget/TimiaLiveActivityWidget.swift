@@ -80,6 +80,7 @@ struct TimiaLiveActivityLockScreenView: View {
             lockScreenContent(maxRows: 3)
             lockScreenContent(maxRows: 2)
             lockScreenContent(maxRows: 1)
+            lockScreenContent(maxRows: 1, includeWorkingHeader: false)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .environment(\.colorScheme, palette.forcedColorScheme)
@@ -88,10 +89,10 @@ struct TimiaLiveActivityLockScreenView: View {
     }
 
     @ViewBuilder
-    private func lockScreenContent(maxRows: Int) -> some View {
+    private func lockScreenContent(maxRows: Int, includeWorkingHeader: Bool = true) -> some View {
         let items = state.lockScreenItems(maxRows: maxRows)
         VStack(alignment: .leading, spacing: 6) {
-            if state.showsWorkingHeader {
+            if includeWorkingHeader, state.showsWorkingHeader {
                 Text(state.workingHeaderTitle)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(palette.secondaryText)
