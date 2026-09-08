@@ -23,10 +23,9 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
         var notStartedCount: Int { notStartedTodos.count }
         var overdueCount: Int { overdueTodos.count }
         var allDayCount: Int { todos.count }
-        /// Dynamic Island / compact badge: header buckets + all-day + optional health row.
-        var totalCount: Int {
-            workingCount + allDayCount + (healthEnabled ? 1 : 0)
-        }
+        /// Dynamic Island / compact badge — same as lock-screen header:
+        /// 未开始 + 进行中 + 逾期（不含健康行、不含全天）.
+        var totalCount: Int { workingCount }
 
         /// Max lock-screen item rows, including a trailing overflow row when truncated.
         static let lockScreenVisibleRowLimit = 7

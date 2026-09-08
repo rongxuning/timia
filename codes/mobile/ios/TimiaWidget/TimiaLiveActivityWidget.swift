@@ -16,9 +16,15 @@ struct TimiaLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label("\(context.state.totalCount) 待办", systemImage: "sparkle")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if context.state.showsWorkingHeader {
+                        Label(context.state.workingHeaderTitle, systemImage: "sparkle")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Image(systemName: "sparkle")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -50,7 +56,7 @@ struct TimiaLiveActivityWidget: Widget {
             } compactLeading: {
                 Image(systemName: "sparkle")
             } compactTrailing: {
-                Text("\(context.state.totalCount)")
+                Text("\(context.state.workingCount)")
                     .font(.caption2.monospacedDigit())
             } minimal: {
                 Image(systemName: "sparkle")
