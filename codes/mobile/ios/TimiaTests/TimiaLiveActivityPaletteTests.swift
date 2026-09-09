@@ -3,13 +3,16 @@ import XCTest
 @testable import Timia
 
 final class TimiaLiveActivityPaletteTests: XCTestCase {
-    func testDarkModeMatchesLockScreenBannerStyle() {
+    func testDarkModeUsesOpaqueSurfaceWithLightLabels() {
         let palette = TimiaLiveActivityPalette.make(colorScheme: .dark)
-        XCTAssertEqual(palette.backgroundHex, "#000000")
-        XCTAssertEqual(palette.secondaryTextHex, "#C7C7CC")
+        XCTAssertEqual(palette.backgroundHex, "#1C1C1E")
+        XCTAssertEqual(palette.backgroundOpacity, 1.0)
+        XCTAssertEqual(palette.primaryTextHex, "#FFFFFF")
+        XCTAssertEqual(palette.secondaryTextHex, "#8E8E93")
+        XCTAssertEqual(palette.accentHex, "#0A84FF")
+        XCTAssertEqual(palette.actionForegroundHex, "#FFFFFF")
         XCTAssertEqual(palette.forcedColorScheme, .dark)
-        XCTAssertGreaterThan(palette.backgroundOpacity, 0.5)
-        XCTAssertLessThan(palette.backgroundOpacity, 0.85)
+        XCTAssertTrue(palette.isDark)
         XCTAssertGreaterThan(
             ColorContrast.ratio(palette.backgroundHex, palette.primaryTextHex),
             4.5
@@ -22,12 +25,16 @@ final class TimiaLiveActivityPaletteTests: XCTestCase {
         XCTAssertGreaterThan(ColorContrast.relativeLuminance(hex: palette.primaryTextHex), 0.8)
     }
 
-    func testLightModeMatchesLockScreenBannerStyle() {
+    func testLightModeUsesOpaqueSurfaceWithDarkLabels() {
         let palette = TimiaLiveActivityPalette.make(colorScheme: .light)
         XCTAssertEqual(palette.backgroundHex, "#FFFFFF")
+        XCTAssertEqual(palette.backgroundOpacity, 1.0)
+        XCTAssertEqual(palette.primaryTextHex, "#000000")
+        XCTAssertEqual(palette.secondaryTextHex, "#3A3A3C")
+        XCTAssertEqual(palette.accentHex, "#007AFF")
+        XCTAssertEqual(palette.actionForegroundHex, "#000000")
         XCTAssertEqual(palette.forcedColorScheme, .light)
-        XCTAssertGreaterThan(palette.backgroundOpacity, 0.55)
-        XCTAssertLessThan(palette.backgroundOpacity, 0.9)
+        XCTAssertFalse(palette.isDark)
         XCTAssertGreaterThan(
             ColorContrast.ratio(palette.backgroundHex, palette.primaryTextHex),
             4.5
@@ -47,6 +54,8 @@ final class TimiaLiveActivityPaletteTests: XCTestCase {
         XCTAssertNotEqual(light.primaryTextHex, dark.primaryTextHex)
         XCTAssertEqual(dark.primaryTextHex, "#FFFFFF")
         XCTAssertEqual(light.primaryTextHex, "#000000")
+        XCTAssertEqual(light.backgroundOpacity, 1.0)
+        XCTAssertEqual(dark.backgroundOpacity, 1.0)
     }
 
     func testTaskProgressStyleMatchesCalendarStatusChrome() {
