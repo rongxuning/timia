@@ -17,11 +17,11 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
 
-        let input = app.textFields["用自然语言添加任务…"]
-        XCTAssertTrue(input.waitForExistence(timeout: 8))
+        let voiceInput = app.buttons["schedule-voice-input"]
+        XCTAssertTrue(voiceInput.waitForExistence(timeout: 8))
         let todoModeButton = app.buttons["Todo 模式"]
         XCTAssertTrue(todoModeButton.waitForExistence(timeout: 2))
-        XCTAssertEqual(todoModeButton.frame.midY, input.frame.midY, accuracy: 6)
+        XCTAssertEqual(todoModeButton.frame.midY, voiceInput.frame.midY, accuracy: 6)
         XCTAssertTrue(element("todo-section-todo", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-doing", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
@@ -40,8 +40,8 @@ final class TimiaUITests: XCTestCase {
 
         let directCreateButton = app.buttons["新建任务"]
         XCTAssertTrue(directCreateButton.waitForExistence(timeout: 2))
-        XCTAssertLessThan(directCreateButton.frame.maxX, input.frame.minX)
-        XCTAssertEqual(directCreateButton.frame.midY, input.frame.midY, accuracy: 6)
+        XCTAssertLessThan(directCreateButton.frame.maxX, voiceInput.frame.minX)
+        XCTAssertEqual(directCreateButton.frame.midY, voiceInput.frame.midY, accuracy: 6)
         XCTAssertEqual(directCreateButton.frame.width, 38, accuracy: 2)
         XCTAssertEqual(directCreateButton.frame.height, 38, accuracy: 2)
         directCreateButton.tap()
@@ -52,11 +52,11 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["低"].exists)
         XCTAssertTrue(app.buttons["待办"].exists)
         app.buttons["取消"].tap()
-        XCTAssertTrue(input.waitForExistence(timeout: 3))
+        XCTAssertTrue(voiceInput.waitForExistence(timeout: 3))
 
         app.buttons["日历模式"].tap()
         XCTAssertTrue(app.buttons["新建任务"].waitForExistence(timeout: 2))
-        XCTAssertLessThan(app.buttons["新建任务"].frame.maxX, input.frame.minX)
+        XCTAssertLessThan(app.buttons["新建任务"].frame.maxX, voiceInput.frame.minX)
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
         app.buttons["日"].tap()
         XCTAssertFalse(app.buttons["日"].exists)
@@ -86,7 +86,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["打开我的页面"].exists)
         XCTAssertTrue(app.buttons["打开空间页面"].exists)
         XCTAssertTrue(app.buttons["Todo 模式"].exists)
-        XCTAssertFalse(app.images["mic"].exists)
+        XCTAssertTrue(app.buttons["schedule-voice-input"].exists)
         XCTAssertEqual(app.tabBars.count, 0)
 
         app.buttons["打开空间页面"].tap()
@@ -101,7 +101,7 @@ final class TimiaUITests: XCTestCase {
         app.navigationBars[workspaceName].buttons.firstMatch.tap()
         XCTAssertTrue(app.navigationBars["空间"].waitForExistence(timeout: 3))
         app.navigationBars["空间"].buttons.firstMatch.tap()
-        XCTAssertTrue(input.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 3))
 
         app.buttons["Todo 模式"].tap()
         XCTAssertTrue(app.buttons["日历模式"].waitForExistence(timeout: 2))
@@ -151,7 +151,7 @@ final class TimiaUITests: XCTestCase {
         let login = app.buttons["登录"]
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
-        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
@@ -299,7 +299,7 @@ final class TimiaUITests: XCTestCase {
         let login = app.buttons["登录"]
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
-        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
         app.buttons["周"].tap()
@@ -321,7 +321,7 @@ final class TimiaUITests: XCTestCase {
         let login = app.buttons["登录"]
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
-        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
