@@ -2,13 +2,14 @@ import Foundation
 import AVFoundation
 import Speech
 
-/// Shared singleton for on-device Chinese speech recognition.
+/// Shared on-device Chinese speech recognizer.
 ///
-/// v1 contract:
-///   * ``requiresOnDeviceRecognition == true`` — no audio leaves the device.
-///   * v1 only supports Chinese (zh-CN).
-///   * Audio buffers are streamed via ``SFSpeechAudioBufferRecognitionRequest``
-///     and never written to disk.
+/// Hardened against tap-to-speak crashes:
+/// 1. Recreate ``AVAudioEngine`` every session (stale engines after mic auth crash on `inputNode`).
+/// 2. Never `installTap` with a 0 Hz format; use `format: nil` after validating hardware format.
+/// 3. Track tap install state — `removeTap` crashes when none is installed.
+/// 4. Session generation token so a rapid `cancel()` during async start cannot
+///    tear down the engine while `start()` still holds an `inputNode` reference.
 @MainActor
 final class StickyNoteSpeechRecognizer {
     static let shared = StickyNoteSpeechRecognizer()
@@ -31,11 +32,12 @@ final class StickyNoteSpeechRecognizer {
         }
     }
 
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    /// ``removeTap(onBus:)`` crashes if no tap is installed — track it ourselves.
     private var isTapInstalled = false
+    /// Bumped on every `start` / `cancel` so in-flight async work can bail out.
+    private var sessionID = UUID()
 
     var onPartial: ((String) -> Void)?
     var onFinal: ((String) -> Void)?
@@ -45,41 +47,56 @@ final class StickyNoteSpeechRecognizer {
 
     private func activateAudioSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try session.setCategory(
+            .playAndRecord,
+            mode: .measurement,
+            options: [.duckOthers, .defaultToSpeaker]
+        )
         try session.setActive(true, options: .notifyOthersOnDeactivation)
     }
 
-    /// After mic permission is granted, ``inputNode.outputFormat`` can briefly
-    /// report 0 Hz / 0 channels. Wait and re-query before installing a tap.
-    private func resolvedInputFormat(for inputNode: AVAudioInputNode) async -> AVAudioFormat? {
-        for attempt in 0..<8 {
+    private func removeTapIfNeeded() {
+        guard isTapInstalled, let engine = audioEngine else {
+            isTapInstalled = false
+            return
+        }
+        engine.inputNode.removeTap(onBus: 0)
+        isTapInstalled = false
+    }
+
+    private func tearDownEngine() {
+        removeTapIfNeeded()
+        if let engine = audioEngine, engine.isRunning {
+            engine.stop()
+        }
+        audioEngine = nil
+    }
+
+    private func waitForValidFormat(
+        on inputNode: AVAudioInputNode,
+        sessionID: UUID
+    ) async -> AVAudioFormat? {
+        for attempt in 0..<12 {
+            guard self.sessionID == sessionID else { return nil }
             let format = inputNode.outputFormat(forBus: 0)
-            if format.sampleRate > 0, format.channelCount > 0 {
+            if format.sampleRate >= 8_000, format.channelCount > 0 {
                 return format
             }
-            if attempt == 0 {
-                // Force the input node to materialize a hardware format.
-                inputNode.reset()
-            }
-            try? await Task.sleep(for: .milliseconds(50 + attempt * 25))
+            try? await Task.sleep(for: .milliseconds(40 + attempt * 20))
         }
         return nil
     }
 
-    private func removeTapIfNeeded(from inputNode: AVAudioInputNode) {
-        guard isTapInstalled else { return }
-        inputNode.removeTap(onBus: 0)
-        isTapInstalled = false
-    }
-
-    private func beginRecognition() async {
-        guard let recognizer = SFSpeechRecognizer(locale: OnDeviceSupportChecker.locale) else {
+    private func beginRecognition(sessionID: UUID) async {
+        guard let speechRecognizer = SFSpeechRecognizer(locale: OnDeviceSupportChecker.locale) else {
             onError?(RecognizerError.recognizerUnavailable)
             return
         }
 
         recognitionTask?.cancel()
         recognitionTask = nil
+        tearDownEngine()
+        guard self.sessionID == sessionID else { return }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -89,61 +106,75 @@ final class StickyNoteSpeechRecognizer {
         }
         recognitionRequest = request
 
-        let inputNode = audioEngine.inputNode
-        removeTapIfNeeded(from: inputNode)
+        let engine = AVAudioEngine()
+        audioEngine = engine
+        let inputNode = engine.inputNode
 
-        guard let format = await resolvedInputFormat(for: inputNode) else {
-            onError?(RecognizerError.invalidAudioFormat)
+        guard await waitForValidFormat(on: inputNode, sessionID: sessionID) != nil else {
+            guard self.sessionID == sessionID else { return }
             recognitionRequest = nil
+            tearDownEngine()
+            onError?(RecognizerError.invalidAudioFormat)
+            return
+        }
+        guard self.sessionID == sessionID else {
+            if audioEngine === engine {
+                recognitionRequest = nil
+                tearDownEngine()
+            }
             return
         }
 
-        // Capture the request locally — the audio tap runs off the main actor.
+        // `format: nil` → node's native format (avoids installTap NSException).
         let streamingRequest = request
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { buffer, _ in
             streamingRequest.append(buffer)
         }
         isTapInstalled = true
 
-        audioEngine.prepare()
+        engine.prepare()
         do {
-            try audioEngine.start()
+            try engine.start()
         } catch {
-            removeTapIfNeeded(from: inputNode)
+            guard self.sessionID == sessionID else { return }
+            tearDownEngine()
             recognitionRequest = nil
             onError?(RecognizerError.engineFailedToStart(error.localizedDescription))
             return
         }
+        guard self.sessionID == sessionID else {
+            tearDownEngine()
+            recognitionRequest = nil
+            return
+        }
 
-        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+        recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
             Task { @MainActor in
+                guard self.sessionID == sessionID else { return }
                 if let result {
                     let text = result.bestTranscription.formattedString
                     if result.isFinal {
                         self.onFinal?(text)
-                        self.cleanup()
+                        self.cleanup(expectedSession: sessionID)
                         return
                     }
                     self.onPartial?(text)
                 }
                 guard let error else { return }
-                // "No speech detected" after a clean stop is common; treat empty as final.
                 let nsError = error as NSError
-                let isNoSpeech = nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 1110
-                if isNoSpeech {
+                if nsError.domain == "kAFAssistantErrorDomain", nsError.code == 1110 {
                     self.onFinal?("")
-                    self.cleanup()
+                    self.cleanup(expectedSession: sessionID)
                     return
                 }
                 self.onError?(error)
-                self.cleanup()
+                self.cleanup(expectedSession: sessionID)
             }
         }
         isRunning = true
     }
 
-    /// Start recording. Errors are delivered via ``onError``.
     func startRecording() {
         Task { @MainActor in
             do {
@@ -154,48 +185,58 @@ final class StickyNoteSpeechRecognizer {
         }
     }
 
-    /// Start recording. Throws on synchronous precondition failure;
-    /// async audio-format resolution failures go through ``onError``.
     func start() async throws {
-        guard !isRunning else { return }
+        let newSession = UUID()
+        sessionID = newSession
+        isRunning = false
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest = nil
+        tearDownEngine()
+
         do {
             try activateAudioSession()
         } catch {
             throw RecognizerError.engineFailedToStart(error.localizedDescription)
         }
+        // Let hardware attach after a fresh mic-permission grant.
+        try? await Task.sleep(for: .milliseconds(150))
+        guard sessionID == newSession else { return }
+
         let availability = OnDeviceSupportChecker.check()
         guard availability == .available else {
             throw RecognizerError.onDeviceNotSupported
         }
-        await beginRecognition()
+        await beginRecognition(sessionID: newSession)
     }
 
-    /// Stop streaming and let the recognizer finalize. The ``onFinal`` callback
-    /// is invoked when the final result arrives (usually within a few hundred ms).
     func stopRecording() {
         guard isRunning || recognitionRequest != nil else { return }
         recognitionRequest?.endAudio()
-        if audioEngine.isRunning {
-            audioEngine.stop()
+        if let engine = audioEngine, engine.isRunning {
+            engine.stop()
         }
-        // Defer cleanup until onFinal / onError fires — see callback.
     }
 
-    /// Stop streaming and discard results.
     func cancel() {
+        sessionID = UUID()
         recognitionTask?.cancel()
-        cleanup()
+        recognitionTask = nil
+        recognitionRequest = nil
+        tearDownEngine()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        isRunning = false
     }
 
-    private func cleanup() {
-        guard isRunning || recognitionRequest != nil || isTapInstalled else { return }
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-        removeTapIfNeeded(from: audioEngine.inputNode)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        recognitionRequest = nil
+    private func cleanup(expectedSession: UUID) {
+        guard sessionID == expectedSession else { return }
+        guard isRunning || recognitionRequest != nil || isTapInstalled || audioEngine != nil else { return }
+        recognitionTask?.cancel()
         recognitionTask = nil
+        recognitionRequest?.endAudio()
+        recognitionRequest = nil
+        tearDownEngine()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         isRunning = false
     }
 }
