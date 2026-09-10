@@ -1,10 +1,13 @@
 import SwiftUI
 
-/// Voice recording button used by sticky-note mode and schedule (todo/calendar) mode.
+/// Voice recording button for sticky-note mode and schedule (todo/calendar) mode.
 ///
-/// Tap mic → mic becomes a red square stop button + a floating glass
-/// breathing circle appears above the bottom toolbar. Tapping the red
-/// square finalizes recognition, then invokes ``onCommit``.
+/// Tap mic → mic becomes a red stop square + a compact floating glass
+/// breathing circle appears *above* the button.
+///
+/// Important: the floating HUD must stay intrinsically sized (`fixedSize`).
+/// A flexible / infinite-height overlay inside bottom `safeAreaInset` causes an
+/// immediate layout feedback crash (app quits on mic tap).
 struct StickyNoteVoiceLauncher: View {
     @ObservedObject var draft: StickyNoteDraftStore
 
@@ -39,13 +42,15 @@ struct ScheduleVoiceLauncher: View {
 // MARK: - Shared voice capture control
 
 struct VoiceCaptureButton: View {
-    /// When true (e.g. NLP parse in flight), show a spinner and disable re-entry.
     var isExternalBusy: Bool = false
     var accessibilityId: String = "voice-input"
     var onCommit: (String) -> Void
     var onFailed: ((String) -> Void)? = nil
 
     @State private var phase: Phase = .idle
+    /// Stable identity for the recording HUD so SwiftUI layout passes don't
+    /// destroy/recreate it (which raced `cancel` vs `start` and crashed).
+    @State private var recordingSession = UUID()
 
     private enum Phase: Equatable {
         case idle
@@ -95,12 +100,12 @@ struct VoiceCaptureButton: View {
                     onFailed: { message in
                         phase = .idle
                         onFailed?(message)
-                    },
-                    onCancel: {
-                        phase = .idle
                     }
                 )
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .id(recordingSession)
+                .fixedSize()
+                .offset(y: -96)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
         }
         .animation(.snappy(duration: 0.25), value: showsOverlay)
@@ -109,6 +114,7 @@ struct VoiceCaptureButton: View {
     private func toggle() {
         switch phase {
         case .idle:
+            recordingSession = UUID()
             phase = .recording
         case .recording:
             phase = .finalizing
@@ -120,13 +126,10 @@ struct VoiceCaptureButton: View {
 
 // MARK: - Voice Recording Overlay
 
-/// Floating overlay shown above the bottom toolbar while recording.
-/// Displays a glass-effect circle with breathing animation.
 struct VoiceRecordingOverlay: View {
     var isFinalizing: Bool
     var onFinished: (String) -> Void
     var onFailed: (String) -> Void
-    var onCancel: () -> Void
 
     @State private var transcript: String = ""
     @State private var statusMsg: String? = nil
@@ -137,55 +140,53 @@ struct VoiceRecordingOverlay: View {
     private var recognizer: StickyNoteSpeechRecognizer { .shared }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .stroke(TimiaTheme.primary.opacity(0.25), lineWidth: 3)
+                    .frame(width: 88, height: 88)
+                    .modifier(PulsingModifier())
 
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .stroke(TimiaTheme.primary.opacity(0.25), lineWidth: 3)
-                        .frame(width: 100, height: 100)
-                        .modifier(PulsingModifier())
-
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 72, height: 72)
-                        .overlay {
-                            if !transcript.isEmpty {
-                                Text(transcript)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(8)
-                                    .lineLimit(3)
-                            } else {
-                                Image(systemName: "waveform")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(TimiaTheme.primary)
-                            }
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 64, height: 64)
+                    .overlay {
+                        if !transcript.isEmpty {
+                            Text(transcript)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(6)
+                                .lineLimit(3)
+                        } else {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 20))
+                                .foregroundStyle(TimiaTheme.primary)
                         }
-                }
+                    }
+            }
 
+            Group {
                 if let msg = statusMsg {
                     Text(msg)
-                        .font(.caption)
                         .foregroundStyle(statusIsError ? .red : .secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
                 } else if isFinalizing {
                     Text("识别中…")
-                        .font(.caption)
                         .foregroundStyle(.secondary)
                 } else if transcript.isEmpty {
-                    Text("请说话...")
-                        .font(.caption)
+                    Text("请说话…")
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 120)
+            .font(.caption2)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 160)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+        .fixedSize()
         .allowsHitTesting(false)
         .task {
             await prepareAndStart()
@@ -211,13 +212,12 @@ struct VoiceRecordingOverlay: View {
             return
         }
 
-        // Refresh after the permission sheet — hardware format may not be ready yet.
         SpeechPermissionManager.shared.refresh()
         guard !Task.isCancelled else { return }
 
-        let check = OnDeviceSupportChecker.check()
-        switch check {
-        case .available: break
+        switch OnDeviceSupportChecker.check() {
+        case .available:
+            break
         case .deviceNotSupported:
             statusMsg = "当前设备不支持语音识别"
             statusIsError = true
@@ -262,7 +262,6 @@ struct VoiceRecordingOverlay: View {
                 recognizer.cancel()
                 return
             }
-            // start() may have already delivered onError without throwing.
             if recognizer.isRunning {
                 didStart = true
                 if isFinalizing {
@@ -282,14 +281,13 @@ struct VoiceRecordingOverlay: View {
         hasFinished = true
         recognizer.cancel()
         Task { @MainActor in
-            // Keep the error visible briefly so the user can read it.
             try? await Task.sleep(for: .milliseconds(900))
             onFailed(message)
         }
     }
 }
 
-// MARK: - Breathing animation modifier
+// MARK: - Breathing animation
 
 struct PulsingModifier: ViewModifier {
     @State private var scale: CGFloat = 1.0
@@ -299,19 +297,11 @@ struct PulsingModifier: ViewModifier {
         content
             .scaleEffect(scale)
             .opacity(opacity)
-            .animation(
-                .easeInOut(duration: 1.4)
-                .repeatForever(autoreverses: true),
-                value: scale
-            )
-            .animation(
-                .easeInOut(duration: 1.4)
-                .repeatForever(autoreverses: true),
-                value: opacity
-            )
             .onAppear {
-                scale = 1.12
-                opacity = 0.25
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                    scale = 1.12
+                    opacity = 0.25
+                }
             }
     }
 }
