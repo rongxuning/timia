@@ -11,6 +11,14 @@ from timia_mcp.config import Settings, load_settings
 from timia_mcp.errors import ReadonlyError, json_result, tool_error_from_http
 from timia_mcp.http_client import TimiaHttpClient, TimiaHttpError
 from timia_mcp.profiles import is_tool_enabled
+from timia_mcp.tools.items import (
+    complete_item_impl,
+    create_item_impl,
+    get_item_impl,
+    list_items_impl,
+    parse_natural_language_impl,
+    update_item_impl,
+)
 from timia_mcp.tools.profile import whoami_impl
 from timia_mcp.tools.schedule import (
     get_schedule_dashboard_impl,
@@ -251,6 +259,181 @@ def build_mcp(settings: Settings, client: TimiaHttpClient) -> _MCPApp:
                 scope=scope,
                 workspace_id=workspace_id,
                 project_id=project_id,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "get_item"):
+
+        @mcp_app.tool(
+            name="get_item",
+            description="Return a single item summary (id, version, title, start_at, end_at, status).",
+        )
+        async def get_item(workspace_id: str, project_id: str, item_id: str) -> str:
+            return await _run_tool(
+                client,
+                "get_item",
+                get_item_impl,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                item_id=item_id,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "list_items"):
+
+        @mcp_app.tool(
+            name="list_items",
+            description="List items in a project with optional status filter and limit.",
+        )
+        async def list_items(
+            workspace_id: str,
+            project_id: str,
+            status: str | None = None,
+            limit: int | None = None,
+        ) -> str:
+            return await _run_tool(
+                client,
+                "list_items",
+                list_items_impl,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                status=status,
+                limit=limit,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "create_item"):
+
+        @mcp_app.tool(
+            name="create_item",
+            description="Create a schedule item in a project (requires schedule:write).",
+        )
+        async def create_item(
+            workspace_id: str,
+            project_id: str,
+            title: str,
+            body: str | None = None,
+            color: str | None = None,
+            status: str | None = None,
+            priority: str | None = None,
+            start_at: str | None = None,
+            end_at: str | None = None,
+            location: str | None = None,
+            details: str | None = None,
+            assignee_user_id: str | None = None,
+            participant_user_ids: list[str] | None = None,
+            repeat: str | None = None,
+        ) -> str:
+            return await _run_tool(
+                client,
+                "create_item",
+                create_item_impl,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                title=title,
+                body=body,
+                color=color,
+                status=status,
+                priority=priority,
+                start_at=start_at,
+                end_at=end_at,
+                location=location,
+                details=details,
+                assignee_user_id=assignee_user_id,
+                participant_user_ids=participant_user_ids,
+                repeat=repeat,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "update_item"):
+
+        @mcp_app.tool(
+            name="update_item",
+            description="Update an item (version required; 409 returns version_conflict).",
+        )
+        async def update_item(
+            workspace_id: str,
+            project_id: str,
+            item_id: str,
+            version: int,
+            title: str | None = None,
+            body: str | None = None,
+            color: str | None = None,
+            status: str | None = None,
+            priority: str | None = None,
+            start_at: str | None = None,
+            end_at: str | None = None,
+            completed_at: str | None = None,
+            location: str | None = None,
+            details: str | None = None,
+            assignee_user_id: str | None = None,
+            participant_user_ids: list[str] | None = None,
+            repeat: str | None = None,
+        ) -> str:
+            return await _run_tool(
+                client,
+                "update_item",
+                update_item_impl,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                item_id=item_id,
+                version=version,
+                title=title,
+                body=body,
+                color=color,
+                status=status,
+                priority=priority,
+                start_at=start_at,
+                end_at=end_at,
+                completed_at=completed_at,
+                location=location,
+                details=details,
+                assignee_user_id=assignee_user_id,
+                participant_user_ids=participant_user_ids,
+                repeat=repeat,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "complete_item"):
+
+        @mcp_app.tool(
+            name="complete_item",
+            description="Mark an item as done (sets status=done and completed_at).",
+        )
+        async def complete_item(
+            workspace_id: str,
+            project_id: str,
+            item_id: str,
+            version: int,
+        ) -> str:
+            return await _run_tool(
+                client,
+                "complete_item",
+                complete_item_impl,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                item_id=item_id,
+                version=version,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "parse_natural_language"):
+
+        @mcp_app.tool(
+            name="parse_natural_language",
+            description=(
+                "Parse natural-language task text into a draft (does not persist; "
+                "use create_item to save)."
+            ),
+        )
+        async def parse_natural_language(
+            text: str,
+            reference_time: str,
+            selected_date: str,
+            timezone: str | None = None,
+        ) -> str:
+            return await _run_tool(
+                client,
+                "parse_natural_language",
+                parse_natural_language_impl,
+                text=text,
+                reference_time=reference_time,
+                selected_date=selected_date,
+                timezone=timezone or settings.default_timezone,
             )
 
     return mcp_app
