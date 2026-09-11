@@ -4,6 +4,14 @@ import json
 from typing import Any
 
 
+class ReadonlyError(Exception):
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "error": "readonly_mode",
+            "message": "Write operations are disabled in readonly mode",
+        }
+
+
 def tool_error_from_http(status: int, detail: Any) -> dict:
     if status == 401:
         code = "unauthorized"
