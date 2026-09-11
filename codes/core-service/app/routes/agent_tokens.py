@@ -36,8 +36,13 @@ def create_token(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name_required")
     scopes = payload.scopes
     if scopes is not None:
+        if not scopes:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="scopes_empty")
         invalid = [s for s in scopes if s not in ALL_SCOPES]
         if invalid:
             raise HTTPException(
@@ -46,7 +51,7 @@ def create_token(
     row, plaintext = create_agent_token(
         db,
         user_id=user.id,
-        name=payload.name.strip(),
+        name=name,
         scopes=scopes,
         expires_at=payload.expires_at,
     )
