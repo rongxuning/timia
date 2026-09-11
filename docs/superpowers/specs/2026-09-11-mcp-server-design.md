@@ -152,6 +152,7 @@ MCP 是 **agent 操作面**：意图化 tools + 少量 resources/prompts。业�
 | `GET` | `/auth/agent-tokens` | 列表（无明文） |
 | `POST` | `/auth/agent-tokens` | 创建；body: `{ name, scopes?, expires_at? }`；响应含一次性 `token` |
 | `DELETE` | `/auth/agent-tokens/{id}` | 撤销（设 `revoked_at`） |
+| `POST` | `/auth/agent-tokens/audit` | mcp-server 上报 tool 调用；body 对齐 `agent_tool_calls` 字段（无 id） |
 
 权限：仅操作自己的 token；`system_admin` 不额外扩大为可管他人（防误用；若需运维再开）。
 
