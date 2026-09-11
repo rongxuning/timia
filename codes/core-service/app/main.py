@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routes.agent_tokens import router as agent_tokens_router
 from app.routes.auth import router as auth_router
 from app.routes.comments import router as comments_router
 from app.routes.items import router as items_router
@@ -43,6 +44,7 @@ app.add_middleware(
 app.add_middleware(GzipRequestMiddleware)
 
 app.include_router(auth_router)
+app.include_router(agent_tokens_router)
 app.include_router(web_auth_router)
 app.include_router(mobile_auth_router)
 app.include_router(workspaces_router)
