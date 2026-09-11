@@ -78,7 +78,9 @@ def required_scope_for_request(method: str, path: str) -> str | None:
     return "__deny__"
 
 
-def verify_pat(db: Session, token: str) -> tuple[User, AgentToken]:
+def verify_pat(
+    db: Session, token: str, *, touch_last_used: bool = False
+) -> tuple[User, AgentToken]:
     if not token.startswith(PAT_PREFIX):
         raise ValueError("invalid_token")
     row = db.scalar(select(AgentToken).where(AgentToken.token_hash == hash_pat(token)))
@@ -92,11 +94,16 @@ def verify_pat(db: Session, token: str) -> tuple[User, AgentToken]:
     user = db.get(User, row.user_id)
     if not user or user.status != "active":
         raise ValueError("user_disabled")
-    row.last_used_at = now
-    db.add(row)
-    db.commit()
-    db.refresh(row)
+    if touch_last_used:
+        touch_agent_token_last_used(db, row)
+        db.refresh(row)
     return user, row
+
+
+def touch_agent_token_last_used(db: Session, agent_token: AgentToken) -> None:
+    agent_token.last_used_at = utcnow()
+    db.add(agent_token)
+    db.commit()
 
 
 def token_to_out(row: AgentToken) -> AgentTokenOut:

@@ -21,8 +21,14 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing_token")
     token = authorization.split(" ", 1)[1].strip()
 
-    if token.startswith("tm_pat_"):
-        from app.services.agent_tokens import required_scope_for_request, verify_pat
+    from app.services.agent_tokens import PAT_PREFIX
+
+    if token.startswith(PAT_PREFIX):
+        from app.services.agent_tokens import (
+            required_scope_for_request,
+            touch_agent_token_last_used,
+            verify_pat,
+        )
 
         try:
             user, agent_token = verify_pat(db, token)
@@ -35,6 +41,7 @@ def get_current_user(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="pat_path_not_allowed")
         if needed is not None and needed not in (agent_token.scopes or []):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="insufficient_scope")
+        touch_agent_token_last_used(db, agent_token)
         request.state.agent_token_id = str(agent_token.id)
         request.state.agent_scopes = list(agent_token.scopes or [])
         return user

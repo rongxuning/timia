@@ -131,6 +131,7 @@ def test_pat_without_schedule_write_cannot_create_item(
         },
     )
     pat = created.json()["token"]
+    token_id = created.json()["id"]
     resp = client.post(
         f"/workspaces/{ws}/projects/{pj}/items",
         headers={"Authorization": f"Bearer {pat}"},
@@ -138,6 +139,67 @@ def test_pat_without_schedule_write_cannot_create_item(
     )
     assert resp.status_code == 403
     assert resp.json()["detail"] == "insufficient_scope"
+
+    db = next(get_db())
+    try:
+        row = db.scalar(select(AgentToken).where(AgentToken.id == uuid.UUID(token_id)))
+        assert row is not None
+        assert row.last_used_at is None
+    finally:
+        db.close()
+
+
+def test_pat_auth_me_updates_last_used_at(client_and_user_headers):
+    client, headers = client_and_user_headers
+    created = client.post(
+        "/auth/agent-tokens",
+        headers=headers,
+        json={"name": "me-test"},
+    )
+    assert created.status_code == 201
+    pat = created.json()["token"]
+    token_id = created.json()["id"]
+
+    db = next(get_db())
+    try:
+        row = db.scalar(select(AgentToken).where(AgentToken.id == uuid.UUID(token_id)))
+        assert row is not None
+        assert row.last_used_at is None
+    finally:
+        db.close()
+
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {pat}"})
+    assert me.status_code == 200
+
+    db = next(get_db())
+    try:
+        row = db.scalar(select(AgentToken).where(AgentToken.id == uuid.UUID(token_id)))
+        assert row is not None
+        assert row.last_used_at is not None
+    finally:
+        db.close()
+
+
+def test_create_agent_token_rejects_empty_scopes(client_and_user_headers):
+    client, headers = client_and_user_headers
+    resp = client.post(
+        "/auth/agent-tokens",
+        headers=headers,
+        json={"name": "empty-scopes", "scopes": []},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "scopes_empty"
+
+
+def test_create_agent_token_rejects_whitespace_name(client_and_user_headers):
+    client, headers = client_and_user_headers
+    resp = client.post(
+        "/auth/agent-tokens",
+        headers=headers,
+        json={"name": "   "},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "name_required"
 
 
 def test_audit_requires_pat(client_and_user_headers):
