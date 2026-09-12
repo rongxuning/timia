@@ -10,6 +10,7 @@ from timia_mcp.audit import emit_audit
 from timia_mcp.config import Settings, load_settings
 from timia_mcp.errors import ReadonlyError, json_result, tool_error_from_http
 from timia_mcp.http_client import TimiaHttpClient, TimiaHttpError
+from timia_mcp.request_context import request_client
 from timia_mcp.tools import ToolContext, register_all
 
 try:
@@ -58,19 +59,30 @@ async def _run_tool(
         await emit_audit(client, tool_name, ok, error_detail, latency_ms, {})
 
 
-def build_mcp(settings: Settings, client: TimiaHttpClient) -> _MCPApp:
+def build_mcp(settings: Settings, client: TimiaHttpClient | None) -> _MCPApp:
     mcp_app = _resolve_mcp_app()("timia")
 
     async def run_tool(tool_name: str, impl: ToolImpl, *args: Any, **kwargs: Any) -> str:
-        return await _run_tool(client, tool_name, impl, *args, **kwargs)
+        active = request_client.get() or client
+        if active is None:
+            raise RuntimeError("No TimiaHttpClient available for tool call")
+        return await _run_tool(active, tool_name, impl, *args, **kwargs)
 
-    ctx = ToolContext(settings=settings, client=client, run_tool=run_tool)
+    # Placeholder for HTTP mode (tools resolve via request ContextVar).
+    ctx_client = client if client is not None else TimiaHttpClient.__new__(TimiaHttpClient)
+    ctx = ToolContext(settings=settings, client=ctx_client, run_tool=run_tool)
     register_all(mcp_app, ctx)
     return mcp_app
 
 
 def main() -> None:
     settings = load_settings()
+    if settings.transport == "http":
+        from timia_mcp.http_app import run_http_server
+
+        run_http_server(settings)
+        return
+
     client = TimiaHttpClient(settings)
     mcp = build_mcp(settings, client)
     mcp.run(transport="stdio")
