@@ -1,7 +1,7 @@
 # 健康 / 健身同步重规划
 
 **Date:** 2026-09-10  
-**Status:** 方案已内部多轮收敛，待实现  
+**Status:** 部分被取代。客户端「一条混合管线 + 展示优先排队」改走 [2026-09-12 健康/训练拆分同步](./2026-09-12-health-workout-split-sync-design.md)。服务端瘦上传、脏日期 rollup、健康侧按日续传仍有效。  
 **Depends on:** [health-domain](./2026-08-27-health-domain-design.md)、[sync-resume](./2026-09-04-health-sync-resume-design.md)、[clear-watermark](./2026-09-04-health-clear-server-watermark-design.md)、[sync-performance](./2026-09-05-health-sync-performance-design.md)、现状梳理 [health-data-and-sync](../../technical-solution/health-data-and-sync.md)
 
 ## Goal
