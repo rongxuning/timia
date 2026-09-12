@@ -1,7 +1,7 @@
 # 健康 / 健身同步重规划
 
 **Date:** 2026-09-10  
-**Status:** 方案已内部多轮收敛，待实现  
+**Status:** 已被 [2026-09-12 健康/训练拆分同步](./2026-09-12-health-workout-split-sync-design.md) 取代（绿场直接拆：无兼容水位、训练无 outbox、健康不再按 P1/P2/P3 插队）。本文仅作问题分析留档；实现以 09-12 为准。  
 **Depends on:** [health-domain](./2026-08-27-health-domain-design.md)、[sync-resume](./2026-09-04-health-sync-resume-design.md)、[clear-watermark](./2026-09-04-health-clear-server-watermark-design.md)、[sync-performance](./2026-09-05-health-sync-performance-design.md)、现状梳理 [health-data-and-sync](../../technical-solution/health-data-and-sync.md)
 
 ## Goal

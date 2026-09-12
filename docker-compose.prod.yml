@@ -48,6 +48,27 @@ services:
     expose:
       - "3000"
 
+  mcp-server:
+    image: timia-mcp-server:prod
+    build:
+      context: ./codes/mcp-server
+      args:
+        BUILD_REVISION: ${MCP_SERVER_REVISION:-local}
+    restart: unless-stopped
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc.sh}
+    environment:
+      TIMIA_API_BASE: http://core-service:8000
+      TIMIA_MCP_TRANSPORT: http
+      TIMIA_MCP_HOST: 0.0.0.0
+      TIMIA_MCP_PORT: "8100"
+      TIMIA_MCP_PATH: /mcp
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    # No process TIMIA_PAT — each MCP request carries Authorization: Bearer tm_pat_…
+    expose:
+      - "8100"
+    depends_on:
+      - core-service
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -60,6 +81,7 @@ services:
     depends_on:
       - core-service
       - web
+      - mcp-server
 
 volumes:
   timia_pgdata:

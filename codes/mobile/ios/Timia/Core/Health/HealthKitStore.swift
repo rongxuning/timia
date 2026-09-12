@@ -23,6 +23,12 @@ struct HealthKitExport: Sendable {
     var deletions: [HealthKitDeletedObject] = []
 }
 
+struct HealthKitWorkoutExport: Sendable {
+    var workouts: [HealthWorkoutPayload]
+    var routes: [HealthWorkoutRoutePayload]
+    var deletions: [HealthKitDeletedObject] = []
+}
+
 enum HealthKitStoreError: LocalizedError {
     case unavailable
     /// Missing/corrupt anchors or per-type query failure — caller should heal with a short time window.
@@ -40,33 +46,48 @@ struct HealthKitStore {
     private let store = HKHealthStore()
     private let timezone = TimeZone.current.identifier
 
-    /// Stable keys for every sample type we observe / export via anchors.
-    static var anchorKeys: [String] {
+    /// Quantity / sleep / stand / heartbeat anchors. Workout is a separate pipeline.
+    static var healthAnchorKeys: [String] {
         quantitySpecs.map(\.metric) + [
             AnchorKey.sleep,
             AnchorKey.standHour,
-            AnchorKey.workout,
             AnchorKey.heartbeat,
         ]
     }
 
-    func exportSamples(from start: Date, to end: Date = Date()) async throws -> HealthKitExport {
+    static var workoutAnchorKeys: [String] {
+        [AnchorKey.workout]
+    }
+
+    static var anchorKeys: [String] {
+        healthAnchorKeys + workoutAnchorKeys
+    }
+
+    func exportHealth(from start: Date, to end: Date = Date()) async throws -> HealthKitExport {
         guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitStoreError.unavailable }
         async let samplesTask: [HealthQuantitySamplePayload] = fetchQuantities(from: start, to: end)
         async let sleepTask: [HealthSleepSamplePayload] = fetchSleep(from: start, to: end)
         async let standTask: [HealthStandHourPayload] = fetchStandHours(from: start, to: end)
-        async let workoutsTask: ([HealthWorkoutPayload], [HealthWorkoutRoutePayload]) = fetchWorkouts(from: start, to: end)
         async let heartbeatsTask: [HealthHeartbeatSeriesPayload] = fetchHeartbeats(from: start, to: end)
-        let (workouts, routes) = await workoutsTask
         return HealthKitExport(
             samples: await samplesTask,
             sleep: await sleepTask,
             standHours: await standTask,
-            workouts: workouts,
-            routes: routes,
+            workouts: [],
+            routes: [],
             heartbeats: await heartbeatsTask,
             deletions: []
         )
+    }
+
+    func exportWorkouts(from start: Date, to end: Date = Date()) async throws -> HealthKitWorkoutExport {
+        guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitStoreError.unavailable }
+        let (workouts, routes) = await fetchWorkouts(from: start, to: end)
+        return HealthKitWorkoutExport(workouts: workouts, routes: routes, deletions: [])
+    }
+
+    func exportSamples(from start: Date, to end: Date = Date()) async throws -> HealthKitExport {
+        try await exportHealth(from: start, to: end)
     }
 
     /// Incremental export via `HKAnchoredObjectQuery` per observed type.
@@ -76,7 +97,7 @@ struct HealthKitStore {
     func exportAnchoredChanges(dropFailedKeys: Bool = true) async throws -> (export: HealthKitExport, newAnchors: [String: HKQueryAnchor]) {
         guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitStoreError.unavailable }
 
-        let keys = Self.anchorKeys
+        let keys = Self.healthAnchorKeys
         var loaded: [String: HKQueryAnchor] = [:]
         var missing: [String] = []
         for key in keys {
@@ -93,8 +114,6 @@ struct HealthKitStore {
         var samples: [HealthQuantitySamplePayload] = []
         var sleep: [HealthSleepSamplePayload] = []
         var standHours: [HealthStandHourPayload] = []
-        var workouts: [HealthWorkoutPayload] = []
-        var routes: [HealthWorkoutRoutePayload] = []
         var heartbeats: [HealthHeartbeatSeriesPayload] = []
         var deletions: [HealthKitDeletedObject] = []
         var newAnchors: [String: HKQueryAnchor] = [:]
@@ -147,21 +166,6 @@ struct HealthKitStore {
 
         do {
             let result = try await anchoredQuery(
-                type: HKObjectType.workoutType(),
-                anchor: loaded[AnchorKey.workout],
-                predicate: nil
-            )
-            let mapped = await mapWorkouts(result.added)
-            workouts = mapped.workouts
-            routes = mapped.routes
-            deletions.append(contentsOf: mapDeleted(result.deleted, typeKey: AnchorKey.workout))
-            newAnchors[AnchorKey.workout] = result.newAnchor
-        } catch {
-            await noteFailure(AnchorKey.workout)
-        }
-
-        do {
-            let result = try await anchoredQuery(
                 type: HKSeriesType.heartbeat(),
                 anchor: loaded[AnchorKey.heartbeat],
                 predicate: nil
@@ -185,13 +189,45 @@ struct HealthKitStore {
                 samples: samples,
                 sleep: sleep,
                 standHours: standHours,
-                workouts: workouts,
-                routes: routes,
+                workouts: [],
+                routes: [],
                 heartbeats: heartbeats,
                 deletions: deletions
             ),
             newAnchors
         )
+    }
+
+    func exportWorkoutAnchoredChanges(dropFailedKeys: Bool = true) async throws -> (
+        export: HealthKitWorkoutExport,
+        newAnchors: [String: HKQueryAnchor]
+    ) {
+        guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitStoreError.unavailable }
+        let key = AnchorKey.workout
+        guard let anchor = await HealthKitAnchorStore.shared.load(key: key) else {
+            throw HealthKitStoreError.needsAnchorHeal(failedKeys: [key])
+        }
+        do {
+            let result = try await anchoredQuery(
+                type: HKObjectType.workoutType(),
+                anchor: anchor,
+                predicate: nil
+            )
+            let mapped = await mapWorkouts(result.added)
+            return (
+                HealthKitWorkoutExport(
+                    workouts: mapped.workouts,
+                    routes: mapped.routes,
+                    deletions: mapDeleted(result.deleted, typeKey: key)
+                ),
+                [key: result.newAnchor]
+            )
+        } catch {
+            if dropFailedKeys {
+                await HealthKitAnchorStore.shared.remove(key: key)
+            }
+            throw HealthKitStoreError.needsAnchorHeal(failedKeys: [key])
+        }
     }
 
     /// Establish current anchors without re-reading full history.
@@ -219,11 +255,6 @@ struct HealthKitStore {
             anchor: nil,
             predicate: predicate
         ).newAnchor
-        anchors[AnchorKey.workout] = try await anchoredQuery(
-            type: HKObjectType.workoutType(),
-            anchor: nil,
-            predicate: predicate
-        ).newAnchor
         anchors[AnchorKey.heartbeat] = try await anchoredQuery(
             type: HKSeriesType.heartbeat(),
             anchor: nil,
@@ -231,6 +262,21 @@ struct HealthKitStore {
         ).newAnchor
 
         return anchors
+    }
+
+    func captureCurrentWorkoutAnchors(asOf date: Date = Date()) async throws -> [String: HKQueryAnchor] {
+        guard HKHealthStore.isHealthDataAvailable() else { throw HealthKitStoreError.unavailable }
+        let predicate = HKQuery.predicateForSamples(
+            withStart: date,
+            end: nil,
+            options: [.strictStartDate]
+        )
+        let result = try await anchoredQuery(
+            type: HKObjectType.workoutType(),
+            anchor: nil,
+            predicate: predicate
+        )
+        return [AnchorKey.workout: result.newAnchor]
     }
 
     private func fetchQuantities(from start: Date, to end: Date) async -> [HealthQuantitySamplePayload] {

@@ -23,6 +23,7 @@ struct HealthSyncRun: Decodable, Sendable, Identifiable {
     var id: String
     var source: String
     var status: String
+    var pipeline: String?
     var startedAt: String
     var finishedAt: String?
     var fromAt: String?
@@ -57,6 +58,7 @@ struct HealthSyncRun: Decodable, Sendable, Identifiable {
 struct HealthSyncRunIn: Encodable, Sendable {
     var source: String
     var status: String
+    var pipeline: String
     var fromAt: String?
     var toAt: String
     var quantityCount: Int
@@ -72,7 +74,8 @@ struct HealthSyncRunIn: Encodable, Sendable {
 
 struct HealthSyncStatus: Decodable, Sendable {
     var timezone: String
-    var lastSyncedAt: String?
+    var lastHealthSyncedAt: String?
+    var lastWorkoutSyncedAt: String?
     var days: [HealthSyncDayStatus]
     var runs: [HealthSyncRun]?
 }
@@ -80,10 +83,16 @@ struct HealthSyncStatus: Decodable, Sendable {
 struct HealthSyncCheckpointIn: Encodable, Sendable {
     var toAt: String
     var timezone: String
+    var pipeline: String
 }
 
 struct HealthSyncCheckpointOut: Decodable, Sendable {
-    var lastSyncedAt: String
+    var lastHealthSyncedAt: String?
+    var lastWorkoutSyncedAt: String?
+}
+
+struct HealthWorkoutUuidsOut: Decodable, Sendable {
+    var hkUuids: [String]
 }
 
 struct HealthQuantitySamplePayload: Codable, Sendable {
@@ -211,10 +220,16 @@ struct HealthDeletionSyncPayload: Codable, Sendable {
 struct HealthSyncAPI: Sendable {
     let client: APIClient
 
-    func syncStatus(timezone: String, from: String? = nil, to: String? = nil) async throws -> HealthSyncStatus {
+    func syncStatus(
+        timezone: String,
+        from: String? = nil,
+        to: String? = nil,
+        pipeline: String? = nil
+    ) async throws -> HealthSyncStatus {
         var query: [URLQueryItem] = [URLQueryItem(name: "timezone", value: timezone)]
         if let from { query.append(URLQueryItem(name: "from", value: from)) }
         if let to { query.append(URLQueryItem(name: "to", value: to)) }
+        if let pipeline { query.append(URLQueryItem(name: "pipeline", value: pipeline)) }
         return try await client.request(
             "/health/sync-status",
             query: query,
@@ -222,15 +237,30 @@ struct HealthSyncAPI: Sendable {
         )
     }
 
+    func workoutUuids(timezone: String, from: String? = nil, to: String? = nil) async throws -> HealthWorkoutUuidsOut {
+        var query: [URLQueryItem] = [URLQueryItem(name: "timezone", value: timezone)]
+        if let from { query.append(URLQueryItem(name: "from", value: from)) }
+        if let to { query.append(URLQueryItem(name: "to", value: to)) }
+        return try await client.request(
+            "/health/sync/workout-uuids",
+            query: query,
+            response: HealthWorkoutUuidsOut.self
+        )
+    }
+
     func finishRun(_ payload: HealthSyncRunIn) async throws -> HealthSyncRun {
         try await client.request("/health/sync/runs", method: "POST", body: payload, response: HealthSyncRun.self)
     }
 
-    func checkpoint(toAt: String, timezone: String = TimeZone.current.identifier) async throws -> HealthSyncCheckpointOut {
+    func checkpoint(
+        toAt: String,
+        timezone: String = TimeZone.current.identifier,
+        pipeline: String
+    ) async throws -> HealthSyncCheckpointOut {
         try await client.request(
             "/health/sync/checkpoint",
             method: "POST",
-            body: HealthSyncCheckpointIn(toAt: toAt, timezone: timezone),
+            body: HealthSyncCheckpointIn(toAt: toAt, timezone: timezone, pipeline: pipeline),
             response: HealthSyncCheckpointOut.self
         )
     }

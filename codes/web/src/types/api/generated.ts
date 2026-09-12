@@ -38,6 +38,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/agent-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tokens */
+        get: operations["list_tokens_auth_agent_tokens_get"];
+        put?: never;
+        /** Create Token */
+        post: operations["create_token_auth_agent_tokens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/agent-tokens/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Audit Tool Call */
+        post: operations["audit_tool_call_auth_agent_tokens_audit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/agent-tokens/{token_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Token */
+        delete: operations["revoke_token_auth_agent_tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -1093,6 +1145,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/sync/workout-uuids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Workout Uuids */
+        get: operations["get_workout_uuids_health_sync_workout_uuids_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/sync/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Sync Rollup */
+        post: operations["post_sync_rollup_health_sync_rollup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/data": {
         parameters: {
             query?: never;
@@ -1794,6 +1880,79 @@ export interface components {
             /** Created At Label */
             created_at_label: string;
         };
+        /** AgentTokenCreate */
+        AgentTokenCreate: {
+            /** Name */
+            name: string;
+            /** Scopes */
+            scopes?: string[] | null;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AgentTokenCreatedOut */
+        AgentTokenCreatedOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Token Prefix */
+            token_prefix: string;
+            /** Scopes */
+            scopes: string[];
+            /** Expires At */
+            expires_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Last Used At */
+            last_used_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Token */
+            token: string;
+        };
+        /** AgentTokenOut */
+        AgentTokenOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Token Prefix */
+            token_prefix: string;
+            /** Scopes */
+            scopes: string[];
+            /** Expires At */
+            expires_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Last Used At */
+            last_used_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AgentToolCallAuditIn */
+        AgentToolCallAuditIn: {
+            /** Tool Name */
+            tool_name: string;
+            /** Ok */
+            ok: boolean;
+            /** Error Detail */
+            error_detail?: string | null;
+            /**
+             * Latency Ms
+             * @default 0
+             */
+            latency_ms: number;
+            /** Request Meta */
+            request_meta?: {
+                [key: string]: unknown;
+            };
+        };
         /** AssignableUserOut */
         AssignableUserOut: {
             /** User Id */
@@ -2349,6 +2508,29 @@ export interface components {
              */
             possibly_late: boolean;
         };
+        /** HealthRollupIn */
+        HealthRollupIn: {
+            /**
+             * Timezone
+             * @default Asia/Shanghai
+             */
+            timezone: string;
+            /** Dates */
+            dates?: string[];
+        };
+        /** HealthRollupOut */
+        HealthRollupOut: {
+            /**
+             * Rolled
+             * @default 0
+             */
+            rolled: number;
+            /**
+             * Remaining Dirty
+             * @default 0
+             */
+            remaining_dirty: number;
+        };
         /** HealthRouteOut */
         HealthRouteOut: {
             /** Points */
@@ -2599,14 +2781,20 @@ export interface components {
              * Format: date-time
              */
             to_at: string;
+            /**
+             * Timezone
+             * @default Asia/Shanghai
+             */
+            timezone: string;
+            /** Pipeline */
+            pipeline?: ("health" | "workout") | null;
         };
         /** HealthSyncCheckpointOut */
         HealthSyncCheckpointOut: {
-            /**
-             * Last Synced At
-             * Format: date-time
-             */
-            last_synced_at: string;
+            /** Last Health Synced At */
+            last_health_synced_at?: string | null;
+            /** Last Workout Synced At */
+            last_workout_synced_at?: string | null;
         };
         /** HealthSyncDayStatusOut */
         HealthSyncDayStatusOut: {
@@ -2657,6 +2845,8 @@ export interface components {
              * @enum {string}
              */
             status: "success" | "failed";
+            /** Pipeline */
+            pipeline?: ("health" | "workout") | null;
             /** From At */
             from_at?: string | null;
             /**
@@ -2712,6 +2902,8 @@ export interface components {
             source: string;
             /** Status */
             status: string;
+            /** Pipeline */
+            pipeline: string;
             /**
              * Started At
              * Format: date-time
@@ -2767,8 +2959,10 @@ export interface components {
         HealthSyncStatusOut: {
             /** Timezone */
             timezone: string;
-            /** Last Synced At */
-            last_synced_at?: string | null;
+            /** Last Health Synced At */
+            last_health_synced_at?: string | null;
+            /** Last Workout Synced At */
+            last_workout_synced_at?: string | null;
             /** Days */
             days?: components["schemas"]["HealthSyncDayStatusOut"][];
             /** Runs */
@@ -2989,6 +3183,11 @@ export interface components {
             timezone: string;
             /** Workouts */
             workouts?: components["schemas"]["HealthWorkoutIn"][];
+        };
+        /** HealthWorkoutUuidsOut */
+        HealthWorkoutUuidsOut: {
+            /** Hk Uuids */
+            hk_uuids?: string[];
         };
         /** HealthWorkoutsPageOut */
         HealthWorkoutsPageOut: {
@@ -5232,6 +5431,8 @@ export interface components {
              * @default false
              */
             is_favorite: boolean;
+            /** Role */
+            role?: string | null;
             /** Created By User Id */
             created_by_user_id?: string | null;
             /** Created By Display Name */
@@ -5444,6 +5645,136 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tokens_auth_agent_tokens_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTokenOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_token_auth_agent_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTokenCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTokenCreatedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audit_tool_call_auth_agent_tokens_audit_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentToolCallAuditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_token_auth_agent_tokens__token_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                token_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -8089,6 +8420,7 @@ export interface operations {
                 timezone?: string;
                 from?: string | null;
                 to?: string | null;
+                pipeline?: string | null;
             };
             header?: {
                 authorization?: string | null;
@@ -8175,6 +8507,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSyncCheckpointOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workout_uuids_health_sync_workout_uuids_get: {
+        parameters: {
+            query?: {
+                timezone?: string;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthWorkoutUuidsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sync_rollup_health_sync_rollup_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthRollupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthRollupOut"];
                 };
             };
             /** @description Validation Error */

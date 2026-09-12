@@ -83,11 +83,9 @@ struct ScheduleHomeView: View {
     @State private var errorTip: String?
     @State private var selectedTask: ScheduleTask?
     @State private var createSelection: ScheduleCreateSelection?
-    @State private var naturalLanguageText = ""
     @State private var isParsing = false
     @State private var parseResponse: NaturalLanguageParseResponse?
     @State private var isRangePickerExpanded = false
-    @FocusState private var isNaturalLanguageInputFocused: Bool
     @AppStorage("schedule.idleCollapseEnabled") private var idleCollapseEnabled = true
 
     var body: some View {
@@ -156,16 +154,6 @@ struct ScheduleHomeView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        dismissNaturalLanguageInput()
-                    }
-                )
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 6).onChanged { _ in
-                        dismissNaturalLanguageInput()
-                    }
-                )
             }
 
             if let errorTip {
@@ -185,7 +173,6 @@ struct ScheduleHomeView: View {
         // expand the content layout under the bottom bar / home indicator.
         .background(TimiaTheme.surface.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .keyboardDoneToolbar { dismissNaturalLanguageInput() }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomControls
         }
@@ -227,7 +214,6 @@ struct ScheduleHomeView: View {
             NavigationStack {
                 TaskEditorView(mode: .naturalLanguage(response)) {
                     parseResponse = nil
-                    naturalLanguageText = ""
                     Task { await loadVisibleContent(force: true) }
                 }
             }
@@ -259,7 +245,6 @@ struct ScheduleHomeView: View {
             Spacer()
 
             Button {
-                dismissNaturalLanguageInput()
                 onOpenWorkspaces()
             } label: {
                 Image(systemName: "square.grid.2x2")
@@ -272,7 +257,6 @@ struct ScheduleHomeView: View {
             .accessibilityLabel("打开空间页面")
 
             Button {
-                dismissNaturalLanguageInput()
                 onOpenAccount()
             } label: {
                 Text(user.initials)
@@ -290,11 +274,6 @@ struct ScheduleHomeView: View {
         .padding(.bottom, 6)
         .background(TimiaTheme.surface)
         .contentShape(Rectangle())
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                dismissNaturalLanguageInput()
-            }
-        )
     }
 
     private var periodHeaderTransition: AnyTransition {
@@ -462,61 +441,38 @@ struct ScheduleHomeView: View {
                             isStickyNoteEditorPresented = true
                         }
 
-                        StickyNoteVoiceLauncher(
-                            session: session,
-                            draft: stickyDraft
-                        )
+                        StickyNoteVoiceLauncher(draft: stickyDraft)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 } else {
-                    plusCircleButton(accessibilityLabel: "新建任务") {
-                        dismissNaturalLanguageInput()
-                        withAnimation(.snappy(duration: 0.2)) {
-                            isRangePickerExpanded = false
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 0)
+                        plusCircleButton(accessibilityLabel: "新建任务") {
+                            withAnimation(.snappy(duration: 0.2)) {
+                                isRangePickerExpanded = false
+                            }
+                            createSelection = ScheduleCreateSelection(
+                                date: selectedDate,
+                                hasExactTime: false
+                            )
                         }
-                        createSelection = ScheduleCreateSelection(
-                            date: selectedDate,
-                            hasExactTime: false
+
+                        ScheduleVoiceLauncher(
+                            isParsing: isParsing,
+                            onRecognized: { text in
+                                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !trimmed.isEmpty else {
+                                    showTip("未识别到有效内容")
+                                    return
+                                }
+                                Task { await parseNaturalLanguage(from: trimmed) }
+                            },
+                            onFailed: { message in
+                                showTip(message)
+                            }
                         )
                     }
-
-                    HStack(spacing: 8) {
-                        TextField("用自然语言添加任务…", text: $naturalLanguageText, axis: .vertical)
-                            .lineLimit(1...3)
-                            .frame(height: 32)
-                            .focused($isNaturalLanguageInputFocused)
-                            .submitLabel(.send)
-                            .onSubmit {
-                                dismissNaturalLanguageInput()
-                                Task { await parseNaturalLanguage() }
-                            }
-
-                        Button {
-                            dismissNaturalLanguageInput()
-                            Task { await parseNaturalLanguage() }
-                        } label: {
-                            Group {
-                                if isParsing {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "arrow.up")
-                                        .font(.subheadline.bold())
-                                }
-                            }
-                            .foregroundStyle(.white)
-                            .frame(width: 32, height: 32)
-                            .background(canParse ? TimiaTheme.primary : Color.secondary.opacity(0.35), in: Circle())
-                        }
-                        .disabled(!canParse)
-                        .accessibilityLabel("解析任务")
-                    }
-                    .padding(.leading, 12)
-                    .padding(.trailing, 5)
-                    .padding(.vertical, 3)
-                    .background(TimiaTheme.surface, in: RoundedRectangle(cornerRadius: 19))
-                    .overlay(RoundedRectangle(cornerRadius: 19).stroke(TimiaTheme.border.opacity(0.6)))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -553,10 +509,6 @@ struct ScheduleHomeView: View {
         .shadow(color: TimiaTheme.shadow, radius: 12, y: 5)
     }
 
-    private var canParse: Bool {
-        !naturalLanguageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isParsing
-    }
-
     private func plusCircleButton(
         accessibilityLabel: String,
         action: @escaping () -> Void
@@ -574,7 +526,6 @@ struct ScheduleHomeView: View {
 
     private func modeButton(_ value: ContentMode, symbol: String) -> some View {
         Button {
-            dismissNaturalLanguageInput()
             withAnimation(.snappy(duration: 0.25)) {
                 if value == .calendar {
                     if contentMode == .calendar {
@@ -623,7 +574,6 @@ struct ScheduleHomeView: View {
     }
 
     private func selectRange(_ newRange: CalendarRange) {
-        dismissNaturalLanguageInput()
         withAnimation(.snappy(duration: 0.22)) {
             isRangePickerExpanded = false
         }
@@ -642,7 +592,6 @@ struct ScheduleHomeView: View {
     }
 
     private func selectDate(_ date: Date) {
-        dismissNaturalLanguageInput()
         guard !Calendar.current.isDate(date, inSameDayAs: selectedDate) else { return }
         withAnimation(.snappy(duration: 0.28)) {
             selectedDate = date
@@ -727,9 +676,12 @@ struct ScheduleHomeView: View {
     private func revealDateOnStrip(_ date: Date) {
         let nextStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
         guard !Calendar.current.isDate(nextStart, inSameDayAs: dateStripStart) else { return }
-        // Instant replace avoids LazyHStack scroll animation that flashes the next
-        // Monday then snaps the window back.
-        dateStripStart = nextStart
+        // Disable animation so vertical day jumps do not flash an intermediate week.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dateStripStart = nextStart
+        }
     }
 
     private func loadVisibleContent(force: Bool = false) async {
@@ -1211,9 +1163,8 @@ struct ScheduleHomeView: View {
         ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
     }
 
-    private func parseNaturalLanguage() async {
-        dismissNaturalLanguageInput()
-        let value = naturalLanguageText.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func parseNaturalLanguage(from text: String) async {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
         isParsing = true
         defer { isParsing = false }
@@ -1232,11 +1183,6 @@ struct ScheduleHomeView: View {
         } catch {
             showTip(error.localizedDescription)
         }
-    }
-
-    private func dismissNaturalLanguageInput() {
-        guard isNaturalLanguageInputFocused else { return }
-        isNaturalLanguageInputFocused = false
     }
 
     private func showTip(_ message: String) {
@@ -1821,28 +1767,61 @@ private struct SlidingDateStrip: View {
     let onSelect: (Date) -> Void
     let onVisibleStartChange: (Date) -> Void
 
+    private let radius = 180
+
+    @State private var origin: Date
+
+    init(
+        selectedDate: Date,
+        visibleStart: Date,
+        onSelect: @escaping (Date) -> Void,
+        onVisibleStartChange: @escaping (Date) -> Void
+    ) {
+        self.selectedDate = selectedDate
+        self.visibleStart = visibleStart
+        self.onSelect = onSelect
+        self.onVisibleStartChange = onVisibleStartChange
+        _origin = State(initialValue: Calendar.current.startOfDay(for: visibleStart))
+    }
+
     var body: some View {
-        // Fixed 7-day window (not LazyHStack + scrollPosition). Cycle jumps from
-        // vertical day scroll just replace `visibleStart`; horizontal drag still
-        // shifts one day at a time without the old "show next Monday → snap back" race.
-        DateStripRow(
-            days: dateStripDays(starting: visibleStart),
-            selectedDate: selectedDate,
-            onSelect: onSelect
-        )
-        .contentShape(Rectangle())
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 24, coordinateSpace: .local)
-                .onEnded { value in
-                    let dx = value.translation.width
-                    let dy = value.translation.height
-                    guard abs(dx) > abs(dy), abs(dx) > 36 else { return }
-                    let step = dx < 0 ? 1 : -1
-                    let start = Calendar.current.startOfDay(for: visibleStart)
-                    onVisibleStartChange(dateByAddingDays(step, to: start))
+        // Continuous horizontal scroll with per-day snap. Leading day == visibleStart.
+        // External reveal jumps update `visibleStart` with animations disabled so the
+        // strip does not flash an intermediate Monday before settling.
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 7) {
+                ForEach(dateStripDayKeys(origin: origin, radius: radius), id: \.self) { key in
+                    let date = dateFromDayKey(key) ?? origin
+                    DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
+                        .containerRelativeFrame(.horizontal, count: 7, span: 1, spacing: 7)
+                        .frame(height: 50)
+                        .id(key)
                 }
-        )
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: visibleStartBinding)
+        .frame(height: 50)
         .accessibilityIdentifier("week-date-strip")
+        .onChange(of: visibleStart) { _, newStart in
+            guard dateStripNeedsReanchor(visibleStart: newStart, origin: origin, radius: radius) else {
+                return
+            }
+            origin = Calendar.current.startOfDay(for: newStart)
+        }
+    }
+
+    private var visibleStartBinding: Binding<String?> {
+        Binding(
+            get: { ScheduleFormat.dayKey(Calendar.current.startOfDay(for: visibleStart)) },
+            set: { newKey in
+                guard let newKey, let date = dateFromDayKey(newKey) else { return }
+                let start = Calendar.current.startOfDay(for: date)
+                guard !Calendar.current.isDate(start, inSameDayAs: visibleStart) else { return }
+                onVisibleStartChange(start)
+            }
+        )
     }
 }
 

@@ -156,15 +156,12 @@ struct HealthSyncDrain {
 
     // MARK: - Wave selection
     // Deletions first → Group A (samples ∥ sleep ∥ standHours ∥ heartbeats)
-    // → workouts → routes (blocked while same/earlier-day workouts pending).
 
     private func nextUploadWave(limit: Int) async throws -> [HealthSyncOutboxRow] {
         let pageSize = max(limit * 32, 128)
         var afterId: Int64 = 0
         var deletions: [HealthSyncOutboxRow] = []
         var groupA: [HealthSyncOutboxRow] = []
-        var workouts: [HealthSyncOutboxRow] = []
-        var routes: [HealthSyncOutboxRow] = []
 
         while true {
             let page = try await queue.nextPending(limit: pageSize, afterId: afterId)
@@ -177,30 +174,16 @@ struct HealthSyncDrain {
                     if deletions.count < limit { deletions.append(row) }
                 case .samples, .sleep, .standHours, .heartbeats:
                     if groupA.count < limit { groupA.append(row) }
-                case .workouts:
-                    if workouts.count < limit { workouts.append(row) }
-                case .routes:
-                    if routes.count < limit {
-                        let blocked = try await queue.hasBlockingWorkouts(
-                            forRouteId: row.id,
-                            localDate: row.localDate
-                        )
-                        if !blocked { routes.append(row) }
-                    }
                 }
             }
 
             if deletions.count >= limit { return Array(deletions.prefix(limit)) }
             if groupA.count >= limit { return Array(groupA.prefix(limit)) }
-            if workouts.count >= limit { return Array(workouts.prefix(limit)) }
-            if routes.count >= limit { return Array(routes.prefix(limit)) }
             if page.count < pageSize { break }
         }
 
         if !deletions.isEmpty { return Array(deletions.prefix(limit)) }
-        if !groupA.isEmpty { return Array(groupA.prefix(limit)) }
-        if !workouts.isEmpty { return Array(workouts.prefix(limit)) }
-        return Array(routes.prefix(limit))
+        return Array(groupA.prefix(limit))
     }
 
     // MARK: - Upload one outbox row
@@ -256,12 +239,6 @@ struct HealthSyncDrain {
             case .standHours:
                 let payload = try decoder.decode(HealthStandHourSyncPayload.self, from: row.payload)
                 return try await api.syncStandHours(payload)
-            case .workouts:
-                let payload = try decoder.decode(HealthWorkoutSyncPayload.self, from: row.payload)
-                return try await api.syncWorkouts(payload)
-            case .routes:
-                let payload = try decoder.decode(HealthWorkoutRouteSyncPayload.self, from: row.payload)
-                return try await api.syncWorkoutRoutes(payload)
             case .heartbeats:
                 let payload = try decoder.decode(HealthHeartbeatSyncPayload.self, from: row.payload)
                 return try await api.syncHeartbeat(payload)
@@ -294,8 +271,6 @@ struct HealthSyncDrain {
         case .samples: return "指标"
         case .sleep: return "睡眠"
         case .standHours: return "站立"
-        case .workouts: return "训练"
-        case .routes: return "路线"
         case .heartbeats: return "心跳"
         case .deletions: return "删除"
         }

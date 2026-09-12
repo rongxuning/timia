@@ -35,7 +35,7 @@ router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 @router.get("", response_model=list[WorkspaceOut])
 def list_workspaces(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     rows = db.execute(
-        select(Workspace, WorkspaceMember.is_favorite)
+        select(Workspace, WorkspaceMember.is_favorite, WorkspaceMember.role)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
         .where(WorkspaceMember.user_id == user.id, WorkspaceMember.status == "active")
         .order_by(WorkspaceMember.is_favorite.desc(), Workspace.created_at.desc())
@@ -48,8 +48,9 @@ def list_workspaces(db: Session = Depends(get_db), user: User = Depends(get_curr
             color=w.color,
             created_at=w.created_at,
             is_favorite=is_favorite,
+            role=role,
         )
-        for w, is_favorite in rows
+        for w, is_favorite, role in rows
     ]
 
 

@@ -26,11 +26,29 @@ def _checkpoint(
     token: str,
     to_at: str,
     timezone_name: str = "Asia/Shanghai",
+    pipeline: str = "health",
+    rollup: bool = True,
 ) -> None:
     resp = client.post(
         "/health/sync/checkpoint",
         headers=_headers(token),
-        json={"to_at": to_at, "timezone": timezone_name},
+        json={"to_at": to_at, "timezone": timezone_name, "pipeline": pipeline},
+    )
+    assert resp.status_code == 200, resp.text
+    if rollup:
+        _rollup(client, token, timezone_name)
+
+
+def _rollup(
+    client: TestClient,
+    token: str,
+    timezone_name: str = "Asia/Shanghai",
+    dates: list[str] | None = None,
+) -> None:
+    resp = client.post(
+        "/health/sync/rollup",
+        headers=_headers(token),
+        json={"timezone": timezone_name, "dates": dates or []},
     )
     assert resp.status_code == 200, resp.text
 
@@ -40,6 +58,7 @@ def _finish_run_success(
     token: str,
     to_at: str,
     local_dates: list[str],
+    pipeline: str = "health",
 ) -> None:
     resp = client.post(
         "/health/sync/runs",
@@ -47,11 +66,13 @@ def _finish_run_success(
         json={
             "source": "manual",
             "status": "success",
+            "pipeline": pipeline,
             "to_at": to_at,
             "local_dates": local_dates,
         },
     )
     assert resp.status_code == 200, resp.text
+    _rollup(client, token)
 
 
 def _register_and_login(client: TestClient) -> tuple[str, str]:
@@ -120,6 +141,7 @@ def test_health_sync_status_uses_daily_and_records_runs():
         json={
             "source": "manual",
             "status": "success",
+            "pipeline": "health",
             "from_at": (now - timedelta(days=90)).isoformat(),
             "to_at": to_at,
             "quantity_count": 1,
@@ -129,11 +151,14 @@ def test_health_sync_status_uses_daily_and_records_runs():
     )
     assert recorded.status_code == 200, recorded.text
     assert recorded.json()["source"] == "manual"
+    assert recorded.json()["pipeline"] == "health"
     assert recorded.json()["upserted"] == 1
+    _rollup(client, token)
     status = client.get("/health/sync-status", headers=_headers(token))
     assert status.status_code == 200, status.text
     body = status.json()
-    assert body["last_synced_at"] is not None
+    assert body["last_health_synced_at"] is not None
+    assert body["last_workout_synced_at"] is None
     assert any(day["local_date"] == local_date and day["quantity_count"] > 0 for day in body["days"])
     assert len(body["runs"]) == 1
     assert body["runs"][0]["quantity_count"] == 1
@@ -143,13 +168,14 @@ def test_health_sync_status_uses_daily_and_records_runs():
         json={
             "source": "background",
             "status": "success",
+            "pipeline": "health",
             "to_at": (now - timedelta(days=1)).isoformat(),
             "upserted": 0,
         },
     )
     assert later.status_code == 200
     again = client.get("/health/sync-status", headers=_headers(token))
-    assert again.json()["last_synced_at"] == body["last_synced_at"]
+    assert again.json()["last_health_synced_at"] == body["last_health_synced_at"]
     assert len(again.json()["runs"]) == 2
 
 
@@ -223,7 +249,7 @@ def test_sample_batch_too_large():
             "value": 1,
             "unit": "count",
         }
-        for _ in range(501)
+        for _ in range(1001)
     ]
     resp = client.post(
         "/health/sync/samples",
@@ -269,7 +295,7 @@ def test_quantity_upsert_is_idempotent_and_rolls_daily():
     assert body["current"]["steps"] == 250
 
 
-def test_daily_metrics_recompute_on_checkpoint_not_each_batch():
+def test_daily_metrics_recompute_on_rollup_not_checkpoint():
     client = TestClient(app)
     _, token = _register_and_login(client)
     start = datetime.now(timezone.utc).isoformat()
@@ -297,9 +323,14 @@ def test_daily_metrics_recompute_on_checkpoint_not_each_batch():
     cp = client.post(
         "/health/sync/checkpoint",
         headers=_headers(token),
-        json={"to_at": start, "timezone": "Asia/Shanghai"},
+        json={"to_at": start, "timezone": "Asia/Shanghai", "pipeline": "health"},
     )
     assert cp.status_code == 200, cp.text
+    still = client.get("/views/me/health", headers=_headers(token))
+    assert still.status_code == 200, still.text
+    assert still.json()["current"]["steps"] in (None, 0)
+
+    _rollup(client, token)
 
     after = client.get("/views/me/health", headers=_headers(token))
     assert after.status_code == 200, after.text
@@ -2095,13 +2126,15 @@ def test_health_sync_checkpoint_advances_watermark_without_run():
     resp = client.post(
         "/health/sync/checkpoint",
         headers=_headers(token),
-        json={"to_at": to_at},
+        json={"to_at": to_at, "pipeline": "health"},
     )
     assert resp.status_code == 200, resp.text
-    assert resp.json()["last_synced_at"] is not None
+    assert resp.json()["last_health_synced_at"] is not None
+    assert resp.json()["last_workout_synced_at"] is None
     status = client.get("/health/sync-status", headers=_headers(token))
     assert status.status_code == 200, status.text
-    assert status.json()["last_synced_at"] is not None
+    assert status.json()["last_health_synced_at"] is not None
+    assert status.json()["last_workout_synced_at"] is None
     assert status.json()["runs"] == []
 
 
@@ -2139,6 +2172,7 @@ def test_clear_health_data_keeps_profile_and_resets_watermark():
         json={
             "source": "manual",
             "status": "success",
+            "pipeline": "health",
             "to_at": now.isoformat(),
             "quantity_count": 1,
             "upserted": 1,
@@ -2156,7 +2190,8 @@ def test_clear_health_data_keeps_profile_and_resets_watermark():
 
     status = client.get("/health/sync-status", headers=_headers(token))
     assert status.status_code == 200, status.text
-    assert status.json()["last_synced_at"] is None
+    assert status.json()["last_health_synced_at"] is None
+    assert status.json()["last_workout_synced_at"] is None
     assert status.json()["runs"] == []
     assert all(day["quantity_count"] == 0 for day in status.json()["days"]) or status.json()["days"] == []
 
@@ -2398,3 +2433,110 @@ def test_sync_status_accepts_fixed_offset_timezone_aliases():
         )
         assert resp.status_code == 200, f"{tz_name}: {resp.text}"
         assert resp.json()["timezone"] == "Etc/GMT-8"
+
+
+def test_checkpoint_requires_pipeline():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    resp = client.post(
+        "/health/sync/checkpoint",
+        headers=_headers(token),
+        json={"to_at": datetime.now(timezone.utc).isoformat()},
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"] == "missing_pipeline"
+
+
+def test_health_checkpoint_does_not_advance_workout_watermark():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    now = datetime.now(timezone.utc).isoformat()
+    health = client.post(
+        "/health/sync/checkpoint",
+        headers=_headers(token),
+        json={"to_at": now, "pipeline": "health"},
+    )
+    assert health.status_code == 200, health.text
+    assert health.json()["last_health_synced_at"] is not None
+    assert health.json()["last_workout_synced_at"] is None
+    later = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    workout = client.post(
+        "/health/sync/checkpoint",
+        headers=_headers(token),
+        json={"to_at": later, "pipeline": "workout"},
+    )
+    assert workout.status_code == 200, workout.text
+    assert workout.json()["last_workout_synced_at"] is not None
+    assert workout.json()["last_health_synced_at"] == health.json()["last_health_synced_at"]
+
+
+def test_workout_uuids_lists_live_sessions_only():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    hk = str(uuid.uuid4())
+    start = datetime(2026, 9, 5, 7, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+    synced = client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": hk,
+                    "activity_type": "running",
+                    "start_at": start.isoformat(),
+                    "end_at": (start + timedelta(hours=1)).isoformat(),
+                    "duration_seconds": 3600,
+                    "distance_m": 5000,
+                }
+            ],
+        },
+    )
+    assert synced.status_code == 200, synced.text
+    listed = client.get(
+        "/health/sync/workout-uuids",
+        headers=_headers(token),
+        params={"timezone": "Asia/Shanghai", "from": "2026-09-01", "to": "2026-09-10"},
+    )
+    assert listed.status_code == 200, listed.text
+    assert hk in listed.json()["hk_uuids"]
+    client.post(
+        "/health/sync/deletions",
+        headers=_headers(token),
+        json={"timezone": "Asia/Shanghai", "deletions": [{"hk_uuid": hk, "kind": "workout"}]},
+    )
+    after = client.get(
+        "/health/sync/workout-uuids",
+        headers=_headers(token),
+        params={"timezone": "Asia/Shanghai", "from": "2026-09-01", "to": "2026-09-10"},
+    )
+    assert hk not in after.json()["hk_uuids"]
+
+
+def test_workout_upsert_does_not_roll_daily_metrics():
+    client = TestClient(app)
+    _, token = _register_and_login(client)
+    start = datetime.now(timezone.utc)
+    client.post(
+        "/health/sync/workouts",
+        headers=_headers(token),
+        json={
+            "timezone": "Asia/Shanghai",
+            "workouts": [
+                {
+                    "hk_uuid": str(uuid.uuid4()),
+                    "activity_type": "running",
+                    "start_at": start.isoformat(),
+                    "end_at": (start + timedelta(hours=1)).isoformat(),
+                    "duration_seconds": 3600,
+                    "distance_m": 5000,
+                    "avg_hr_bpm": 150,
+                }
+            ],
+        },
+    )
+    _rollup(client, token)
+    view = client.get("/views/me/health", headers=_headers(token))
+    assert view.status_code == 200, view.text
+    assert view.json()["current"]["steps"] in (None, 0)
+    assert view.json()["current"]["hr_avg"] in (None, 0)

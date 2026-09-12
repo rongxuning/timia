@@ -7,9 +7,12 @@ import SwiftUI
 ///   * Final text (on release) is appended to the shared draft store via
 ///     ``onCommit`` and the overlay dismisses.
 ///   * Sliding up cancels the recording (discards the result).
+///
+/// Note: the live mic button path uses ``VoiceRecordingOverlay`` instead.
+/// This view is kept for the long-press flow; do not wrap the shared
+/// ``SpeechPermissionManager`` in ``StateObject`` (it is a singleton).
 struct RecordingOverlay: View {
     @ObservedObject var draft: StickyNoteDraftStore
-    @StateObject private var permissions = SpeechPermissionManager.shared
     private var recognizer: StickyNoteSpeechRecognizer { StickyNoteSpeechRecognizer.shared }
     @State private var partialText: String = ""
     @State private var statusMessage: String? = nil
@@ -85,7 +88,7 @@ struct RecordingOverlay: View {
     // MARK: - Internals
 
     private func prepareAndStart() async {
-        let status = await permissions.requestIfNeeded()
+        let status = await SpeechPermissionManager.shared.requestIfNeeded()
         guard status == .authorized else {
             statusMessage = "需要麦克风 / 语音识别权限（设置 → Timia）"
             statusIsError = true
@@ -110,19 +113,25 @@ struct RecordingOverlay: View {
         }
 
         recognizer.onPartial = { text in
-            partialText = text
+            Task { @MainActor in
+                partialText = text
+            }
         }
         recognizer.onFinal = { text in
-            onCommit(text)
+            Task { @MainActor in
+                onCommit(text)
+            }
         }
         recognizer.onError = { err in
-            statusMessage = err.localizedDescription
-            statusIsError = true
+            Task { @MainActor in
+                statusMessage = err.localizedDescription
+                statusIsError = true
+            }
         }
 
         do {
-            try recognizer.start()
-            didStart = true
+            try await recognizer.start()
+            didStart = recognizer.isRunning
         } catch {
             statusMessage = error.localizedDescription
             statusIsError = true

@@ -2,7 +2,7 @@
 
 > 对照 2026-09 当前实现梳理。数据归属是个人域（`owner_user_id`），不进 workspace，不写 `activity_log`。源数据来自 iOS HealthKit，服务端 Postgres 存样本 + 日汇总，Web 只读展示。
 >
-> 下一版同步重规划（瘦上传、脏日期后台汇总、展示优先、时间段重传）见 [2026-09-10-health-sync-replan-design.md](../superpowers/specs/2026-09-10-health-sync-replan-design.md)。
+> 下一版（绿场可直接拆）：健康数据 / 训练记录两条管线，见 [2026-09-12-health-workout-split-sync-design.md](../superpowers/specs/2026-09-12-health-workout-split-sync-design.md)。09-10 重规划已并入该文，不再单独实现。
 
 相关实现：`codes/core-service/app/models/health.py`、`app/services/health_api.py`、`codes/mobile/ios/Timia/Core/Health/`。早期产品决策见 [health-domain-design](../superpowers/specs/2026-08-27-health-domain-design.md)；后续增量见 [sync-resume](../superpowers/specs/2026-09-04-health-sync-resume-design.md)、[clear-watermark](../superpowers/specs/2026-09-04-health-clear-server-watermark-design.md)、[sync-performance](../superpowers/specs/2026-09-05-health-sync-performance-design.md)。
 
