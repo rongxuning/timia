@@ -15,11 +15,14 @@ class TimiaHttpError(Exception):
 
 
 class TimiaHttpClient:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, pat: str | None = None) -> None:
+        token = pat if pat is not None else settings.pat
+        if not token:
+            raise ValueError("PAT is required to construct TimiaHttpClient")
         self._settings = settings
         self._client = httpx.AsyncClient(
             base_url=settings.api_base,
-            headers={"Authorization": f"Bearer {settings.pat}"},
+            headers={"Authorization": f"Bearer {token}"},
             timeout=settings.timeout_seconds,
         )
 
