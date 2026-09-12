@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 func weekDaysContaining(_ date: Date, calendar: Calendar = .current) -> [Date] {
