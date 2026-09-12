@@ -676,9 +676,12 @@ struct ScheduleHomeView: View {
     private func revealDateOnStrip(_ date: Date) {
         let nextStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
         guard !Calendar.current.isDate(nextStart, inSameDayAs: dateStripStart) else { return }
-        // Instant replace avoids LazyHStack scroll animation that flashes the next
-        // Monday then snaps the window back.
-        dateStripStart = nextStart
+        // Disable animation so vertical day jumps do not flash an intermediate week.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dateStripStart = nextStart
+        }
     }
 
     private func loadVisibleContent(force: Bool = false) async {
@@ -1764,28 +1767,61 @@ private struct SlidingDateStrip: View {
     let onSelect: (Date) -> Void
     let onVisibleStartChange: (Date) -> Void
 
+    private let radius = 180
+
+    @State private var origin: Date
+
+    init(
+        selectedDate: Date,
+        visibleStart: Date,
+        onSelect: @escaping (Date) -> Void,
+        onVisibleStartChange: @escaping (Date) -> Void
+    ) {
+        self.selectedDate = selectedDate
+        self.visibleStart = visibleStart
+        self.onSelect = onSelect
+        self.onVisibleStartChange = onVisibleStartChange
+        _origin = State(initialValue: Calendar.current.startOfDay(for: visibleStart))
+    }
+
     var body: some View {
-        // Fixed 7-day window (not LazyHStack + scrollPosition). Cycle jumps from
-        // vertical day scroll just replace `visibleStart`; horizontal drag still
-        // shifts one day at a time without the old "show next Monday → snap back" race.
-        DateStripRow(
-            days: dateStripDays(starting: visibleStart),
-            selectedDate: selectedDate,
-            onSelect: onSelect
-        )
-        .contentShape(Rectangle())
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 24, coordinateSpace: .local)
-                .onEnded { value in
-                    let dx = value.translation.width
-                    let dy = value.translation.height
-                    guard abs(dx) > abs(dy), abs(dx) > 36 else { return }
-                    let step = dx < 0 ? 1 : -1
-                    let start = Calendar.current.startOfDay(for: visibleStart)
-                    onVisibleStartChange(dateByAddingDays(step, to: start))
+        // Continuous horizontal scroll with per-day snap. Leading day == visibleStart.
+        // External reveal jumps update `visibleStart` with animations disabled so the
+        // strip does not flash an intermediate Monday before settling.
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 7) {
+                ForEach(dateStripDayKeys(origin: origin, radius: radius), id: \.self) { key in
+                    let date = dateFromDayKey(key) ?? origin
+                    DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
+                        .containerRelativeFrame(.horizontal, count: 7, span: 1, spacing: 7)
+                        .frame(height: 50)
+                        .id(key)
                 }
-        )
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: visibleStartBinding)
+        .frame(height: 50)
         .accessibilityIdentifier("week-date-strip")
+        .onChange(of: visibleStart) { _, newStart in
+            guard dateStripNeedsReanchor(visibleStart: newStart, origin: origin, radius: radius) else {
+                return
+            }
+            origin = Calendar.current.startOfDay(for: newStart)
+        }
+    }
+
+    private var visibleStartBinding: Binding<String?> {
+        Binding(
+            get: { ScheduleFormat.dayKey(Calendar.current.startOfDay(for: visibleStart)) },
+            set: { newKey in
+                guard let newKey, let date = dateFromDayKey(newKey) else { return }
+                let start = Calendar.current.startOfDay(for: date)
+                guard !Calendar.current.isDate(start, inSameDayAs: visibleStart) else { return }
+                onVisibleStartChange(start)
+            }
+        )
     }
 }
 
