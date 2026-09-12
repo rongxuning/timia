@@ -91,20 +91,22 @@ struct TimiaLiveActivityPalette: Equatable, Sendable {
     static func make(colorScheme: ColorScheme) -> Self {
         switch colorScheme {
         case .dark:
-            // Frosted dark tint so wallpaper shows through while white labels stay readable.
+            // Opaque system-dark surface: frosted black bleeds busy wallpapers and
+            // washes out white labels at night. Solid charcoal keeps contrast stable.
             return Self(
-                backgroundHex: "#000000",
-                backgroundOpacity: 0.62,
+                backgroundHex: "#1C1C1E",
+                backgroundOpacity: 1.0,
                 primaryTextHex: "#FFFFFF",
-                secondaryTextHex: "#C7C7CC",
+                secondaryTextHex: "#8E8E93",
                 accentHex: "#0A84FF",
                 actionForegroundHex: "#FFFFFF",
                 isDark: true
             )
         default:
+            // Opaque light surface paired with dark labels for daytime / light appearance.
             return Self(
                 backgroundHex: "#FFFFFF",
-                backgroundOpacity: 0.78,
+                backgroundOpacity: 1.0,
                 primaryTextHex: "#000000",
                 secondaryTextHex: "#3A3A3C",
                 accentHex: "#007AFF",

@@ -87,7 +87,7 @@ struct HealthSyncView: View {
                             .font(.footnote)
                             .foregroundStyle(.orange)
                     }
-                    Text("水位与同步记录保存在服务端；本机按天上传原始数据。首次约 90 天，中断后从服务端断点继续。新数据也会在写入「健康」后后台上传。")
+                    Text("只同步健康指标、睡眠、站立和心跳序列，不含训练。首次约 90 天，中断后从服务端断点继续。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if outboxPendingCount + outboxFailedCount > 0 {
@@ -125,14 +125,7 @@ struct HealthSyncView: View {
                     .foregroundStyle(.secondary)
                 } else {
                     ForEach(pendingDays) { day in
-                        VStack(alignment: .leading, spacing: 6) {
-                            LabeledContent(day.localDate, value: day.summary)
-                            ForEach(day.workouts, id: \.hkUuid) { workout in
-                                Text(workout.activityTitle)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                        LabeledContent(day.localDate, value: day.summary)
                     }
                 }
             }
@@ -216,13 +209,14 @@ struct HealthSyncView: View {
     private func refreshStatus() async {
         do {
             let status = try await HealthSyncAPI(client: session.api)
-                .syncStatus(timezone: TimeZone.current.identifier)
+                .syncStatus(timezone: TimeZone.current.identifier, pipeline: "health")
             syncedRuns = (status.runs ?? []).filter { run in
-                run.source == "manual" || run.upserted > 0 || run.quantityCount + run.sleepCount
-                    + run.standHourCount + run.heartbeatSeriesCount + run.workoutCount + run.routeCount > 0
+                (run.pipeline ?? "health") == "health"
+                    && (run.source == "manual" || run.upserted > 0 || run.quantityCount + run.sleepCount
+                    + run.standHourCount + run.heartbeatSeriesCount > 0)
             }
             syncedDays = status.days.filter { $0.totalCount > 0 }
-            let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
+            let server = status.lastHealthSyncedAt.flatMap(HealthSyncService.parseISO)
             lastSyncedAt = await HealthSyncService.applyServerWatermark(server)
         } catch {
             // Status fetch is best-effort: don't surface failures here so the
@@ -247,7 +241,7 @@ struct HealthSyncView: View {
                     value: -HealthSyncService.backgroundLookbackDays,
                     to: Date()
                 ) ?? Date()
-                export = try await HealthKitStore().exportSamples(from: start, to: Date())
+                export = try await HealthKitStore().exportHealth(from: start, to: Date())
             }
             pendingDays = HealthSyncService.pendingDays(from: export)
         } catch {

@@ -1,21 +1,75 @@
 import SwiftUI
 
-/// Voice recording button for sticky-note mode.
+/// Voice recording button for sticky-note mode and schedule (todo/calendar) mode.
 ///
-/// Tap mic → mic becomes a red square stop button + a floating glass
-/// breathing circle appears above the bottom toolbar. Tapping the red
-/// square stops recording and opens the editor with recognized text.
+/// Tap mic → mic becomes a red stop square + a compact floating glass
+/// breathing circle appears *above* the button.
+///
+/// Important: the floating HUD must stay intrinsically sized (`fixedSize`).
+/// A flexible / infinite-height overlay inside bottom `safeAreaInset` causes an
+/// immediate layout feedback crash (app quits on mic tap).
 struct StickyNoteVoiceLauncher: View {
-    let session: AppSession
     @ObservedObject var draft: StickyNoteDraftStore
 
-    @State private var isRecording: Bool = false
-    @State private var isOverlayVisible: Bool = false
+    var body: some View {
+        VoiceCaptureButton(accessibilityId: "sticky-voice-input") { text in
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                draft.appendContent(trimmed)
+            }
+            draft.voiceInputCompleted = true
+        }
+    }
+}
+
+/// Schedule (todo / calendar) voice button: recognized text is handed to the
+/// parent so it can NLP-parse and present the task editor overlay.
+struct ScheduleVoiceLauncher: View {
+    var isParsing: Bool
+    var onRecognized: (String) -> Void
+    var onFailed: ((String) -> Void)? = nil
 
     var body: some View {
-        Button(action: { isRecording ? stopRecording() : startRecording() }) {
+        VoiceCaptureButton(
+            isExternalBusy: isParsing,
+            accessibilityId: "schedule-voice-input",
+            onCommit: onRecognized,
+            onFailed: onFailed
+        )
+    }
+}
+
+// MARK: - Shared voice capture control
+
+struct VoiceCaptureButton: View {
+    var isExternalBusy: Bool = false
+    var accessibilityId: String = "voice-input"
+    var onCommit: (String) -> Void
+    var onFailed: ((String) -> Void)? = nil
+
+    @State private var phase: Phase = .idle
+    /// Stable identity for the recording HUD so SwiftUI layout passes don't
+    /// destroy/recreate it (which raced `cancel` vs `start` and crashed).
+    @State private var recordingSession = UUID()
+
+    private enum Phase: Equatable {
+        case idle
+        case recording
+        case finalizing
+    }
+
+    private var isRecording: Bool { phase == .recording }
+    private var showsOverlay: Bool { phase == .recording || phase == .finalizing }
+    private var isBusy: Bool { phase == .finalizing || isExternalBusy }
+
+    var body: some View {
+        Button(action: toggle) {
             Group {
-                if isRecording {
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                } else if isRecording {
                     Image(systemName: "stop.fill")
                         .font(.system(size: 14, weight: .bold))
                 } else {
@@ -25,183 +79,215 @@ struct StickyNoteVoiceLauncher: View {
             }
             .foregroundStyle(.white)
             .frame(width: 38, height: 38)
-            .background(isRecording ? Color.red : TimiaTheme.primary, in: RoundedRectangle(cornerRadius: isRecording ? 8 : 19))
+            .background(
+                isRecording ? Color.red : TimiaTheme.primary,
+                in: RoundedRectangle(cornerRadius: isRecording ? 8 : 19)
+            )
         }
         .buttonStyle(.plain)
-        .animation(.snappy(duration: 0.2), value: isRecording)
+        .disabled(isBusy)
+        .accessibilityLabel(isRecording ? "停止语音输入" : "语音添加")
+        .accessibilityIdentifier(accessibilityId)
+        .animation(.snappy(duration: 0.2), value: phase)
         .overlay(alignment: .bottom) {
-            if isOverlayVisible {
+            if showsOverlay {
                 VoiceRecordingOverlay(
-                    draft: draft,
-                    onDismiss: stopRecording
+                    isFinalizing: phase == .finalizing,
+                    onFinished: { text in
+                        phase = .idle
+                        onCommit(text)
+                    },
+                    onFailed: { message in
+                        phase = .idle
+                        onFailed?(message)
+                    }
                 )
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .id(recordingSession)
+                .fixedSize()
+                .offset(y: -96)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
         }
-        .animation(.snappy(duration: 0.25), value: isOverlayVisible)
+        .animation(.snappy(duration: 0.25), value: showsOverlay)
     }
 
-    private func startRecording() {
-        isRecording = true
-        isOverlayVisible = true
-    }
-
-    private func stopRecording() {
-        isRecording = false
-        withAnimation(.snappy(duration: 0.2)) {
-            isOverlayVisible = false
+    private func toggle() {
+        switch phase {
+        case .idle:
+            recordingSession = UUID()
+            phase = .recording
+        case .recording:
+            phase = .finalizing
+        case .finalizing:
+            break
         }
     }
 }
 
 // MARK: - Voice Recording Overlay
 
-/// Floating overlay shown above the bottom toolbar while recording.
-/// Displays a glass-effect circle with breathing animation.
 struct VoiceRecordingOverlay: View {
-    @ObservedObject var draft: StickyNoteDraftStore
-    /// Lazily initialised in `.task` so the `@MainActor` recognizer init
-    /// never runs from a non-isolated context (which would crash).
-    @State private var recognizer: StickyNoteSpeechRecognizer?
+    var isFinalizing: Bool
+    var onFinished: (String) -> Void
+    var onFailed: (String) -> Void
+
     @State private var transcript: String = ""
     @State private var statusMsg: String? = nil
     @State private var statusIsError: Bool = false
     @State private var didStart: Bool = false
-    /// Set by the recognizer's onFinal so we can stop the recognizer only once.
-    @State private var hasCommitted: Bool = false
+    @State private var hasFinished: Bool = false
 
-    var onDismiss: () -> Void
+    private var recognizer: StickyNoteSpeechRecognizer { .shared }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .stroke(TimiaTheme.primary.opacity(0.25), lineWidth: 3)
+                    .frame(width: 88, height: 88)
+                    .modifier(PulsingModifier())
 
-            VStack(spacing: 16) {
-                // Breathing circle button.
-                ZStack {
-                    // Pulsing outer ring.
-                    Circle()
-                        .stroke(TimiaTheme.primary.opacity(0.25), lineWidth: 3)
-                        .frame(width: 100, height: 100)
-                        .modifier(PulsingModifier())
-
-                    // Glass inner circle.
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 72, height: 72)
-                        .overlay {
-                            if !transcript.isEmpty {
-                                Text(transcript)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(8)
-                                    .lineLimit(3)
-                            } else {
-                                Image(systemName: "waveform")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(TimiaTheme.primary)
-                            }
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 64, height: 64)
+                    .overlay {
+                        if !transcript.isEmpty {
+                            Text(transcript)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(6)
+                                .lineLimit(3)
+                        } else {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 20))
+                                .foregroundStyle(TimiaTheme.primary)
                         }
-                }
+                    }
+            }
 
+            Group {
                 if let msg = statusMsg {
                     Text(msg)
-                        .font(.caption)
                         .foregroundStyle(statusIsError ? .red : .secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
+                } else if isFinalizing {
+                    Text("识别中…")
+                        .foregroundStyle(.secondary)
                 } else if transcript.isEmpty {
-                    Text("请说话...")
-                        .font(.caption)
+                    Text("请说话…")
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, 120) // above the bottom toolbar
+            .font(.caption2)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 160)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+        .fixedSize()
+        .allowsHitTesting(false)
         .task {
             await prepareAndStart()
         }
+        .onChange(of: isFinalizing) { _, finalizing in
+            guard finalizing, didStart, !hasFinished else { return }
+            recognizer.stopRecording()
+        }
         .onDisappear {
-            if !hasCommitted {
-                if didStart {
-                    recognizer?.stopRecording()
-                } else {
-                    recognizer?.cancel()
-                }
+            if !hasFinished {
+                recognizer.cancel()
             }
         }
     }
 
     private func prepareAndStart() async {
-        // Lazily create the recognizer here (main-actor context) so its
-        // @MainActor init never runs from a non-isolated place.
-        if recognizer == nil {
-            recognizer = StickyNoteSpeechRecognizer()
-        }
-
         let auth = await SpeechPermissionManager.shared.requestIfNeeded()
+        guard !Task.isCancelled else { return }
         guard auth == .authorized else {
             statusMsg = "需要麦克风权限（设置 → Timia）"
             statusIsError = true
+            finishFailure("需要麦克风权限")
             return
         }
 
-        let check = OnDeviceSupportChecker.check()
-        switch check {
-        case .available: break
+        SpeechPermissionManager.shared.refresh()
+        guard !Task.isCancelled else { return }
+
+        switch OnDeviceSupportChecker.check() {
+        case .available:
+            break
         case .deviceNotSupported:
             statusMsg = "当前设备不支持语音识别"
             statusIsError = true
+            finishFailure(statusMsg ?? "")
             return
         case .localeNotInstalled:
             statusMsg = "请下载中文离线语音包（设置 → 通用 → 键盘 → 听写语言）"
             statusIsError = true
+            finishFailure(statusMsg ?? "")
             return
         case .localeUnavailable:
             statusMsg = "系统未安装中文语音识别器"
             statusIsError = true
+            finishFailure(statusMsg ?? "")
             return
         }
 
-        self.recognizer?.onPartial = { (text: String) in
-            Task { @MainActor in transcript = text }
-        }
-        self.recognizer?.onFinal = { [self] (text: String) in
-            hasCommitted = true
-            self.recognizer?.stopRecording()
-            commit(text)
-        }
-        self.recognizer?.onError = { (err: Error) in
+        recognizer.onPartial = { text in
             Task { @MainActor in
+                transcript = text
+            }
+        }
+        recognizer.onFinal = { text in
+            Task { @MainActor in
+                guard !hasFinished else { return }
+                hasFinished = true
+                onFinished(text)
+            }
+        }
+        recognizer.onError = { err in
+            Task { @MainActor in
+                guard !hasFinished else { return }
                 statusMsg = err.localizedDescription
                 statusIsError = true
+                finishFailure(err.localizedDescription)
             }
         }
 
         do {
-            try self.recognizer?.start()
-            didStart = true
+            try await recognizer.start()
+            guard !Task.isCancelled else {
+                recognizer.cancel()
+                return
+            }
+            if recognizer.isRunning {
+                didStart = true
+                if isFinalizing {
+                    recognizer.stopRecording()
+                }
+            }
         } catch {
+            guard !Task.isCancelled else { return }
             statusMsg = error.localizedDescription
             statusIsError = true
+            finishFailure(error.localizedDescription)
         }
     }
 
-    private func commit(_ text: String) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            draft.voiceInputCompleted = true
-            return
+    private func finishFailure(_ message: String) {
+        guard !hasFinished else { return }
+        hasFinished = true
+        recognizer.cancel()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(900))
+            onFailed(message)
         }
-        draft.appendContent(trimmed)
-        draft.voiceInputCompleted = true
     }
 }
 
-// MARK: - Breathing animation modifier
+// MARK: - Breathing animation
 
 struct PulsingModifier: ViewModifier {
     @State private var scale: CGFloat = 1.0
@@ -211,19 +297,11 @@ struct PulsingModifier: ViewModifier {
         content
             .scaleEffect(scale)
             .opacity(opacity)
-            .animation(
-                .easeInOut(duration: 1.4)
-                .repeatForever(autoreverses: true),
-                value: scale
-            )
-            .animation(
-                .easeInOut(duration: 1.4)
-                .repeatForever(autoreverses: true),
-                value: opacity
-            )
             .onAppear {
-                scale = 1.12
-                opacity = 0.25
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                    scale = 1.12
+                    opacity = 0.25
+                }
             }
     }
 }

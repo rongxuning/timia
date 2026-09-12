@@ -17,11 +17,11 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
 
-        let input = app.textFields["用自然语言添加任务…"]
-        XCTAssertTrue(input.waitForExistence(timeout: 8))
+        let voiceInput = app.buttons["schedule-voice-input"]
+        XCTAssertTrue(voiceInput.waitForExistence(timeout: 8))
         let todoModeButton = app.buttons["Todo 模式"]
         XCTAssertTrue(todoModeButton.waitForExistence(timeout: 2))
-        XCTAssertEqual(todoModeButton.frame.midY, input.frame.midY, accuracy: 6)
+        XCTAssertEqual(todoModeButton.frame.midY, voiceInput.frame.midY, accuracy: 6)
         XCTAssertTrue(element("todo-section-todo", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-doing", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
@@ -40,8 +40,8 @@ final class TimiaUITests: XCTestCase {
 
         let directCreateButton = app.buttons["新建任务"]
         XCTAssertTrue(directCreateButton.waitForExistence(timeout: 2))
-        XCTAssertLessThan(directCreateButton.frame.maxX, input.frame.minX)
-        XCTAssertEqual(directCreateButton.frame.midY, input.frame.midY, accuracy: 6)
+        XCTAssertLessThan(directCreateButton.frame.maxX, voiceInput.frame.minX)
+        XCTAssertEqual(directCreateButton.frame.midY, voiceInput.frame.midY, accuracy: 6)
         XCTAssertEqual(directCreateButton.frame.width, 38, accuracy: 2)
         XCTAssertEqual(directCreateButton.frame.height, 38, accuracy: 2)
         directCreateButton.tap()
@@ -52,11 +52,11 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["低"].exists)
         XCTAssertTrue(app.buttons["待办"].exists)
         app.buttons["取消"].tap()
-        XCTAssertTrue(input.waitForExistence(timeout: 3))
+        XCTAssertTrue(voiceInput.waitForExistence(timeout: 3))
 
         app.buttons["日历模式"].tap()
         XCTAssertTrue(app.buttons["新建任务"].waitForExistence(timeout: 2))
-        XCTAssertLessThan(app.buttons["新建任务"].frame.maxX, input.frame.minX)
+        XCTAssertLessThan(app.buttons["新建任务"].frame.maxX, voiceInput.frame.minX)
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
         app.buttons["日"].tap()
         XCTAssertFalse(app.buttons["日"].exists)
@@ -86,7 +86,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["打开我的页面"].exists)
         XCTAssertTrue(app.buttons["打开空间页面"].exists)
         XCTAssertTrue(app.buttons["Todo 模式"].exists)
-        XCTAssertFalse(app.images["mic"].exists)
+        XCTAssertTrue(app.buttons["schedule-voice-input"].exists)
         XCTAssertEqual(app.tabBars.count, 0)
 
         app.buttons["打开空间页面"].tap()
@@ -101,7 +101,7 @@ final class TimiaUITests: XCTestCase {
         app.navigationBars[workspaceName].buttons.firstMatch.tap()
         XCTAssertTrue(app.navigationBars["空间"].waitForExistence(timeout: 3))
         app.navigationBars["空间"].buttons.firstMatch.tap()
-        XCTAssertTrue(input.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 3))
 
         app.buttons["Todo 模式"].tap()
         XCTAssertTrue(app.buttons["日历模式"].waitForExistence(timeout: 2))
@@ -121,7 +121,7 @@ final class TimiaUITests: XCTestCase {
             app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
             dominantMonthTitle(starting: stripStart)
         )
-        element("week-date-strip", in: app).swipeLeft()
+        dragDateStrip(element("week-date-strip", in: app), byDays: 1)
         let shiftedStart = Calendar.current.date(byAdding: .day, value: 1, to: stripStart) ?? stripStart
         let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
         XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
@@ -151,7 +151,7 @@ final class TimiaUITests: XCTestCase {
         let login = app.buttons["登录"]
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
-        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
@@ -165,7 +165,7 @@ final class TimiaUITests: XCTestCase {
             app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
             dominantMonthTitle(starting: stripStart)
         )
-        element("week-date-strip", in: app).swipeLeft()
+        dragDateStrip(element("week-date-strip", in: app), byDays: 1)
         let shiftedStart = Calendar.current.date(byAdding: .day, value: 1, to: stripStart) ?? stripStart
         let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
         XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
@@ -175,6 +175,14 @@ final class TimiaUITests: XCTestCase {
             on: app.descendants(matching: .any)["calendar-header-title"].firstMatch,
             timeout: 3
         ))
+
+        // Longer drag should advance the visible window by multiple days in one gesture.
+        dragDateStrip(element("week-date-strip", in: app), byDays: 3.2)
+        let atLeastStart = Calendar.current.date(byAdding: .day, value: 2, to: shiftedStart) ?? shiftedStart
+        let atLeastLastDay = Calendar.current.date(byAdding: .day, value: 6, to: atLeastStart) ?? atLeastStart
+        XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
+        XCTAssertTrue(element("calendar-date-\(dayKey(atLeastLastDay))", in: app).waitForExistence(timeout: 3))
+
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.70)).tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         app.buttons["取消"].tap()
@@ -299,7 +307,7 @@ final class TimiaUITests: XCTestCase {
         let login = app.buttons["登录"]
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
-        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
         app.buttons["周"].tap()
@@ -321,7 +329,7 @@ final class TimiaUITests: XCTestCase {
         let login = app.buttons["登录"]
         XCTAssertTrue(login.waitForExistence(timeout: 5))
         login.tap()
-        XCTAssertTrue(app.textFields["用自然语言添加任务…"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
 
         app.buttons["日历模式"].tap()
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
@@ -364,6 +372,16 @@ final class TimiaUITests: XCTestCase {
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Drag the date strip by approximately `days` day-widths (positive = later dates).
+    private func dragDateStrip(_ strip: XCUIElement, byDays days: CGFloat) {
+        // Overshoot slightly so view-aligned snap commits past the halfway point.
+        let distance = days + 0.15
+        let start = strip.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5))
+        let endX = max(0.05, 0.92 - distance / 7.0)
+        let end = strip.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.5))
+        start.press(forDuration: 0.12, thenDragTo: end)
     }
 
     private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {

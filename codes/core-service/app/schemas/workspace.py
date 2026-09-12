@@ -33,6 +33,7 @@ class WorkspaceOut(BaseModel):
     color: str = "#FFFFFF"
     created_at: datetime | None = None
     is_favorite: bool = False
+    role: str | None = None
     created_by_user_id: str | None = None
     created_by_display_name: str | None = None
 

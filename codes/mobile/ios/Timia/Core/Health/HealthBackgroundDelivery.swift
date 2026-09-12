@@ -42,18 +42,25 @@ final class HealthBackgroundDelivery {
         do {
             let syncAPI = HealthSyncAPI(client: api)
             let status = try await syncAPI.syncStatus(timezone: TimeZone.current.identifier)
-            let server = status.lastSyncedAt.flatMap(HealthSyncService.parseISO)
-            let watermark = await HealthSyncService.applyServerWatermark(server)
-            // First sync (nil watermark) remains foreground-only.
-            guard watermark != nil else { return }
+            let healthWatermark = await HealthSyncService.applyServerWatermark(
+                status.lastHealthSyncedAt.flatMap(HealthSyncService.parseISO)
+            )
+            let workoutWatermark = await WorkoutSyncService.applyServerWatermark(
+                status.lastWorkoutSyncedAt.flatMap(HealthSyncService.parseISO)
+            )
+            // First sync (nil watermark) remains foreground-only per pipeline.
+            guard healthWatermark != nil || workoutWatermark != nil else { return }
 
             beginBackgroundTask()
             defer { endBackgroundTask() }
 
-            let service = HealthSyncService(api: syncAPI)
-            // Anchored delta → enqueue → budgeted drain (heals with short window if anchors unhealthy).
-            _ = try await service.syncBackgroundBudgeted(budget: .background)
-            // Refresh lock-screen Live Activity after background health sync (#16).
+            if healthWatermark != nil {
+                let service = HealthSyncService(api: syncAPI)
+                _ = try await service.syncBackgroundBudgeted(budget: .background)
+            }
+            if workoutWatermark != nil {
+                try await WorkoutSyncService(api: syncAPI).syncBackgroundBudgeted()
+            }
             await ScreenNotificationManager.shared.refresh(api: api)
         } catch {
             // Keep the observer alive; day checkpoints + next wake or manual sync retry.
