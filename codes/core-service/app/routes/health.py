@@ -19,6 +19,8 @@ from app.schemas.health import (
     HealthProfileIn,
     HealthProfileOut,
     HealthQuantitySyncIn,
+    HealthRollupIn,
+    HealthRollupOut,
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
     HealthSyncCheckpointIn,
@@ -29,13 +31,16 @@ from app.schemas.health import (
     HealthSyncStatusOut,
     HealthWorkoutRouteSyncIn,
     HealthWorkoutSyncIn,
+    HealthWorkoutUuidsOut,
 )
 from app.services.health_api import (
     advance_sync_checkpoint,
     clear_owner_health_data,
     get_profile,
     list_sync_status,
+    list_workout_uuids,
     record_sync_run,
+    rollup_health_metrics,
     save_card_order,
     save_profile,
     sync_deletions,
@@ -56,6 +61,7 @@ def get_sync_status(
     tz_name: str = Query(default="Asia/Shanghai", alias="timezone"),
     date_from: date | None = Query(default=None, alias="from"),
     date_to: date | None = Query(default=None, alias="to"),
+    pipeline: str | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -67,7 +73,7 @@ def get_sync_status(
         raise
     start = date_from or (today - timedelta(days=90))
     end = date_to or today
-    return list_sync_status(db, user, tz_name, start, end)
+    return list_sync_status(db, user, tz_name, start, end, pipeline=pipeline)
 
 
 @router.post("/sync/runs", response_model=HealthSyncRunOut)
@@ -88,6 +94,36 @@ def post_sync_checkpoint(
     user: User = Depends(get_current_user),
 ):
     result = advance_sync_checkpoint(db, user, payload)
+    db.commit()
+    return result
+
+
+@router.get("/sync/workout-uuids", response_model=HealthWorkoutUuidsOut)
+def get_workout_uuids(
+    tz_name: str = Query(default="Asia/Shanghai", alias="timezone"),
+    date_from: date | None = Query(default=None, alias="from"),
+    date_to: date | None = Query(default=None, alias="to"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        today = local_date_of(datetime.now(timezone.utc), tz_name)
+    except ValueError as err:
+        if str(err) == "invalid_timezone":
+            raise HTTPException(status_code=400, detail="invalid_timezone") from err
+        raise
+    start = date_from or (today - timedelta(days=90))
+    end = date_to or today
+    return list_workout_uuids(db, user, tz_name, start, end)
+
+
+@router.post("/sync/rollup", response_model=HealthRollupOut)
+def post_sync_rollup(
+    payload: HealthRollupIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = rollup_health_metrics(db, user, payload)
     db.commit()
     return result
 

@@ -102,7 +102,8 @@ export const SUMMARY_ER_DIAGRAM = `erDiagram
   HEALTH_SYNC_STATE {
     uuid id PK
     uuid owner_user_id FK
-    datetime last_synced_at
+    datetime last_health_synced_at
+    datetime last_workout_synced_at
   }
   USERS ||--o{ WORKSPACES : creates
   USERS ||--o{ WORKSPACE_MEMBERS : joins
@@ -570,8 +571,8 @@ export const DATABASE_DOMAINS: DatabaseDomain[] = [
       HEALTH_SYNC_STATE {
         uuid id PK
         uuid owner_user_id FK
-        datetime last_synced_at
-        uuid last_run_id
+        datetime last_health_synced_at
+        datetime last_workout_synced_at
       }
       HEALTH_WORKOUT_SESSION ||--o| HEALTH_WORKOUT_ROUTE : by_hk_uuid
       HEALTH_SYNC_STATE }o--o| HEALTH_SYNC_RUN : last_run`,

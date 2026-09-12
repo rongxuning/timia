@@ -1145,6 +1145,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/sync/workout-uuids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Workout Uuids */
+        get: operations["get_workout_uuids_health_sync_workout_uuids_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/sync/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Sync Rollup */
+        post: operations["post_sync_rollup_health_sync_rollup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/data": {
         parameters: {
             query?: never;
@@ -2474,6 +2508,29 @@ export interface components {
              */
             possibly_late: boolean;
         };
+        /** HealthRollupIn */
+        HealthRollupIn: {
+            /**
+             * Timezone
+             * @default Asia/Shanghai
+             */
+            timezone: string;
+            /** Dates */
+            dates?: string[];
+        };
+        /** HealthRollupOut */
+        HealthRollupOut: {
+            /**
+             * Rolled
+             * @default 0
+             */
+            rolled: number;
+            /**
+             * Remaining Dirty
+             * @default 0
+             */
+            remaining_dirty: number;
+        };
         /** HealthRouteOut */
         HealthRouteOut: {
             /** Points */
@@ -2729,14 +2786,15 @@ export interface components {
              * @default Asia/Shanghai
              */
             timezone: string;
+            /** Pipeline */
+            pipeline?: ("health" | "workout") | null;
         };
         /** HealthSyncCheckpointOut */
         HealthSyncCheckpointOut: {
-            /**
-             * Last Synced At
-             * Format: date-time
-             */
-            last_synced_at: string;
+            /** Last Health Synced At */
+            last_health_synced_at?: string | null;
+            /** Last Workout Synced At */
+            last_workout_synced_at?: string | null;
         };
         /** HealthSyncDayStatusOut */
         HealthSyncDayStatusOut: {
@@ -2787,6 +2845,8 @@ export interface components {
              * @enum {string}
              */
             status: "success" | "failed";
+            /** Pipeline */
+            pipeline?: ("health" | "workout") | null;
             /** From At */
             from_at?: string | null;
             /**
@@ -2842,6 +2902,8 @@ export interface components {
             source: string;
             /** Status */
             status: string;
+            /** Pipeline */
+            pipeline: string;
             /**
              * Started At
              * Format: date-time
@@ -2897,8 +2959,10 @@ export interface components {
         HealthSyncStatusOut: {
             /** Timezone */
             timezone: string;
-            /** Last Synced At */
-            last_synced_at?: string | null;
+            /** Last Health Synced At */
+            last_health_synced_at?: string | null;
+            /** Last Workout Synced At */
+            last_workout_synced_at?: string | null;
             /** Days */
             days?: components["schemas"]["HealthSyncDayStatusOut"][];
             /** Runs */
@@ -3119,6 +3183,11 @@ export interface components {
             timezone: string;
             /** Workouts */
             workouts?: components["schemas"]["HealthWorkoutIn"][];
+        };
+        /** HealthWorkoutUuidsOut */
+        HealthWorkoutUuidsOut: {
+            /** Hk Uuids */
+            hk_uuids?: string[];
         };
         /** HealthWorkoutsPageOut */
         HealthWorkoutsPageOut: {
@@ -8351,6 +8420,7 @@ export interface operations {
                 timezone?: string;
                 from?: string | null;
                 to?: string | null;
+                pipeline?: string | null;
             };
             header?: {
                 authorization?: string | null;
@@ -8437,6 +8507,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSyncCheckpointOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workout_uuids_health_sync_workout_uuids_get: {
+        parameters: {
+            query?: {
+                timezone?: string;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthWorkoutUuidsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sync_rollup_health_sync_rollup_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HealthRollupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthRollupOut"];
                 };
             };
             /** @description Validation Error */

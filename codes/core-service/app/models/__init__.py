@@ -4,6 +4,7 @@ from app.models.comment import Comment
 from app.models.health import (
     HealthInsightDaily,
     HealthMetricsDaily,
+    HealthMetricsDirty,
     HealthMetricsLayout,
     HealthProfile,
     HealthSampleQuantity,
@@ -46,6 +47,7 @@ __all__ = [
     "Comment",
     "HealthInsightDaily",
     "HealthMetricsDaily",
+    "HealthMetricsDirty",
     "HealthMetricsLayout",
     "HealthProfile",
     "HealthSampleQuantity",

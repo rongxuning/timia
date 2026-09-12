@@ -60,6 +60,8 @@
 		AE76BC2BBEDCCB328BDE27E9 /* WorkspaceDiscussionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2965DAAE7EE6D180ED42C7CB /* WorkspaceDiscussionsView.swift */; };
 		B267B536A67D29DEF35763C5 /* HealthSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */; };
 		B815953B627371B090232172 /* HealthSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34781A49682D42B8CDCA4233 /* HealthSyncService.swift */; };
+		F7A1B2C3D4E5061728394A5E /* WorkoutSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A1B2C3D4E5061728394A5D /* WorkoutSyncView.swift */; };
+		F7A1B2C3D4E5061728394A5C /* WorkoutSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A1B2C3D4E5061728394A5B /* WorkoutSyncService.swift */; };
 		BBB32054EDA720D6E72C3DCC /* TimiaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5CEB0A7EC41E9C7030933C23 /* TimiaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BD309EA09158F16FD56B5355 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */; };
 		BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */; };
@@ -159,6 +161,8 @@
 		30DD19186DC70910982C8C46 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
 		3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlannerTests.swift; sourceTree = "<group>"; };
 		34781A49682D42B8CDCA4233 /* HealthSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncService.swift; sourceTree = "<group>"; };
+		F7A1B2C3D4E5061728394A5B /* WorkoutSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncService.swift; sourceTree = "<group>"; };
+		F7A1B2C3D4E5061728394A5D /* WorkoutSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncView.swift; sourceTree = "<group>"; };
 		358364DC9FBB2361030EFF90 /* HealthKitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitStore.swift; sourceTree = "<group>"; };
 		3A74ECA9573EA85DE8159DC6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		3B7A0FBE2494948E73EFA87C /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -523,6 +527,7 @@
 			isa = PBXGroup;
 			children = (
 				A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */,
+				F7A1B2C3D4E5061728394A5D /* WorkoutSyncView.swift */,
 			);
 			path = Health;
 			sourceTree = "<group>";
@@ -537,6 +542,7 @@
 				25DA66892B881DA84ECB62A8 /* HealthSyncDrain.swift */,
 				DAFC8AC913269CDEC75D2917 /* HealthSyncQueue.swift */,
 				34781A49682D42B8CDCA4233 /* HealthSyncService.swift */,
+				F7A1B2C3D4E5061728394A5B /* WorkoutSyncService.swift */,
 			);
 			path = Health;
 			sourceTree = "<group>";
@@ -718,7 +724,9 @@
 				DD3A7CF92ED67A3FDCF2B208 /* HealthSyncDrain.swift in Sources */,
 				F1AC7B362F91A0AAD65D5773 /* HealthSyncQueue.swift in Sources */,
 				B815953B627371B090232172 /* HealthSyncService.swift in Sources */,
+				F7A1B2C3D4E5061728394A5C /* WorkoutSyncService.swift in Sources */,
 				B267B536A67D29DEF35763C5 /* HealthSyncView.swift in Sources */,
+				F7A1B2C3D4E5061728394A5E /* WorkoutSyncView.swift in Sources */,
 				EC591944C6197C47A2A79052 /* IdleCollapsePlanner.swift in Sources */,
 				55AE29F0FC265551628E74F7 /* KeychainStore.swift in Sources */,
 				00E00DC5CAF2FD719CF365CD /* LocationChip.swift in Sources */,

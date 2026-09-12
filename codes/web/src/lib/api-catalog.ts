@@ -1446,12 +1446,18 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     name: "健康同步状态（游标、同步记录、按日汇总）",
     requestJson: {
       headers: authBearer,
-      query: { timezone: "string (IANA, default Asia/Shanghai)", from: "YYYY-MM-DD?", to: "YYYY-MM-DD?" },
+      query: {
+        timezone: "string (IANA, default Asia/Shanghai)",
+        from: "YYYY-MM-DD?",
+        to: "YYYY-MM-DD?",
+        pipeline: "health | workout?",
+      },
       jsonBody: null,
     },
     responseJson: {
       timezone: "string",
-      last_synced_at: "ISO datetime | null",
+      last_health_synced_at: "ISO datetime | null",
+      last_workout_synced_at: "ISO datetime | null",
       days: "HealthSyncDayStatusOut[]",
       runs: "HealthSyncRunOut[]",
     },
@@ -1466,6 +1472,7 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       jsonBody: {
         source: "manual | background",
         status: "success | failed",
+        pipeline: "health | workout",
         from_at: "ISO datetime?",
         to_at: "ISO datetime",
         upserted: "number",
@@ -1568,9 +1575,34 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     requestJson: {
       headers: authBearer,
       query: null,
-      jsonBody: { to_at: "ISO datetime" },
+      jsonBody: { to_at: "ISO datetime", pipeline: "health | workout", timezone: "string?" },
     },
-    responseJson: { last_synced_at: "ISO datetime" },
+    responseJson: {
+      last_health_synced_at: "ISO datetime | null",
+      last_workout_synced_at: "ISO datetime | null",
+    },
+  },
+  {
+    method: "GET",
+    path: "/health/sync/workout-uuids",
+    name: "已同步训练 hk_uuid（训练页对账）",
+    requestJson: {
+      headers: authBearer,
+      query: { timezone: "string?", from: "YYYY-MM-DD?", to: "YYYY-MM-DD?" },
+      jsonBody: null,
+    },
+    responseJson: { hk_uuids: "string[]" },
+  },
+  {
+    method: "POST",
+    path: "/health/sync/rollup",
+    name: "重算脏日期日汇总",
+    requestJson: {
+      headers: authBearer,
+      query: null,
+      jsonBody: { timezone: "string?", dates: "YYYY-MM-DD[]?" },
+    },
+    responseJson: { rolled: "number", remaining_dirty: "number" },
   },
   {
     method: "DELETE",
