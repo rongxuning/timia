@@ -54,11 +54,12 @@ make web
 
 ### MCP (Agent)
 
-Local stdio MCP server for Cursor and other agent hosts. See [codes/mcp-server/README.md](codes/mcp-server/README.md) for install, PAT setup, and Cursor `mcp.json` configuration. Design spec: [docs/superpowers/specs/2026-09-11-mcp-server-design.md](docs/superpowers/specs/2026-09-11-mcp-server-design.md).
+Stdio (local) and remote Streamable HTTP (`https://timia.online/mcp`) for Cursor and other hosts. See [codes/mcp-server/README.md](codes/mcp-server/README.md). Specs: [Phase 0](docs/superpowers/specs/2026-09-11-mcp-server-design.md) · [Phase 1 remote](docs/superpowers/specs/2026-09-12-mcp-phase1-remote-design.md).
 
 ```bash
 make mcp-server-install
 make mcp-server-test
+make mcp-server-http   # local Streamable HTTP on :8100
 ```
 
 ### Env

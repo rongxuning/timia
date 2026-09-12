@@ -5,7 +5,7 @@
 #   bash deploy/local.sh poll                    # cron: deploy if origin/main changed
 #   sudo bash deploy/local.sh install-cron       # install poll cron (every 3 min)
 #
-# Env: DEPLOY_MODE=smart|quick|full|core-service|web  SKIP_GIT_PULL=1  GIT_REF=main
+# Env: DEPLOY_MODE=smart|quick|full|core-service|web|mcp-server  SKIP_GIT_PULL=1  GIT_REF=main
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -53,13 +53,14 @@ cmd_deploy() {
   export BUILDKIT_PROGRESS=plain
   export COMPOSE_PROGRESS=plain
 
-  local build_core=0 build_web=0 step=2 cur changed
+  local build_core=0 build_web=0 build_mcp=0 step=2 cur changed
 
   case "$deploy_mode" in
-    full) build_core=1; build_web=1 ;;
-    quick) build_core=0; build_web=0 ;;
+    full) build_core=1; build_web=1; build_mcp=1 ;;
+    quick) build_core=0; build_web=0; build_mcp=0 ;;
     core-service) build_core=1 ;;
     web) build_web=1 ;;
+    mcp-server) build_mcp=1 ;;
     smart)
       cur="$(git rev-parse HEAD)"
       if [[ "$prev_head" == "$cur" ]]; then
@@ -71,13 +72,15 @@ cmd_deploy() {
       changed="$(git diff --name-only "$prev_head" "$cur")"
       echo "$changed" | grep -qE '^codes/core-service/' && build_core=1 || true
       echo "$changed" | grep -qE '^codes/web/' && build_web=1 || true
+      echo "$changed" | grep -qE '^codes/mcp-server/' && build_mcp=1 || true
       if echo "$changed" | grep -qE '^(docker-compose\.prod\.yml|deploy/nginx\.conf)'; then
         build_core=1
         build_web=1
+        build_mcp=1
       fi
       ;;
     *)
-      echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|web)" >&2
+      echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|web|mcp-server)" >&2
       exit 2
       ;;
   esac
@@ -90,6 +93,11 @@ cmd_deploy() {
   if [[ "$build_web" -eq 1 ]]; then
     timia_log "Step ${step}: docker build web ..."
     $dc build --progress=plain web
+    step=$((step + 1))
+  fi
+  if [[ "$build_mcp" -eq 1 ]]; then
+    timia_log "Step ${step}: docker build mcp-server ..."
+    $dc build --progress=plain mcp-server
     step=$((step + 1))
   fi
 

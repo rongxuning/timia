@@ -1,40 +1,46 @@
 # Timia MCP Server (`timia-mcp`)
 
-Local stdio MCP server that exposes Timia schedule, workspace, and item tools to agent hosts (Cursor, Claude Desktop, etc.). All calls go through core-service REST with a Personal Access Token (PAT).
+MCP server for Timia schedule, workspace, and item tools. Calls go through
+core-service REST with a Personal Access Token (`tm_pat_…`).
+
+Supports two transports:
+
+| Mode | When to use |
+|------|-------------|
+| **stdio** (default) | Local Cursor / Claude Desktop process |
+| **http** (Streamable HTTP) | Hosted at `https://timia.online/mcp` |
 
 ## Install
 
-From the repo root:
-
 ```bash
 make mcp-server-install
+# or: cd codes/mcp-server && uv sync
 ```
 
-Or directly:
+## Create a PAT
+
+1. Start core-service (`make core-service`) and obtain a Web JWT.
+2. Mint a PAT:
 
 ```bash
-cd codes/mcp-server && uv sync
-```
-
-Copy environment variables from `.env.example` or set them in your MCP host config.
-
-## Create a Personal Access Token
-
-1. Start core-service (`make core-service`) and log in via the web app to obtain a JWT.
-2. Create a PAT with your JWT:
-
-```bash
+# local
 curl -s -X POST http://127.0.0.1:8000/auth/agent-tokens \
-  -H "Authorization: Bearer <your-jwt>" \
+  -H "Authorization: Bearer <jwt>" \
   -H "Content-Type: application/json" \
-  -d '{"name": "cursor-local"}'
+  -d '{"name":"cursor-local"}'
+
+# production
+curl -s -X POST https://timia.online/core-service/auth/agent-tokens \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"cursor-prod"}'
 ```
 
-The response includes `token` (plaintext, shown once). Save it as `TIMIA_PAT` (`tm_pat_…` prefix).
+Save the one-time `token` value (`tm_pat_…`).
 
-## Cursor `mcp.json`
+## Mode A — stdio → local API
 
-Add to `~/.cursor/mcp.json` (adjust the absolute path):
+`~/.cursor/mcp.json`:
 
 ```json
 {
@@ -52,12 +58,56 @@ Add to `~/.cursor/mcp.json` (adjust the absolute path):
 }
 ```
 
-Run manually:
+## Mode B — stdio → production API
+
+Same as Mode A, but point at production core-service (no hosted MCP required):
+
+```json
+{
+  "mcpServers": {
+    "timia-prod-api": {
+      "command": "uv",
+      "args": ["--directory", "/abs/path/codes/mcp-server", "run", "timia-mcp"],
+      "env": {
+        "TIMIA_API_BASE": "https://timia.online/core-service",
+        "TIMIA_PAT": "tm_pat_…",
+        "TIMIA_TOOL_PROFILE": "p0"
+      }
+    }
+  }
+}
+```
+
+## Mode C — remote HTTP (production MCP)
+
+After deploy, Cursor connects over HTTPS (no local `uv` process):
+
+```json
+{
+  "mcpServers": {
+    "timia-prod": {
+      "url": "https://timia.online/mcp",
+      "headers": {
+        "Authorization": "Bearer tm_pat_…"
+      }
+    }
+  }
+}
+```
+
+Health check (no auth):
 
 ```bash
-export TIMIA_API_BASE=http://127.0.0.1:8000
-export TIMIA_PAT=tm_pat_…
-uv run timia-mcp
+curl -fsS https://timia.online/mcp-health
+# {"ok":true,"transport":"http"}
+```
+
+Local HTTP for debugging:
+
+```bash
+make mcp-server-http
+# TIMIA_API_BASE=http://127.0.0.1:8000 TIMIA_MCP_TRANSPORT=http \
+#   TIMIA_MCP_HOST=127.0.0.1 uv run timia-mcp
 ```
 
 ## Environment variables
@@ -65,9 +115,13 @@ uv run timia-mcp
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `TIMIA_API_BASE` | yes | — | core-service root URL |
-| `TIMIA_PAT` | yes | — | Personal Access Token |
-| `TIMIA_READONLY` | no | `false` | When `true`, blocks all write tools |
-| `TIMIA_TOOL_PROFILE` | no | `p0` | Tool set: `p0`, `p1`, or `full` |
+| `TIMIA_PAT` | stdio: yes; http: no | — | Process PAT (HTTP uses per-request Bearer) |
+| `TIMIA_MCP_TRANSPORT` | no | `stdio` | `stdio` or `http` |
+| `TIMIA_MCP_HOST` | no | `127.0.0.1` | HTTP bind host (`0.0.0.0` in compose) |
+| `TIMIA_MCP_PORT` | no | `8100` | HTTP port |
+| `TIMIA_MCP_PATH` | no | `/mcp` | Streamable HTTP mount path |
+| `TIMIA_READONLY` | no | `false` | When `true`, blocks write tools |
+| `TIMIA_TOOL_PROFILE` | no | `p0` | `p0`, `p1`, or `full` |
 | `TIMIA_TIMEOUT_SECONDS` | no | `30` | HTTP timeout per request |
 | `TIMIA_DEFAULT_TIMEZONE` | no | `Asia/Shanghai` | Default timezone for schedule tools |
 
@@ -95,24 +149,32 @@ uv run timia-mcp
 | `complete_item` | `schedule:write` | Mark item done |
 | `parse_natural_language` | `schedule:write` | Parse NL text into a draft (no persist) |
 
-Delete-workspace and delete-project tools are intentionally **not** registered.
-
 ## Troubleshooting
 
-### `unauthorized` (HTTP 401)
+### HTTP 401 / `unauthorized`
 
-- PAT missing, revoked, or expired — create a new token via `POST /auth/agent-tokens`.
-- Wrong `TIMIA_API_BASE` — must match the running core-service URL.
-- Check stderr for JSON error logs from the MCP process.
+- Missing or non-`tm_pat_…` `Authorization` header (remote HTTP).
+- PAT revoked or expired — mint a new one via `POST /auth/agent-tokens`.
+- Wrong `TIMIA_API_BASE` for stdio mode.
+
+### nginx 502 / timeouts
+
+- Confirm `mcp-server` is up: `docker compose ps mcp-server`.
+- `/mcp` uses `proxy_buffering off` and long read timeouts; reload nginx after config changes.
+- DNS rebinding: Host must be `timia.online` (allowed in the HTTP app).
+
+### TLS / Cursor remote
+
+- URL must be `https://timia.online/mcp` (not the container port).
+- If Cursor only supports stdio, use Mode B.
 
 ### `readonly_mode`
 
-- `TIMIA_READONLY=true` blocks all write tools (`create_item`, `update_item`, `complete_item`, `add_comment`, `parse_natural_language`, etc.).
-- Set `TIMIA_READONLY=false` or remove the variable to allow writes.
+- `TIMIA_READONLY=true` blocks write tools. Set `false` or omit.
 
 ### `version_conflict` (HTTP 409)
 
-- Item was modified since you last read it. Call `get_item` or `list_items` to fetch the current `version`, then retry `update_item` or `complete_item` with that version.
+- Re-fetch `version` via `get_item` / `list_items`, then retry.
 
 ## Tests
 
@@ -120,4 +182,5 @@ Delete-workspace and delete-project tools are intentionally **not** registered.
 make mcp-server-test
 ```
 
-Design spec: [docs/superpowers/specs/2026-09-11-mcp-server-design.md](../../docs/superpowers/specs/2026-09-11-mcp-server-design.md)
+- Design: [Phase 0](../../docs/superpowers/specs/2026-09-11-mcp-server-design.md) · [Phase 1 remote](../../docs/superpowers/specs/2026-09-12-mcp-phase1-remote-design.md)
+- Deploy: [docs/deploy/cloud.md](../../docs/deploy/cloud.md) (MCP section)
