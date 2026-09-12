@@ -52,6 +52,15 @@ make web-install
 make web
 ```
 
+### MCP (Agent)
+
+Local stdio MCP server for Cursor and other agent hosts. See [codes/mcp-server/README.md](codes/mcp-server/README.md) for install, PAT setup, and Cursor `mcp.json` configuration. Design spec: [docs/superpowers/specs/2026-09-11-mcp-server-design.md](docs/superpowers/specs/2026-09-11-mcp-server-design.md).
+
+```bash
+make mcp-server-install
+make mcp-server-test
+```
+
 ### Env
 - Copy values from `.env.example` into:
   - `codes/core-service/.env`

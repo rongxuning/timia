@@ -1,4 +1,5 @@
 from app.models.activity import ActivityLog
+from app.models.agent_token import AgentToken, AgentToolCall
 from app.models.comment import Comment
 from app.models.health import (
     HealthInsightDaily,
@@ -40,6 +41,8 @@ from app.models.workspace import Workspace, WorkspaceMember
 
 __all__ = [
     "ActivityLog",
+    "AgentToken",
+    "AgentToolCall",
     "Comment",
     "HealthInsightDaily",
     "HealthMetricsDaily",
