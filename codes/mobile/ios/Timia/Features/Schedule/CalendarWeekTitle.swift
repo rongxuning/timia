@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 func weekDaysContaining(_ date: Date, calendar: Calendar = .current) -> [Date] {
@@ -60,6 +61,48 @@ func weekTimelineTarget(
     let displayedWeek = dateStripStartForWeek(containing: displayedDate, calendar: calendar)
     guard !calendar.isDate(stripWeek, inSameDayAs: displayedWeek) else { return nil }
     return stripWeek
+}
+
+/// Horizontal day-strip scroll window: day offsets centered on `origin`.
+func dateStripScrollOffsets(radius: Int = 180) -> [Int] {
+    Array(-radius...radius)
+}
+
+func dateStripDate(offset: Int, origin: Date, calendar: Calendar = .current) -> Date {
+    dateByAddingDays(offset, to: calendar.startOfDay(for: origin), calendar: calendar)
+}
+
+func dateStripDayKeys(origin: Date, radius: Int = 180, calendar: Calendar = .current) -> [String] {
+    dateStripScrollOffsets(radius: radius).map { offset in
+        let date = dateStripDate(offset: offset, origin: origin, calendar: calendar)
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
+    }
+}
+
+/// Re-center the strip catalog when `visibleStart` approaches the edge of the generated range.
+func dateStripNeedsReanchor(
+    visibleStart: Date,
+    origin: Date,
+    radius: Int = 180,
+    edgePadding: Int = 30,
+    calendar: Calendar = .current
+) -> Bool {
+    let start = calendar.startOfDay(for: visibleStart)
+    let originDay = calendar.startOfDay(for: origin)
+    let delta = abs(calendar.dateComponents([.day], from: originDay, to: start).day ?? 0)
+    return delta > radius - edgePadding
+}
+
+/// How many whole days a finger translation should move the strip (left = later dates).
+func dateStripDaySteps(translationWidth: CGFloat, dayWidth: CGFloat) -> Int {
+    guard dayWidth > 0 else { return 0 }
+    return Int((-translationWidth / dayWidth).rounded())
 }
 
 func dominantMonthTitle(for days: [Date], calendar: Calendar = .current) -> String {

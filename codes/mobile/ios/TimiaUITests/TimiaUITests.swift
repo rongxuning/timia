@@ -121,7 +121,7 @@ final class TimiaUITests: XCTestCase {
             app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
             dominantMonthTitle(starting: stripStart)
         )
-        element("week-date-strip", in: app).swipeLeft()
+        dragDateStrip(element("week-date-strip", in: app), byDays: 1)
         let shiftedStart = Calendar.current.date(byAdding: .day, value: 1, to: stripStart) ?? stripStart
         let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
         XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
@@ -165,7 +165,7 @@ final class TimiaUITests: XCTestCase {
             app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
             dominantMonthTitle(starting: stripStart)
         )
-        element("week-date-strip", in: app).swipeLeft()
+        dragDateStrip(element("week-date-strip", in: app), byDays: 1)
         let shiftedStart = Calendar.current.date(byAdding: .day, value: 1, to: stripStart) ?? stripStart
         let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
         XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
@@ -175,6 +175,14 @@ final class TimiaUITests: XCTestCase {
             on: app.descendants(matching: .any)["calendar-header-title"].firstMatch,
             timeout: 3
         ))
+
+        // Longer drag should advance the visible window by multiple days in one gesture.
+        dragDateStrip(element("week-date-strip", in: app), byDays: 3.2)
+        let atLeastStart = Calendar.current.date(byAdding: .day, value: 2, to: shiftedStart) ?? shiftedStart
+        let atLeastLastDay = Calendar.current.date(byAdding: .day, value: 6, to: atLeastStart) ?? atLeastStart
+        XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
+        XCTAssertTrue(element("calendar-date-\(dayKey(atLeastLastDay))", in: app).waitForExistence(timeout: 3))
+
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.70)).tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         app.buttons["取消"].tap()
@@ -364,6 +372,16 @@ final class TimiaUITests: XCTestCase {
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Drag the date strip by approximately `days` day-widths (positive = later dates).
+    private func dragDateStrip(_ strip: XCUIElement, byDays days: CGFloat) {
+        // Overshoot slightly so view-aligned snap commits past the halfway point.
+        let distance = days + 0.15
+        let start = strip.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5))
+        let endX = max(0.05, 0.92 - distance / 7.0)
+        let end = strip.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.5))
+        start.press(forDuration: 0.12, thenDragTo: end)
     }
 
     private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {

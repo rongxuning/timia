@@ -186,6 +186,53 @@ final class CalendarWeekTitleTests: XCTestCase {
         )
     }
 
+    func testDateStripScrollOffsetsAreSymmetricAroundZero() {
+        XCTAssertEqual(dateStripScrollOffsets(radius: 2), [-2, -1, 0, 1, 2])
+    }
+
+    func testDateStripDayKeysCoverConsecutiveDaysAroundOrigin() {
+        let keys = dateStripDayKeys(origin: date(2026, 9, 10), radius: 2, calendar: calendar)
+
+        XCTAssertEqual(keys, [
+            "2026-09-08",
+            "2026-09-09",
+            "2026-09-10",
+            "2026-09-11",
+            "2026-09-12",
+        ])
+    }
+
+    func testDateStripNeedsReanchorNearGeneratedEdge() {
+        let origin = date(2026, 9, 10)
+        // radius 10, edgePadding 3 → reanchor when |delta| > 7
+        XCTAssertFalse(
+            dateStripNeedsReanchor(
+                visibleStart: date(2026, 9, 16),
+                origin: origin,
+                radius: 10,
+                edgePadding: 3,
+                calendar: calendar
+            )
+        )
+        XCTAssertTrue(
+            dateStripNeedsReanchor(
+                visibleStart: date(2026, 9, 18),
+                origin: origin,
+                radius: 10,
+                edgePadding: 3,
+                calendar: calendar
+            )
+        )
+    }
+
+    func testDateStripDayStepsScalesWithTranslationAndDayWidth() {
+        XCTAssertEqual(dateStripDaySteps(translationWidth: -44, dayWidth: 44), 1)
+        XCTAssertEqual(dateStripDaySteps(translationWidth: -130, dayWidth: 44), 3)
+        XCTAssertEqual(dateStripDaySteps(translationWidth: 88, dayWidth: 44), -2)
+        XCTAssertEqual(dateStripDaySteps(translationWidth: -10, dayWidth: 44), 0)
+        XCTAssertEqual(dateStripDaySteps(translationWidth: -100, dayWidth: 0), 0)
+    }
+
     private func weekDays(containing date: Date) -> [Date] {
         weekDaysContaining(date, calendar: calendar)
     }
