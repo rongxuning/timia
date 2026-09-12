@@ -32,9 +32,9 @@ flowchart LR
 
 | 组件 | 说明 |
 |------|------|
-| `core-service` / `web` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
+| `core-service` / `web` / `mcp-server` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
 | `db` | 官方 `postgres:16` 镜像，数据卷持久化 |
-| `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`） |
+| `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`）；对外暴露 `/mcp` 与 `/mcp-health` |
 
 | 文件 | 用途 |
 |------|------|
@@ -551,3 +551,37 @@ export SKIP_GIT_PULL=1
 
 - 生产密钥保存在 **`/etc/timia/.env.prod`**，勿放在 git 仓库目录内，勿提交 Git。
 - 若曾泄露数据库或 JWT 密钥，请立即轮换并重启 `core-service`/`db`（改密码需同步 `DATABASE_URL`）。
+- Agent PAT（`tm_pat_…`）仅用于 MCP/API 调用，勿写入 compose 进程环境；撤销后立即失效。
+
+---
+
+## MCP 远程（Streamable HTTP）
+
+生产对外地址：
+
+| 路径 | 说明 |
+|------|------|
+| `https://timia.online/mcp` | MCP Streamable HTTP（必须带 `Authorization: Bearer tm_pat_…`） |
+| `https://timia.online/mcp-health` | 健康检查（无需鉴权） |
+
+容器内：`mcp-server:8100`，`TIMIA_API_BASE=http://core-service:8000`，`TIMIA_MCP_TRANSPORT=http`。**不要**设置进程级 `TIMIA_PAT`。
+
+健康检查：
+
+```bash
+curl -fsS https://timia.online/mcp-health
+# {"ok": true, "transport": "http"}
+```
+
+创建生产 PAT（需 Web JWT）：
+
+```bash
+curl -s -X POST https://timia.online/core-service/auth/agent-tokens \
+  -H "Authorization: Bearer <web-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"cursor-prod","scopes":["profile:read","workspace:read","schedule:read"]}'
+```
+
+回滚：`docker compose stop mcp-server`（或从 nginx 去掉 `/mcp` location 后 reload）。仅需重发 MCP 时：`DEPLOY_MODE=mcp-server bash deploy/local.sh`。
+
+Cursor 配置见 `codes/mcp-server/README.md`。

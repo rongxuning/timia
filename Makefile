@@ -1,4 +1,4 @@
-.PHONY: dev db core-service web core-service-install web-install verify local codegen kill-port-8000 kill-port-3000 mcp-server-install mcp-server-test
+.PHONY: dev db core-service web core-service-install web-install verify local codegen kill-port-8000 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http
 
 # Kill whatever is holding port 8000 (uvicorn / fastapi). No-op if free.
 # 1s grace period, then SIGKILL if still alive.
@@ -86,3 +86,9 @@ mcp-server-install:
 
 mcp-server-test: mcp-server-install
 	cd codes/mcp-server && uv run pytest -q
+
+mcp-server-http: mcp-server-install
+	cd codes/mcp-server && \
+	  TIMIA_MCP_TRANSPORT=http TIMIA_MCP_HOST=127.0.0.1 \
+	  TIMIA_API_BASE=$${TIMIA_API_BASE:-http://127.0.0.1:8000} \
+	  uv run timia-mcp

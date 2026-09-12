@@ -6,7 +6,7 @@
 #
 # Env: SKIP_BUILD=1     — pack existing timia-*:prod images (skip docker compose build)
 #      PACK_NO_CACHE=1   — force full rebuild (ignore layer cache)
-#      PACK_SERVICES=web|core-service|all  (default: all; use web when only frontend changed)
+#      PACK_SERVICES=web|core-service|mcp-server|all  (default: all; use web when only frontend changed)
 #      PACK_ENV=.env.pack  (SSH_HOST/SSH_USER live in .env.pack — see .env.pack.example)
 #      REMOTE_TAR=timia-images.tar.gz  (remote $HOME, not /tmp)
 #      SSH_IDENTITY_FILE=~/.ssh/your.pem
@@ -154,18 +154,19 @@ pack() {
   echo "Pack env: NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}"
 
   if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
-    for img in timia-core-service:prod timia-web:prod; do
+    for img in timia-core-service:prod timia-web:prod timia-mcp-server:prod; do
       if ! docker image inspect "$img" >/dev/null 2>&1; then
         echo "SKIP_BUILD=1 but missing image: $img" >&2
         exit 1
       fi
     done
-    echo "SKIP_BUILD=1 — packing existing timia-core-service:prod and timia-web:prod"
+    echo "SKIP_BUILD=1 — packing existing core/web/mcp-server prod images"
     timia_verify_web_api_url "$NEXT_PUBLIC_API_BASE_URL"
   else
     export CORE_SERVICE_REVISION="$(git rev-parse HEAD:codes/core-service 2>/dev/null || echo local)"
     # Include API base URL so changing .env.pack always invalidates web build cache.
     export WEB_REVISION="$(git rev-parse HEAD:codes/web 2>/dev/null || echo local)-api-${NEXT_PUBLIC_API_BASE_URL}"
+    export MCP_SERVER_REVISION="$(git rev-parse HEAD:codes/mcp-server 2>/dev/null || echo local)"
 
     echo "Pulling base images (platform=$DOCKER_DEFAULT_PLATFORM) ..."
     pack_services="${PACK_SERVICES:-all}"
@@ -202,16 +203,30 @@ pack() {
       }
     fi
 
+    if build_service mcp-server; then
+      timia_pull_image python:3.12-slim
+      echo "Building mcp-server (revision=${MCP_SERVER_REVISION}) ..."
+      timia_compose_build mcp-server
+    else
+      echo "Skip mcp-server build (PACK_SERVICES=${pack_services})"
+      docker image inspect timia-mcp-server:prod >/dev/null 2>&1 || {
+        echo "timia-mcp-server:prod missing — use PACK_SERVICES=all or build mcp-server first" >&2
+        exit 1
+      }
+    fi
+
     timia_print_built_images
   fi
 
-  local web_id core_id
+  local web_id core_id mcp_id
   web_id="$(docker image inspect timia-web:prod --format '{{.Id}}')"
   core_id="$(docker image inspect timia-core-service:prod --format '{{.Id}}')"
+  mcp_id="$(docker image inspect timia-mcp-server:prod --format '{{.Id}}')"
   echo "Saving images to $OUT_FILE ..."
-  echo "  timia-web:prod         ${web_id}"
+  echo "  timia-web:prod          ${web_id}"
   echo "  timia-core-service:prod ${core_id}"
-  docker save timia-core-service:prod timia-web:prod | gzip > "$OUT_FILE"
+  echo "  timia-mcp-server:prod   ${mcp_id}"
+  docker save timia-core-service:prod timia-web:prod timia-mcp-server:prod | gzip > "$OUT_FILE"
   ls -lh "$OUT_FILE"
   echo "Pack done. Upload with: bash deploy/remote.sh upload"
 }
