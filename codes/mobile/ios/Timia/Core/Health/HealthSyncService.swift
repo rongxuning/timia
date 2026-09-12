@@ -7,7 +7,6 @@ struct HealthPendingDay: Identifiable, Sendable {
     var sleepCount: Int
     var standHourCount: Int
     var heartbeatCount: Int
-    var workouts: [HealthWorkoutPayload]
 
     var id: String { localDate }
 
@@ -17,7 +16,6 @@ struct HealthPendingDay: Identifiable, Sendable {
         if sleepCount > 0 { parts.append("睡眠 \(sleepCount)") }
         if standHourCount > 0 { parts.append("站立 \(standHourCount)") }
         if heartbeatCount > 0 { parts.append("心跳序列 \(heartbeatCount)") }
-        if workouts.count > 0 { parts.append("训练 \(workouts.count)") }
         return parts.isEmpty ? "无样本" : parts.joined(separator: " · ")
     }
 }
@@ -29,7 +27,8 @@ enum HealthSyncSource: String, Sendable {
 
 @MainActor
 struct HealthSyncService {
-    static let lastSyncedKey = "timia.health.lastSyncedAt"
+    static let lastSyncedKey = "timia.health.lastHealthSyncedAt"
+    static let pipeline = "health"
     /// Legacy fixed overlap for time-window incremental when anchors are unavailable.
     static let overlap: TimeInterval = 2 * 60 * 60
     static let firstLookbackDays = 90
@@ -86,15 +85,17 @@ struct HealthSyncService {
         UserDefaults.standard.removeObject(forKey: lastSyncedKey)
     }
 
-    /// Clears local watermark, HK anchors, and durable outbox (clear-data / nil server watermark).
+    /// Clears health watermark, health HK anchors, and the health outbox.
     static func clearLocalSyncState() async {
         clearLastSyncedAt()
-        await HealthKitAnchorStore.shared.clearAll()
+        for key in HealthKitStore.healthAnchorKeys {
+            await HealthKitAnchorStore.shared.remove(key: key)
+        }
         try? await HealthSyncQueue.shared.clearAll()
     }
 
     static func anchorsHealthy() async -> Bool {
-        await HealthKitAnchorStore.shared.hasHealthyAnchors(expectedKeys: HealthKitStore.anchorKeys)
+        await HealthKitAnchorStore.shared.hasHealthyAnchors(expectedKeys: HealthKitStore.healthAnchorKeys)
     }
 
     /// Prefer the newer of local checkpoint vs server watermark so a lagging
@@ -125,7 +126,7 @@ struct HealthSyncService {
 
     func exportSince(_ start: Date, to end: Date = Date()) async throws -> HealthKitExport {
         let exportStarted = Date()
-        let export = try await store.exportSamples(from: start, to: end)
+        let export = try await store.exportHealth(from: start, to: end)
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
         return export
     }
@@ -223,8 +224,8 @@ struct HealthSyncService {
             await logFailedRowsLeftBehind(localDate: date, context: "syncAnchored")
         }
         if try await queue.pendingCount() == 0 {
-            let stamped = try await api.checkpoint(toAt: Self.iso(end), timezone: timezone)
-            if let server = Self.parseISO(stamped.lastSyncedAt) {
+            let stamped = try await api.checkpoint(toAt: Self.iso(end), timezone: timezone, pipeline: Self.pipeline)
+            if let server = Self.parseISO(stamped.lastHealthSyncedAt) {
                 Self.storeLastSyncedAt(server)
             } else {
                 Self.storeLastSyncedAt(end)
@@ -345,8 +346,12 @@ struct HealthSyncService {
                 // Server-authoritative day checkpoint (local cache mirrors server).
                 // Only day N — prefetched N+1 stays in memory until its own turn.
                 await logFailedRowsLeftBehind(localDate: label, context: "syncWindow")
-                let stamped = try await api.checkpoint(toAt: Self.iso(slice.end), timezone: timezone)
-                if let server = Self.parseISO(stamped.lastSyncedAt) {
+                let stamped = try await api.checkpoint(
+                    toAt: Self.iso(slice.end),
+                    timezone: timezone,
+                    pipeline: Self.pipeline
+                )
+                if let server = Self.parseISO(stamped.lastHealthSyncedAt) {
                     Self.storeLastSyncedAt(server)
                 } else {
                     Self.storeLastSyncedAt(slice.end)
@@ -472,8 +477,8 @@ struct HealthSyncService {
 
     private func checkpointTo(_ date: Date, context: String) async {
         do {
-            let stamped = try await api.checkpoint(toAt: Self.iso(date), timezone: timezone)
-            if let server = Self.parseISO(stamped.lastSyncedAt) {
+            let stamped = try await api.checkpoint(toAt: Self.iso(date), timezone: timezone, pipeline: Self.pipeline)
+            if let server = Self.parseISO(stamped.lastHealthSyncedAt) {
                 Self.storeLastSyncedAt(server)
             } else {
                 Self.storeLastSyncedAt(date)
@@ -560,7 +565,7 @@ struct HealthSyncService {
                 payload: HealthDeletionSyncPayload(timezone: tz, deletions: chunk)
             )
         }
-        for chunk in export.samples.chunked(into: 500) {
+        for chunk in export.samples.chunked(into: 1000) {
             try await enqueue(.samples, payload: HealthQuantitySyncPayload(timezone: tz, samples: chunk))
         }
         for chunk in export.sleep.chunked(into: 200) {
@@ -568,12 +573,6 @@ struct HealthSyncService {
         }
         for chunk in export.standHours.chunked(into: 200) {
             try await enqueue(.standHours, payload: HealthStandHourSyncPayload(timezone: tz, samples: chunk))
-        }
-        for chunk in export.workouts.chunked(into: 50) {
-            try await enqueue(.workouts, payload: HealthWorkoutSyncPayload(timezone: tz, workouts: chunk))
-        }
-        for chunk in export.routes.chunked(into: 10) {
-            try await enqueue(.routes, payload: HealthWorkoutRouteSyncPayload(timezone: tz, routes: chunk))
         }
         for chunk in export.heartbeats.chunked(into: 20) {
             try await enqueue(.heartbeats, payload: HealthHeartbeatSyncPayload(timezone: tz, series: chunk))
@@ -684,8 +683,7 @@ struct HealthSyncService {
                 quantityCount: 0,
                 sleepCount: 0,
                 standHourCount: 0,
-                heartbeatCount: 0,
-                workouts: []
+                heartbeatCount: 0
             )
         }
 
@@ -707,11 +705,6 @@ struct HealthSyncService {
         for sample in export.heartbeats {
             var item = bucket(sample.endAt)
             item.heartbeatCount += 1
-            buckets[item.localDate] = item
-        }
-        for workout in export.workouts {
-            var item = bucket(workout.endAt)
-            item.workouts.append(workout)
             buckets[item.localDate] = item
         }
 
@@ -742,6 +735,7 @@ struct HealthSyncService {
             HealthSyncRunIn(
                 source: source.rawValue,
                 status: "success",
+                pipeline: Self.pipeline,
                 fromAt: Self.iso(start),
                 toAt: Self.iso(end),
                 quantityCount: quantityCount,

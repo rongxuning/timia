@@ -5,8 +5,6 @@ enum HealthSyncOutboxCategory: String, Sendable {
     case samples
     case sleep
     case standHours
-    case workouts
-    case routes
     case heartbeats
     case deletions
 }
@@ -183,26 +181,6 @@ actor HealthSyncQueue {
     func failedCount() throws -> Int {
         try openIfNeeded()
         return try scalarInt("SELECT COUNT(*) FROM outbox WHERE status = 'failed';")
-    }
-
-    /// True when a workouts row would block uploading this route (earlier id or same/earlier local_date).
-    func hasBlockingWorkouts(forRouteId routeId: Int64, localDate: String) throws -> Bool {
-        try openIfNeeded()
-        let sql = """
-            SELECT 1 FROM outbox
-            WHERE category = 'workouts'
-              AND status IN ('pending', 'uploading')
-              AND (id < ? OR local_date <= ?)
-            LIMIT 1;
-            """
-        let stmt = try prepare(sql)
-        defer { sqlite3_finalize(stmt) }
-        sqlite3_bind_int64(stmt, 1, routeId)
-        sqlite3_bind_text(stmt, 2, localDate, -1, Self.SQLITE_TRANSIENT)
-        let code = sqlite3_step(stmt)
-        if code == SQLITE_ROW { return true }
-        if code == SQLITE_DONE { return false }
-        throw HealthSyncQueueError.stepFailed(lastErrorMessage())
     }
 
     private static let uploadPendingStatuses = "('pending', 'uploading')"

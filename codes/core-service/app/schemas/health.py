@@ -148,6 +148,7 @@ class HealthSyncDayStatusOut(BaseModel):
 class HealthSyncRunIn(BaseModel):
     source: Literal["manual", "background"]
     status: Literal["success", "failed"]
+    pipeline: Literal["health", "workout"] | None = None
     from_at: datetime | None = None
     to_at: datetime
     quantity_count: int = 0
@@ -165,6 +166,7 @@ class HealthSyncRunOut(BaseModel):
     id: str
     source: str
     status: str
+    pipeline: str
     started_at: datetime
     finished_at: datetime | None = None
     from_at: datetime | None = None
@@ -182,7 +184,8 @@ class HealthSyncRunOut(BaseModel):
 
 class HealthSyncStatusOut(BaseModel):
     timezone: str
-    last_synced_at: datetime | None = None
+    last_health_synced_at: datetime | None = None
+    last_workout_synced_at: datetime | None = None
     days: list[HealthSyncDayStatusOut] = Field(default_factory=list)
     runs: list[HealthSyncRunOut] = Field(default_factory=list)
 
@@ -190,10 +193,26 @@ class HealthSyncStatusOut(BaseModel):
 class HealthSyncCheckpointIn(BaseModel):
     to_at: datetime
     timezone: str = Field(default="Asia/Shanghai", min_length=1, max_length=64)
+    pipeline: Literal["health", "workout"] | None = None
 
 
 class HealthSyncCheckpointOut(BaseModel):
-    last_synced_at: datetime
+    last_health_synced_at: datetime | None = None
+    last_workout_synced_at: datetime | None = None
+
+
+class HealthWorkoutUuidsOut(BaseModel):
+    hk_uuids: list[str] = Field(default_factory=list)
+
+
+class HealthRollupIn(BaseModel):
+    timezone: str = Field(default="Asia/Shanghai", min_length=1, max_length=64)
+    dates: list[str] = Field(default_factory=list)
+
+
+class HealthRollupOut(BaseModel):
+    rolled: int = 0
+    remaining_dirty: int = 0
 
 
 class HealthClearOut(BaseModel):

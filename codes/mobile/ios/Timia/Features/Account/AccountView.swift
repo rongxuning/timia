@@ -25,6 +25,11 @@ struct AccountView: View {
                 } label: {
                     Label("健康数据", systemImage: "heart.text.square")
                 }
+                NavigationLink {
+                    WorkoutSyncView()
+                } label: {
+                    Label("训练记录", systemImage: "figure.run")
+                }
             }
             ScreenNotificationSettingsSection()
             if user.isSystemAdmin {

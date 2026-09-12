@@ -5222,6 +5222,22 @@
             }
           },
           {
+            "name": "pipeline",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pipeline"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
@@ -5363,6 +5379,158 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HealthSyncCheckpointOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/workout-uuids": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Workout Uuids",
+        "operationId": "get_workout_uuids_health_sync_workout_uuids_get",
+        "parameters": [
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "Asia/Shanghai",
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthWorkoutUuidsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/sync/rollup": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Post Sync Rollup",
+        "operationId": "post_sync_rollup_health_sync_rollup_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthRollupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthRollupOut"
                 }
               }
             }
@@ -10504,6 +10672,42 @@
         ],
         "title": "HealthRecoveryLinkOut"
       },
+      "HealthRollupIn": {
+        "properties": {
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "default": "Asia/Shanghai"
+          },
+          "dates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dates"
+          }
+        },
+        "type": "object",
+        "title": "HealthRollupIn"
+      },
+      "HealthRollupOut": {
+        "properties": {
+          "rolled": {
+            "type": "integer",
+            "title": "Rolled",
+            "default": 0
+          },
+          "remaining_dirty": {
+            "type": "integer",
+            "title": "Remaining Dirty",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "HealthRollupOut"
+      },
       "HealthRouteOut": {
         "properties": {
           "points": {
@@ -11325,6 +11529,21 @@
             "minLength": 1,
             "title": "Timezone",
             "default": "Asia/Shanghai"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "health",
+                  "workout"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline"
           }
         },
         "type": "object",
@@ -11335,16 +11554,32 @@
       },
       "HealthSyncCheckpointOut": {
         "properties": {
-          "last_synced_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Last Synced At"
+          "last_health_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Health Synced At"
+          },
+          "last_workout_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Workout Synced At"
           }
         },
         "type": "object",
-        "required": [
-          "last_synced_at"
-        ],
         "title": "HealthSyncCheckpointOut"
       },
       "HealthSyncDayStatusOut": {
@@ -11422,6 +11657,21 @@
               "failed"
             ],
             "title": "Status"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "health",
+                  "workout"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline"
           },
           "from_at": {
             "anyOf": [
@@ -11516,6 +11766,10 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "pipeline": {
+            "type": "string",
+            "title": "Pipeline"
           },
           "started_at": {
             "type": "string",
@@ -11617,6 +11871,7 @@
           "id",
           "source",
           "status",
+          "pipeline",
           "started_at"
         ],
         "title": "HealthSyncRunOut"
@@ -11627,7 +11882,7 @@
             "type": "string",
             "title": "Timezone"
           },
-          "last_synced_at": {
+          "last_health_synced_at": {
             "anyOf": [
               {
                 "type": "string",
@@ -11637,7 +11892,19 @@
                 "type": "null"
               }
             ],
-            "title": "Last Synced At"
+            "title": "Last Health Synced At"
+          },
+          "last_workout_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Workout Synced At"
           },
           "days": {
             "items": {
@@ -12608,6 +12875,19 @@
         },
         "type": "object",
         "title": "HealthWorkoutSyncIn"
+      },
+      "HealthWorkoutUuidsOut": {
+        "properties": {
+          "hk_uuids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hk Uuids"
+          }
+        },
+        "type": "object",
+        "title": "HealthWorkoutUuidsOut"
       },
       "HealthWorkoutsPageOut": {
         "properties": {

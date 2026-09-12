@@ -108,6 +108,19 @@ DELETION_KINDS = frozenset(
     }
 )
 
+HEALTH_DELETION_KINDS = frozenset(
+    {
+        DELETION_KIND_QUANTITY,
+        DELETION_KIND_SLEEP,
+        DELETION_KIND_STAND_HOUR,
+        DELETION_KIND_HEARTBEAT_SERIES,
+    }
+)
+
+SYNC_PIPELINE_HEALTH = "health"
+SYNC_PIPELINE_WORKOUT = "workout"
+SYNC_PIPELINES = frozenset({SYNC_PIPELINE_HEALTH, SYNC_PIPELINE_WORKOUT})
+
 class HealthSampleQuantity(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "health_sample_quantity"
     __table_args__ = (
@@ -398,10 +411,11 @@ class HealthSyncRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     upserted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     local_dates: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
     error: Mapped[str | None] = mapped_column(String(400), nullable=True)
+    pipeline: Mapped[str] = mapped_column(String(20), nullable=False)
 
 
 class HealthSyncState(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    """High-water mark for incremental HealthKit sync. One row per owner."""
+    """Per-pipeline high-water marks. One row per owner."""
 
     __tablename__ = "health_sync_state"
     __table_args__ = (UniqueConstraint("owner_user_id", name="uq_health_sync_state_owner"),)
@@ -409,5 +423,27 @@ class HealthSyncState(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    last_health_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_workout_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_health_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    last_workout_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+
+class HealthMetricsDirty(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Local dates whose daily metrics still need rollup after a health upsert."""
+
+    __tablename__ = "health_metrics_dirty"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "local_date", name="uq_health_metrics_dirty_owner_date"),
+        Index("ix_health_metrics_dirty_date", "local_date"),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    local_date: Mapped[date] = mapped_column(Date, nullable=False)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False)

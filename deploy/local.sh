@@ -241,6 +241,17 @@ EOF
   touch /var/log/timia-plan-reminders.log
   chmod 644 /var/log/timia-plan-reminders.log
 
+  local rollup_cron_file="/etc/cron.d/timia-health-rollup"
+  cat > "$rollup_cron_file" <<EOF
+# Timia: health daily-metrics rollup
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * ${deploy_user} cd ${ROOT} && bash deploy/dc.sh exec -T core-service python -m app.jobs.health_rollup >> /var/log/timia-health-rollup.log 2>&1
+EOF
+  chmod 644 "$rollup_cron_file"
+  touch /var/log/timia-health-rollup.log
+  chmod 644 /var/log/timia-health-rollup.log
+
   echo "Installed ${cron_file}"
   echo "Log: tail -f /var/log/timia-deploy-poll.log"
   echo "Test: cd ${ROOT} && bash deploy/local.sh poll"

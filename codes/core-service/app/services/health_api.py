@@ -10,7 +10,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,7 @@ from app.models.health import (
     DELETION_KIND_STAND_HOUR,
     DELETION_KIND_WORKOUT,
     DELETION_KINDS,
+    HEALTH_DELETION_KINDS,
     METRIC_ACTIVE_ENERGY,
     METRIC_BASAL_ENERGY,
     METRIC_BODY_MASS,
@@ -39,8 +40,11 @@ from app.models.health import (
     METRIC_VO2_MAX,
     QUANTITY_METRIC_TYPES,
     SLEEP_STAGES,
+    SYNC_PIPELINE_HEALTH,
+    SYNC_PIPELINE_WORKOUT,
     HealthInsightDaily,
     HealthMetricsDaily,
+    HealthMetricsDirty,
     HealthMetricsLayout,
     HealthProfile,
     HealthSampleQuantity,
@@ -65,6 +69,8 @@ from app.schemas.health import (
     HealthQuantitySyncIn,
     HealthSleepSyncIn,
     HealthStandHourSyncIn,
+    HealthRollupIn,
+    HealthRollupOut,
     HealthSyncCheckpointIn,
     HealthSyncCheckpointOut,
     HealthSyncDayStatusOut,
@@ -72,6 +78,7 @@ from app.schemas.health import (
     HealthSyncRunIn,
     HealthSyncRunOut,
     HealthSyncStatusOut,
+    HealthWorkoutUuidsOut,
     HealthWorkoutRouteSyncIn,
     HealthWorkoutSyncIn,
 )
@@ -86,7 +93,7 @@ from app.services.health_metrics import (
 )
 from app.services.health_scores import PROFILE_SEXES
 
-BATCH_SAMPLES_MAX = 500
+BATCH_SAMPLES_MAX = 1000
 BATCH_SLEEP_MAX = 200
 BATCH_STAND_HOUR_MAX = 200
 BATCH_HEARTBEAT_MAX = 20
@@ -116,6 +123,42 @@ def _invalid_timezone(err: ValueError) -> None:
 
 def _date_list(dates: set[date]) -> list[str]:
     return sorted(item.isoformat() for item in dates)
+
+
+def _require_pipeline(pipeline: str | None) -> str:
+    if pipeline is None:
+        raise HTTPException(status_code=400, detail="missing_pipeline")
+    if pipeline not in {SYNC_PIPELINE_HEALTH, SYNC_PIPELINE_WORKOUT}:
+        raise HTTPException(status_code=400, detail="invalid_pipeline")
+    return pipeline
+
+
+def _mark_dates_dirty(
+    db: Session, owner_id: uuid.UUID, dates: set[date], timezone_name: str
+) -> None:
+    if not dates:
+        return
+    now = utcnow()
+    rows = [
+        {
+            "id": uuid.uuid4(),
+            "owner_user_id": owner_id,
+            "local_date": local,
+            "timezone": timezone_name,
+            "created_at": now,
+            "updated_at": now,
+        }
+        for local in dates
+    ]
+    stmt = pg_insert(HealthMetricsDirty).values(rows)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_health_metrics_dirty_owner_date",
+        set_={
+            "timezone": stmt.excluded.timezone,
+            "updated_at": stmt.excluded.updated_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def _dedupe_by_hk_uuid(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -173,6 +216,7 @@ def sync_quantity_samples(db: Session, user: User, payload: HealthQuantitySyncIn
         )
     rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_quantity(db, rows)
+    _mark_dates_dirty(db, user.id, dates, tz_name)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
@@ -243,6 +287,7 @@ def sync_sleep_samples(db: Session, user: User, payload: HealthSleepSyncIn) -> H
         )
     rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_sleep(db, rows)
+    _mark_dates_dirty(db, user.id, dates, tz_name)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
@@ -299,6 +344,7 @@ def sync_stand_hours(db: Session, user: User, payload: HealthStandHourSyncIn) ->
         )
     rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_stand_hour(db, rows)
+    _mark_dates_dirty(db, user.id, dates, tz_name)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
@@ -356,6 +402,7 @@ def sync_heartbeat_series(db: Session, user: User, payload: HealthHeartbeatSyncI
         )
     rows = _dedupe_by_hk_uuid(rows)
     _bulk_upsert_heartbeat(db, rows)
+    _mark_dates_dirty(db, user.id, dates, tz_name)
     db.flush()
     return HealthSyncOut(upserted=len(rows), local_dates=_date_list(dates))
 
@@ -520,11 +567,15 @@ def sync_deletions(db: Session, user: User, payload: HealthDeletionSyncIn) -> He
             raise HTTPException(status_code=400, detail="unknown_deletion_kind")
     now = utcnow()
     dates: set[date] = set()
+    health_dates: set[date] = set()
     for item in payload.deletions:
         row, stamp = _load_for_delete(db, user.id, item.hk_uuid, item.kind)
         if row is None or stamp is None:
             continue
-        dates.add(local_date_of(stamp, tz_name))
+        local = local_date_of(stamp, tz_name)
+        dates.add(local)
+        if item.kind in HEALTH_DELETION_KINDS:
+            health_dates.add(local)
         row.deleted_at = now
         row.updated_at = now
         if item.kind == DELETION_KIND_WORKOUT:
@@ -532,6 +583,7 @@ def sync_deletions(db: Session, user: User, payload: HealthDeletionSyncIn) -> He
             if route is not None:
                 route.deleted_at = now
                 route.updated_at = now
+    _mark_dates_dirty(db, user.id, health_dates, tz_name)
     db.flush()
     return HealthSyncOut(upserted=len(payload.deletions), local_dates=_date_list(dates))
 
@@ -542,6 +594,7 @@ def list_sync_status(
     timezone_name: str,
     start: date,
     end: date,
+    pipeline: str | None = None,
 ) -> HealthSyncStatusOut:
     try:
         tz_name = _ensure_timezone(timezone_name)
@@ -550,10 +603,14 @@ def list_sync_status(
         raise
     if end < start:
         raise HTTPException(status_code=400, detail="invalid_date_range")
+    if pipeline is not None and pipeline not in {SYNC_PIPELINE_HEALTH, SYNC_PIPELINE_WORKOUT}:
+        raise HTTPException(status_code=400, detail="invalid_pipeline")
     tz = ZoneInfo(tz_name)
     window_start = datetime.combine(start, datetime.min.time(), tzinfo=tz)
     window_end = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=tz)
     buckets: dict[str, HealthSyncDayStatusOut] = {}
+    include_health_days = pipeline != SYNC_PIPELINE_WORKOUT
+    include_workout_days = pipeline != SYNC_PIPELINE_HEALTH
 
     def add(local: date, field: str, amount: int = 1) -> None:
         if local < start or local > end or amount <= 0:
@@ -565,75 +622,77 @@ def list_sync_status(
             buckets[key] = day
         setattr(day, field, getattr(day, field) + amount)
 
-    for row in db.scalars(
-        select(HealthMetricsDaily).where(
-            HealthMetricsDaily.owner_user_id == user.id,
-            HealthMetricsDaily.local_date >= start,
-            HealthMetricsDaily.local_date <= end,
-        )
-    ):
-        qty = int(row.hr_count or 0)
-        if qty == 0 and any(
-            getattr(row, attr) is not None
-            for attr in (
-                "steps",
-                "active_energy_kcal",
-                "basal_energy_kcal",
-                "exercise_minutes",
-                "body_mass_kg",
-                "vo2_max",
-                "hrv_median_ms",
-                "spo2_avg",
-                "cardio_recovery_bpm",
-                "resting_hr_bpm",
+    if include_health_days:
+        for row in db.scalars(
+            select(HealthMetricsDaily).where(
+                HealthMetricsDaily.owner_user_id == user.id,
+                HealthMetricsDaily.local_date >= start,
+                HealthMetricsDaily.local_date <= end,
             )
         ):
-            qty = 1
-        add(row.local_date, "quantity_count", qty)
-        add(row.local_date, "sleep_count", 1 if row.sleep_asleep_minutes is not None else 0)
-        add(row.local_date, "stand_hour_count", int(row.stand_hours or 0))
-    for row in db.scalars(
-        select(HealthWorkoutSession).where(
-            HealthWorkoutSession.owner_user_id == user.id,
-            HealthWorkoutSession.deleted_at.is_(None),
-            HealthWorkoutSession.start_at >= window_start,
-            HealthWorkoutSession.start_at < window_end,
-        )
-    ):
-        add(local_date_of(row.start_at, tz_name), "workout_count")
-    for row in db.scalars(
-        select(HealthSeriesHeartbeat).where(
-            HealthSeriesHeartbeat.owner_user_id == user.id,
-            HealthSeriesHeartbeat.deleted_at.is_(None),
-            HealthSeriesHeartbeat.start_at >= window_start,
-            HealthSeriesHeartbeat.start_at < window_end,
-        )
-    ):
-        add(local_date_of(row.start_at, tz_name), "heartbeat_series_count")
+            qty = int(row.hr_count or 0)
+            if qty == 0 and any(
+                getattr(row, attr) is not None
+                for attr in (
+                    "steps",
+                    "active_energy_kcal",
+                    "basal_energy_kcal",
+                    "exercise_minutes",
+                    "body_mass_kg",
+                    "vo2_max",
+                    "hrv_median_ms",
+                    "spo2_avg",
+                    "cardio_recovery_bpm",
+                    "resting_hr_bpm",
+                )
+            ):
+                qty = 1
+            add(row.local_date, "quantity_count", qty)
+            add(row.local_date, "sleep_count", 1 if row.sleep_asleep_minutes is not None else 0)
+            add(row.local_date, "stand_hour_count", int(row.stand_hours or 0))
+    if include_workout_days:
+        for row in db.scalars(
+            select(HealthWorkoutSession).where(
+                HealthWorkoutSession.owner_user_id == user.id,
+                HealthWorkoutSession.deleted_at.is_(None),
+                HealthWorkoutSession.start_at >= window_start,
+                HealthWorkoutSession.start_at < window_end,
+            )
+        ):
+            add(local_date_of(row.start_at, tz_name), "workout_count")
+    if include_health_days:
+        for row in db.scalars(
+            select(HealthSeriesHeartbeat).where(
+                HealthSeriesHeartbeat.owner_user_id == user.id,
+                HealthSeriesHeartbeat.deleted_at.is_(None),
+                HealthSeriesHeartbeat.start_at >= window_start,
+                HealthSeriesHeartbeat.start_at < window_end,
+            )
+        ):
+            add(local_date_of(row.start_at, tz_name), "heartbeat_series_count")
 
     state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == user.id))
-    runs = list(
-        db.scalars(
-            select(HealthSyncRun)
-            .where(HealthSyncRun.owner_user_id == user.id)
-            .order_by(HealthSyncRun.started_at.desc())
-            .limit(50)
-        )
-    )
+    run_stmt = select(HealthSyncRun).where(HealthSyncRun.owner_user_id == user.id)
+    if pipeline in {SYNC_PIPELINE_HEALTH, SYNC_PIPELINE_WORKOUT}:
+        run_stmt = run_stmt.where(HealthSyncRun.pipeline == pipeline)
+    runs = list(db.scalars(run_stmt.order_by(HealthSyncRun.started_at.desc()).limit(50)))
     return HealthSyncStatusOut(
         timezone=tz_name,
-        last_synced_at=state.last_synced_at if state else None,
+        last_health_synced_at=state.last_health_synced_at if state else None,
+        last_workout_synced_at=state.last_workout_synced_at if state else None,
         days=[buckets[key] for key in sorted(buckets, reverse=True)],
         runs=[_sync_run_out(row) for row in runs],
     )
 
 
 def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> HealthSyncRunOut:
+    pipeline = _require_pipeline(payload.pipeline)
     now = utcnow()
     run = HealthSyncRun(
         owner_user_id=user.id,
         source=payload.source,
         status=payload.status,
+        pipeline=pipeline,
         started_at=payload.from_at or now,
         finished_at=now,
         from_at=payload.from_at,
@@ -651,30 +710,7 @@ def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> Health
     db.add(run)
     db.flush()
     if payload.status == "success":
-        _advance_sync_state(db, user.id, payload.to_at, last_run_id=run.id, now=now)
-        tz_name = "Asia/Shanghai"
-        dates: set[date] = set()
-        if payload.local_dates:
-            for raw in payload.local_dates:
-                dates.add(date.fromisoformat(raw))
-        else:
-            to_at = _aware(payload.to_at)
-            d_to = local_date_of(to_at, tz_name)
-            if payload.from_at is not None:
-                d_from = local_date_of(_aware(payload.from_at), tz_name)
-                cursor = d_from
-                while cursor <= d_to:
-                    dates.add(cursor)
-                    cursor += timedelta(days=1)
-            else:
-                dates.add(d_to)
-        recompute_count = _recompute_dates(db, user.id, dates, tz_name)
-        logger.info(
-            "sync.finish_run recompute_count=%s user_id=%s source=%s",
-            recompute_count,
-            user.id,
-            payload.source,
-        )
+        _advance_sync_state(db, user.id, payload.to_at, pipeline=pipeline, last_run_id=run.id, now=now)
         db.flush()
     return _sync_run_out(run)
 
@@ -682,26 +718,22 @@ def record_sync_run(db: Session, user: User, payload: HealthSyncRunIn) -> Health
 def advance_sync_checkpoint(
     db: Session, user: User, payload: HealthSyncCheckpointIn
 ) -> HealthSyncCheckpointOut:
-    """Advance last_synced_at without creating a sync-run row (day resume)."""
-    now = utcnow()
-    state = _advance_sync_state(db, user.id, payload.to_at, last_run_id=None, now=now)
-    to_at = _aware(payload.to_at)
+    """Advance one pipeline watermark. Does not recompute daily metrics."""
+    pipeline = _require_pipeline(payload.pipeline)
     try:
-        tz_name = _ensure_timezone(payload.timezone)
+        _ensure_timezone(payload.timezone)
     except ValueError as err:
         _invalid_timezone(err)
         raise
-    d0 = local_date_of(to_at, tz_name)
-    recompute_count = _recompute_dates(db, user.id, {d0, d0 - timedelta(days=1)}, tz_name)
-    logger.info(
-        "sync.checkpoint recompute_count=%s user_id=%s to_at=%s",
-        recompute_count,
-        user.id,
-        payload.to_at.isoformat(),
+    now = utcnow()
+    state = _advance_sync_state(
+        db, user.id, payload.to_at, pipeline=pipeline, last_run_id=None, now=now
     )
     db.flush()
-    assert state.last_synced_at is not None
-    return HealthSyncCheckpointOut(last_synced_at=state.last_synced_at)
+    return HealthSyncCheckpointOut(
+        last_health_synced_at=state.last_health_synced_at,
+        last_workout_synced_at=state.last_workout_synced_at,
+    )
 
 
 def clear_owner_health_data(db: Session, user: User) -> HealthClearOut:
@@ -723,6 +755,7 @@ def clear_owner_health_data(db: Session, user: User) -> HealthClearOut:
         insight_daily_deleted=_count_delete(HealthInsightDaily),
         sync_run_deleted=_count_delete(HealthSyncRun),
     )
+    _count_delete(HealthMetricsDirty)
     state = db.scalar(select(HealthSyncState).where(HealthSyncState.owner_user_id == uid))
     if state is not None:
         db.delete(state)
@@ -731,11 +764,96 @@ def clear_owner_health_data(db: Session, user: User) -> HealthClearOut:
     return out
 
 
+def list_workout_uuids(
+    db: Session,
+    user: User,
+    timezone_name: str,
+    start: date,
+    end: date,
+) -> HealthWorkoutUuidsOut:
+    try:
+        tz_name = _ensure_timezone(timezone_name)
+    except ValueError as err:
+        _invalid_timezone(err)
+        raise
+    if end < start:
+        raise HTTPException(status_code=400, detail="invalid_date_range")
+    tz = ZoneInfo(tz_name)
+    window_start = datetime.combine(start, datetime.min.time(), tzinfo=tz)
+    window_end = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=tz)
+    rows = db.scalars(
+        select(HealthWorkoutSession.hk_uuid).where(
+            HealthWorkoutSession.owner_user_id == user.id,
+            HealthWorkoutSession.deleted_at.is_(None),
+            HealthWorkoutSession.start_at >= window_start,
+            HealthWorkoutSession.start_at < window_end,
+        )
+    )
+    return HealthWorkoutUuidsOut(hk_uuids=[str(item) for item in rows])
+
+
+ROLLUP_BATCH_MAX = 20
+
+
+def rollup_health_metrics(db: Session, user: User, payload: HealthRollupIn) -> HealthRollupOut:
+    try:
+        tz_name = _ensure_timezone(payload.timezone)
+    except ValueError as err:
+        _invalid_timezone(err)
+        raise
+    dates: set[date] = set()
+    if payload.dates:
+        if len(payload.dates) > ROLLUP_BATCH_MAX:
+            raise HTTPException(status_code=400, detail="too_many_dates")
+        for raw in payload.dates:
+            try:
+                dates.add(date.fromisoformat(raw))
+            except ValueError as err:
+                raise HTTPException(status_code=400, detail="invalid_date") from err
+        rolled = _recompute_dates(db, user.id, dates, tz_name)
+        if dates:
+            db.execute(
+                delete(HealthMetricsDirty).where(
+                    HealthMetricsDirty.owner_user_id == user.id,
+                    HealthMetricsDirty.local_date.in_(dates),
+                )
+            )
+    else:
+        rolled = run_health_rollup(db, limit=ROLLUP_BATCH_MAX, owner_id=user.id)["rolled"]
+    remaining_count = int(
+        db.scalar(
+            select(func.count())
+            .select_from(HealthMetricsDirty)
+            .where(HealthMetricsDirty.owner_user_id == user.id)
+        )
+        or 0
+    )
+    db.flush()
+    return HealthRollupOut(rolled=rolled, remaining_dirty=remaining_count)
+
+
+def run_health_rollup(
+    db: Session, *, limit: int = ROLLUP_BATCH_MAX, owner_id: uuid.UUID | None = None
+) -> dict[str, int]:
+    stmt = select(HealthMetricsDirty).order_by(HealthMetricsDirty.local_date.asc())
+    if owner_id is not None:
+        stmt = stmt.where(HealthMetricsDirty.owner_user_id == owner_id)
+    rows = list(db.scalars(stmt.limit(limit)))
+    rolled = 0
+    for row in rows:
+        recompute_daily_metrics(db, row.owner_user_id, row.local_date, row.timezone)
+        db.delete(row)
+        rolled += 1
+    db.flush()
+    return {"rolled": rolled}
+
+
 def _advance_sync_state(
     db: Session,
     owner_id: uuid.UUID,
     to_at: datetime,
     *,
+    pipeline: str,
     last_run_id: uuid.UUID | None,
     now: datetime,
 ) -> HealthSyncState:
@@ -743,10 +861,17 @@ def _advance_sync_state(
     if state is None:
         state = HealthSyncState(owner_user_id=owner_id)
         db.add(state)
-    if state.last_synced_at is None or to_at > state.last_synced_at:
-        state.last_synced_at = to_at
-    if last_run_id is not None:
-        state.last_run_id = last_run_id
+    stamped = _aware(to_at)
+    if pipeline == SYNC_PIPELINE_HEALTH:
+        if state.last_health_synced_at is None or stamped > state.last_health_synced_at:
+            state.last_health_synced_at = stamped
+        if last_run_id is not None:
+            state.last_health_run_id = last_run_id
+    else:
+        if state.last_workout_synced_at is None or stamped > state.last_workout_synced_at:
+            state.last_workout_synced_at = stamped
+        if last_run_id is not None:
+            state.last_workout_run_id = last_run_id
     state.updated_at = now
     return state
 
@@ -757,6 +882,7 @@ def _sync_run_out(row: HealthSyncRun) -> HealthSyncRunOut:
         id=str(row.id),
         source=row.source,
         status=row.status,
+        pipeline=row.pipeline,
         started_at=row.started_at,
         finished_at=row.finished_at,
         from_at=row.from_at,
