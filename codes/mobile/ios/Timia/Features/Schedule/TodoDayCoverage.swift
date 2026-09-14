@@ -87,6 +87,100 @@ func listOverdueTodoTasks(
         }
 }
 
+let todoScheduleSectionOrder = ["todo", "doing", "done", "overdue", "future", "archived"]
+
+enum TodoPeopleFilter: String, CaseIterable, Identifiable {
+    case assignee
+    case participant
+    case all
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .assignee: "本人负责"
+        case .participant: "本人参与"
+        case .all: "全部"
+        }
+    }
+
+    var involvementQueryValue: String {
+        switch self {
+        case .assignee: "assignee"
+        case .participant: "participant"
+        case .all: "any"
+        }
+    }
+}
+
+func isTodoTaskFuture(
+    _ task: ScheduleTask,
+    now: Date = Date(),
+    calendar: Calendar = .current
+) -> Bool {
+    guard task.status == "todo" || task.status == "doing" else { return false }
+    guard let start = parseTodoScheduleISO(task.startAt) ?? parseTodoScheduleISO(task.endAt) else {
+        return false
+    }
+    return calendar.startOfDay(for: start) > calendar.startOfDay(for: now)
+}
+
+func listFutureTodoTasks(
+    from columns: [String: [ScheduleTask]],
+    now: Date = Date(),
+    calendar: Calendar = .current
+) -> [ScheduleTask] {
+    let tasks = (columns["todo"] ?? []) + (columns["doing"] ?? [])
+    return tasks
+        .filter { isTodoTaskFuture($0, now: now, calendar: calendar) }
+        .sorted { lhs, rhs in
+            let left = parseTodoScheduleISO(lhs.startAt) ?? parseTodoScheduleISO(lhs.endAt) ?? .distantFuture
+            let right = parseTodoScheduleISO(rhs.startAt) ?? parseTodoScheduleISO(rhs.endAt) ?? .distantFuture
+            if left != right { return left < right }
+            return lhs.id < rhs.id
+        }
+}
+
+func taskMatchesTodoPeopleFilter(
+    _ task: ScheduleTask,
+    userId: String,
+    filter: TodoPeopleFilter
+) -> Bool {
+    switch filter {
+    case .assignee:
+        return task.assignee?.id == userId
+    case .participant:
+        return (task.participants ?? []).contains { $0.id == userId }
+    case .all:
+        return task.createdBy?.id == userId
+            || task.assignee?.id == userId
+            || (task.participants ?? []).contains { $0.id == userId }
+    }
+}
+
+func filterTodoTasks(
+    _ tasks: [ScheduleTask],
+    userId: String,
+    peopleFilter: TodoPeopleFilter
+) -> [ScheduleTask] {
+    tasks.filter { taskMatchesTodoPeopleFilter($0, userId: userId, filter: peopleFilter) }
+}
+
+func todoDateByHorizontalSwipe(
+    from date: Date,
+    translation: CGSize,
+    calendar: Calendar = .current,
+    minimumDistance: CGFloat = 56,
+    horizontalIntentRatio: CGFloat = 1.25
+) -> Date? {
+    guard abs(translation.width) >= minimumDistance,
+          abs(translation.width) > abs(translation.height) * horizontalIntentRatio else {
+        return nil
+    }
+    let delta = translation.width < 0 ? 1 : -1
+    return calendar.date(byAdding: .day, value: delta, to: calendar.startOfDay(for: date))
+}
+
 private func parseTodoScheduleISO(_ value: String?) -> Date? {
     guard let value else { return nil }
     let formatter = ISO8601DateFormatter()

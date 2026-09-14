@@ -15,6 +15,7 @@ from app.schemas.views.schedule import (
     CalendarSegmentOut,
     CalendarWeekOut,
     ScheduleCalendarViewOut,
+    ScheduleFutureViewOut,
     ScheduleOverdueViewOut,
     SchedulePriorityViewOut,
     ScheduleSwimlaneViewOut,
@@ -577,4 +578,48 @@ def build_overdue_view(
         items=page,
         total=len(overdue),
         has_more=start + len(page) < len(overdue),
+    )
+
+
+def _item_range_start(item: ScheduleTaskItemOut) -> datetime | None:
+    return item.start_at or item.end_at
+
+
+def is_future_item(
+    item: ScheduleTaskItemOut,
+    *,
+    today: date,
+    calendar_timezone: ZoneInfo,
+) -> bool:
+    if item.status not in {"todo", "doing"}:
+        return False
+    start = _item_range_start(item)
+    if start is None:
+        return False
+    return _in_calendar_timezone(start, calendar_timezone).date() > today
+
+
+def build_future_view(
+    items: list[ScheduleTaskItemOut],
+    *,
+    timezone_name: str = DEFAULT_CALENDAR_TIMEZONE,
+    now: datetime | None = None,
+    limit: int = 10,
+    offset: int = 0,
+) -> ScheduleFutureViewOut:
+    calendar_timezone = resolve_calendar_timezone(timezone_name)
+    current = now or datetime.now(datetime_timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=datetime_timezone.utc)
+    today = current.astimezone(calendar_timezone).date()
+    future = [item for item in items if is_future_item(item, today=today, calendar_timezone=calendar_timezone)]
+    distant = datetime.max.replace(tzinfo=datetime_timezone.utc)
+    future.sort(key=lambda item: (_item_range_start(item) or distant, item.id))
+    start = max(offset, 0)
+    size = max(limit, 1)
+    page = future[start : start + size]
+    return ScheduleFutureViewOut(
+        items=page,
+        total=len(future),
+        has_more=start + len(page) < len(future),
     )

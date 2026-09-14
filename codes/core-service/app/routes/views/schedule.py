@@ -12,6 +12,7 @@ from app.schemas.views.schedule import (
     NaturalLanguageParseOut,
     NaturalLanguageParseRequest,
     ScheduleCalendarViewOut,
+    ScheduleFutureViewOut,
     ScheduleOverdueViewOut,
     SchedulePriorityViewOut,
     ScheduleSwimlaneViewOut,
@@ -28,11 +29,13 @@ from app.services.views.schedule_items import (
     build_my_schedule_dashboard,
     list_schedule_items,
     parse_anchor,
+    parse_involvement,
     parse_month,
 )
 from app.services.views.schedule_layout import (
     DEFAULT_CALENDAR_TIMEZONE,
     build_calendar_view,
+    build_future_view,
     build_overdue_view,
     build_priority_view,
     build_swimlane_view,
@@ -46,9 +49,14 @@ def _resolve_scope(
     scope: str,
     workspace_id: uuid.UUID | None,
     project_id: uuid.UUID | None,
+    involvement: str | None = None,
 ) -> ScheduleScope:
+    try:
+        parsed_involvement = parse_involvement(involvement)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
     if scope == "me":
-        return ScheduleScope(kind="me")
+        return ScheduleScope(kind="me", involvement=parsed_involvement)
     if scope == "project":
         if workspace_id is None or project_id is None:
             raise HTTPException(
@@ -138,6 +146,7 @@ def schedule_swimlane_view(
     completed_limit: int = Query(5, ge=1, le=20),
     active_limit: int | None = Query(None, ge=1, le=50),
     anchor: str | None = None,
+    involvement: str | None = Query(None, pattern="^(assignee|participant|any)$"),
     timezone_name: str = Query(
         DEFAULT_CALENDAR_TIMEZONE,
         alias="timezone",
@@ -147,7 +156,7 @@ def schedule_swimlane_view(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    resolved = _resolve_scope(scope, workspace_id, project_id)
+    resolved = _resolve_scope(scope, workspace_id, project_id, involvement)
     items = list_schedule_items(db, user, resolved)
     day = None
     if anchor:
@@ -209,13 +218,44 @@ def schedule_overdue_view(
     ),
     limit: int = Query(10, ge=1, le=50),
     offset: int = Query(0, ge=0),
+    involvement: str | None = Query(None, pattern="^(assignee|participant|any)$"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    resolved = _resolve_scope(scope, workspace_id, project_id)
+    resolved = _resolve_scope(scope, workspace_id, project_id, involvement)
     items = list_schedule_items(db, user, resolved)
     try:
         return build_overdue_view(
+            items,
+            timezone_name=timezone_name,
+            limit=limit,
+            offset=offset,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/future", response_model=ScheduleFutureViewOut)
+def schedule_future_view(
+    scope: str = Query("me", pattern="^(me|project)$"),
+    workspace_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    timezone_name: str = Query(
+        DEFAULT_CALENDAR_TIMEZONE,
+        alias="timezone",
+        min_length=1,
+        max_length=100,
+    ),
+    limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+    involvement: str | None = Query(None, pattern="^(assignee|participant|any)$"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    resolved = _resolve_scope(scope, workspace_id, project_id, involvement)
+    items = list_schedule_items(db, user, resolved)
+    try:
+        return build_future_view(
             items,
             timezone_name=timezone_name,
             limit=limit,

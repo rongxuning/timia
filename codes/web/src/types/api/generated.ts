@@ -1472,6 +1472,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/views/schedule/future": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule Future View */
+        get: operations["schedule_future_view_views_schedule_future_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/views/schedule/dashboard": {
         parameters: {
             query?: never;
@@ -4685,6 +4702,21 @@ export interface components {
             archived_count: number;
             /** Health Percent */
             health_percent: number | null;
+        };
+        /** ScheduleFutureViewOut */
+        ScheduleFutureViewOut: {
+            /** Items */
+            items?: components["schemas"]["ScheduleTaskItemOut"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
         };
         /** ScheduleOverdueViewOut */
         ScheduleOverdueViewOut: {
@@ -9075,6 +9107,7 @@ export interface operations {
                 completed_limit?: number;
                 active_limit?: number | null;
                 anchor?: string | null;
+                involvement?: string | null;
                 timezone?: string;
             };
             header?: {
@@ -9184,6 +9217,7 @@ export interface operations {
                 timezone?: string;
                 limit?: number;
                 offset?: number;
+                involvement?: string | null;
             };
             header?: {
                 authorization?: string | null;
@@ -9200,6 +9234,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleOverdueViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_future_view_views_schedule_future_get: {
+        parameters: {
+            query?: {
+                scope?: string;
+                workspace_id?: string | null;
+                project_id?: string | null;
+                timezone?: string;
+                limit?: number;
+                offset?: number;
+                involvement?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleFutureViewOut"];
                 };
             };
             /** @description Validation Error */

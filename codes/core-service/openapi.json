@@ -6547,6 +6547,23 @@
             }
           },
           {
+            "name": "involvement",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(assignee|participant|any)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Involvement"
+            }
+          },
+          {
             "name": "timezone",
             "in": "query",
             "required": false,
@@ -6876,6 +6893,23 @@
             }
           },
           {
+            "name": "involvement",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(assignee|participant|any)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Involvement"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
@@ -6899,6 +6933,152 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScheduleOverdueViewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/schedule/future": {
+      "get": {
+        "tags": [
+          "views-schedule"
+        ],
+        "summary": "Schedule Future View",
+        "operationId": "schedule_future_view_views_schedule_future_get",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(me|project)$",
+              "default": "me",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "default": "Asia/Shanghai",
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "involvement",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(assignee|participant|any)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Involvement"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleFutureViewOut"
                 }
               }
             }
@@ -17029,6 +17209,29 @@
           "health_percent"
         ],
         "title": "ScheduleDashboardOut"
+      },
+      "ScheduleFutureViewOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleTaskItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ScheduleFutureViewOut"
       },
       "ScheduleOverdueViewOut": {
         "properties": {
