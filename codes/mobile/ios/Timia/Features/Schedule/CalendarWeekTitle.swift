@@ -161,6 +161,44 @@ func dateStripNeedsReanchor(
     return delta > radius - edgePadding
 }
 
+func dateStripNeedsForcedRevealScroll(
+    from oldStart: Date,
+    to newStart: Date,
+    calendar: Calendar = .current
+) -> Bool {
+    dateStripShouldIgnoreScrollReporting(from: oldStart, to: newStart, calendar: calendar)
+}
+
+/// Drop stale leading-day reports while a programmatic week jump is still settling.
+///
+/// `visibleStart` is updated by the parent before `ScrollView` lands. During that
+/// window the scroll view may report an intermediate leading day (for example 15
+/// while jumping 14 → 21). Those writes must not clobber the jump.
+func dateStripShouldCommitScrolledStart(
+    proposedStart: Date,
+    visibleStart: Date,
+    settledStart: Date,
+    jumpTarget: Date? = nil,
+    calendar: Calendar = .current
+) -> Bool {
+    let proposed = calendar.startOfDay(for: proposedStart)
+    let visible = calendar.startOfDay(for: visibleStart)
+    let settled = calendar.startOfDay(for: settledStart)
+    guard !calendar.isDate(proposed, inSameDayAs: visible) else { return false }
+
+    let inFlightTarget = jumpTarget.map { calendar.startOfDay(for: $0) }
+        ?? (dateStripNeedsForcedRevealScroll(from: settled, to: visible, calendar: calendar) ? visible : nil)
+    if let target = inFlightTarget {
+        return calendar.isDate(proposed, inSameDayAs: target)
+    }
+    // Parent already moved (reveal) but the jump is shorter than a week, or GET
+    // ran before onChange assigned jumpTarget: do not walk the leading edge back.
+    if !calendar.isDate(visible, inSameDayAs: settled) {
+        return false
+    }
+    return true
+}
+
 /// How many whole days a finger translation should move the strip (left = later dates).
 func dateStripDaySteps(translationWidth: CGFloat, dayWidth: CGFloat) -> Int {
     guard dayWidth > 0 else { return 0 }

@@ -1792,6 +1792,8 @@ private struct SlidingDateStrip: View {
     private let radius = 180
 
     @State private var origin: Date
+    @State private var settledStart: Date
+    @State private var jumpTarget: Date?
     @State private var ignoreStartReportingUntil = Date.distantPast
 
     init(
@@ -1804,37 +1806,54 @@ private struct SlidingDateStrip: View {
         self.visibleStart = visibleStart
         self.onSelect = onSelect
         self.onVisibleStartChange = onVisibleStartChange
-        _origin = State(initialValue: Calendar.current.startOfDay(for: visibleStart))
+        let start = Calendar.current.startOfDay(for: visibleStart)
+        _origin = State(initialValue: start)
+        _settledStart = State(initialValue: start)
     }
 
     var body: some View {
         // Continuous horizontal scroll with per-day snap. Leading day == visibleStart.
-        // Whole-week jumps (timeline swipe past either end) animate the 7-day window
-        // while ignoring in-flight per-day scroll reports so the page is not eaten.
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 7) {
-                ForEach(dateStripDayKeys(origin: origin, radius: radius), id: \.self) { key in
-                    let date = dateFromDayKey(key) ?? origin
-                    DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
-                        .containerRelativeFrame(.horizontal, count: 7, span: 1, spacing: 7)
-                        .frame(height: 50)
-                        .id(key)
+        // Whole-week jumps update `visibleStart` first; pin that id to the leading
+        // edge and ignore in-flight per-day reports so the new cycle is not eaten
+        // (new day stuck on the trailing edge).
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 7) {
+                    ForEach(dateStripDayKeys(origin: origin, radius: radius), id: \.self) { key in
+                        let date = dateFromDayKey(key) ?? origin
+                        DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
+                            .containerRelativeFrame(.horizontal, count: 7, span: 1, spacing: 7)
+                            .frame(height: 50)
+                            .id(key)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: visibleStartBinding, anchor: .leading)
+            .frame(height: 50)
+            .accessibilityIdentifier("week-date-strip")
+            .onChange(of: visibleStart) { oldStart, newStart in
+                let start = Calendar.current.startOfDay(for: newStart)
+                if dateStripShouldIgnoreScrollReporting(from: oldStart, to: start) {
+                    ignoreStartReportingUntil = Date().addingTimeInterval(0.45)
+                    jumpTarget = start
+                    proxy.scrollTo(ScheduleFormat.dayKey(start), anchor: .leading)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(150))
+                        guard Calendar.current.isDate(start, inSameDayAs: Calendar.current.startOfDay(for: visibleStart)) else {
+                            return
+                        }
+                        settledStart = start
+                        jumpTarget = nil
+                    }
+                } else {
+                    settledStart = start
+                }
+                if dateStripNeedsReanchor(visibleStart: start, origin: origin, radius: radius) {
+                    origin = start
                 }
             }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: visibleStartBinding)
-        .frame(height: 50)
-        .accessibilityIdentifier("week-date-strip")
-        .onChange(of: visibleStart) { oldStart, newStart in
-            if dateStripShouldIgnoreScrollReporting(from: oldStart, to: newStart) {
-                ignoreStartReportingUntil = Date().addingTimeInterval(0.45)
-            }
-            guard dateStripNeedsReanchor(visibleStart: newStart, origin: origin, radius: radius) else {
-                return
-            }
-            origin = Calendar.current.startOfDay(for: newStart)
         }
     }
 
@@ -1845,7 +1864,20 @@ private struct SlidingDateStrip: View {
                 guard Date() >= ignoreStartReportingUntil,
                       let newKey, let date = dateFromDayKey(newKey) else { return }
                 let start = Calendar.current.startOfDay(for: date)
-                guard !Calendar.current.isDate(start, inSameDayAs: visibleStart) else { return }
+                let current = Calendar.current.startOfDay(for: visibleStart)
+                if Calendar.current.isDate(start, inSameDayAs: current) {
+                    settledStart = current
+                    jumpTarget = nil
+                    return
+                }
+                guard dateStripShouldCommitScrolledStart(
+                    proposedStart: start,
+                    visibleStart: current,
+                    settledStart: settledStart,
+                    jumpTarget: jumpTarget
+                ) else { return }
+                jumpTarget = nil
+                settledStart = start
                 onVisibleStartChange(start)
             }
         )

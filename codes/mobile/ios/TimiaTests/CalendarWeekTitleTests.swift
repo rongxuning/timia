@@ -96,6 +96,7 @@ final class CalendarWeekTitleTests: XCTestCase {
                 "2026-09-23",
             ]
         )
+        XCTAssertTrue(dateStripNeedsForcedRevealScroll(from: start, to: revealed, calendar: calendar))
     }
 
     func testRevealPagesStripBySevenDaysWhenDateLeavesTheStart() {
@@ -312,6 +313,77 @@ final class CalendarWeekTitleTests: XCTestCase {
         XCTAssertEqual(dateStripDaySteps(translationWidth: 88, dayWidth: 44), -2)
         XCTAssertEqual(dateStripDaySteps(translationWidth: -10, dayWidth: 44), 0)
         XCTAssertEqual(dateStripDaySteps(translationWidth: -100, dayWidth: 0), 0)
+    }
+
+    func testForcedRevealScrollOnlyForWeekSizedJumps() {
+        XCTAssertTrue(
+            dateStripNeedsForcedRevealScroll(
+                from: date(2026, 9, 14),
+                to: date(2026, 9, 21),
+                calendar: calendar
+            )
+        )
+        XCTAssertTrue(
+            dateStripNeedsForcedRevealScroll(
+                from: date(2026, 9, 14),
+                to: date(2026, 9, 7),
+                calendar: calendar
+            )
+        )
+        XCTAssertFalse(
+            dateStripNeedsForcedRevealScroll(
+                from: date(2026, 9, 14),
+                to: date(2026, 9, 15),
+                calendar: calendar
+            )
+        )
+    }
+
+    func testIgnoresStaleLeadingDayWhileWeekJumpIsInFlight() {
+        let previousStart = date(2026, 9, 14)
+        let jumpTo = date(2026, 9, 21)
+        XCTAssertFalse(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: previousStart,
+                visibleStart: jumpTo,
+                settledStart: previousStart,
+                jumpTarget: jumpTo,
+                calendar: calendar
+            )
+        )
+        XCTAssertFalse(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: date(2026, 9, 15),
+                visibleStart: jumpTo,
+                settledStart: previousStart,
+                calendar: calendar
+            )
+        )
+        XCTAssertFalse(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: jumpTo,
+                visibleStart: jumpTo,
+                settledStart: previousStart,
+                jumpTarget: jumpTo,
+                calendar: calendar
+            )
+        )
+        XCTAssertTrue(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: date(2026, 9, 15),
+                visibleStart: previousStart,
+                settledStart: previousStart,
+                calendar: calendar
+            )
+        )
+        XCTAssertTrue(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: date(2026, 9, 22),
+                visibleStart: jumpTo,
+                settledStart: jumpTo,
+                calendar: calendar
+            )
+        )
     }
 
     private func weekDays(containing date: Date) -> [Date] {

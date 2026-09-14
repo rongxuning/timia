@@ -172,6 +172,44 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
     }
 
+    func testTodoSwipePagesDateStripPastRightEdge() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        let login = app.buttons["登录"]
+        XCTAssertTrue(login.waitForExistence(timeout: 5))
+        login.tap()
+        XCTAssertTrue(app.buttons["schedule-voice-input"].waitForExistence(timeout: 8))
+        XCTAssertTrue(element("todo-people-filter", in: app).waitForExistence(timeout: 2))
+
+        let strip = element("week-date-strip", in: app)
+        XCTAssertTrue(strip.waitForExistence(timeout: 3))
+        strip.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["calendar-selected-date"].waitForExistence(timeout: 2))
+
+        let lastVisibleKey = app.buttons["calendar-selected-date"].value as? String
+        XCTAssertNotNil(lastVisibleKey)
+        let lastVisible = dateFromDayKey(lastVisibleKey ?? "")
+        XCTAssertNotNil(lastVisible)
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: lastVisible ?? Date()) ?? Date()
+        let nextKey = dayKey(nextDay)
+
+        element("todo-people-filter", in: app).swipeLeft()
+        XCTAssertTrue(waitForValue(nextKey, on: app.buttons["calendar-selected-date"], timeout: 3))
+
+        // New cycle must pin the selected day to the leading edge, not leave it trailing.
+        let selected = app.buttons["calendar-selected-date"]
+        XCTAssertEqual(selected.frame.minX, strip.frame.minX, accuracy: 16)
+
+        let newLastDay = Calendar.current.date(byAdding: .day, value: 6, to: nextDay) ?? nextDay
+        XCTAssertTrue(element("calendar-date-\(dayKey(newLastDay))", in: app).waitForExistence(timeout: 3))
+
+        element("todo-people-filter", in: app).swipeRight()
+        XCTAssertTrue(waitForValue(lastVisibleKey ?? "", on: app.buttons["calendar-selected-date"], timeout: 3))
+        XCTAssertEqual(selected.frame.maxX, strip.frame.maxX, accuracy: 16)
+    }
+
     func testCalendarBlankCreateAndPagedRangeNavigation() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")
@@ -499,6 +537,15 @@ final class TimiaUITests: XCTestCase {
             components.month ?? 0,
             components.day ?? 0
         )
+    }
+
+    private func dateFromDayKey(_ key: String) -> Date? {
+        let parts = key.split(separator: "-")
+        guard parts.count == 3,
+              let year = Int(parts[0]),
+              let month = Int(parts[1]),
+              let day = Int(parts[2]) else { return nil }
+        return Calendar.current.date(from: DateComponents(year: year, month: month, day: day))
     }
 
     private func attachScreenshot(named name: String, app: XCUIApplication) {
