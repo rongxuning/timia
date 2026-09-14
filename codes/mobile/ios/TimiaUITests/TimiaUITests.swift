@@ -332,8 +332,23 @@ final class TimiaUITests: XCTestCase {
         weekTimeline.swipeDown()
         XCTAssertTrue(element("calendar-week-label-\(currentWeekKey)", in: app).waitForExistence(timeout: 3))
         dragTimelinePage(weekTimeline, goingToNext: true)
-        XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekSameDay))", in: app).waitForExistence(timeout: 3))
+        let weekStrip = element("calendar-week-date-strip", in: app)
+        XCTAssertTrue(
+            waitUntilVisibleInContainer(
+                "calendar-week-date-\(dayKey(nextWeekLast))",
+                container: weekStrip,
+                app: app,
+                timeout: 3
+            )
+        )
         XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekSameDay))", in: app).isSelected)
+        XCTAssertFalse(
+            isVisibleInContainer(
+                "calendar-week-date-\(dayKey(weekStripStart))",
+                container: weekStrip,
+                app: app
+            )
+        )
         dragTimelinePage(weekTimeline, goingToNext: false)
         XCTAssertTrue(todayInWeekHeader.waitForExistence(timeout: 3))
         XCTAssertTrue(todayInWeekHeader.isSelected)
@@ -492,6 +507,29 @@ final class TimiaUITests: XCTestCase {
         let endX = max(0.05, 0.92 - distance / 7.0)
         let end = strip.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.5))
         start.press(forDuration: 0.12, thenDragTo: end)
+    }
+
+    private func isVisibleInContainer(
+        _ identifier: String,
+        container: XCUIElement,
+        app: XCUIApplication
+    ) -> Bool {
+        let target = element(identifier, in: app)
+        guard target.exists else { return false }
+        return container.frame.intersects(target.frame)
+    }
+
+    private func waitUntilVisibleInContainer(
+        _ identifier: String,
+        container: XCUIElement,
+        app: XCUIApplication,
+        timeout: TimeInterval
+    ) -> Bool {
+        let predicate = NSPredicate { _, _ in
+            self.isVisibleInContainer(identifier, container: container, app: app)
+        }
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {

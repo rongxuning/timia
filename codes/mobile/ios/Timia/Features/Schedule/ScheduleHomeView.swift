@@ -671,9 +671,9 @@ struct ScheduleHomeView: View {
         }
 
         let nextDate = dateByPreservingWeekday(from: selectedDate, intoWeekContaining: date)
+        dateStripStart = dateStripStartForWeek(containing: nextDate)
         withAnimation(.snappy(duration: 0.32)) {
             selectedDate = nextDate
-            dateStripStart = dateStripStartForWeek(containing: nextDate)
             if let cached = cachedCalendar(for: nextDate, range: .week) {
                 calendarData = cached
             }
@@ -1938,6 +1938,9 @@ private struct PagedWeekHeader: View {
     let onVisibleStartChange: (Date) -> Void
 
     @State private var origin: Date
+    @State private var settledStart: Date
+    @State private var jumpTarget: Date?
+    @State private var ignoreStartReportingUntil = Date.distantPast
 
     init(
         selectedDate: Date,
@@ -1947,27 +1950,55 @@ private struct PagedWeekHeader: View {
         self.selectedDate = selectedDate
         self.visibleStart = visibleStart
         self.onVisibleStartChange = onVisibleStartChange
-        _origin = State(initialValue: dateStripStartForWeek(containing: visibleStart))
+        let start = dateStripStartForWeek(containing: visibleStart)
+        _origin = State(initialValue: start)
+        _settledStart = State(initialValue: start)
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 0) {
-                ForEach(weekKeys, id: \.self) { key in
-                    WeekHeader(
-                        days: dateStripDays(starting: dateFromDayKey(key) ?? visibleStart),
-                        selectedDate: selectedDate
-                    )
-                        .containerRelativeFrame(.horizontal)
-                        .id(key)
+        // Timeline week paging updates `visibleStart` first. Pin that week to the
+        // leading edge and drop stale current-week reports so the header actually
+        // follows instead of staying on the previous Sunday–Saturday.
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 0) {
+                    ForEach(weekKeys, id: \.self) { key in
+                        WeekHeader(
+                            days: dateStripDays(starting: dateFromDayKey(key) ?? visibleStart),
+                            selectedDate: selectedDate
+                        )
+                            .containerRelativeFrame(.horizontal)
+                            .id(key)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: visibleWeekBinding, anchor: .leading)
+            .frame(height: 44)
+            .accessibilityIdentifier("calendar-week-date-strip")
+            .onChange(of: visibleStart) { oldStart, newStart in
+                let weekStart = dateStripStartForWeek(containing: newStart)
+                if dateStripShouldIgnoreScrollReporting(from: oldStart, to: weekStart) {
+                    ignoreStartReportingUntil = Date().addingTimeInterval(0.45)
+                    jumpTarget = weekStart
+                    proxy.scrollTo(ScheduleFormat.dayKey(weekStart), anchor: .leading)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(150))
+                        guard Calendar.current.isDate(
+                            weekStart,
+                            inSameDayAs: dateStripStartForWeek(containing: visibleStart)
+                        ) else {
+                            return
+                        }
+                        settledStart = weekStart
+                        jumpTarget = nil
+                    }
+                } else {
+                    settledStart = weekStart
                 }
             }
-            .scrollTargetLayout()
         }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: visibleWeekBinding)
-        .frame(height: 44)
-        .accessibilityIdentifier("calendar-week-date-strip")
     }
 
     private var weekKeys: [String] {
@@ -1978,10 +2009,23 @@ private struct PagedWeekHeader: View {
         Binding(
             get: { ScheduleFormat.dayKey(dateStripStartForWeek(containing: visibleStart)) },
             set: { newKey in
-                guard let newKey, let date = dateFromDayKey(newKey) else { return }
+                guard Date() >= ignoreStartReportingUntil,
+                      let newKey, let date = dateFromDayKey(newKey) else { return }
                 let weekStart = dateStripStartForWeek(containing: date)
                 let currentStart = dateStripStartForWeek(containing: visibleStart)
-                guard !Calendar.current.isDate(weekStart, inSameDayAs: currentStart) else { return }
+                if Calendar.current.isDate(weekStart, inSameDayAs: currentStart) {
+                    settledStart = currentStart
+                    jumpTarget = nil
+                    return
+                }
+                guard dateStripShouldCommitScrolledStart(
+                    proposedStart: weekStart,
+                    visibleStart: currentStart,
+                    settledStart: settledStart,
+                    jumpTarget: jumpTarget
+                ) else { return }
+                jumpTarget = nil
+                settledStart = weekStart
                 onVisibleStartChange(weekStart)
             }
         )
