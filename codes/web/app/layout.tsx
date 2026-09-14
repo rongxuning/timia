@@ -1,28 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Be_Vietnam_Pro, Epilogue, JetBrains_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { htmlLang, type Locale } from "@/i18n/config";
-
-const epilogue = Epilogue({
-  subsets: ["latin"],
-  variable: "--font-epilogue",
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["latin"],
-  variable: "--font-be-vietnam",
-  weight: ["400", "500", "600", "700"],
-});
-
-const jetBrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
-  weight: ["400", "500", "600", "700"],
-});
+import { beVietnamPro, epilogue, jetBrainsMono } from "./fonts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
