@@ -67,7 +67,8 @@ struct WorkoutSyncService {
         skipGlobalCheckpoint: Bool = false,
         onProgress: @escaping (Double, String) -> Void
     ) async throws {
-        if watermark == nil || onlyHkUuid != nil || !(await Self.anchorsHealthy()) {
+        let anchorsHealthy = await Self.anchorsHealthy()
+        if watermark == nil || onlyHkUuid != nil || !anchorsHealthy {
             try await syncWindow(
                 source: source,
                 onlyHkUuid: onlyHkUuid,
