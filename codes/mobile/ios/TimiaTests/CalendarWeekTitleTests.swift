@@ -386,6 +386,31 @@ final class CalendarWeekTitleTests: XCTestCase {
         )
     }
 
+    func testWeekHeaderJumpDropsStalePreviousSunday() {
+        let currentSunday = date(2026, 9, 13)
+        let nextSunday = date(2026, 9, 20)
+        XCTAssertTrue(
+            dateStripShouldIgnoreScrollReporting(from: currentSunday, to: nextSunday, calendar: calendar)
+        )
+        XCTAssertFalse(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: currentSunday,
+                visibleStart: nextSunday,
+                settledStart: currentSunday,
+                jumpTarget: nextSunday,
+                calendar: calendar
+            )
+        )
+        XCTAssertTrue(
+            dateStripShouldCommitScrolledStart(
+                proposedStart: nextSunday,
+                visibleStart: currentSunday,
+                settledStart: currentSunday,
+                calendar: calendar
+            )
+        )
+    }
+
     private func weekDays(containing date: Date) -> [Date] {
         weekDaysContaining(date, calendar: calendar)
     }
