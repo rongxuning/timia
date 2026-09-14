@@ -265,7 +265,7 @@ upload() {
       exit 1
     fi
     gunzip -c ~/${REMOTE_TAR} | docker load
-    bash deploy/dc.sh up -d --no-build --force-recreate core-service web
+    bash deploy/dc.sh up -d --no-build --force-recreate core-service web mcp-server nginx
     bash deploy/dc.sh up -d
     if docker run --rm timia-web:prod sh -c \"grep -roh 'https://timia.online/api[^a-z-]' /app/.next 2>/dev/null | grep -q .\"; then
       echo 'ERROR: deployed web image still uses /api — repack (ensure pack shows Saving images) and re-upload' >&2
