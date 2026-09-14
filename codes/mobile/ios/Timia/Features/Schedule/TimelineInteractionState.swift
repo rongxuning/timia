@@ -1,9 +1,19 @@
 import Foundation
 
 enum CalendarInfiniteWindow {
-    static let dayOffsets = -120...120
+    static let dayOffsets = -30...30
     static let weekOffsets = -16...16
+    static let dayRecenterThreshold = 22
     static let weekRecenterThreshold = 12
+
+    static func shouldRecenterDayAnchor(
+        from anchor: Date,
+        to date: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        let delta = calendar.dateComponents([.day], from: anchor, to: date).day ?? 0
+        return abs(delta) > dayRecenterThreshold
+    }
 
     static func shouldRecenterWeekAnchor(
         from anchor: Date,
@@ -53,8 +63,8 @@ struct TimelineInteractionState: Equatable, Sendable {
 }
 
 enum TimelineCollapseLayout {
-    /// Interpolating every loaded day/week grid between collapsed and 24h height
-    /// stalls the main thread inside the infinite LazyVStack.
+    /// Interpolating a 24h grid between collapsed and expanded height is expensive
+    /// enough that collapse toggles should snap instead of animating height.
     static let disablesHeightAnimation = true
 }
 

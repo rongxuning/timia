@@ -225,6 +225,28 @@ final class CalendarWeekTitleTests: XCTestCase {
         )
     }
 
+    func testTimelinePageDayKeysAreConsecutiveAroundOrigin() {
+        let keys = timelinePageDayKeys(origin: date(2026, 9, 14), offsets: -2...2, calendar: calendar)
+
+        XCTAssertEqual(keys, [
+            "2026-09-12",
+            "2026-09-13",
+            "2026-09-14",
+            "2026-09-15",
+            "2026-09-16",
+        ])
+    }
+
+    func testTimelinePageWeekKeysStepBySevenDays() {
+        let keys = timelinePageWeekKeys(origin: date(2026, 9, 16), offsets: -1...1, calendar: calendar)
+
+        XCTAssertEqual(keys, [
+            "2026-09-06",
+            "2026-09-13",
+            "2026-09-20",
+        ])
+    }
+
     func testDateStripDayStepsScalesWithTranslationAndDayWidth() {
         XCTAssertEqual(dateStripDaySteps(translationWidth: -44, dayWidth: 44), 1)
         XCTAssertEqual(dateStripDaySteps(translationWidth: -130, dayWidth: 44), 3)
