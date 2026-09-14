@@ -155,7 +155,7 @@ export function PlanImportCurrentDialog({
                         {day.monthDayLabel}
                       </span>
                     </div>
-                    <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-1 [container-type:inline-size] [scrollbar-width:thin]">
+                    <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-1 [container-type:inline-size] [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-outline-variant">
                       <div className="flex h-full w-max gap-1.5">
                         {day.tasks.map((task, index) => {
                           const meta = taskMeta(task);
