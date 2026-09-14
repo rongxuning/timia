@@ -251,11 +251,146 @@ final class TodoDayCoverageTests: XCTestCase {
         )
     }
 
+    func testTodoSectionOrderPutsArchivedLastAndFutureAfterOverdue() {
+        XCTAssertEqual(
+            todoScheduleSectionOrder,
+            ["todo", "doing", "done", "overdue", "future", "archived"]
+        )
+        XCTAssertEqual(todoScheduleSectionOrder.last, "archived")
+        let overdue = todoScheduleSectionOrder.firstIndex(of: "overdue")!
+        let future = todoScheduleSectionOrder.firstIndex(of: "future")!
+        XCTAssertEqual(future, overdue + 1)
+    }
+
+    func testFutureUsesStartOfRangeAfterToday() {
+        let now = date(2026, 8, 17, hour: 15)
+
+        XCTAssertTrue(isTodoTaskFuture(
+            task(id: "tomorrow", status: "todo", startAt: "2026-08-18T09:00:00+08:00", endAt: "2026-08-18T10:00:00+08:00"),
+            now: now,
+            calendar: calendar
+        ))
+        XCTAssertTrue(isTodoTaskFuture(
+            task(id: "start-only", status: "doing", startAt: "2026-08-20T12:00:00+08:00", endAt: nil),
+            now: now,
+            calendar: calendar
+        ))
+        XCTAssertFalse(isTodoTaskFuture(
+            task(id: "today", status: "todo", startAt: "2026-08-17T08:00:00+08:00", endAt: "2026-08-17T09:00:00+08:00"),
+            now: now,
+            calendar: calendar
+        ))
+        XCTAssertFalse(isTodoTaskFuture(
+            task(id: "spanning", status: "doing", startAt: "2026-08-16T18:00:00+08:00", endAt: "2026-08-20T19:00:00+08:00"),
+            now: now,
+            calendar: calendar
+        ))
+        XCTAssertFalse(isTodoTaskFuture(
+            task(id: "yesterday", status: "todo", startAt: nil, endAt: "2026-08-16T18:00:00+08:00"),
+            now: now,
+            calendar: calendar
+        ))
+        XCTAssertFalse(isTodoTaskFuture(
+            task(id: "untimed", status: "todo", startAt: nil, endAt: nil),
+            now: now,
+            calendar: calendar
+        ))
+        XCTAssertFalse(isTodoTaskFuture(
+            task(id: "done-future", status: "done", startAt: "2026-08-20T12:00:00+08:00", endAt: nil),
+            now: now,
+            calendar: calendar
+        ))
+    }
+
+    func testListsFutureTasksSortedByStart() {
+        let now = date(2026, 8, 17)
+        let later = task(id: "later", status: "todo", startAt: "2026-08-21T12:00:00+08:00", endAt: nil)
+        let sooner = task(id: "sooner", status: "doing", startAt: "2026-08-18T09:00:00+08:00", endAt: "2026-08-18T10:00:00+08:00")
+        let today = task(id: "today", status: "todo", startAt: "2026-08-17T12:00:00+08:00", endAt: nil)
+        let columns: [String: [ScheduleTask]] = [
+            "todo": [later, today],
+            "doing": [sooner],
+            "done": [],
+            "archived": []
+        ]
+
+        XCTAssertEqual(
+            listFutureTodoTasks(from: columns, now: now, calendar: calendar).map(\.id),
+            ["sooner", "later"]
+        )
+    }
+
+    func testPeopleFilterMatchesAssigneeParticipantOrAnyInvolvement() {
+        let me = "user-me"
+        let assigned = task(
+            id: "assigned",
+            startAt: "2026-08-17T01:00:00Z",
+            endAt: nil,
+            assignee: me
+        )
+        let participating = task(
+            id: "participating",
+            startAt: "2026-08-17T01:00:00Z",
+            endAt: nil,
+            participants: [me]
+        )
+        let created = task(
+            id: "created",
+            startAt: "2026-08-17T01:00:00Z",
+            endAt: nil,
+            createdBy: me,
+            assignee: "user-other"
+        )
+        let unrelated = task(
+            id: "unrelated",
+            startAt: "2026-08-17T01:00:00Z",
+            endAt: nil,
+            createdBy: "user-other",
+            assignee: "user-other",
+            participants: ["user-other"]
+        )
+
+        XCTAssertTrue(taskMatchesTodoPeopleFilter(assigned, userId: me, filter: .assignee))
+        XCTAssertFalse(taskMatchesTodoPeopleFilter(participating, userId: me, filter: .assignee))
+        XCTAssertFalse(taskMatchesTodoPeopleFilter(created, userId: me, filter: .assignee))
+
+        XCTAssertTrue(taskMatchesTodoPeopleFilter(participating, userId: me, filter: .participant))
+        XCTAssertFalse(taskMatchesTodoPeopleFilter(assigned, userId: me, filter: .participant))
+
+        XCTAssertTrue(taskMatchesTodoPeopleFilter(assigned, userId: me, filter: .all))
+        XCTAssertTrue(taskMatchesTodoPeopleFilter(participating, userId: me, filter: .all))
+        XCTAssertTrue(taskMatchesTodoPeopleFilter(created, userId: me, filter: .all))
+        XCTAssertFalse(taskMatchesTodoPeopleFilter(unrelated, userId: me, filter: .all))
+    }
+
+    func testHorizontalSwipeChangesSelectedDayWhenClearlyHorizontal() {
+        let day = date(2026, 9, 14)
+
+        XCTAssertEqual(
+            ScheduleFormat.dayKey(todoDateByHorizontalSwipe(from: day, translation: CGSize(width: -80, height: 8), calendar: calendar)!),
+            "2026-09-15"
+        )
+        XCTAssertEqual(
+            ScheduleFormat.dayKey(todoDateByHorizontalSwipe(from: day, translation: CGSize(width: 80, height: -6), calendar: calendar)!),
+            "2026-09-13"
+        )
+        XCTAssertNil(todoDateByHorizontalSwipe(from: day, translation: CGSize(width: -20, height: 4), calendar: calendar))
+        XCTAssertNil(todoDateByHorizontalSwipe(from: day, translation: CGSize(width: -40, height: 80), calendar: calendar))
+    }
+
     private func date(_ year: Int, _ month: Int, _ day: Int, hour: Int = 0) -> Date {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
     }
 
-    private func task(id: String, status: String = "todo", startAt: String?, endAt: String?) -> ScheduleTask {
+    private func task(
+        id: String,
+        status: String = "todo",
+        startAt: String?,
+        endAt: String?,
+        createdBy: String? = nil,
+        assignee: String? = nil,
+        participants: [String] = []
+    ) -> ScheduleTask {
         ScheduleTask(
             id: id,
             title: id,
@@ -268,9 +403,9 @@ final class TodoDayCoverageTests: XCTestCase {
             completedAt: nil,
             details: nil,
             version: 1,
-            createdBy: nil,
-            assignee: nil,
-            participants: nil,
+            createdBy: createdBy.map { UserBrief(id: $0, displayName: $0) },
+            assignee: assignee.map { UserBrief(id: $0, displayName: $0) },
+            participants: participants.map { UserBrief(id: $0, displayName: $0) },
             location: nil,
             workspaceId: "workspace-1",
             workspaceName: "空间",

@@ -2,10 +2,21 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.schemas.item import UserBrief
 from app.schemas.views.schedule import ScheduleTaskItemOut
-from app.services.views.schedule_items import _count_dashboard, _count_quick_view, parse_anchor
+from app.services.views.schedule_items import (
+    INVOLVEMENT_ANY,
+    INVOLVEMENT_ASSIGNEE,
+    INVOLVEMENT_PARTICIPANT,
+    _count_dashboard,
+    _count_quick_view,
+    item_matches_involvement,
+    parse_anchor,
+    parse_involvement,
+)
 from app.services.views.schedule_layout import (
     build_calendar_view,
+    build_future_view,
     build_overdue_view,
     build_priority_view,
     build_swimlane_view,
@@ -566,3 +577,106 @@ def test_build_overdue_view_pages_oldest_deadline_first():
     )
     assert [item.id for item in last_page.items] == ["overdue-4", "overdue-5"]
     assert last_page.has_more is False
+
+
+def test_build_future_view_uses_start_after_today() -> None:
+    now = datetime(2026, 8, 17, 3, 0, tzinfo=timezone.utc)
+    tomorrow = _item(
+        id="tomorrow",
+        status="todo",
+        start_at=datetime(2026, 8, 18, 1, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 8, 18, 2, 0, tzinfo=timezone.utc),
+    )
+    later = _item(
+        id="later",
+        status="doing",
+        start_at=datetime(2026, 8, 20, 1, 0, tzinfo=timezone.utc),
+        end_at=None,
+    )
+    today_local = _item(
+        id="today",
+        status="todo",
+        start_at=datetime(2026, 8, 16, 16, 0, tzinfo=timezone.utc),  # 2026-08-17 00:00 +08
+        end_at=datetime(2026, 8, 16, 17, 0, tzinfo=timezone.utc),
+    )
+    spanning = _item(
+        id="spanning",
+        status="doing",
+        start_at=datetime(2026, 8, 16, 1, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 8, 20, 2, 0, tzinfo=timezone.utc),
+    )
+    done_future = _item(
+        id="done-future",
+        status="done",
+        start_at=datetime(2026, 8, 19, 1, 0, tzinfo=timezone.utc),
+        end_at=datetime(2026, 8, 19, 2, 0, tzinfo=timezone.utc),
+    )
+
+    view = build_future_view(
+        [later, tomorrow, today_local, spanning, done_future],
+        timezone_name="Asia/Shanghai",
+        now=now,
+    )
+    assert [item.id for item in view.items] == ["tomorrow", "later"]
+    assert view.total == 2
+    assert view.has_more is False
+
+
+def test_build_future_view_pages_soonest_start_first() -> None:
+    now = datetime(2026, 8, 17, 3, 0, tzinfo=timezone.utc)
+    items = [
+        _item(
+            id=f"future-{index}",
+            status="todo" if index % 2 == 0 else "doing",
+            start_at=datetime(2026, 8, 18 + index, 1, 0, tzinfo=timezone.utc),
+            end_at=datetime(2026, 8, 18 + index, 2, 0, tzinfo=timezone.utc),
+        )
+        for index in range(6)
+    ]
+
+    first_page = build_future_view(
+        items,
+        timezone_name="Asia/Shanghai",
+        now=now,
+        limit=2,
+        offset=0,
+    )
+    assert [item.id for item in first_page.items] == ["future-0", "future-1"]
+    assert first_page.total == 6
+    assert first_page.has_more is True
+
+    last_page = build_future_view(
+        items,
+        timezone_name="Asia/Shanghai",
+        now=now,
+        limit=2,
+        offset=4,
+    )
+    assert [item.id for item in last_page.items] == ["future-4", "future-5"]
+    assert last_page.has_more is False
+
+
+def test_item_matches_involvement_assignee_participant_or_any() -> None:
+    me = UserBrief(id="user-me", display_name="Me")
+    other = UserBrief(id="user-other", display_name="Other")
+    assigned = _item(id="assigned", assignee=me)
+    participating = _item(id="participating", participants=[me])
+    created = _item(id="created", created_by=me, assignee=other)
+    unrelated = _item(id="unrelated", created_by=other, assignee=other, participants=[other])
+
+    assert item_matches_involvement(assigned, "user-me", INVOLVEMENT_ASSIGNEE)
+    assert not item_matches_involvement(participating, "user-me", INVOLVEMENT_ASSIGNEE)
+    assert not item_matches_involvement(created, "user-me", INVOLVEMENT_ASSIGNEE)
+
+    assert item_matches_involvement(participating, "user-me", INVOLVEMENT_PARTICIPANT)
+    assert not item_matches_involvement(assigned, "user-me", INVOLVEMENT_PARTICIPANT)
+
+    assert item_matches_involvement(assigned, "user-me", INVOLVEMENT_ANY)
+    assert item_matches_involvement(participating, "user-me", INVOLVEMENT_ANY)
+    assert item_matches_involvement(created, "user-me", INVOLVEMENT_ANY)
+    assert not item_matches_involvement(unrelated, "user-me", INVOLVEMENT_ANY)
+
+    assert parse_involvement(None) is None
+    assert parse_involvement("any") == INVOLVEMENT_ANY
+    with pytest.raises(ValueError, match="invalid_involvement"):
+        parse_involvement("owner")

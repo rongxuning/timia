@@ -97,6 +97,12 @@ class ScheduleOverdueViewOut(BaseModel):
     has_more: bool = False
 
 
+class ScheduleFutureViewOut(BaseModel):
+    items: list[ScheduleTaskItemOut] = Field(default_factory=list)
+    total: int = 0
+    has_more: bool = False
+
+
 class ScheduleDashboardOut(BaseModel):
     task_total: int
     todo_count: int

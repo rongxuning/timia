@@ -19,16 +19,44 @@ from app.services.permissions import WORKSPACE_OWNER, require_project_content_ac
 from app.services.views.schedule_layout import _item_covers_day, _sunday_week_start
 
 
+INVOLVEMENT_ASSIGNEE = "assignee"
+INVOLVEMENT_PARTICIPANT = "participant"
+INVOLVEMENT_ANY = "any"
+VALID_INVOLVEMENT = frozenset({INVOLVEMENT_ASSIGNEE, INVOLVEMENT_PARTICIPANT, INVOLVEMENT_ANY})
+
+
 @dataclass(frozen=True)
 class ScheduleScope:
     kind: str  # "me" | "project"
     workspace_id: uuid.UUID | None = None
     project_id: uuid.UUID | None = None
+    involvement: str | None = None
+
+
+def parse_involvement(value: str | None) -> str | None:
+    if value is None or value == "":
+        return None
+    if value not in VALID_INVOLVEMENT:
+        raise ValueError("invalid_involvement")
+    return value
+
+
+def item_matches_involvement(item: ScheduleTaskItemOut, user_id: str, involvement: str | None) -> bool:
+    assignee_id = item.assignee.id if item.assignee else None
+    creator_id = item.created_by.id if item.created_by else None
+    participant_ids = {person.id for person in item.participants}
+    if involvement == INVOLVEMENT_ASSIGNEE:
+        return assignee_id == user_id
+    if involvement == INVOLVEMENT_PARTICIPANT:
+        return user_id in participant_ids
+    if involvement == INVOLVEMENT_ANY:
+        return user_id in {assignee_id, creator_id} or user_id in participant_ids
+    return assignee_id == user_id or user_id in participant_ids
 
 
 def list_schedule_items(db: Session, user: User, scope: ScheduleScope) -> list[ScheduleTaskItemOut]:
     if scope.kind == "me":
-        return _list_my_schedule_items(db, user)
+        return _list_my_schedule_items(db, user, involvement=scope.involvement)
     if scope.kind == "project":
         if scope.workspace_id is None or scope.project_id is None:
             raise ValueError("project scope requires workspace_id and project_id")
@@ -48,7 +76,22 @@ def _to_schedule_item(db: Session, item: Item, workspace: Workspace, project: Pr
     )
 
 
-def _list_my_schedule_items(db: Session, user: User) -> list[ScheduleTaskItemOut]:
+def _involvement_clause(user: User, involvement: str | None):
+    assignee = Item.assignee_user_id == user.id
+    participant = Item.participant_user_ids.contains([user.id])
+    creator = Item.created_by_user_id == user.id
+    if involvement == INVOLVEMENT_ASSIGNEE:
+        return assignee
+    if involvement == INVOLVEMENT_PARTICIPANT:
+        return participant
+    if involvement == INVOLVEMENT_ANY:
+        return or_(creator, assignee, participant)
+    return or_(assignee, participant)
+
+
+def _list_my_schedule_items(
+    db: Session, user: User, involvement: str | None = None
+) -> list[ScheduleTaskItemOut]:
     owned_ws_subq = select(WorkspaceMember.workspace_id).where(
         WorkspaceMember.user_id == user.id,
         WorkspaceMember.status == "active",
@@ -64,10 +107,7 @@ def _list_my_schedule_items(db: Session, user: User) -> list[ScheduleTaskItemOut
     )
 
     access = or_(Item.workspace_id.in_(owned_ws_subq), pm_exists)
-    involved = or_(
-        Item.assignee_user_id == user.id,
-        Item.participant_user_ids.contains([user.id]),
-    )
+    involved = _involvement_clause(user, involvement)
 
     rows = db.execute(
         select(Item, Project, Workspace)

@@ -97,6 +97,8 @@ export type ScheduleOverdueView = {
   has_more: boolean;
 };
 
+export type ScheduleFutureView = ScheduleOverdueView;
+
 export type ScheduleDashboardStats = {
   task_total: number;
   todo_count: number;

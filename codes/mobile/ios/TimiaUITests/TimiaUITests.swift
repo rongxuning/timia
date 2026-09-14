@@ -25,9 +25,31 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(element("todo-section-todo", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-doing", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-overdue", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-future", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-people-filter", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["本人负责"].exists)
+        XCTAssertTrue(app.buttons["本人参与"].exists)
+        XCTAssertTrue(app.buttons["全部"].exists)
+        XCTAssertLessThan(
+            element("todo-people-filter", in: app).frame.maxY,
+            element("todo-section-todo", in: app).frame.minY
+        )
+        XCTAssertLessThan(
+            element("todo-section-done", in: app).frame.minY,
+            element("todo-section-overdue", in: app).frame.minY
+        )
+        XCTAssertLessThan(
+            element("todo-section-overdue", in: app).frame.minY,
+            element("todo-section-future", in: app).frame.minY
+        )
+        XCTAssertLessThan(
+            element("todo-section-future", in: app).frame.minY,
+            element("todo-section-archived", in: app).frame.minY
+        )
         XCTAssertTrue(app.staticTexts["（截止当天）"].exists)
+        XCTAssertTrue(app.staticTexts["（今天之后）"].exists)
         XCTAssertFalse(element("todo-section-today", in: app).exists)
         XCTAssertFalse(element("todo-section-this-week", in: app).exists)
         XCTAssertTrue(app.buttons["calendar-selected-date"].waitForExistence(timeout: 2))
@@ -109,13 +131,20 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(element("todo-section-todo", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-doing", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-overdue", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-future", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-people-filter", in: app).waitForExistence(timeout: 2))
         XCTAssertFalse(element("todo-section-today", in: app).exists)
         XCTAssertFalse(element("todo-section-this-week", in: app).exists)
         XCTAssertTrue(app.buttons["calendar-selected-date"].waitForExistence(timeout: 2))
         let selectedBefore = app.buttons["calendar-selected-date"].value as? String
         XCTAssertEqual(selectedBefore, dayKey(Date()))
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        element("todo-people-filter", in: app).swipeLeft()
+        XCTAssertTrue(waitForValue(dayKey(tomorrow), on: app.buttons["calendar-selected-date"], timeout: 3))
+        element("todo-people-filter", in: app).swipeRight()
+        XCTAssertTrue(waitForValue(dayKey(Date()), on: app.buttons["calendar-selected-date"], timeout: 3))
         let stripStart = weekStart(of: Date())
         XCTAssertEqual(
             app.descendants(matching: .any)["calendar-header-title"].firstMatch.value as? String,
