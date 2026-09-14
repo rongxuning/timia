@@ -48,6 +48,41 @@ func dateStripStartByRevealing(
     return dateByAddingDays(cycles * 7, to: start, calendar: calendar)
 }
 
+func dateStripDayDelta(
+    from: Date,
+    to: Date,
+    calendar: Calendar = .current
+) -> Int {
+    calendar.dateComponents(
+        [.day],
+        from: calendar.startOfDay(for: from),
+        to: calendar.startOfDay(for: to)
+    ).day ?? 0
+}
+
+/// Ignore in-flight per-day scroll reports while the strip pages by a whole week.
+func dateStripShouldIgnoreScrollReporting(
+    from: Date,
+    to: Date,
+    calendar: Calendar = .current
+) -> Bool {
+    abs(dateStripDayDelta(from: from, to: to, calendar: calendar)) >= 7
+}
+
+func dateByPreservingWeekday(
+    from selected: Date,
+    intoWeekContaining target: Date,
+    calendar: Calendar = .current
+) -> Date {
+    let selectedWeek = weekDaysContaining(selected, calendar: calendar)
+    let targetWeek = weekDaysContaining(target, calendar: calendar)
+    guard let index = selectedWeek.firstIndex(where: { calendar.isDate($0, inSameDayAs: selected) }),
+          targetWeek.indices.contains(index) else {
+        return targetWeek.first ?? calendar.startOfDay(for: target)
+    }
+    return targetWeek[index]
+}
+
 func dateStripStartForWeek(containing date: Date, calendar: Calendar = .current) -> Date {
     weekDaysContaining(date, calendar: calendar).first ?? calendar.startOfDay(for: date)
 }
@@ -126,20 +161,12 @@ func dateStripNeedsReanchor(
     return delta > radius - edgePadding
 }
 
-func dateStripDayDelta(_ from: Date, to: Date, calendar: Calendar = .current) -> Int {
-    calendar.dateComponents(
-        [.day],
-        from: calendar.startOfDay(for: from),
-        to: calendar.startOfDay(for: to)
-    ).day ?? 0
-}
-
 func dateStripNeedsForcedRevealScroll(
     from oldStart: Date,
     to newStart: Date,
     calendar: Calendar = .current
 ) -> Bool {
-    abs(dateStripDayDelta(oldStart, to: newStart, calendar: calendar)) >= 7
+    dateStripShouldIgnoreScrollReporting(from: oldStart, to: newStart, calendar: calendar)
 }
 
 /// Drop stale leading-day reports while a programmatic week jump is still settling.

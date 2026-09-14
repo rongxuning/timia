@@ -128,6 +128,65 @@ final class CalendarWeekTitleTests: XCTestCase {
         XCTAssertEqual(dayKey(backward), "2026-08-27")
     }
 
+    func testSwipePastStripEndPagesWholeFollowingWeek() {
+        let start = date(2026, 9, 13)
+        let nextStart = dateStripStartByRevealing(date(2026, 9, 20), currentStart: start, calendar: calendar)
+
+        XCTAssertEqual(dayKey(nextStart), "2026-09-20")
+        XCTAssertEqual(dateStripDays(starting: nextStart, calendar: calendar).map(dayKey).first, "2026-09-20")
+        XCTAssertEqual(dateStripDays(starting: nextStart, calendar: calendar).map(dayKey).last, "2026-09-26")
+    }
+
+    func testSwipePastStripStartPagesWholePreviousWeek() {
+        let start = date(2026, 9, 13)
+        let previousStart = dateStripStartByRevealing(date(2026, 9, 12), currentStart: start, calendar: calendar)
+
+        XCTAssertEqual(dayKey(previousStart), "2026-09-06")
+        XCTAssertEqual(
+            dateStripDays(starting: previousStart, calendar: calendar).map(dayKey),
+            [
+                "2026-09-06",
+                "2026-09-07",
+                "2026-09-08",
+                "2026-09-09",
+                "2026-09-10",
+                "2026-09-11",
+                "2026-09-12",
+            ]
+        )
+    }
+
+    func testWholeWeekStripJumpsSuppressPerDayScrollReporting() {
+        XCTAssertFalse(
+            dateStripShouldIgnoreScrollReporting(from: date(2026, 9, 13), to: date(2026, 9, 14), calendar: calendar)
+        )
+        XCTAssertTrue(
+            dateStripShouldIgnoreScrollReporting(from: date(2026, 9, 13), to: date(2026, 9, 20), calendar: calendar)
+        )
+        XCTAssertTrue(
+            dateStripShouldIgnoreScrollReporting(from: date(2026, 9, 13), to: date(2026, 9, 6), calendar: calendar)
+        )
+    }
+
+    func testPreservingWeekdayMapsIntoTheTargetWeek() {
+        let tuesday = date(2026, 9, 15)
+        let nextWeekSunday = date(2026, 9, 20)
+        let previousWeekSunday = date(2026, 9, 6)
+
+        XCTAssertEqual(
+            dayKey(dateByPreservingWeekday(from: tuesday, intoWeekContaining: nextWeekSunday, calendar: calendar)),
+            "2026-09-22"
+        )
+        XCTAssertEqual(
+            dayKey(dateByPreservingWeekday(from: tuesday, intoWeekContaining: previousWeekSunday, calendar: calendar)),
+            "2026-09-08"
+        )
+        XCTAssertEqual(
+            dayKey(dateByPreservingWeekday(from: tuesday, intoWeekContaining: tuesday, calendar: calendar)),
+            "2026-09-15"
+        )
+    }
+
     func testWeekStripStartSnapsToSundayContainingDate() {
         XCTAssertEqual(dayKey(dateStripStartForWeek(containing: date(2026, 8, 17), calendar: calendar)), "2026-08-16")
         XCTAssertEqual(dayKey(dateStripStartForWeek(containing: date(2026, 8, 16), calendar: calendar)), "2026-08-16")

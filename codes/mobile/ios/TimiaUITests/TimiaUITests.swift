@@ -275,6 +275,22 @@ final class TimiaUITests: XCTestCase {
         }
         XCTAssertTrue(waitForValue(todayKey, on: app.buttons["calendar-selected-date"], timeout: 4))
         XCTAssertTrue(element("calendar-day-label-\(todayKey)", in: app).waitForExistence(timeout: 3))
+
+        let visibleStripStart = weekStart(of: Date())
+        let dayBeforeStrip = Calendar.current.date(byAdding: .day, value: -1, to: visibleStripStart) ?? visibleStripStart
+        let previousWeekStart = Calendar.current.date(byAdding: .day, value: -7, to: visibleStripStart) ?? visibleStripStart
+        for _ in 0..<10 {
+            dragTimelinePage(dayTimeline, goingToNext: false)
+            if (app.buttons["calendar-selected-date"].value as? String) == dayKey(dayBeforeStrip) { break }
+        }
+        XCTAssertTrue(waitForValue(dayKey(dayBeforeStrip), on: app.buttons["calendar-selected-date"], timeout: 4))
+        XCTAssertTrue(element("calendar-date-\(dayKey(previousWeekStart))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("calendar-day-label-\(dayKey(dayBeforeStrip))", in: app).waitForExistence(timeout: 3))
+        for _ in 0..<12 {
+            dragTimelinePage(dayTimeline, goingToNext: true)
+            if (app.buttons["calendar-selected-date"].value as? String) == todayKey { break }
+        }
+        XCTAssertTrue(waitForValue(todayKey, on: app.buttons["calendar-selected-date"], timeout: 4))
         Thread.sleep(forTimeInterval: 0.5)
 
         app.buttons["日历模式"].tap()
@@ -292,7 +308,10 @@ final class TimiaUITests: XCTestCase {
         element("calendar-week-date-strip", in: app).swipeLeft()
         let nextWeekStart = Calendar.current.date(byAdding: .day, value: 7, to: weekStripStart) ?? weekStripStart
         let nextWeekLast = Calendar.current.date(byAdding: .day, value: 6, to: nextWeekStart) ?? nextWeekStart
+        let nextWeekSameDay = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekLast))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekSameDay))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekSameDay))", in: app).isSelected)
         XCTAssertTrue(element("calendar-week-label-\(dayKey(nextWeekStart))", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(waitForValue(
             dominantMonthTitle(starting: nextWeekStart),
@@ -301,6 +320,7 @@ final class TimiaUITests: XCTestCase {
         ))
         element("calendar-week-date-strip", in: app).swipeRight()
         XCTAssertTrue(todayInWeekHeader.waitForExistence(timeout: 3))
+        XCTAssertTrue(todayInWeekHeader.isSelected)
         XCTAssertTrue(element("calendar-week-label-\(dayKey(weekStripStart))", in: app).waitForExistence(timeout: 3))
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.90, dy: 0.70)).tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
@@ -311,6 +331,12 @@ final class TimiaUITests: XCTestCase {
         weekTimeline.swipeUp()
         weekTimeline.swipeDown()
         XCTAssertTrue(element("calendar-week-label-\(currentWeekKey)", in: app).waitForExistence(timeout: 3))
+        dragTimelinePage(weekTimeline, goingToNext: true)
+        XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekSameDay))", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("calendar-week-date-\(dayKey(nextWeekSameDay))", in: app).isSelected)
+        dragTimelinePage(weekTimeline, goingToNext: false)
+        XCTAssertTrue(todayInWeekHeader.waitForExistence(timeout: 3))
+        XCTAssertTrue(todayInWeekHeader.isSelected)
         XCTAssertFalse(element("calendar-week-label-2026-08-02", in: app).exists)
         for _ in 0..<10 {
             dragTimelinePage(weekTimeline, goingToNext: false)

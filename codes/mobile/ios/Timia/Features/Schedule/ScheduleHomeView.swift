@@ -670,10 +670,13 @@ struct ScheduleHomeView: View {
             return
         }
 
-        selectedDate = date
-        dateStripStart = dateStripStartForWeek(containing: date)
-        if let cached = cachedCalendar(for: date, range: .week) {
-            calendarData = cached
+        let nextDate = dateByPreservingWeekday(from: selectedDate, intoWeekContaining: date)
+        withAnimation(.snappy(duration: 0.32)) {
+            selectedDate = nextDate
+            dateStripStart = dateStripStartForWeek(containing: nextDate)
+            if let cached = cachedCalendar(for: nextDate, range: .week) {
+                calendarData = cached
+            }
         }
         Task { await loadCalendar() }
     }
@@ -695,10 +698,7 @@ struct ScheduleHomeView: View {
     private func revealDateOnStrip(_ date: Date) {
         let nextStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
         guard !Calendar.current.isDate(nextStart, inSameDayAs: dateStripStart) else { return }
-        // Disable animation so day jumps do not flash an intermediate week.
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
+        withAnimation(.snappy(duration: 0.32)) {
             dateStripStart = nextStart
         }
     }
@@ -1535,7 +1535,11 @@ private struct WeekScheduleView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PagedWeekHeader(visibleStart: stripStart, onVisibleStartChange: onStripStartChange)
+            PagedWeekHeader(
+                selectedDate: selectedDate,
+                visibleStart: stripStart,
+                onVisibleStartChange: onStripStartChange
+            )
 
             WeekAllDayRow(
                 days: visibleWeekDays,
@@ -1790,6 +1794,7 @@ private struct SlidingDateStrip: View {
     @State private var origin: Date
     @State private var settledStart: Date
     @State private var jumpTarget: Date?
+    @State private var ignoreStartReportingUntil = Date.distantPast
 
     init(
         selectedDate: Date,
@@ -1808,9 +1813,9 @@ private struct SlidingDateStrip: View {
 
     var body: some View {
         // Continuous horizontal scroll with per-day snap. Leading day == visibleStart.
-        // External reveal jumps update `visibleStart` first; pin that id to the leading
-        // edge so paging past the last visible day lands on the next 7-day cycle
-        // instead of leaving the new day on the trailing edge.
+        // Whole-week jumps update `visibleStart` first; pin that id to the leading
+        // edge and ignore in-flight per-day reports so the new cycle is not eaten
+        // (new day stuck on the trailing edge).
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 7) {
@@ -1830,13 +1835,10 @@ private struct SlidingDateStrip: View {
             .accessibilityIdentifier("week-date-strip")
             .onChange(of: visibleStart) { oldStart, newStart in
                 let start = Calendar.current.startOfDay(for: newStart)
-                if dateStripNeedsForcedRevealScroll(from: oldStart, to: start) {
+                if dateStripShouldIgnoreScrollReporting(from: oldStart, to: start) {
+                    ignoreStartReportingUntil = Date().addingTimeInterval(0.45)
                     jumpTarget = start
-                    var transaction = Transaction()
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) {
-                        proxy.scrollTo(ScheduleFormat.dayKey(start), anchor: .leading)
-                    }
+                    proxy.scrollTo(ScheduleFormat.dayKey(start), anchor: .leading)
                     Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(150))
                         guard Calendar.current.isDate(start, inSameDayAs: Calendar.current.startOfDay(for: visibleStart)) else {
@@ -1859,7 +1861,8 @@ private struct SlidingDateStrip: View {
         Binding(
             get: { ScheduleFormat.dayKey(Calendar.current.startOfDay(for: visibleStart)) },
             set: { newKey in
-                guard let newKey, let date = dateFromDayKey(newKey) else { return }
+                guard Date() >= ignoreStartReportingUntil,
+                      let newKey, let date = dateFromDayKey(newKey) else { return }
                 let start = Calendar.current.startOfDay(for: date)
                 let current = Calendar.current.startOfDay(for: visibleStart)
                 if Calendar.current.isDate(start, inSameDayAs: current) {
@@ -1925,12 +1928,18 @@ private struct DateStripDayCell: View {
 }
 
 private struct PagedWeekHeader: View {
+    let selectedDate: Date
     let visibleStart: Date
     let onVisibleStartChange: (Date) -> Void
 
     @State private var origin: Date
 
-    init(visibleStart: Date, onVisibleStartChange: @escaping (Date) -> Void) {
+    init(
+        selectedDate: Date,
+        visibleStart: Date,
+        onVisibleStartChange: @escaping (Date) -> Void
+    ) {
+        self.selectedDate = selectedDate
         self.visibleStart = visibleStart
         self.onVisibleStartChange = onVisibleStartChange
         _origin = State(initialValue: dateStripStartForWeek(containing: visibleStart))
@@ -1940,7 +1949,10 @@ private struct PagedWeekHeader: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 0) {
                 ForEach(weekKeys, id: \.self) { key in
-                    WeekHeader(days: dateStripDays(starting: dateFromDayKey(key) ?? visibleStart))
+                    WeekHeader(
+                        days: dateStripDays(starting: dateFromDayKey(key) ?? visibleStart),
+                        selectedDate: selectedDate
+                    )
                         .containerRelativeFrame(.horizontal)
                         .id(key)
                 }
@@ -1973,23 +1985,26 @@ private struct PagedWeekHeader: View {
 
 private struct WeekHeader: View {
     let days: [Date]
+    let selectedDate: Date
 
     var body: some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: 48, height: 42)
             ForEach(days, id: \.self) { date in
                 let isToday = Calendar.current.isDateInToday(date)
+                let selected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
                 VStack(spacing: 3) {
                     Text(ScheduleFormat.weekdayLetter(date)).font(.caption2)
                     Text(date, format: .dateTime.day()).font(.subheadline.bold())
                 }
-                .foregroundStyle(isToday ? .white : .primary)
+                .foregroundStyle(selected ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 42)
-                .background(isToday ? Color.primary.opacity(0.76) : .clear, in: RoundedRectangle(cornerRadius: 10))
+                .background(selected ? Color.primary.opacity(0.76) : .clear, in: RoundedRectangle(cornerRadius: 10))
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("calendar-week-date-\(ScheduleFormat.dayKey(date))")
                 .accessibilityValue(isToday ? "今天" : ScheduleFormat.dayKey(date))
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
         .frame(height: 42)
