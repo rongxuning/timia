@@ -3338,7 +3338,10 @@ private struct YearScheduleView: View {
     let onSelectMonth: (Int, Int) -> Void
     let onVisibleYear: (Int) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+    private let columns = Array(
+        repeating: GridItem(.flexible(minimum: 0), spacing: 10, alignment: .top),
+        count: 3
+    )
     @State private var reportedYear: Int
     @State private var hasPositionedInitialYear = false
     @State private var isTrackingVisibleYear = false
@@ -3381,6 +3384,7 @@ private struct YearScheduleView: View {
                                         summary: summary(for: month, in: displayedYear),
                                         onTap: { onSelectMonth(displayedYear, month) }
                                     )
+                                    .frame(maxWidth: .infinity, alignment: .top)
                                     .accessibilityIdentifier("calendar-year-month-\(displayedYear)-\(month)")
                                 }
                             }
@@ -3453,8 +3457,6 @@ private struct YearMonthCard: View {
     let summary: CalendarMonthSummary?
     let onTap: () -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
-
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
@@ -3466,18 +3468,33 @@ private struct YearMonthCard: View {
                     }
                 }
 
-                LazyVGrid(columns: columns, spacing: 2) {
-                    ForEach(0..<leadingBlanks, id: \.self) { _ in
-                        Color.clear.aspectRatio(1, contentMode: .fit)
+                Color.clear
+                    .aspectRatio(YearMonthGrid.heatmapAspectRatio(), contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .overlay {
+                        GeometryReader { proxy in
+                            let spacing = YearMonthGrid.cellSpacing
+                            let cellSide = (
+                                proxy.size.width
+                                    - spacing * CGFloat(YearMonthGrid.columnCount - 1)
+                            ) / CGFloat(YearMonthGrid.columnCount)
+                            VStack(spacing: spacing) {
+                                ForEach(0..<YearMonthGrid.weekCount, id: \.self) { week in
+                                    HStack(spacing: spacing) {
+                                        ForEach(0..<YearMonthGrid.columnCount, id: \.self) { column in
+                                            heatmapSwatch(
+                                                cells[week * YearMonthGrid.columnCount + column],
+                                                side: cellSide
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    ForEach(days) { day in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(heatColor(day.taskCount))
-                            .aspectRatio(1, contentMode: .fit)
-                    }
-                }
             }
             .padding(10)
+            .frame(maxWidth: .infinity, alignment: .top)
             .background(TimiaTheme.field, in: RoundedRectangle(cornerRadius: 15))
             .overlay {
                 if isCurrentMonth {
@@ -3486,18 +3503,29 @@ private struct YearMonthCard: View {
             }
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
-    private var days: [CalendarHeatDay] { summary?.days ?? [] }
-    private var leadingBlanks: Int {
-        guard let date = Calendar.current.date(from: DateComponents(year: year, month: month, day: 1)) else { return 0 }
-        return Calendar.current.component(.weekday, from: date) - 1
+    private var cells: [YearMonthGridCell] {
+        let counts = Dictionary(
+            (summary?.days ?? []).map { ($0.key, $0.taskCount) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+        return yearMonthGridCells(year: year, month: month, taskCountByDayKey: counts)
     }
+
     private var isCurrentMonth: Bool {
         let now = Date()
         return Calendar.current.component(.year, from: now) == year
             && Calendar.current.component(.month, from: now) == month
     }
+
+    private func heatmapSwatch(_ cell: YearMonthGridCell, side: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(cell.inMonth ? heatColor(cell.taskCount) : Color.clear)
+            .frame(width: side, height: side)
+    }
+
     private func heatColor(_ count: Int) -> Color {
         switch count {
         case 0: TimiaTheme.border.opacity(0.28)
