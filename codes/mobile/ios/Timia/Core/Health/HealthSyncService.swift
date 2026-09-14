@@ -225,7 +225,7 @@ struct HealthSyncService {
         }
         if try await queue.pendingCount() == 0 {
             let stamped = try await api.checkpoint(toAt: Self.iso(end), timezone: timezone, pipeline: Self.pipeline)
-            if let server = Self.parseISO(stamped.lastHealthSyncedAt) {
+            if let server = stamped.lastHealthSyncedAt.flatMap(Self.parseISO) {
                 Self.storeLastSyncedAt(server)
             } else {
                 Self.storeLastSyncedAt(end)
@@ -351,7 +351,7 @@ struct HealthSyncService {
                     timezone: timezone,
                     pipeline: Self.pipeline
                 )
-                if let server = Self.parseISO(stamped.lastHealthSyncedAt) {
+                if let server = stamped.lastHealthSyncedAt.flatMap(Self.parseISO) {
                     Self.storeLastSyncedAt(server)
                 } else {
                     Self.storeLastSyncedAt(slice.end)
@@ -478,7 +478,7 @@ struct HealthSyncService {
     private func checkpointTo(_ date: Date, context: String) async {
         do {
             let stamped = try await api.checkpoint(toAt: Self.iso(date), timezone: timezone, pipeline: Self.pipeline)
-            if let server = Self.parseISO(stamped.lastHealthSyncedAt) {
+            if let server = stamped.lastHealthSyncedAt.flatMap(Self.parseISO) {
                 Self.storeLastSyncedAt(server)
             } else {
                 Self.storeLastSyncedAt(date)
