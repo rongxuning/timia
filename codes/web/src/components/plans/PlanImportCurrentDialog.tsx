@@ -11,6 +11,12 @@ import { formatPeriodRange, parsePeriodStartAnchor } from "./planPeriod";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
 import { formatWorkspaceProjectLabel } from "./planSubscribedUtils";
+import {
+  buildImportWeekDays,
+  formatImportTaskClockRange,
+  IMPORT_VISIBLE_TASK_SLOTS,
+  type ImportPreviewTask,
+} from "./planImportPreview";
 
 type Props = {
   open: boolean;
@@ -21,15 +27,10 @@ type Props = {
   onSuccess?: () => void;
 };
 
-function formatTaskWhen(startAt: string, endAt: string, allDay: boolean): string {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
-  const dateLabel = start.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
-  if (allDay) return `${dateLabel} 全天`;
-  const startTime = start.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-  const endTime = end.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-  return `${dateLabel} ${startTime}–${endTime}`;
+function taskMeta(task: ImportPreviewTask): string {
+  const when = formatImportTaskClockRange(task.start_at, task.end_at, task.all_day);
+  if (task.location) return when ? `${when} · ${task.location}` : task.location;
+  return when;
 }
 
 export function PlanImportCurrentDialog({
@@ -102,6 +103,10 @@ export function PlanImportCurrentDialog({
     ? formatWorkspaceProjectLabel(preview.workspace_name, preview.project_name)
     : "";
   const tasks = preview?.tasks ?? [];
+  const weekDays = preview ? buildImportWeekDays(preview.period_start, tasks) : [];
+  const gapCount = IMPORT_VISIBLE_TASK_SLOTS - 1;
+  const taskColumnWidth = `calc((100cqw - ${gapCount} * 0.375rem) / ${IMPORT_VISIBLE_TASK_SLOTS})`;
+  const taskSlotStyle = { flex: `0 0 ${taskColumnWidth}` };
 
   return (
     <div className="fixed inset-0 z-50">
@@ -116,37 +121,71 @@ export function PlanImportCurrentDialog({
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+          className="flex w-[min(72rem,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface p-5 shadow-sm"
         >
-          <h2 id={titleId} className="font-semibold font-subhead text-text-primary">
+          <h2 id={titleId} className="shrink-0 font-semibold font-subhead text-text-primary">
             导入本期
           </h2>
           {loading ? (
-            <p className="text-small text-text-secondary">加载中…</p>
+            <p className="mt-4 shrink-0 text-small text-text-secondary">加载中…</p>
           ) : null}
           {preview ? (
-            <div className="space-y-3">
-              <p className="text-small text-text-secondary">周期 {range}</p>
-              <p className="text-small text-text-secondary">写入 {target}</p>
+            <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
+              <div className="shrink-0 rounded-xl bg-indigo-50 px-3 py-2">
+                <p className="text-small text-indigo-900">周期 {range}</p>
+                <p className="text-small text-indigo-800">写入 {target}</p>
+              </div>
               {tasks.length === 0 ? (
-                <p className="text-small text-text-secondary">本周期没有可导入的任务</p>
-              ) : (
-                <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle">
-                  {tasks.map((task, index) => (
-                    <li key={`${task.title}-${task.start_at}-${index}`} className="px-3 py-2.5">
-                      <p className="text-small text-text-primary">{task.title}</p>
-                      <p className="text-caption text-text-secondary">
-                        {formatTaskWhen(task.start_at, task.end_at, task.all_day)}
-                        {task.location ? ` · ${task.location}` : ""}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                <p className="shrink-0 text-small text-text-secondary">本周期没有可导入的任务</p>
+              ) : null}
+              <div
+                className="grid min-h-0 grid-rows-7 overflow-hidden rounded-xl border border-border-subtle"
+                style={{ height: "min(22rem, calc(100vh - 18rem))" }}
+              >
+                {weekDays.map((day) => (
+                  <div
+                    key={day.key}
+                    className="flex min-h-0 border-b border-border-subtle last:border-b-0"
+                  >
+                    <div className="flex w-14 shrink-0 flex-col items-center justify-center border-r border-border-subtle bg-surface-container-low px-1">
+                      <span className="text-[11px] font-medium leading-4 text-text-primary">
+                        {day.weekdayLabel}
+                      </span>
+                      <span className="text-[10px] leading-4 text-text-secondary tabular-nums">
+                        {day.monthDayLabel}
+                      </span>
+                    </div>
+                    <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-1 [container-type:inline-size] [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-outline-variant">
+                      <div className="flex h-full w-max gap-1.5">
+                        {day.tasks.map((task, index) => {
+                          const meta = taskMeta(task);
+                          return (
+                            <div
+                              key={`${task.title}-${task.start_at}-${index}`}
+                              className="flex min-h-0 min-w-0 flex-col justify-center overflow-hidden rounded-md border border-border-subtle bg-white px-1.5 py-0.5"
+                              style={taskSlotStyle}
+                              title={meta ? `${task.title} ${meta}` : task.title}
+                            >
+                              <p className="truncate text-[11px] font-medium leading-4 text-text-primary">
+                                {task.title}
+                              </p>
+                              {meta ? (
+                                <p className="truncate text-[10px] leading-4 text-text-secondary">
+                                  {meta}
+                                </p>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
-          {error ? <p className="text-small text-error">{error}</p> : null}
-          <div className="flex justify-end gap-2">
+          {error ? <p className="mt-3 shrink-0 text-small text-error">{error}</p> : null}
+          <div className="mt-4 flex shrink-0 justify-end gap-2">
             <button
               type="button"
               className="rounded-xl border border-border-subtle bg-white px-4 py-2 text-small text-text-secondary hover:bg-gray-50 disabled:opacity-50"
