@@ -695,7 +695,7 @@ struct ScheduleHomeView: View {
     private func revealDateOnStrip(_ date: Date) {
         let nextStart = dateStripStartByRevealing(date, currentStart: dateStripStart)
         guard !Calendar.current.isDate(nextStart, inSameDayAs: dateStripStart) else { return }
-        // Disable animation so vertical day jumps do not flash an intermediate week.
+        // Disable animation so day jumps do not flash an intermediate week.
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -1289,10 +1289,7 @@ private struct DayScheduleView: View {
     @Binding var idleCollapseEnabled: Bool
 
     @State private var interaction: TimelineInteractionState
-    @State private var anchorDay: Date
-    @State private var reportedDayKey: String
-    @State private var hasPositionedInitialDay = false
-    @State private var isTrackingVisibleDay = false
+    @State private var pageOrigin: Date
     @State private var collapsePinToken = 0
 
     init(
@@ -1319,12 +1316,19 @@ private struct DayScheduleView: View {
         self.onReschedule = onReschedule
         _idleCollapseEnabled = idleCollapseEnabled
         _interaction = State(initialValue: TimelineInteractionState(idleCollapseEnabled: idleCollapseEnabled.wrappedValue))
-        _anchorDay = State(initialValue: startOfDay)
-        _reportedDayKey = State(initialValue: ScheduleFormat.dayKey(startOfDay))
+        _pageOrigin = State(initialValue: startOfDay)
+    }
+
+    private var selectedDayKey: String {
+        ScheduleFormat.dayKey(selectedDate)
     }
 
     private var selectedDayTasks: [ScheduleTask] {
-        daysByAnchor[ScheduleFormat.dayKey(selectedDate)]?.items ?? []
+        daysByAnchor[selectedDayKey]?.items ?? []
+    }
+
+    private var pageKeys: [String] {
+        timelinePageDayKeys(origin: pageOrigin)
     }
 
     var body: some View {
@@ -1349,129 +1353,73 @@ private struct DayScheduleView: View {
                 onToggle: toggleIdleCollapse
             )
 
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(CalendarInfiniteWindow.dayOffsets, id: \.self) { offset in
-                            let date = Calendar.current.date(
-                                byAdding: .day,
-                                value: offset,
-                                to: anchorDay
-                            ) ?? anchorDay
-                            let dayKey = ScheduleFormat.dayKey(date)
-
-                            DayTimelineSection(
-                                date: date,
-                                detail: daysByAnchor[dayKey],
-                                onCreateTime: onCreateTime,
-                                onTaskTap: onTaskTap,
-                                onReschedule: onReschedule,
-                                interaction: $interaction
-                            )
-                            .id(dayKey)
-                            .background {
-                                GeometryReader { geometry in
-                                    Color.clear.preference(
-                                        key: DaySectionOffsetPreferenceKey.self,
-                                        value: [
-                                            dayKey: geometry.frame(in: .named("calendar-day-scroll")).minY
-                                        ]
-                                    )
-                                }
-                            }
-                        }
+            PagedTimelinePager(selectedKey: selectedDayKey, pageKeys: pageKeys, onSelectKey: selectPage) { dayKey in
+                let date = ScheduleFormat.date(dayKey) ?? selectedDate
+                HourPinnedTimelinePage(
+                    isSelected: dayKey == selectedDayKey,
+                    pinToken: collapsePinToken,
+                    scrollDisabled: interaction.scrollDisabled,
+                    onPin: { proxy in
+                        await pinToHour(date: date, prefix: dayKey, proxy: proxy)
                     }
-                    .scrollTargetLayout()
+                ) {
+                    DayTimelineSection(
+                        date: date,
+                        detail: daysByAnchor[dayKey],
+                        onCreateTime: onCreateTime,
+                        onTaskTap: onTaskTap,
+                        onReschedule: onReschedule,
+                        interaction: $interaction
+                    )
                     .animation(nil, value: interaction.effectiveCollapse)
                 }
-                .coordinateSpace(name: "calendar-day-scroll")
-                .scrollIndicators(.hidden)
-                .scrollDisabled(interaction.scrollDisabled)
-                .onAppear {
-                    prepareTimelineInteraction()
-                }
-                .onDisappear {
-                    interaction.resetTransient()
-                }
-                .onChange(of: idleCollapseEnabled) { _, newValue in
-                    interaction.idleCollapseEnabled = newValue
-                }
-                .onChange(of: collapsePinToken) { _, token in
-                    guard token > 0 else { return }
-                    Task {
-                        await scroll(to: selectedDate, proxy: proxy, animated: false)
-                        try? await Task.sleep(for: .milliseconds(120))
-                        isTrackingVisibleDay = true
-                    }
-                }
-                .task {
-                    guard !hasPositionedInitialDay else { return }
-                    hasPositionedInitialDay = true
-                    await scroll(to: anchorDay, proxy: proxy, animated: false)
-                    reportedDayKey = ScheduleFormat.dayKey(anchorDay)
-                    isTrackingVisibleDay = true
-                }
-                .onChange(of: ScheduleFormat.dayKey(selectedDate)) { _, newDayKey in
-                    guard newDayKey != reportedDayKey,
-                          let date = ScheduleFormat.date(newDayKey) else {
-                        return
-                    }
-                    reportedDayKey = newDayKey
-                    Task {
-                        await scroll(to: date, proxy: proxy, animated: true)
-                    }
-                }
-                .onPreferenceChange(DaySectionOffsetPreferenceKey.self) { offsets in
-                    guard isTrackingVisibleDay,
-                          let topDayKey = offsets
-                            .filter({ $0.value <= 12 })
-                            .max(by: { $0.value < $1.value })?
-                            .key,
-                          topDayKey != reportedDayKey,
-                          let topDay = ScheduleFormat.date(topDayKey) else {
-                        return
-                    }
-                    reportedDayKey = topDayKey
-                    onVisibleDate(topDay)
-                }
-                .accessibilityIdentifier("calendar-day-timeline")
-                .accessibilityValue(ScheduleFormat.dayKey(selectedDate))
             }
+            .scrollDisabled(interaction.scrollDisabled)
+            .onAppear {
+                prepareTimelineInteraction()
+            }
+            .onDisappear {
+                interaction.resetTransient()
+            }
+            .onChange(of: idleCollapseEnabled) { _, newValue in
+                interaction.idleCollapseEnabled = newValue
+            }
+            .onChange(of: selectedDayKey) { _, _ in
+                recenterOriginIfNeeded()
+            }
+            .accessibilityIdentifier("calendar-day-timeline")
+            .accessibilityValue(selectedDayKey)
         }
     }
 
-    private func scroll(to date: Date, proxy: ScrollViewProxy, animated: Bool) async {
-        let dayKey = ScheduleFormat.dayKey(date)
+    private func selectPage(_ dayKey: String) {
+        guard let date = ScheduleFormat.date(dayKey) else { return }
+        onVisibleDate(date)
+    }
+
+    private func pinToHour(date: Date, prefix: String, proxy: ScrollViewProxy) async {
         let targetHour = Calendar.current.isDateInToday(date)
             ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
             : 8
-        let position = {
-            proxy.scrollTo(dayKey, anchor: .top)
-        }
-        if animated {
-            withAnimation(.snappy(duration: 0.3)) { position() }
-        } else {
-            position()
-        }
-        try? await Task.sleep(for: .milliseconds(100))
-        if animated {
-            withAnimation(.snappy(duration: 0.3)) {
-                proxy.scrollTo("\(dayKey)-hour-\(targetHour)", anchor: .top)
-            }
-        } else {
-            proxy.scrollTo("\(dayKey)-hour-\(targetHour)", anchor: .top)
-        }
-        try? await Task.sleep(for: .milliseconds(180))
+        try? await Task.sleep(for: .milliseconds(80))
+        proxy.scrollTo("\(prefix)-hour-\(targetHour)", anchor: .top)
+        try? await Task.sleep(for: .milliseconds(120))
     }
 
     private func toggleIdleCollapse() {
-        isTrackingVisibleDay = false
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             interaction.toggleCollapse()
             idleCollapseEnabled = interaction.idleCollapseEnabled
             collapsePinToken += 1
+        }
+    }
+
+    private func recenterOriginIfNeeded() {
+        let start = Calendar.current.startOfDay(for: selectedDate)
+        if CalendarInfiniteWindow.shouldRecenterDayAnchor(from: pageOrigin, to: start) {
+            pageOrigin = start
         }
     }
 
@@ -1522,14 +1470,6 @@ private struct DayTimelineSection: View {
     }
 }
 
-private struct DaySectionOffsetPreferenceKey: PreferenceKey {
-    static let defaultValue: [String: CGFloat] = [:]
-
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, newValue in newValue })
-    }
-}
-
 private struct WeekScheduleView: View {
     let selectedDate: Date
     let weeksByAnchor: [String: CalendarWeek]
@@ -1542,10 +1482,7 @@ private struct WeekScheduleView: View {
     @Binding var idleCollapseEnabled: Bool
 
     @State private var interaction: TimelineInteractionState
-    @State private var anchorWeek: Date
-    @State private var reportedWeekKey: String
-    @State private var hasPositionedInitialWeek = false
-    @State private var isTrackingVisibleWeek = false
+    @State private var pageOrigin: Date
     @State private var collapsePinToken = 0
 
     init(
@@ -1570,8 +1507,7 @@ private struct WeekScheduleView: View {
         self.onReschedule = onReschedule
         _idleCollapseEnabled = idleCollapseEnabled
         _interaction = State(initialValue: TimelineInteractionState(idleCollapseEnabled: idleCollapseEnabled.wrappedValue))
-        _anchorWeek = State(initialValue: weekStart)
-        _reportedWeekKey = State(initialValue: ScheduleFormat.weekKey(weekStart))
+        _pageOrigin = State(initialValue: weekStart)
     }
 
     private var visibleWeekStart: Date {
@@ -1587,6 +1523,14 @@ private struct WeekScheduleView: View {
             return values
         }
         return ScheduleFormat.week(containing: visibleWeekStart)
+    }
+
+    private var selectedWeekKey: String {
+        ScheduleFormat.weekKey(visibleWeekStart)
+    }
+
+    private var pageKeys: [String] {
+        timelinePageWeekKeys(origin: pageOrigin)
     }
 
     var body: some View {
@@ -1605,134 +1549,70 @@ private struct WeekScheduleView: View {
                 onToggle: toggleIdleCollapse
             )
 
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(CalendarInfiniteWindow.weekOffsets, id: \.self) { offset in
-                            let weekStart = Calendar.current.date(
-                                byAdding: .weekOfYear,
-                                value: offset,
-                                to: anchorWeek
-                            ) ?? anchorWeek
-                            let weekKey = ScheduleFormat.weekKey(weekStart)
-
-                            WeekTimelineSection(
-                                weekStart: weekStart,
-                                week: weeksByAnchor[weekKey],
-                                onCreateTime: onCreateTime,
-                                onTaskTap: onTaskTap,
-                                onReschedule: onReschedule,
-                                interaction: $interaction
-                            )
-                            .id(weekKey)
-                            .background {
-                                GeometryReader { geometry in
-                                    Color.clear.preference(
-                                        key: WeekSectionOffsetPreferenceKey.self,
-                                        value: [
-                                            weekKey: geometry.frame(in: .named("calendar-week-scroll")).minY
-                                        ]
-                                    )
-                                }
-                            }
-                        }
+            PagedTimelinePager(selectedKey: selectedWeekKey, pageKeys: pageKeys, onSelectKey: selectPage) { weekKey in
+                let weekStart = ScheduleFormat.date(weekKey) ?? visibleWeekStart
+                HourPinnedTimelinePage(
+                    isSelected: weekKey == selectedWeekKey,
+                    pinToken: collapsePinToken,
+                    scrollDisabled: interaction.scrollDisabled,
+                    onPin: { proxy in
+                        await pinToHour(weekStart: weekStart, prefix: weekKey, proxy: proxy)
                     }
+                ) {
+                    WeekTimelineSection(
+                        weekStart: weekStart,
+                        week: weeksByAnchor[weekKey],
+                        onCreateTime: onCreateTime,
+                        onTaskTap: onTaskTap,
+                        onReschedule: onReschedule,
+                        interaction: $interaction
+                    )
                     .animation(nil, value: interaction.effectiveCollapse)
                 }
-                .coordinateSpace(name: "calendar-week-scroll")
-                .scrollIndicators(.hidden)
-                .scrollDisabled(interaction.scrollDisabled)
-                .onAppear {
-                    prepareTimelineInteraction()
-                }
-                .onDisappear {
-                    interaction.resetTransient()
-                }
-                .onChange(of: idleCollapseEnabled) { _, newValue in
-                    interaction.idleCollapseEnabled = newValue
-                }
-                .onChange(of: collapsePinToken) { _, token in
-                    guard token > 0 else { return }
-                    Task {
-                        await scroll(to: visibleWeekStart, proxy: proxy, animated: false, pinToHour: true)
-                        try? await Task.sleep(for: .milliseconds(120))
-                        isTrackingVisibleWeek = true
-                    }
-                }
-                .task {
-                    guard !hasPositionedInitialWeek else { return }
-                    hasPositionedInitialWeek = true
-                    await Task.yield()
-                    await scroll(to: anchorWeek, proxy: proxy, animated: false, pinToHour: true)
-                    reportedWeekKey = ScheduleFormat.weekKey(anchorWeek)
-                    isTrackingVisibleWeek = true
-                }
-                .onChange(of: ScheduleFormat.weekKey(stripStart)) { _, newWeekKey in
-                    guard let target = weekTimelineTarget(
-                        stripStart: ScheduleFormat.date(newWeekKey) ?? stripStart,
-                        displayedDate: selectedDate
-                    ), ScheduleFormat.weekKey(target) != reportedWeekKey else {
-                        return
-                    }
-                    isTrackingVisibleWeek = false
-                    reportedWeekKey = ScheduleFormat.weekKey(target)
-                    recenterAnchorIfNeeded(for: target)
-                    onVisibleWeek(target)
-                    Task {
-                        await scroll(to: target, proxy: proxy, animated: true, pinToHour: false)
-                        isTrackingVisibleWeek = true
-                    }
-                }
-                .onPreferenceChange(WeekSectionOffsetPreferenceKey.self) { offsets in
-                    guard isTrackingVisibleWeek,
-                          let topWeekKey = offsets
-                            .filter({ $0.value <= 12 })
-                            .max(by: { $0.value < $1.value })?
-                            .key,
-                          topWeekKey != reportedWeekKey,
-                          let topWeek = ScheduleFormat.date(topWeekKey) else {
-                        return
-                    }
-                    reportedWeekKey = topWeekKey
-                    onVisibleWeek(topWeek)
-                }
-                .accessibilityIdentifier("calendar-week-timeline")
             }
+            .scrollDisabled(interaction.scrollDisabled)
+            .onAppear {
+                prepareTimelineInteraction()
+            }
+            .onDisappear {
+                interaction.resetTransient()
+            }
+            .onChange(of: idleCollapseEnabled) { _, newValue in
+                interaction.idleCollapseEnabled = newValue
+            }
+            .onChange(of: selectedWeekKey) { _, _ in
+                recenterOriginIfNeeded()
+            }
+            .onChange(of: ScheduleFormat.weekKey(stripStart)) { _, newWeekKey in
+                guard let target = weekTimelineTarget(
+                    stripStart: ScheduleFormat.date(newWeekKey) ?? stripStart,
+                    displayedDate: selectedDate
+                ) else {
+                    return
+                }
+                onVisibleWeek(target)
+            }
+            .accessibilityIdentifier("calendar-week-timeline")
         }
     }
 
-    private func scroll(to date: Date, proxy: ScrollViewProxy, animated: Bool, pinToHour: Bool) async {
-        let weekKey = ScheduleFormat.weekKey(date)
-        let positionWeek = {
-            proxy.scrollTo(weekKey, anchor: .top)
-        }
-        if animated {
-            withAnimation(.snappy(duration: 0.3)) { positionWeek() }
-        } else {
-            positionWeek()
-        }
-        guard pinToHour else {
-            try? await Task.sleep(for: .milliseconds(180))
-            return
-        }
-        let includesToday = ScheduleFormat.week(containing: date)
+    private func selectPage(_ weekKey: String) {
+        guard let date = ScheduleFormat.date(weekKey) else { return }
+        onVisibleWeek(date)
+    }
+
+    private func pinToHour(weekStart: Date, prefix: String, proxy: ScrollViewProxy) async {
+        let includesToday = ScheduleFormat.week(containing: weekStart)
             .contains(where: Calendar.current.isDateInToday)
         let targetHour = includesToday
             ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
             : 8
-        try? await Task.sleep(for: .milliseconds(100))
-        if animated {
-            withAnimation(.snappy(duration: 0.3)) {
-                proxy.scrollTo("\(weekKey)-hour-\(targetHour)", anchor: .top)
-            }
-        } else {
-            proxy.scrollTo("\(weekKey)-hour-\(targetHour)", anchor: .top)
-        }
-        try? await Task.sleep(for: .milliseconds(180))
+        try? await Task.sleep(for: .milliseconds(80))
+        proxy.scrollTo("\(prefix)-hour-\(targetHour)", anchor: .top)
+        try? await Task.sleep(for: .milliseconds(120))
     }
 
     private func toggleIdleCollapse() {
-        isTrackingVisibleWeek = false
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -1751,10 +1631,10 @@ private struct WeekScheduleView: View {
         }
     }
 
-    private func recenterAnchorIfNeeded(for date: Date) {
-        let weekStart = ScheduleFormat.week(containing: date).first ?? date
-        if CalendarInfiniteWindow.shouldRecenterWeekAnchor(from: anchorWeek, to: weekStart) {
-            anchorWeek = weekStart
+    private func recenterOriginIfNeeded() {
+        let weekStart = ScheduleFormat.week(containing: selectedDate).first ?? selectedDate
+        if CalendarInfiniteWindow.shouldRecenterWeekAnchor(from: pageOrigin, to: weekStart) {
+            pageOrigin = weekStart
         }
     }
 }
@@ -1808,11 +1688,74 @@ private struct WeekTimelineSection: View {
     }
 }
 
-private struct WeekSectionOffsetPreferenceKey: PreferenceKey {
-    static let defaultValue: [String: CGFloat] = [:]
+private struct PagedTimelinePager<Page: View>: View {
+    let selectedKey: String
+    let pageKeys: [String]
+    let onSelectKey: (String) -> Void
+    @ViewBuilder let page: (String) -> Page
 
-    static func reduce(value: inout [String: CGFloat], nextValue: () -> [String: CGFloat]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, newValue in newValue })
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(pageKeys, id: \.self) { key in
+                        page(key)
+                            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+                            .clipped()
+                            .id(key)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: selectedPageBinding)
+            .scrollIndicators(.hidden)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var selectedPageBinding: Binding<String?> {
+        Binding(
+            get: { selectedKey },
+            set: { newKey in
+                guard let newKey, newKey != selectedKey else { return }
+                onSelectKey(newKey)
+            }
+        )
+    }
+}
+
+private struct HourPinnedTimelinePage<Content: View>: View {
+    let isSelected: Bool
+    let pinToken: Int
+    let scrollDisabled: Bool
+    let onPin: (ScrollViewProxy) async -> Void
+    @ViewBuilder let content: () -> Content
+
+    @State private var didInitialPin = false
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                content()
+            }
+            .scrollIndicators(.hidden)
+            .scrollDisabled(scrollDisabled)
+            .task {
+                guard isSelected, !didInitialPin else { return }
+                didInitialPin = true
+                await onPin(proxy)
+            }
+            .onChange(of: isSelected) { _, selected in
+                guard selected, !didInitialPin else { return }
+                didInitialPin = true
+                Task { await onPin(proxy) }
+            }
+            .onChange(of: pinToken) { _, token in
+                guard token > 0, isSelected else { return }
+                Task { await onPin(proxy) }
+            }
+        }
     }
 }
 

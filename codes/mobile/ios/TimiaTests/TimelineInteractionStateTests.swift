@@ -89,11 +89,29 @@ final class TimelineInteractionStateTests: XCTestCase {
         XCTAssertTrue(state.allowsTaskDrag)
     }
 
+    func testDayPagingWindowIsBounded() {
+        let window = CalendarInfiniteWindow.dayOffsets
+        XCTAssertEqual(window.lowerBound, -30)
+        XCTAssertEqual(window.upperBound, 30)
+        XCTAssertLessThan(window.count, 70)
+    }
+
     func testWeekPagingWindowIsBounded() {
         let window = CalendarInfiniteWindow.weekOffsets
         XCTAssertEqual(window.lowerBound, -16)
         XCTAssertEqual(window.upperBound, 16)
         XCTAssertLessThan(window.count, 40)
+    }
+
+    func testDayAnchorRecentersOnlyWhenFarAway() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        let anchor = Date(timeIntervalSince1970: 1_788_768_000) // 2026-09-06
+        let nearby = calendar.date(byAdding: .day, value: 18, to: anchor) ?? anchor
+        let far = calendar.date(byAdding: .day, value: 28, to: anchor) ?? anchor
+
+        XCTAssertFalse(CalendarInfiniteWindow.shouldRecenterDayAnchor(from: anchor, to: nearby, calendar: calendar))
+        XCTAssertTrue(CalendarInfiniteWindow.shouldRecenterDayAnchor(from: anchor, to: far, calendar: calendar))
     }
 
     func testWeekAnchorRecentersOnlyWhenFarAway() {

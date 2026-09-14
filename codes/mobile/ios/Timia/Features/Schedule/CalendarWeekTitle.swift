@@ -74,14 +74,41 @@ func dateStripDate(offset: Int, origin: Date, calendar: Calendar = .current) -> 
 
 func dateStripDayKeys(origin: Date, radius: Int = 180, calendar: Calendar = .current) -> [String] {
     dateStripScrollOffsets(radius: radius).map { offset in
-        let date = dateStripDate(offset: offset, origin: origin, calendar: calendar)
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        return String(
-            format: "%04d-%02d-%02d",
-            components.year ?? 0,
-            components.month ?? 0,
-            components.day ?? 0
-        )
+        calendarDayKey(dateStripDate(offset: offset, origin: origin, calendar: calendar), calendar: calendar)
+    }
+}
+
+func calendarDayKey(_ date: Date, calendar: Calendar = .current) -> String {
+    let components = calendar.dateComponents([.year, .month, .day], from: date)
+    return String(
+        format: "%04d-%02d-%02d",
+        components.year ?? 0,
+        components.month ?? 0,
+        components.day ?? 0
+    )
+}
+
+func timelinePageDayKeys(
+    origin: Date,
+    offsets: ClosedRange<Int> = CalendarInfiniteWindow.dayOffsets,
+    calendar: Calendar = .current
+) -> [String] {
+    let origin = calendar.startOfDay(for: origin)
+    return offsets.map { offset in
+        let date = calendar.date(byAdding: .day, value: offset, to: origin) ?? origin
+        return calendarDayKey(date, calendar: calendar)
+    }
+}
+
+func timelinePageWeekKeys(
+    origin: Date,
+    offsets: ClosedRange<Int> = CalendarInfiniteWindow.weekOffsets,
+    calendar: Calendar = .current
+) -> [String] {
+    let weekStart = dateStripStartForWeek(containing: origin, calendar: calendar)
+    return offsets.map { offset in
+        let date = calendar.date(byAdding: .weekOfYear, value: offset, to: weekStart) ?? weekStart
+        return calendarDayKey(date, calendar: calendar)
     }
 }
 

@@ -172,7 +172,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
     }
 
-    func testCalendarBlankCreateAndVerticalRangeNavigation() {
+    func testCalendarBlankCreateAndPagedRangeNavigation() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")
         app.launch()
@@ -220,15 +220,19 @@ final class TimiaUITests: XCTestCase {
         let todayKey = dayKey(Date())
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         let previousDayKey = dayKey(previousDay)
-        for _ in 0..<10 {
-            dayTimeline.swipeDown()
+        dayTimeline.swipeUp()
+        dayTimeline.swipeDown()
+        XCTAssertTrue(waitForValue(todayKey, on: app.buttons["calendar-selected-date"], timeout: 3))
+        XCTAssertTrue(element("calendar-day-label-\(todayKey)", in: app).waitForExistence(timeout: 3))
+        for _ in 0..<4 {
+            dragTimelinePage(dayTimeline, goingToNext: false)
             if (app.buttons["calendar-selected-date"].value as? String) == previousDayKey { break }
         }
         XCTAssertTrue(waitForValue(previousDayKey, on: app.buttons["calendar-selected-date"], timeout: 4))
         XCTAssertTrue(element("calendar-day-label-\(previousDayKey)", in: app).waitForExistence(timeout: 3))
         attachScreenshot(named: "schedule-day-boundary-spacing", app: app)
-        for _ in 0..<10 {
-            dayTimeline.swipeUp()
+        for _ in 0..<4 {
+            dragTimelinePage(dayTimeline, goingToNext: true)
             if (app.buttons["calendar-selected-date"].value as? String) == todayKey { break }
         }
         XCTAssertTrue(waitForValue(todayKey, on: app.buttons["calendar-selected-date"], timeout: 4))
@@ -264,9 +268,15 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         app.buttons["取消"].tap()
 
-        for _ in 0..<5 {
-            element("calendar-week-timeline", in: app).swipeUp()
-            if app.staticTexts["2026年08月"].exists { break }
+        let weekTimeline = element("calendar-week-timeline", in: app)
+        let currentWeekKey = dayKey(weekStripStart)
+        weekTimeline.swipeUp()
+        weekTimeline.swipeDown()
+        XCTAssertTrue(element("calendar-week-label-\(currentWeekKey)", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(element("calendar-week-label-2026-08-02", in: app).exists)
+        for _ in 0..<10 {
+            dragTimelinePage(weekTimeline, goingToNext: false)
+            if element("calendar-week-label-2026-08-02", in: app).exists { break }
         }
         XCTAssertTrue(app.staticTexts["2026年08月"].waitForExistence(timeout: 3))
         XCTAssertTrue(element("calendar-week-label-2026-08-02", in: app).waitForExistence(timeout: 3))
@@ -401,6 +411,13 @@ final class TimiaUITests: XCTestCase {
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Horizontal page swipe on the day/week timeline (left = later dates).
+    private func dragTimelinePage(_ timeline: XCUIElement, goingToNext: Bool) {
+        let start = timeline.coordinate(withNormalizedOffset: CGVector(dx: goingToNext ? 0.86 : 0.14, dy: 0.58))
+        let end = timeline.coordinate(withNormalizedOffset: CGVector(dx: goingToNext ? 0.14 : 0.86, dy: 0.58))
+        start.press(forDuration: 0.12, thenDragTo: end)
     }
 
     /// Drag the date strip by approximately `days` day-widths (positive = later dates).
