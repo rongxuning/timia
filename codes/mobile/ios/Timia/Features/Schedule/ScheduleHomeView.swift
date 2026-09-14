@@ -1359,9 +1359,7 @@ private struct DayScheduleView: View {
                     isSelected: dayKey == selectedDayKey,
                     pinToken: collapsePinToken,
                     scrollDisabled: interaction.scrollDisabled,
-                    onPin: { proxy in
-                        await pinToHour(date: date, prefix: dayKey, proxy: proxy)
-                    }
+                    targetId: pinHourTargetId(date: date, prefix: dayKey)
                 ) {
                     DayTimelineSection(
                         date: date,
@@ -1397,13 +1395,8 @@ private struct DayScheduleView: View {
         onVisibleDate(date)
     }
 
-    private func pinToHour(date: Date, prefix: String, proxy: ScrollViewProxy) async {
-        let targetHour = Calendar.current.isDateInToday(date)
-            ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
-            : 8
-        try? await Task.sleep(for: .milliseconds(80))
-        proxy.scrollTo("\(prefix)-hour-\(targetHour)", anchor: .top)
-        try? await Task.sleep(for: .milliseconds(120))
+    private func pinHourTargetId(date: Date, prefix: String) -> String {
+        hourPinTargetId(isToday: Calendar.current.isDateInToday(date), prefix: prefix)
     }
 
     private func toggleIdleCollapse() {
@@ -1559,9 +1552,7 @@ private struct WeekScheduleView: View {
                     isSelected: weekKey == selectedWeekKey,
                     pinToken: collapsePinToken,
                     scrollDisabled: interaction.scrollDisabled,
-                    onPin: { proxy in
-                        await pinToHour(weekStart: weekStart, prefix: weekKey, proxy: proxy)
-                    }
+                    targetId: pinHourTargetId(weekStart: weekStart, prefix: weekKey)
                 ) {
                     WeekTimelineSection(
                         weekStart: weekStart,
@@ -1605,15 +1596,10 @@ private struct WeekScheduleView: View {
         onVisibleWeek(date)
     }
 
-    private func pinToHour(weekStart: Date, prefix: String, proxy: ScrollViewProxy) async {
+    private func pinHourTargetId(weekStart: Date, prefix: String) -> String {
         let includesToday = ScheduleFormat.week(containing: weekStart)
             .contains(where: Calendar.current.isDateInToday)
-        let targetHour = includesToday
-            ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
-            : 8
-        try? await Task.sleep(for: .milliseconds(80))
-        proxy.scrollTo("\(prefix)-hour-\(targetHour)", anchor: .top)
-        try? await Task.sleep(for: .milliseconds(120))
+        return hourPinTargetId(isToday: includesToday, prefix: prefix)
     }
 
     private func toggleIdleCollapse() {
@@ -1729,14 +1715,22 @@ private struct PagedTimelinePager<Page: View>: View {
     }
 }
 
+private func hourPinTargetId(isToday: Bool, prefix: String) -> String {
+    let targetHour = isToday
+        ? max(Calendar.current.component(.hour, from: Date()) - 1, 0)
+        : 8
+    return "\(prefix)-hour-\(targetHour)"
+}
+
 private struct HourPinnedTimelinePage<Content: View>: View {
     let isSelected: Bool
     let pinToken: Int
     let scrollDisabled: Bool
-    let onPin: (ScrollViewProxy) async -> Void
+    let targetId: String
     @ViewBuilder let content: () -> Content
 
     @State private var didInitialPin = false
+    @State private var applyPinToken = 0
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -1745,21 +1739,32 @@ private struct HourPinnedTimelinePage<Content: View>: View {
             }
             .scrollIndicators(.hidden)
             .scrollDisabled(scrollDisabled)
+            .onChange(of: applyPinToken) { _, token in
+                guard token > 0 else { return }
+                proxy.scrollTo(targetId, anchor: .top)
+            }
             .task {
                 guard isSelected, !didInitialPin else { return }
                 didInitialPin = true
-                await onPin(proxy)
+                await schedulePin()
             }
             .onChange(of: isSelected) { _, selected in
                 guard selected, !didInitialPin else { return }
                 didInitialPin = true
-                Task { await onPin(proxy) }
+                Task { await schedulePin() }
             }
             .onChange(of: pinToken) { _, token in
                 guard token > 0, isSelected else { return }
-                Task { await onPin(proxy) }
+                Task { await schedulePin() }
             }
         }
+    }
+
+    @MainActor
+    private func schedulePin() async {
+        try? await Task.sleep(for: .milliseconds(80))
+        applyPinToken += 1
+        try? await Task.sleep(for: .milliseconds(120))
     }
 }
 
