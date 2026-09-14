@@ -3641,6 +3641,7 @@ private struct TodoScheduleView: View {
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
+        .scrollIndicators(.hidden)
         .background(TimiaTheme.canvas)
         .scrollDismissesKeyboard(.interactively)
         .contentShape(Rectangle())
