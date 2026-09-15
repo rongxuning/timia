@@ -263,4 +263,31 @@ final class APIModelsTests: XCTestCase {
         XCTAssertTrue(value.hasMore)
         XCTAssertTrue(value.items.isEmpty)
     }
+
+    func testFileOutDecodesContentPathsWithoutStorageKeys() throws {
+        let json = """
+        {
+          "id": "file-1",
+          "kind": "image",
+          "status": "ready",
+          "mime_type": "image/jpeg",
+          "byte_size": 1234,
+          "original_filename": "shot.jpg",
+          "width_px": 800,
+          "height_px": 600,
+          "duration_ms": null,
+          "workspace_id": "ws-1",
+          "project_id": "p-1",
+          "content_path": "/files/file-1/content",
+          "thumb_path": "/files/file-1/content?variant=thumb",
+          "poster_path": null
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let value = try decoder.decode(FileOut.self, from: Data(json.utf8))
+        XCTAssertEqual(value.contentPath, "/files/file-1/content")
+        XCTAssertEqual(value.thumbPath, "/files/file-1/content?variant=thumb")
+        XCTAssertEqual(value.kind, "image")
+    }
 }

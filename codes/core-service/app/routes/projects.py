@@ -19,6 +19,7 @@ from app.schemas.project import (
 )
 from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.services.activity import log_activity
+from app.services.file_notify import notify_project_rehomed
 from app.services.project_api import apply_project_transfer, parse_project_transfer_target
 from app.services.project_sort import sort_projects_favorite_then_created
 from app.services.permissions import (
@@ -515,6 +516,8 @@ def update_project(
         )
 
     db.commit()
+    if transfer_result.get("transferred") and transfer_target:
+        notify_project_rehomed(p.id, transfer_target)
     creator_ids = {p.created_by_user_id} if p.created_by_user_id else set()
     creators = {}
     if creator_ids:

@@ -25,6 +25,15 @@ import {
 import { publishSessionEvent } from "./session-sync";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const FILE_API_BASE_URL =
+  process.env.NEXT_PUBLIC_FILE_API_BASE_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://timia.online/file-service"
+    : "http://localhost:8003");
+
+function isFileServicePath(path: string): boolean {
+  return path === "/files" || path.startsWith("/files/") || path.startsWith("/views/file-browser");
+}
 
 /**
  * Auth requests (`/auth/*`) are proxied through Next.js (dev) or the reverse
@@ -34,7 +43,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
  * the cross-origin `API_BASE_URL` because they don't carry cookies.
  */
 function baseUrlFor(path: string): string {
-  return path.startsWith("/auth/") ? "" : API_BASE_URL;
+  if (path.startsWith("/auth/")) return "";
+  if (isFileServicePath(path)) return FILE_API_BASE_URL;
+  return API_BASE_URL;
 }
 
 export type ApiError = {
@@ -245,4 +256,39 @@ async function directFetch<T>(path: string, options: ApiOptions): Promise<T> {
   if (resp.status === 204) return undefined as T;
   const text = await resp.text();
   return text ? (JSON.parse(text) as T) : (undefined as T);
+}
+
+async function authorizedResponse(path: string, options: ApiOptions = {}): Promise<Response> {
+  const resp = await fetch(`${baseUrlFor(path)}${path}`, {
+    ...options,
+    credentials: "include",
+    headers: buildHeaders(options),
+  });
+  if (resp.status !== 401 || options.skipRefresh || isAuthPath(path)) {
+    return resp;
+  }
+  const newToken = await refreshAccessToken();
+  if (!newToken) {
+    if (takeSessionExpiredFrom401()) {
+      clearCachedMe();
+      publishAuth(null);
+      redirectToLoginPage({ reason: "session-expired" });
+    }
+    throw { status: 401, message: "session_expired" } as ApiError;
+  }
+  return fetch(`${baseUrlFor(path)}${path}`, {
+    ...options,
+    credentials: "include",
+    headers: buildHeaders(options, newToken),
+  });
+}
+
+/** Authenticated binary fetch (images/videos). Never put the URL on a naked <img src>. */
+export async function apiFetchBlob(path: string, options: ApiOptions = {}): Promise<Blob> {
+  const resp = await authorizedResponse(path, options);
+  if (!resp.ok) {
+    const message = await parseError(resp);
+    throw { status: resp.status, message } as ApiError;
+  }
+  return resp.blob();
 }

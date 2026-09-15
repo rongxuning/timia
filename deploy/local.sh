@@ -5,7 +5,7 @@
 #   bash deploy/local.sh poll                    # cron: deploy if origin/main changed
 #   sudo bash deploy/local.sh install-cron       # install poll cron (every 3 min)
 #
-# Env: DEPLOY_MODE=smart|quick|full|core-service|web|mcp-server  SKIP_GIT_PULL=1  GIT_REF=main
+# Env: DEPLOY_MODE=smart|quick|full|core-service|file-service|web|mcp-server  SKIP_GIT_PULL=1  GIT_REF=main
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -53,12 +53,13 @@ cmd_deploy() {
   export BUILDKIT_PROGRESS=plain
   export COMPOSE_PROGRESS=plain
 
-  local build_core=0 build_web=0 build_mcp=0 step=2 cur changed
+  local build_core=0 build_file=0 build_web=0 build_mcp=0 step=2 cur changed
 
   case "$deploy_mode" in
-    full) build_core=1; build_web=1; build_mcp=1 ;;
-    quick) build_core=0; build_web=0; build_mcp=0 ;;
+    full) build_core=1; build_file=1; build_web=1; build_mcp=1 ;;
+    quick) build_core=0; build_file=0; build_web=0; build_mcp=0 ;;
     core-service) build_core=1 ;;
+    file-service) build_file=1 ;;
     web) build_web=1 ;;
     mcp-server) build_mcp=1 ;;
     smart)
@@ -71,16 +72,18 @@ cmd_deploy() {
       fi
       changed="$(git diff --name-only "$prev_head" "$cur")"
       echo "$changed" | grep -qE '^codes/core-service/' && build_core=1 || true
+      echo "$changed" | grep -qE '^codes/file-service/' && build_file=1 || true
       echo "$changed" | grep -qE '^codes/web/' && build_web=1 || true
       echo "$changed" | grep -qE '^codes/mcp-server/' && build_mcp=1 || true
       if echo "$changed" | grep -qE '^(docker-compose\.prod\.yml|deploy/nginx\.conf)'; then
         build_core=1
+        build_file=1
         build_web=1
         build_mcp=1
       fi
       ;;
     *)
-      echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|web|mcp-server)" >&2
+      echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|file-service|web|mcp-server)" >&2
       exit 2
       ;;
   esac
@@ -88,6 +91,11 @@ cmd_deploy() {
   if [[ "$build_core" -eq 1 ]]; then
     timia_log "Step ${step}: docker build core-service ..."
     $dc build --progress=plain core-service
+    step=$((step + 1))
+  fi
+  if [[ "$build_file" -eq 1 ]]; then
+    timia_log "Step ${step}: docker build file-service ..."
+    $dc build --progress=plain file-service
     step=$((step + 1))
   fi
   if [[ "$build_web" -eq 1 ]]; then

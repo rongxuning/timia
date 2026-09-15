@@ -85,5 +85,20 @@
     "displayNameTaken": "该显示名称已被使用",
     "displayNameRequired": "请输入显示名称",
     "displayNameTooLong": "显示名称过长"
+  },
+  "taskAttachments": {
+    "label": "附件",
+    "add": "添加图片或视频",
+    "empty": "尚未添加图片或视频",
+    "limit": "每个任务最多 20 个附件",
+    "imageTooLarge": "图片不能超过 10 MB",
+    "videoTooLarge": "视频不能超过 200 MB",
+    "unsupported": "仅支持图片和视频",
+    "uploadFailed": "上传失败",
+    "loadFailed": "无法加载附件",
+    "deleteAria": "删除 {name}",
+    "previewAria": "预览 {name}",
+    "closePreview": "关闭预览",
+    "uploading": "正在上传…"
   }
 }

@@ -47,6 +47,7 @@
 		74DFBF7C4B7D3C7B889D79A9 /* StickyNoteListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016C053A9F4E98EC45B77450 /* StickyNoteListView.swift */; };
 		77FAA4BA7DA83B93C6DD5D1B /* TimiaLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05341B780216C57EBBF7BD95 /* TimiaLiveActivityWidget.swift */; };
 		7936A0BB23E42FA7EB7112D6 /* StickyNotesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081976E5E404E3456C456D54 /* StickyNotesAPI.swift */; };
+		F11E5A91A7C04D0B9E2C3D4F /* FilesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11E5A91A7C04D0B9E2C3D4E /* FilesAPI.swift */; };
 		878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DD19186DC70910982C8C46 /* AuthenticationView.swift */; };
 		896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */; };
 		99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */; };
@@ -146,6 +147,7 @@
 		02A7C44F73401A44586DF4EC /* WorkspaceActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceActivityView.swift; sourceTree = "<group>"; };
 		05341B780216C57EBBF7BD95 /* TimiaLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityWidget.swift; sourceTree = "<group>"; };
 		081976E5E404E3456C456D54 /* StickyNotesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNotesAPI.swift; sourceTree = "<group>"; };
+		F11E5A91A7C04D0B9E2C3D4E /* FilesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesAPI.swift; sourceTree = "<group>"; };
 		088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationContentBuilderTests.swift; sourceTree = "<group>"; };
 		0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTasksView.swift; sourceTree = "<group>"; };
 		0E37E4198B3D9197E70666E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 				0FD26119578B087A0E46AC5E /* APIClient.swift */,
 				CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */,
 				817045A30702570209E9D7F0 /* Data+Gzip.swift */,
+				F11E5A91A7C04D0B9E2C3D4E /* FilesAPI.swift */,
 				75E957781609437059641828 /* HealthSyncAPI.swift */,
 				081976E5E404E3456C456D54 /* StickyNotesAPI.swift */,
 			);
@@ -722,6 +725,7 @@
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
 				896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */,
 				E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */,
+				F11E5A91A7C04D0B9E2C3D4F /* FilesAPI.swift in Sources */,
 				A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */,
 				BEB976AA7D65A297D68640DA /* HealthKitAnchorStore.swift in Sources */,
 				5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */,

@@ -12,6 +12,7 @@ final class AppSession: ObservableObject {
     @Published private(set) var state: State = .loading
     private let credentials: CredentialManager
     private let baseURL: URL
+    private let fileBaseURL: URL
     lazy var api: APIClient = APIClient(
         baseURL: baseURL,
         credentials: credentials,
@@ -19,10 +20,20 @@ final class AppSession: ObservableObject {
             Task { @MainActor in await self?.invalidateSession() }
         }
     )
+    lazy var fileApi: APIClient = APIClient(
+        baseURL: fileBaseURL,
+        credentials: credentials,
+        onUnauthorized: { [weak self] in
+            Task { @MainActor in await self?.invalidateSession() }
+        }
+    )
+    lazy var files: FilesAPI = FilesAPI(client: fileApi)
 
     init() {
         let configured = Bundle.main.object(forInfoDictionaryKey: "TIMIA_API_BASE_URL") as? String
+        let fileConfigured = Bundle.main.object(forInfoDictionaryKey: "TIMIA_FILE_API_BASE_URL") as? String
         baseURL = URL(string: configured ?? "") ?? URL(string: "http://127.0.0.1:8000")!
+        fileBaseURL = URL(string: fileConfigured ?? "") ?? URL(string: "http://127.0.0.1:8003")!
         let keychain = KeychainStore()
         if ProcessInfo.processInfo.arguments.contains("-ui-testing") {
             keychain.deleteAuthentication()
