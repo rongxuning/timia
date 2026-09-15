@@ -783,14 +783,14 @@ async def whoami_impl(client: TimiaHttpClient) -> dict:
     }
 ```
 
-`server.py`: construct FastMCP(`"timia"`), hold shared settings/client on module or lifespan; register tools via thin wrappers that: time call → catch `TimiaHttpError` → `tool_error_from_http` → stderr JSON log → `emit_audit` → return `json.dumps(...)`.
+`server.py`: construct FastMCP(`"timia-mcp"`), hold shared settings/client on module or lifespan; register tools via thin wrappers that: time call → catch `TimiaHttpError` → `tool_error_from_http` → stderr JSON log → `emit_audit` → return `json.dumps(...)`.
 
 Use SDK docs pattern:
 
 ```python
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("timia")
+mcp = FastMCP("timia-mcp")
 
 def main() -> None:
     # load settings, attach client, register tools based on profile
