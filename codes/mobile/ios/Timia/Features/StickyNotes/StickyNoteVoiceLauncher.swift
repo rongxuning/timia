@@ -6,8 +6,9 @@ import SwiftUI
 /// breathing circle appears *above* the button.
 ///
 /// Important: the floating HUD must stay intrinsically sized (`fixedSize`).
-/// A flexible / infinite-height overlay inside bottom `safeAreaInset` causes an
-/// immediate layout feedback crash (app quits on mic tap).
+/// A flexible / infinite-height overlay inside the docked bottom bar can
+/// stretch bar layout (and previously crashed when the bar lived in
+/// `safeAreaInset`).
 struct StickyNoteVoiceLauncher: View {
     @ObservedObject var draft: StickyNoteDraftStore
 
