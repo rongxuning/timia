@@ -85,5 +85,20 @@
     "displayNameTaken": "That display name is already taken",
     "displayNameRequired": "Enter a display name",
     "displayNameTooLong": "Display name is too long"
+  },
+  "taskAttachments": {
+    "label": "Attachments",
+    "add": "Add photos or videos",
+    "empty": "No photos or videos yet",
+    "limit": "Each task can have up to 20 attachments",
+    "imageTooLarge": "Images must be 10 MB or smaller",
+    "videoTooLarge": "Videos must be 200 MB or smaller",
+    "unsupported": "Only photos and videos are supported",
+    "uploadFailed": "Upload failed",
+    "loadFailed": "Could not load attachments",
+    "deleteAria": "Remove {name}",
+    "previewAria": "Preview {name}",
+    "closePreview": "Close preview",
+    "uploading": "Uploading…"
   }
 }

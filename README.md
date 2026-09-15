@@ -5,6 +5,7 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 ### Monorepo layout
 - `codes/web`: Next.js web
 - `codes/core-service`: FastAPI core API (uv) — `make core-service`
+- `codes/file-service`: FastAPI file API (uv, port 8003) — `make file-service`; bytes go to private MinIO
 - `codes/app`: native client placeholder (iOS, future)
 - Future backends (e.g. `notification-service`, `finance-service`): each under `codes/<name>/`, own Makefile target, Docker service, and nginx `/<name>/` route
 
@@ -13,11 +14,12 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 #### Quick start
 
 ```bash
-make local          # Postgres in Docker
+make local          # Postgres + MinIO in Docker
 make core-service-install && make core-service   # terminal 1
-make web-install && make web   # terminal 2
-make verify         # smoke check API (+ Web if running)
-make codegen        # export OpenAPI → src/types/api/generated.ts (after API changes)
+make file-service-install && make file-service   # terminal 2
+make web-install && make web   # terminal 3
+make verify         # smoke check API (+ File API / Web if running)
+make codegen        # export OpenAPI → web generated types (after API changes)
 ```
 
 #### 1) Start Postgres
@@ -64,8 +66,9 @@ make mcp-server-http   # local Streamable HTTP on :8100
 
 ### Env
 - Copy values from `.env.example` into:
-  - `codes/core-service/.env`
-  - `codes/web/.env.local`
+  - `codes/core-service/.env` (include `FILE_SERVICE_BASE` / `FILE_INTERNAL_TOKEN` so transfer/delete notify file-service)
+  - `codes/file-service/.env` optional; `make file-service` also sources core-service `.env`
+  - `codes/web/.env.local` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_FILE_API_BASE_URL`)
 
 ### Production deploy (timia.online)
 

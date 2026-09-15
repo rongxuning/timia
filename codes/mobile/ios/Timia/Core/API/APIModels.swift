@@ -469,6 +469,28 @@ struct ItemResponse: Decodable, Identifiable, Sendable {
     let location: String?
 }
 
+struct FileOut: Decodable, Identifiable, Sendable, Hashable {
+    let id: String
+    let kind: String
+    let status: String
+    let mimeType: String
+    let byteSize: Int
+    let originalFilename: String
+    let widthPx: Int?
+    let heightPx: Int?
+    let durationMs: Int?
+    let workspaceId: String
+    let projectId: String?
+    let contentPath: String
+    let thumbPath: String?
+    let posterPath: String?
+}
+
+struct FileListOut: Decodable, Sendable {
+    let items: [FileOut]
+    let nextCursor: String?
+}
+
 struct TaskComment: Decodable, Identifiable, Sendable {
     let id: String
     let authorUserId: String

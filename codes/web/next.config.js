@@ -21,6 +21,10 @@ const nextConfig = {
         source: "/health/:path*",
         destination: "http://localhost:8000/health/:path*",
       },
+      {
+        source: "/file-service/:path*",
+        destination: "http://localhost:8003/:path*",
+      },
     ];
   },
 };

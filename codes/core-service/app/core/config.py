@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     minimax_model: str = "MiniMax-M2.7"
     minimax_base_url: str = "https://api.minimaxi.com/v1"
     minimax_timeout_seconds: float = 30.0
+    # Empty base skips notify (local tests / file-service down).
+    file_service_base: str = ""
+    file_internal_token: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

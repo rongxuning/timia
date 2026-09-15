@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.item import ItemCreate, ItemOut, ItemUpdate
 from app.services.activity import log_activity
+from app.services.file_notify import notify_item_rehomed, notify_item_unbound
 from app.services.item_api import (
     apply_item_transfer,
     build_item_out,
@@ -418,6 +419,8 @@ def update_item(
             metadata={"before": before, "after": after, "project_id": str(project_id)},
         )
     db.commit()
+    if transferred and transfer_target:
+        notify_item_rehomed(i.id, transfer_target[0], transfer_target[1])
     return build_item_out(db, i)
 
 
@@ -445,4 +448,5 @@ def delete_item(
         metadata={"project_id": str(project_id)},
     )
     db.commit()
+    notify_item_unbound(item_id)
     return None

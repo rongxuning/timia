@@ -1,1 +1,2 @@
 TIMIA_API_BASE_URL = https:/$()/timia.online/core-service
+TIMIA_FILE_API_BASE_URL = https:/$()/timia.online/file-service
