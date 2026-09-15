@@ -169,7 +169,13 @@ struct ScheduleHomeView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
+
+                // Dock the action bar in the layout flow instead of safeAreaInset.
+                // Inset + bar-internal overlays (range picker / voice HUD) can enter a
+                // layout feedback loop that leaves the bar floating mid-screen.
+                bottomControls
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if let errorTip {
                 Text(errorTip)
@@ -188,9 +194,6 @@ struct ScheduleHomeView: View {
         // expand the content layout under the bottom bar / home indicator.
         .background(TimiaTheme.surface.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomControls
-        }
         .task { await loadVisibleContent() }
         .onChange(of: range) { _, _ in
             calendarData = cachedCalendar(for: selectedDate, range: range)
@@ -439,7 +442,9 @@ struct ScheduleHomeView: View {
             .overlay(alignment: .topLeading) {
                 if contentMode == .calendar, isRangePickerExpanded {
                     calendarRangePicker
-                        .fixedSize(horizontal: true, vertical: false)
+                        // Keep both axes intrinsic so the popover never feeds
+                        // flexible height back into the docked bar.
+                        .fixedSize()
                         .offset(y: -56)
                         .transition(
                             .asymmetric(
@@ -499,10 +504,13 @@ struct ScheduleHomeView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
-        // Do not ignoreSafeArea on this inset background: inside safeAreaInset it
-        // expands the reserved bar height by the home-indicator inset (~34pt).
-        // Page surface already covers the indicator zone via .background(...).
+        // Page surface already covers the home-indicator zone via .background(...).
         .background(.ultraThinMaterial)
+        // Lock vertical intrinsic size so overlays (range picker / voice HUD)
+        // cannot stretch or shift the docked bar.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("schedule-bottom-controls")
         .animation(.snappy(duration: 0.28), value: isRangePickerExpanded)
     }
 

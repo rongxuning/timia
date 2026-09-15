@@ -19,6 +19,14 @@ final class TimiaUITests: XCTestCase {
 
         let voiceInput = app.buttons["schedule-voice-input"]
         XCTAssertTrue(voiceInput.waitForExistence(timeout: 8))
+        let bottomControls = element("schedule-bottom-controls", in: app)
+        XCTAssertTrue(bottomControls.waitForExistence(timeout: 2))
+        // Regression: bar must stay docked near the screen bottom, not float mid-list.
+        XCTAssertGreaterThan(
+            bottomControls.frame.midY,
+            app.frame.height * 0.75,
+            "Bottom action bar drifted away from the screen bottom"
+        )
         let todoModeButton = app.buttons["Todo 模式"]
         XCTAssertTrue(todoModeButton.waitForExistence(timeout: 2))
         XCTAssertEqual(todoModeButton.frame.midY, voiceInput.frame.midY, accuracy: 6)
