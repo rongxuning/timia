@@ -11,7 +11,7 @@ Cursor 里 MCP 服务器名是 **`timia-mcp`**（不是 `timia-prod` / `timia`�
 
 1. `whoami` — 确认 PAT 用户
 2. `list_workspaces` → `list_projects` — 后面写操作都要 `workspace_id` + `project_id`
-3. 日程默认 `get_schedule(view="week")`；今日用 `view="day"`。时区默认 `Asia/Shanghai`
+3. 日程默认 `get_schedule(view="week")`；今日用 `view="day"`。时区默认 `Asia/Shanghai`。**周从周日开始**。
 
 ## Writes
 
@@ -26,6 +26,10 @@ Cursor 里 MCP 服务器名是 **`timia-mcp`**（不是 `timia-prod` / `timia`�
 `409` / `version_conflict` → `get_item` 拿新 `version` 再写。不要猜 version。
 
 自然语言：`parse_natural_language(text, reference_time, selected_date)` → 给用户看草稿 → `create_item`。parse 本身不创建任务。
+
+无日期任务不要改成 doing/done（API `undated_requires_todo`）。批量改期前先 `list_overdue` / `get_schedule` 列出来确认。
+
+常用读：今日简报 = `get_schedule(view="day")` + `list_overdue`；四象限 = `list_priority`。
 
 ## 字段
 
@@ -46,4 +50,3 @@ Cursor 里 MCP 服务器名是 **`timia-mcp`**（不是 `timia-prod` / `timia`�
 
 - 不要调用删除 workspace/project、清健康数据、HealthKit sync（P0 未注册）
 - 不要把便签/规划/健康当已有 MCP tools（尚未交付）
-- 批量改期/完成前先列出来让用户确认

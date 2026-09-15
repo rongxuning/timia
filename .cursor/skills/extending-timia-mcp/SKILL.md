@@ -17,7 +17,7 @@ MCP 是 **core-service 的薄适配器**：校验参数 → `Authorization: Bear
 4. `tests/` 用 respx 断言 method/URL/body 与 401/403/409
 5. 写操作走 `assert_writable`；成功返回带 `version`
 
-P1 计划中的 notes/plans **会创建真实数据**，description 必须写明，并要求 `workspace_id` + `project_id`。
+P1 计划中的 notes/plans **会创建真实数据**，description 必须写明，并要求 `workspace_id` + `project_id`。领域约束见 `timia-sticky-notes` / `timia-plans`；健康只读见 `timia-health`。
 
 ## 禁止注册
 

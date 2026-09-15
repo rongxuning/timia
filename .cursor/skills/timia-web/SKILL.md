@@ -28,3 +28,5 @@ description: Use when implementing or changing codes/web Next.js pages, componen
 ## UI 要点
 
 主题 token（`primary`、`surface`、`text-body`…），不要单页 palettes。Material Symbols Outlined。加载 / 空 / 错误三条路径都要有 i18n。壳层 `pt-14` + `md:ml-48`，别让内容顶到固定头下面。
+
+日历周从周日开始（`calendarNav.ts`）。空间/项目选择复用 `PinnedTagSelect`。规划只在 Web。健康页只读 views。改 `messages/*.json` 后 `npm run test:i18n`（中英 key 必须对齐）。

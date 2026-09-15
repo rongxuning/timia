@@ -31,6 +31,8 @@ Python ≥3.11，**uv**，FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic + Pos
 - PAT 路径有 scope 白名单；未映射路径 `403 pat_path_not_allowed`。JWT 请求不走该表
 - 错误码 snake_case：`not_found`、`not_a_member`、`version_conflict`
 - 密钥只来自 `core/config.py`
+- 个人域（sticky/health）不写 workspace `log_activity`；他人资源 `404` 而非 `403`
+- 页面只读用 `/views/...`；写操作用资源 REST。PAT 新路径必须进 scope 表
 
 ## 检查清单
 

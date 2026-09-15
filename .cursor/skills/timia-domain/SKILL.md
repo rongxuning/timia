@@ -19,7 +19,7 @@ description: Use when modeling or changing Timia entities (workspace, project, i
 | `version` | 乐观锁；PATCH 必须带当前值，冲突 `409 version_conflict` |
 | `color` | `#RRGGBB`，默认 `#FFFFFF` |
 
-不要用模型注释里的 `low/medium/high`（已过时）。
+不要用模型注释里的 `low/medium/high`（已过时）。无日期 Item 只能 `todo`（`undated_requires_todo`）。日历**周从周日开始**。
 
 ## 成员
 
@@ -33,10 +33,14 @@ Workspace / Project 角色只有 **`owner` | `member`**（没有 admin/guest）�
 
 | 域 | 归属 | 备注 |
 |----|------|------|
-| Sticky notes | 个人、无 workspace | AI parse → convert 才变成 Item；MCP P1 |
-| Plans | 模板订阅/导入 | 导入会**创建真实 Item**；MCP P1 |
-| Health | iOS HealthKit → core | 同步写接口禁止进 MCP；只读 views 为 P2 |
+| Sticky notes | 个人、无 workspace | AI parse → convert 才变成 Item；MCP P1。见 `timia-sticky-notes` |
+| Plans | 模板订阅/导入 | 导入会**创建真实 Item**；仅 Web。见 `timia-plans` |
+| Health | iOS HealthKit → core | 同步写接口禁止进 MCP；只读 views 为 P2。见 `timia-health` |
 | Analytics | **仅 Web** | iOS 不做数据分析 |
+
+个人域（便签/健康）对他人 id 返回 **404** 而非 403。系统角色 `user`/`admin` 与空间角色 `owner`/`member` 不是同一套。
+
+细则：日程 `timia-schedule`，鉴权 `timia-auth`。
 
 ## API vs MCP
 
