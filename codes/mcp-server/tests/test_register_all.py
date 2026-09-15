@@ -1,6 +1,12 @@
 from timia_mcp.profiles import P0_TOOLS
-from timia_mcp.server import build_mcp
+from timia_mcp.server import MCP_SERVER_NAME, build_mcp
 from timia_mcp.tools import registered_tool_names
+
+
+def test_server_name_is_timia_mcp(settings, client):
+    mcp = build_mcp(settings, client)
+    assert MCP_SERVER_NAME == "timia-mcp"
+    assert mcp.name == "timia-mcp"
 
 
 def test_p0_registered_tools_match_p0_set(settings, client):

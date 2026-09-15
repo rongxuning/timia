@@ -80,7 +80,7 @@ MCP 是 **agent 操作面**：意图化 tools + 少量 resources/prompts。业�
 ```json
 {
   "mcpServers": {
-    "timia": {
+    "timia-mcp": {
       "command": "uv",
       "args": ["--directory", "/abs/path/codes/mcp-server", "run", "timia-mcp"],
       "env": {

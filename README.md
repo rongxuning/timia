@@ -54,7 +54,7 @@ make web
 
 ### MCP (Agent)
 
-Stdio (local) and remote Streamable HTTP (`https://timia.online/mcp`) for Cursor and other hosts. See [codes/mcp-server/README.md](codes/mcp-server/README.md). Specs: [Phase 0](docs/superpowers/specs/2026-09-11-mcp-server-design.md) · [Phase 1 remote](docs/superpowers/specs/2026-09-12-mcp-phase1-remote-design.md).
+Stdio (local) and remote Streamable HTTP (`https://timia.online/mcp`) for Cursor and other hosts. Cursor `mcpServers` key is **`timia-mcp`** (not `timia-prod`). See [codes/mcp-server/README.md](codes/mcp-server/README.md). Specs: [Phase 0](docs/superpowers/specs/2026-09-11-mcp-server-design.md) · [Phase 1 remote](docs/superpowers/specs/2026-09-12-mcp-phase1-remote-design.md).
 
 ```bash
 make mcp-server-install

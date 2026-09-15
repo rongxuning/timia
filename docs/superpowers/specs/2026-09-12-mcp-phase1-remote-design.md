@@ -194,7 +194,7 @@ location /mcp {
 ```json
 {
   "mcpServers": {
-    "timia-prod": {
+    "timia-mcp": {
       "url": "https://timia.online/mcp",
       "headers": {
         "Authorization": "Bearer tm_pat_…"

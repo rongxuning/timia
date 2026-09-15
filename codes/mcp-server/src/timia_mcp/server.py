@@ -21,6 +21,9 @@ except ImportError:
 
 ToolImpl = Callable[..., Awaitable[Any]]
 
+# Cursor mcp.json key and FastMCP server name. Do not use "timia-prod" or "timia".
+MCP_SERVER_NAME = "timia-mcp"
+
 
 def _resolve_mcp_app() -> type[_MCPApp]:
     return _MCPApp
@@ -60,7 +63,7 @@ async def _run_tool(
 
 
 def build_mcp(settings: Settings, client: TimiaHttpClient | None) -> _MCPApp:
-    mcp_app = _resolve_mcp_app()("timia")
+    mcp_app = _resolve_mcp_app()(MCP_SERVER_NAME)
 
     async def run_tool(tool_name: str, impl: ToolImpl, *args: Any, **kwargs: Any) -> str:
         active = request_client.get() or client

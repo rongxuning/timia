@@ -38,6 +38,8 @@ curl -s -X POST https://timia.online/core-service/auth/agent-tokens \
 
 Save the one-time `token` value (`tm_pat_…`).
 
+Cursor `mcpServers` key is always **`timia-mcp`** (not `timia-prod` or `timia`). Pick one mode; do not register the same key twice.
+
 ## Mode A — stdio → local API
 
 `~/.cursor/mcp.json`:
@@ -45,7 +47,7 @@ Save the one-time `token` value (`tm_pat_…`).
 ```json
 {
   "mcpServers": {
-    "timia": {
+    "timia-mcp": {
       "command": "uv",
       "args": ["--directory", "/abs/path/codes/mcp-server", "run", "timia-mcp"],
       "env": {
@@ -65,7 +67,7 @@ Same as Mode A, but point at production core-service (no hosted MCP required):
 ```json
 {
   "mcpServers": {
-    "timia-prod-api": {
+    "timia-mcp": {
       "command": "uv",
       "args": ["--directory", "/abs/path/codes/mcp-server", "run", "timia-mcp"],
       "env": {
@@ -85,7 +87,7 @@ After deploy, Cursor connects over HTTPS (no local `uv` process):
 ```json
 {
   "mcpServers": {
-    "timia-prod": {
+    "timia-mcp": {
       "url": "https://timia.online/mcp",
       "headers": {
         "Authorization": "Bearer tm_pat_…"
