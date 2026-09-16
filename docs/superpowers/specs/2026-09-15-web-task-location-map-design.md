@@ -20,7 +20,7 @@
 | 地点输入 | 搜索选定后变成「已定位」chip；纯文本不产生坐标。不允许在 chip 上改字 |
 | 无坐标的纯文本地点 | 仍允许（「会议室 A」）；**不**出现在地图上 |
 | 地址搜索 | 经 core-service 代理，前端不直连地理编码商 |
-| 搜索供应商 | 可插拔。开发默认 Nominatim；国内生产建议高德 Web 服务，写入前转为 WGS-84 |
+| 搜索供应商 | **Photon**（Komoot 公共实例，免 Key）。国内 POI 不够时可选腾讯位置服务免费档（需 Key，个人输入提示约 1 万次/日）。不采用公共 Nominatim 做输入提示，不用付费档高德 |
 | 地图渲染 | 复用现有 MapLibre + OSM 栅格底图（与 `WorkoutRouteMap` 同一套） |
 | 日程页形态 | 主栏 **日历 \| 地图** 切换，不是日历日/周/月/年的第五种 mode |
 | 地图数据 | 新只读视图 `GET /views/schedule/map`；只返回有坐标的任务 |
@@ -37,7 +37,9 @@
 |-------------|--------------|
 | 用字符串拼进 `location`（`名称\|lat,lng`） | 破坏现有展示、iOS、MCP、计划导入；无法索引 |
 | 改成便签那样的嵌套 `location` 对象并删除字符串 | iOS / MCP / OpenAPI 破坏性变更；便签是 GPS 优先，任务是名称优先 |
-| 前端直连 Nominatim / 高德 JS Key | Key 与配额暴露；Nominatim 使用条款要求可识别的服务端 User-Agent；CORS 不稳定 |
+| 前端直连 Nominatim / 高德 JS Key | Key 与配额暴露；公共 Nominatim 禁止输入提示式连打；CORS 不稳定 |
+| 公共 Nominatim 作为默认搜索 | 使用政策明确不适合 autocomplete；全应用合计 1 次/秒；国内 POI 弱 |
+| 高德输入提示作为免费生产方案 | 个人认证基础搜索（含输入提示）月配额约 5,000 次，打字搜索会很快打满 |
 | 日程页用地图 SDK（高德/Google）替换 MapLibre | 健康路线图已用 MapLibre+OSM；两套底图与两套坐标会分叉 |
 | 把「地图」做成日历第五个 mode | 日历 mode 绑定 `anchor` + 日/周/月/年布局；地图按空间筛选，不是按日期格子 |
 | 地图永远堆在日历下方 | 「我的日程」已经是 待办栏 + 日历 + 四象限 + 泳道，再加全高地图不可用 |
@@ -100,7 +102,7 @@
 - 底图继续 MapLibre + OSM，坐标统一 WGS-84。
 
 - 优点：向后兼容；Key 留在服务端；与现有健康地图、Views API、任务抽屉同构。
-- 代价：国内 POI 在 Nominatim 下偏弱；若生产切高德，入库前要做 GCJ-02 → WGS-84，OSM 上可能有数十至数百米视觉偏差（任务级「在哪开会」可接受，不做导航）。
+- 代价：国内店名在 Photon/OSM 下偏弱。若切腾讯免费档，入库前做 GCJ-02 → WGS-84，OSM 底图上可能有数十至数百米偏差（任务级「在哪开会」可接受，不做导航）。
 
 **采用 C。**
 
@@ -199,21 +201,42 @@ Authorization: 与其它 API 相同（登录用户）
 
 `name` 写入 `items.location`（若 `name` 超过 500 则截断）。`address` 仅展示在下拉副标题，不入库。`lat`/`lng` 已是 WGS-84。
 
-### 4.2 供应商适配
+### 4.2 供应商：只要免费档
+
+任务抽屉是 **debounce 输入提示**（≥2 字、300ms），不是一次性把整段地址编码。供应商必须允许这种用法，且一期 **不付费**。
+
+#### 候选对比
+
+| 供应商 | 费用 | 输入提示 | 国内 POI | 坐标系 | 结论 |
+|--------|------|----------|----------|--------|------|
+| **Photon**（`photon.komoot.io`） | 完全免费、免 Key。公共实例要求用量合理，过猛会限流 | **就是为 typeahead 做的** | OSM 数据，国内店名/小区偏弱 | WGS-84，和 OSM 底图一致 | **一期默认** |
+| 自建 Photon / Nominatim | 软件免费，自己出机器 | 可以 | 同样受 OSM 数据限制 | WGS-84 | 公共实例被限流后再上 |
+| **腾讯位置服务** 关键词输入提示 | 个人开发者免费档：输入提示约 **1 万次/日**、5 QPS（以控制台为准） | 官方就是 autocomplete | **国内 POI 好** | GCJ-02，入库要转 WGS-84 | **国内质量不够时的免费升级** |
+| Geoapify Autocomplete | 免费档约 3,000 次/日，要 Key | 支持 | OSM，国内一般 | WGS-84 | Photon 公共实例不稳时的备选 |
+| LocationIQ | 免费档约 5,000 次/日，要 Key | 支持 | OSM | WGS-84 | 同上，免费档要标注 |
+| 天地图 地理编码 / 搜索 | 个人约地理编码 7,000 次/日、搜索 3,000 次/日，要 Key | 地理编码偏结构化地址，不是输入提示 | 国内可以 | CGCS2000，接近 WGS-84 | 不适合抽屉边打边搜 |
+| 公共 Nominatim | 免费免 Key | **政策禁止**按键/autocomplete；全应用 1 次/秒 | 弱 | WGS-84 | **不做默认，也不给输入框连打** |
+| 高德 Web 输入提示 | 个人认证基础搜索（关键字+输入提示等共享）约 **5,000 次/月** | 支持 | 国内最好之一 | GCJ-02 | 免费额度对打字搜索太紧，一期不用 |
+| MapTiler / Open-Meteo | 有免费档 | MapTiler 支持；Open-Meteo 主要是城市名 | 国内街道弱 | WGS-84 | Open-Meteo 非商用；MapTiler 免费档也偏非商用 |
+| Google Places / Mapbox | 基本要付费 | 支持 | 国内受限 | WGS-84 | 排除 |
+
+底图继续用 OSM 栅格（已经在健康路线图里，免费，需 © OpenStreetMap）。搜索供应商和底图可以不是同一家。
+
+#### 配置
 
 `Settings`：
 
 | 配置 | 含义 |
 |------|------|
-| `geocoder_provider` | `nominatim`（默认）或 `amap` |
-| `nominatim_base_url` | 默认 `https://nominatim.openstreetmap.org` |
-| `nominatim_user_agent` | 必填，遵守 Nominatim 使用政策 |
-| `amap_web_key` | 高德 Web 服务 Key；provider=amap 时必填 |
+| `geocoder_provider` | `photon`（默认）或 `tencent` |
+| `photon_base_url` | 默认 `https://photon.komoot.io` |
+| `photon_user_agent` | 必填，标识 Timia 服务端 |
+| `tencent_map_key` | 腾讯 WebService Key；`provider=tencent` 时必填 |
 
-`nominatim`：`/search?q=&format=jsonv2&limit=`，`display_name` 拆成 name/address。  
-`amap`：输入提示或关键字搜索，**GCJ-02 → WGS-84 后再返回**。转换实现放 `app/services/geo/gcj02.py`，单测用北京/上海已知点对。
+`photon`：`GET {base}/api?q=&limit=&lang=zh`，GeoJSON `geometry.coordinates` 为 `[lng, lat]`，已是 WGS-84。  
+`tencent`：`GET https://apis.map.qq.com/ws/place/v1/suggestion`，**GCJ-02 → WGS-84 后再返回**。转换放 `app/services/geo/gcj02.py`，单测用北京/上海已知点对。
 
-前端只打 `/geo/places`，不出现供应商名。
+前端只打 `/geo/places`，不出现供应商名。公共 Photon 被限流时返回 `502 geo_provider_error`，文案「地点搜索暂时不可用」，不打断纯文本保存。
 
 ### 4.3 抽屉交互
 
@@ -380,7 +403,7 @@ class ScheduleMapViewOut(BaseModel):
 | 401 | — | 未登录 |
 | 429 | `geo_rate_limited` | 搜索过快 |
 | 502 | `geo_provider_error` | 上游失败 |
-| 503 | `geo_not_configured` | provider=amap 但没 Key |
+| 503 | `geo_not_configured` | provider=tencent 但没 Key |
 
 `core/config.py` 只读环境变量，禁止把 Key 写进前端 bundle。
 
@@ -402,8 +425,8 @@ class ScheduleMapViewOut(BaseModel):
 - 不变量：成对坐标、清名称即清坐标、只改名保留坐标、越界 400。
 - 重复任务副本带上 lat/lng。
 - `GET /views/schedule/map`：无坐标任务被排除；status / workspace / project 过滤；默认不含 archived；超 limit 时 `truncated`；无权限项目不出现；未登录 401。
-- `/geo/places`：q 短于 2 返回空；用 fake provider 测映射与 GCJ-02 转换；未登录 401。
-- `gcj02` 纯函数单测，不打网。
+- `/geo/places`：q 短于 2 返回空；fake Photon adapter 测映射；未登录 401。
+- `gcj02` 纯函数单测（腾讯路径），不打网。
 
 ### web
 
@@ -420,11 +443,11 @@ class ScheduleMapViewOut(BaseModel):
 ## 11. 实现顺序（供后续排期，本期不写代码）
 
 1. Migration + schema + item 写路径不变量 + 测试。
-2. `GET /geo/places` + Nominatim adapter + 测试。
+2. `GET /geo/places` + Photon adapter + 测试。
 3. `PlaceSearchField` 接入任务抽屉；`make codegen`。
 4. `GET /views/schedule/map` + 测试。
 5. 抽出 OSM style；`ScheduleMapView`；「我的日程」日历/地图切换。
-6. 高德 adapter 作为可选配置，不挡 Nominatim 主路径。
+6. 腾讯 adapter 作为可选配置，不挡 Photon 主路径。
 
 每一步都可独立合并、可手工验收。
 
