@@ -22,6 +22,7 @@ import {
   redirectToLoginPage,
   takeSessionExpiredFrom401,
 } from "./auth";
+import { isFileServicePath } from "./fileServicePath";
 import { publishSessionEvent } from "./session-sync";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -30,10 +31,6 @@ const FILE_API_BASE_URL =
   (process.env.NODE_ENV === "production"
     ? "https://timia.online/file-service"
     : "http://localhost:8003");
-
-function isFileServicePath(path: string): boolean {
-  return path === "/files" || path.startsWith("/files/") || path.startsWith("/views/file-browser");
-}
 
 /**
  * Auth requests (`/auth/*`) are proxied through Next.js (dev) or the reverse
