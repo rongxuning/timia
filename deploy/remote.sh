@@ -6,7 +6,7 @@
 #
 # Env: SKIP_BUILD=1     — pack existing timia-*:prod images (skip docker compose build)
 #      PACK_NO_CACHE=1   — force full rebuild (ignore layer cache)
-#      PACK_SERVICES=web|core-service|mcp-server|all  (default: all; use web when only frontend changed)
+#      PACK_SERVICES=web|core-service|file-service|mcp-server|all  (default: all; use web when only frontend changed)
 #      PACK_ENV=.env.pack  (SSH_HOST/SSH_USER live in .env.pack — see .env.pack.example)
 #      REMOTE_TAR=timia-images.tar.gz  (remote $HOME, not /tmp)
 #      SSH_IDENTITY_FILE=~/.ssh/your.pem
@@ -130,7 +130,7 @@ timia_verify_web_api_url() {
 timia_print_built_images() {
   local img
   echo "Built images:"
-  for img in timia-core-service:prod timia-web:prod; do
+  for img in timia-core-service:prod timia-file-service:prod timia-web:prod; do
     docker images "$img" --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}}'
   done
 }
@@ -154,16 +154,17 @@ pack() {
   echo "Pack env: NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}"
 
   if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
-    for img in timia-core-service:prod timia-web:prod timia-mcp-server:prod; do
+    for img in timia-core-service:prod timia-file-service:prod timia-web:prod timia-mcp-server:prod; do
       if ! docker image inspect "$img" >/dev/null 2>&1; then
         echo "SKIP_BUILD=1 but missing image: $img" >&2
         exit 1
       fi
     done
-    echo "SKIP_BUILD=1 — packing existing core/web/mcp-server prod images"
+    echo "SKIP_BUILD=1 — packing existing core/file/web/mcp-server prod images"
     timia_verify_web_api_url "$NEXT_PUBLIC_API_BASE_URL"
   else
     export CORE_SERVICE_REVISION="$(git rev-parse HEAD:codes/core-service 2>/dev/null || echo local)"
+    export FILE_SERVICE_REVISION="$(git rev-parse HEAD:codes/file-service 2>/dev/null || echo local)"
     # Include API base URL so changing .env.pack always invalidates web build cache.
     export WEB_REVISION="$(git rev-parse HEAD:codes/web 2>/dev/null || echo local)-api-${NEXT_PUBLIC_API_BASE_URL}"
     export MCP_SERVER_REVISION="$(git rev-parse HEAD:codes/mcp-server 2>/dev/null || echo local)"
@@ -186,6 +187,18 @@ pack() {
       echo "Skip core-service build (PACK_SERVICES=${pack_services})"
       docker image inspect timia-core-service:prod >/dev/null 2>&1 || {
         echo "timia-core-service:prod missing — use PACK_SERVICES=all or build core-service first" >&2
+        exit 1
+      }
+    fi
+
+    if build_service file-service; then
+      timia_pull_image python:3.12-slim
+      echo "Building file-service (revision=${FILE_SERVICE_REVISION}) ..."
+      timia_compose_build file-service
+    else
+      echo "Skip file-service build (PACK_SERVICES=${pack_services})"
+      docker image inspect timia-file-service:prod >/dev/null 2>&1 || {
+        echo "timia-file-service:prod missing — use PACK_SERVICES=all or build file-service first" >&2
         exit 1
       }
     fi
@@ -218,15 +231,17 @@ pack() {
     timia_print_built_images
   fi
 
-  local web_id core_id mcp_id
+  local web_id core_id file_id mcp_id
   web_id="$(docker image inspect timia-web:prod --format '{{.Id}}')"
   core_id="$(docker image inspect timia-core-service:prod --format '{{.Id}}')"
+  file_id="$(docker image inspect timia-file-service:prod --format '{{.Id}}')"
   mcp_id="$(docker image inspect timia-mcp-server:prod --format '{{.Id}}')"
   echo "Saving images to $OUT_FILE ..."
   echo "  timia-web:prod          ${web_id}"
   echo "  timia-core-service:prod ${core_id}"
+  echo "  timia-file-service:prod ${file_id}"
   echo "  timia-mcp-server:prod   ${mcp_id}"
-  docker save timia-core-service:prod timia-web:prod timia-mcp-server:prod | gzip > "$OUT_FILE"
+  docker save timia-core-service:prod timia-file-service:prod timia-web:prod timia-mcp-server:prod | gzip > "$OUT_FILE"
   ls -lh "$OUT_FILE"
   echo "Pack done. Upload with: bash deploy/remote.sh upload"
 }
@@ -265,7 +280,7 @@ upload() {
       exit 1
     fi
     gunzip -c ~/${REMOTE_TAR} | docker load
-    bash deploy/dc.sh up -d --no-build --force-recreate core-service web mcp-server nginx
+    bash deploy/dc.sh up -d --no-build --force-recreate core-service file-service web mcp-server nginx
     bash deploy/dc.sh up -d
     if docker run --rm timia-web:prod sh -c \"grep -roh 'https://timia.online/api[^a-z-]' /app/.next 2>/dev/null | grep -q .\"; then
       echo 'ERROR: deployed web image still uses /api — repack (ensure pack shows Saving images) and re-upload' >&2

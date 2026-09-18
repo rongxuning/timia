@@ -141,6 +141,137 @@ struct APIClient: Sendable {
     private static func gzipCompress(_ data: Data) throws -> Data {
         try data.gzipCompressed()
     }
+
+    func uploadMultipart<Response: Decodable & Sendable>(
+        _ path: String,
+        fields: [String: String],
+        filename: String,
+        mimeType: String,
+        data: Data,
+        fileField: String = "file",
+        timeoutInterval: TimeInterval = 300,
+        response: Response.Type = Response.self
+    ) async throws -> Response {
+        guard let components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidConfiguration
+        }
+        guard let url = components.url else { throw APIError.invalidConfiguration }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = timeoutInterval
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Self.multipartBody(
+            boundary: boundary,
+            fields: fields,
+            fileField: fileField,
+            filename: filename,
+            mimeType: mimeType,
+            data: data
+        )
+        return try await send(request, authenticated: true, response: Response.self)
+    }
+
+    func downloadData(_ path: String, query: [URLQueryItem] = []) async throws -> Data {
+        guard var components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidConfiguration
+        }
+        if !query.isEmpty { components.queryItems = query }
+        guard let url = components.url else { throw APIError.invalidConfiguration }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 60
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        let (data, http) = try await sendRaw(request, authenticated: true)
+        guard (200..<300).contains(http.statusCode) else {
+            let envelope = try? Self.decoder.decode(ErrorEnvelope.self, from: data)
+            throw APIError.server(
+                status: http.statusCode,
+                message: envelope?.detail ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
+            )
+        }
+        return data
+    }
+
+    private func send<Response: Decodable & Sendable>(
+        _ request: URLRequest,
+        authenticated: Bool,
+        response: Response.Type
+    ) async throws -> Response {
+        let (data, http) = try await sendRaw(request, authenticated: authenticated)
+        guard (200..<300).contains(http.statusCode) else {
+            let envelope = try? Self.decoder.decode(ErrorEnvelope.self, from: data)
+            throw APIError.server(
+                status: http.statusCode,
+                message: envelope?.detail ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
+            )
+        }
+        if Response.self == EmptyResponse.self, data.isEmpty {
+            return EmptyResponse() as! Response
+        }
+        do {
+            return try Self.decoder.decode(Response.self, from: data)
+        } catch {
+            throw APIError.invalidResponse
+        }
+    }
+
+    private func sendRaw(_ original: URLRequest, authenticated: Bool) async throws -> (Data, HTTPURLResponse) {
+        var request = original
+        if authenticated {
+            do {
+                if let token = try await credentials.tokenForRequest() {
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+            } catch APIError.unauthorized {
+                onUnauthorized()
+                throw APIError.unauthorized
+            }
+        }
+        var (data, rawResponse) = try await perform(request)
+        guard let http = rawResponse as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if http.statusCode == 401, authenticated {
+            do {
+                let refreshed = try await credentials.refresh(force: true)
+                request.setValue("Bearer \(refreshed.accessToken)", forHTTPHeaderField: "Authorization")
+                (data, rawResponse) = try await perform(request)
+            } catch APIError.unauthorized {
+                onUnauthorized()
+                throw APIError.unauthorized
+            }
+        }
+        guard let finalHTTP = rawResponse as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if finalHTTP.statusCode == 401 {
+            onUnauthorized()
+            throw APIError.unauthorized
+        }
+        return (data, finalHTTP)
+    }
+
+    private static func multipartBody(
+        boundary: String,
+        fields: [String: String],
+        fileField: String,
+        filename: String,
+        mimeType: String,
+        data: Data
+    ) -> Data {
+        var body = Data()
+        let lineBreak = "\r\n"
+        for (name, value) in fields {
+            body.append("--\(boundary)\(lineBreak)")
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\(lineBreak)\(lineBreak)")
+            body.append("\(value)\(lineBreak)")
+        }
+        body.append("--\(boundary)\(lineBreak)")
+        body.append("Content-Disposition: form-data; name=\"\(fileField)\"; filename=\"\(filename)\"\(lineBreak)")
+        body.append("Content-Type: \(mimeType)\(lineBreak)\(lineBreak)")
+        body.append(data)
+        body.append(lineBreak)
+        body.append("--\(boundary)--\(lineBreak)")
+        return body
+    }
 }
 
 private struct ErrorEnvelope: Decodable { let detail: String? }
@@ -149,4 +280,12 @@ private struct AnyEncodable: Encodable {
     private let encodeValue: (Encoder) throws -> Void
     init(_ value: any Encodable) { encodeValue = value.encode }
     func encode(to encoder: Encoder) throws { try encodeValue(encoder) }
+}
+
+private extension Data {
+    mutating func append(_ string: String) {
+        if let data = string.data(using: .utf8) {
+            append(data)
+        }
+    }
 }

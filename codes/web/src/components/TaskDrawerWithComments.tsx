@@ -15,6 +15,8 @@ import {
 import { apiFetch } from "@/lib/api";
 import { fetchMyProjects, fetchMyWorkspaces, type ProjectOption, type WorkspaceOption } from "@/lib/api/workspaces";
 import { fetchItemDetail, fetchTaskDrawerContext } from "@/lib/api/task-views";
+import { uploadPendingTaskFiles } from "@/lib/file-api";
+import { TaskAttachments } from "@/components/task/TaskAttachments";
 import { PRIORITY_OPTIONS } from "@/components/schedule/taskUtils";
 import { resolveTaskScheduleTimes, validateUndatedTaskStatus } from "@/components/schedule/taskScheduleTimes";
 import {
@@ -256,6 +258,7 @@ export function TaskDrawerWithComments({
   const [editParticipantUserIds, setEditParticipantUserIds] = useState<string[]>([]);
   const [editPlace, setEditPlace] = useState<PlaceValue>(emptyPlace);
   const [placeSearchOpen, setPlaceSearchOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [editRepeat, setEditRepeat] = useState<RepeatKind>("none");
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -313,6 +316,7 @@ export function TaskDrawerWithComments({
       });
     } else {
       setDrawerVisible(false);
+      setPendingFiles([]);
       unmountTimer = window.setTimeout(() => setDrawerMounted(false), DRAWER_TRANSITION_MS);
     }
 
@@ -838,6 +842,20 @@ export function TaskDrawerWithComments({
             }),
           },
         );
+        if (pendingFiles.length) {
+          try {
+            await uploadPendingTaskFiles({
+              token,
+              workspaceId: selectedWorkspaceId,
+              projectId: selectedProjectId,
+              itemId: created.id,
+              files: pendingFiles,
+            });
+          } catch {
+            /* Task exists; remaining files can be added from the editor. */
+          }
+        }
+        setPendingFiles([]);
         onTaskCreated?.(saveCtx(created));
         onClose();
       } else {
@@ -1329,6 +1347,15 @@ export function TaskDrawerWithComments({
                     token={token}
                     disabled={editLoading}
                     onOpenChange={setPlaceSearchOpen}
+                  />
+                  <TaskAttachments
+                    workspaceId={selectedWorkspaceId}
+                    projectId={selectedProjectId}
+                    itemId={variant === "create" ? null : drawerItem?.id ?? itemId}
+                    token={token}
+                    disabled={editLoading}
+                    pendingFiles={pendingFiles}
+                    onPendingFilesChange={setPendingFiles}
                   />
                   {membersLoading ? (
                     <p className="text-caption text-neutral-muted">加载成员列表…</p>

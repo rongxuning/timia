@@ -11,9 +11,11 @@ COPY . .
 
 # Build args must sit immediately before `npm run build` so URL/revision changes bust cache.
 ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_FILE_API_BASE_URL
 ARG BUILD_REVISION=local
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-RUN echo "web build revision=${BUILD_REVISION} api=${NEXT_PUBLIC_API_BASE_URL}" \
+ENV NEXT_PUBLIC_FILE_API_BASE_URL=$NEXT_PUBLIC_FILE_API_BASE_URL
+RUN echo "web build revision=${BUILD_REVISION} api=${NEXT_PUBLIC_API_BASE_URL} files=${NEXT_PUBLIC_FILE_API_BASE_URL}" \
   && npm run build
 
 FROM node:22-alpine AS runner

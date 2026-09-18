@@ -32,8 +32,9 @@ flowchart LR
 
 | 组件 | 说明 |
 |------|------|
-| `core-service` / `web` / `mcp-server` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
+| `core-service` / `file-service` / `web` / `mcp-server` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
 | `db` | 官方 `postgres:16` 镜像，数据卷持久化 |
+| `minio` | 私有对象存储，仅 docker 内网，nginx 不暴露 |
 | `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`）；对外暴露 `/mcp` 与 `/mcp-health` |
 
 | 文件 | 用途 |
@@ -159,6 +160,9 @@ sudo chmod 600 /etc/timia/.env.prod
 | `DATABASE_URL` | 密码与上一致，主机必须是 `db` |
 | `CORS_ORIGINS` | `https://timia.online` |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://timia.online/core-service` |
+| `NEXT_PUBLIC_FILE_API_BASE_URL` | `https://timia.online/file-service` |
+| `FILE_INTERNAL_TOKEN` | core 调 file-service `/internal`；与 file-service 相同 |
+| `MINIO_ROOT_PASSWORD` | MinIO 根密码；`MEDIA_S3_SECRET_KEY` 须与此一致 |
 
 示例 `DATABASE_URL`：
 

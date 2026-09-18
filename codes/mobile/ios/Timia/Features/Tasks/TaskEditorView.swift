@@ -1,4 +1,7 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
+import UIKit
 
 private struct TaskChoiceOption: Identifiable {
     let id: String
@@ -72,6 +75,10 @@ struct TaskEditorView: View {
     @State private var isCreatingWorkspace = false
     @State private var isCreatingProject = false
     @State private var errorMessage: String?
+    @State private var attachments: [FileOut] = []
+    @State private var pendingMedia: [PendingTaskMedia] = []
+    @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var attachmentThumbs: [String: Data] = [:]
     @FocusState private var focusedField: TaskEditorFocusField?
 
     private var isEditing: Bool {
@@ -249,6 +256,46 @@ struct TaskEditorView: View {
                     .focused($focusedField, equals: .location)
                     .submitLabel(.done)
                     .onSubmit { focusedField = nil }
+            }
+
+            PhotosPicker(
+                selection: $pickerItems,
+                maxSelectionCount: FilesAPI.maxItemBindings,
+                matching: .any(of: [.images, .videos])
+            ) {
+                Label("添加图片或视频", systemImage: "photo.badge.plus")
+            }
+            .disabled(attachments.count + pendingMedia.count >= FilesAPI.maxItemBindings)
+            .onChange(of: pickerItems) { _, items in
+                guard !items.isEmpty else { return }
+                focusedField = nil
+                Task { await consumePicker(items) }
+            }
+
+            if !attachments.isEmpty || !pendingMedia.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(attachments) { file in
+                            TaskAttachmentThumb(
+                                title: file.originalFilename,
+                                isVideo: file.kind == "video",
+                                data: attachmentThumbs[file.id]
+                            ) {
+                                Task { await deleteAttachment(file) }
+                            }
+                        }
+                        ForEach(pendingMedia) { media in
+                            TaskAttachmentThumb(
+                                title: media.filename,
+                                isVideo: media.kind == "video",
+                                data: media.kind == "image" ? media.data : nil
+                            ) {
+                                pendingMedia.removeAll { $0.id == media.id }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
             }
 
             NavigationLink {
@@ -736,6 +783,7 @@ struct TaskEditorView: View {
             participantUserIds = Set((detail.participants ?? []).map(\.id))
             mergeMemberBriefs([detail.assignee, detail.createdBy].compactMap { $0 } + (detail.participants ?? []))
             creatorDisplayName = detail.createdBy?.displayName ?? creatorDisplayName
+            await loadAttachments(itemId: taskId)
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -744,9 +792,10 @@ struct TaskEditorView: View {
         do {
             switch mode {
             case .create, .createOn, .createAt, .createIn, .naturalLanguage, .fromStickyNote:
-                _ = try await session.api.request(
+                let created = try await session.api.request(
                     "/workspaces/\(workspaceId)/projects/\(projectId)/items", method: "POST", body: payload(), response: ItemResponse.self
                 )
+                try await uploadPending(itemId: created.id)
             case let .edit(task):
                 let ownershipChanged = workspaceId != task.workspaceId || projectId != task.projectId
                 let update = ItemUpdatePayload(
@@ -768,12 +817,100 @@ struct TaskEditorView: View {
                     body: update,
                     response: ItemResponse.self
                 )
+                try await uploadPending(itemId: task.id)
             }
             onSaved()
             ScreenNotificationManager.shared.scheduleDidChange(api: session.api)
             dismiss()
         } catch { errorMessage = error.localizedDescription }
         isSaving = false
+    }
+
+    private func consumePicker(_ items: [PhotosPickerItem]) async {
+        let remaining = FilesAPI.maxItemBindings - attachments.count - pendingMedia.count
+        guard remaining > 0 else {
+            errorMessage = "每个任务最多 20 个附件"
+            pickerItems = []
+            return
+        }
+        for item in items.prefix(remaining) {
+            let kind = FilesAPI.kind(for: item.supportedContentTypes)
+            guard let imported = try? await item.loadTransferable(type: ImportedPickerData.self) else { continue }
+            let data = imported.data
+            if let message = FilesAPI.validate(data, kind: kind) {
+                errorMessage = message
+                continue
+            }
+            let filename = kind == "video" ? "video.mp4" : "image.jpg"
+            let mime = kind == "video" ? "video/mp4" : "image/jpeg"
+            if isEditing, case let .edit(task) = mode {
+                do {
+                    let uploaded = try await session.files.upload(
+                        data: data,
+                        filename: filename,
+                        mimeType: mime,
+                        kind: kind,
+                        workspaceId: workspaceId.isEmpty ? task.workspaceId : workspaceId,
+                        projectId: projectId.isEmpty ? task.projectId : projectId,
+                        itemId: task.id
+                    )
+                    attachments.append(uploaded)
+                    await cacheThumb(uploaded)
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            } else {
+                pendingMedia.append(PendingTaskMedia(kind: kind, filename: filename, mimeType: mime, data: data))
+            }
+        }
+        pickerItems = []
+    }
+
+    private func uploadPending(itemId: String) async throws {
+        guard !pendingMedia.isEmpty else { return }
+        for media in pendingMedia {
+            _ = try await session.files.upload(
+                data: media.data,
+                filename: media.filename,
+                mimeType: media.mimeType,
+                kind: media.kind,
+                workspaceId: workspaceId,
+                projectId: projectId,
+                itemId: itemId
+            )
+        }
+        pendingMedia = []
+    }
+
+    private func loadAttachments(itemId: String) async {
+        do {
+            attachments = try await session.files.listForItem(
+                workspaceId: workspaceId,
+                projectId: projectId,
+                itemId: itemId
+            )
+            for file in attachments {
+                await cacheThumb(file)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func cacheThumb(_ file: FileOut) async {
+        let path = file.kind == "video" ? (file.posterPath ?? file.contentPath) : (file.thumbPath ?? file.contentPath)
+        guard let data = try? await session.files.download(path: path) else { return }
+        attachmentThumbs[file.id] = data
+    }
+
+    private func deleteAttachment(_ file: FileOut) async {
+        do {
+            try await session.files.delete(id: file.id)
+            attachments.removeAll { $0.id == file.id }
+            attachmentThumbs[file.id] = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func payload() -> ItemPayload {
@@ -1012,6 +1149,63 @@ private func filterTaskMembers(_ users: [AssignableUser], query: String) -> [Ass
     return users.filter {
         $0.displayName.localizedCaseInsensitiveContains(value)
             || $0.email.localizedCaseInsensitiveContains(value)
+    }
+}
+
+private struct ImportedPickerData: Transferable {
+    let data: Data
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(importedContentType: .image) { ImportedPickerData(data: $0) }
+        DataRepresentation(importedContentType: .movie) { ImportedPickerData(data: $0) }
+        DataRepresentation(importedContentType: .mpeg4Movie) { ImportedPickerData(data: $0) }
+        DataRepresentation(importedContentType: .quickTimeMovie) { ImportedPickerData(data: $0) }
+        DataRepresentation(importedContentType: .data) { ImportedPickerData(data: $0) }
+    }
+}
+
+private struct PendingTaskMedia: Identifiable {
+    let id = UUID()
+    let kind: String
+    let filename: String
+    let mimeType: String
+    let data: Data
+}
+
+private struct TaskAttachmentThumb: View {
+    let title: String
+    let isVideo: Bool
+    let data: Data?
+    let onDelete: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let data, let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
+                        Color(.secondarySystemFill)
+                        Image(systemName: isVideo ? "video.fill" : "photo")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .frame(width: 72, height: 72)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .black.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .offset(x: 4, y: -4)
+            .accessibilityLabel("删除 \(title)")
+        }
     }
 }
 

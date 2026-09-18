@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     photon_base_url: str = "https://photon.komoot.io"
     photon_user_agent: str = "Timia/core-service"
     photon_timeout_seconds: float = 3.0
+    # Empty base skips notify (local tests / file-service down).
+    file_service_base: str = ""
+    file_internal_token: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:
