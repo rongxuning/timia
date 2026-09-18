@@ -8,6 +8,51 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Timia"].waitForExistence(timeout: 5))
     }
 
+    /// Regression for tap-to-speak instant quit (layout feedback / cold mic route).
+    /// If the process dies on mic tap, subsequent queries fail — that is the signal.
+    func testVoiceMicTapDoesNotTerminateApp() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        addUIInterruptionMonitor(withDescription: "mic-or-speech-permission") { alert in
+            let allowLabels = ["允许", "好", "Allow", "OK", "允许麦克风", "允许语音识别"]
+            for label in allowLabels where alert.buttons[label].exists {
+                alert.buttons[label].tap()
+                return true
+            }
+            if alert.buttons.firstMatch.exists {
+                alert.buttons.firstMatch.tap()
+                return true
+            }
+            return false
+        }
+
+        let login = app.buttons["登录"]
+        XCTAssertTrue(login.waitForExistence(timeout: 5))
+        login.tap()
+
+        let voiceInput = app.buttons["schedule-voice-input"]
+        XCTAssertTrue(voiceInput.waitForExistence(timeout: 8))
+        voiceInput.tap()
+        // Nudge the interruption monitor if a system permission sheet appeared.
+        app.tap()
+
+        XCTAssertTrue(
+            app.buttons["schedule-voice-input"].waitForExistence(timeout: 4),
+            "App terminated or voice control disappeared after mic tap"
+        )
+        XCTAssertTrue(
+            element("schedule-bottom-controls", in: app).waitForExistence(timeout: 2),
+            "Bottom bar disappeared after mic tap (possible layout crash)"
+        )
+        XCTAssertGreaterThan(
+            element("schedule-bottom-controls", in: app).frame.midY,
+            app.frame.height * 0.75,
+            "Bottom bar drifted mid-screen after mic tap"
+        )
+    }
+
     func testScheduleRedesignModes() {
         let app = XCUIApplication()
         app.launchArguments.append("-ui-testing")

@@ -47,12 +47,19 @@ final class StickyNoteSpeechRecognizer {
 
     private func activateAudioSession() throws {
         let session = AVAudioSession.sharedInstance()
+        // Prefer a known sample rate before creating AVAudioEngine — a 0 Hz
+        // route makes `inputNode` / `installTap` throw an uncaught NSException.
         try session.setCategory(
             .playAndRecord,
             mode: .measurement,
-            options: [.duckOthers, .defaultToSpeaker]
+            options: [.duckOthers, .defaultToSpeaker, .allowBluetooth]
         )
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        try? session.setPreferredSampleRate(48_000)
+        try? session.setPreferredIOBufferDuration(0.005)
+        try session.setActive(true)
+        guard session.isInputAvailable else {
+            throw RecognizerError.invalidAudioFormat
+        }
     }
 
     private func removeTapIfNeeded() {
@@ -108,8 +115,20 @@ final class StickyNoteSpeechRecognizer {
 
         let engine = AVAudioEngine()
         audioEngine = engine
-        let inputNode = engine.inputNode
 
+        // Accessing `inputNode` before the route is live can NSException-crash
+        // the process (Swift `do/catch` cannot catch it). Wait for a usable
+        // hardware format first via a short settle, then read the node once.
+        try? await Task.sleep(for: .milliseconds(50))
+        guard self.sessionID == sessionID else {
+            if audioEngine === engine {
+                recognitionRequest = nil
+                tearDownEngine()
+            }
+            return
+        }
+
+        let inputNode = engine.inputNode
         guard await waitForValidFormat(on: inputNode, sessionID: sessionID) != nil else {
             guard self.sessionID == sessionID else { return }
             recognitionRequest = nil
