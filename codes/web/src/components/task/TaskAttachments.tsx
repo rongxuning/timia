@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   deleteFile,
   fetchFileBlob,
@@ -115,12 +116,17 @@ export function TaskAttachments({
     };
   }, [remote, token]);
 
-  function closePreview() {
+  const closePreview = useCallback(() => {
     setPreview((prev) => {
       if (prev?.owned) URL.revokeObjectURL(prev.url);
       return null;
     });
-  }
+  }, []);
+
+  useEscapeDismiss({
+    open: preview != null,
+    onDismiss: closePreview,
+  });
 
   async function openRemotePreview(file: FileOut) {
     if (!token) return;
@@ -320,7 +326,15 @@ export function TaskAttachments({
           aria-label={preview.name}
           onClick={closePreview}
         >
-          <button type="button" className="absolute right-4 top-4 text-white" aria-label={t("closePreview")}>
+          <button
+            type="button"
+            className="absolute right-4 top-4 text-white"
+            aria-label={t("closePreview")}
+            onClick={(event) => {
+              event.stopPropagation();
+              closePreview();
+            }}
+          >
             ×
           </button>
           {preview.kind === "video" ? (
