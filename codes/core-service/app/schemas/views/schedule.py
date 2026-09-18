@@ -22,10 +22,23 @@ class ScheduleTaskItemOut(BaseModel):
     assignee: UserBrief | None = None
     participants: list[UserBrief] = Field(default_factory=list)
     location: str | None = None
+    location_lat: float | None = None
+    location_lng: float | None = None
     workspace_id: str
     workspace_name: str
     project_id: str
     project_name: str
+
+
+class ScheduleMapItemOut(ScheduleTaskItemOut):
+    location_lat: float
+    location_lng: float
+
+
+class ScheduleMapViewOut(BaseModel):
+    items: list[ScheduleMapItemOut] = Field(default_factory=list)
+    total: int = 0
+    truncated: bool = False
 
 
 class CalendarDayOut(BaseModel):

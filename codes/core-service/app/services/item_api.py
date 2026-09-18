@@ -1,6 +1,7 @@
 import uuid
 from calendar import monthrange
 from datetime import date, datetime, timedelta, timezone
+from typing import NamedTuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, update
@@ -49,6 +50,67 @@ def validate_undated_item_status(
     """Undated tasks cannot leave 未开始 (todo)."""
     if start_at is None and end_at is None and item_status != "todo":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="undated_requires_todo")
+
+
+LOCATION_MAX_LEN = 500
+
+
+class LocationValue(NamedTuple):
+    location: str | None
+    location_lat: float | None
+    location_lng: float | None
+
+
+def _normalize_location_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if len(stripped) > LOCATION_MAX_LEN:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_too_long")
+    return stripped
+
+
+def _validate_coordinate_pair(lat: float | None, lng: float | None) -> tuple[float | None, float | None]:
+    if lat is None and lng is None:
+        return None, None
+    if lat is None or lng is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_location_coordinates")
+    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_location_coordinates")
+    return lat, lng
+
+
+def resolve_item_location(
+    *,
+    current: LocationValue,
+    location: str | None,
+    location_lat: float | None,
+    location_lng: float | None,
+    fields_set: set[str],
+) -> LocationValue:
+    """Apply PATCH/create location fields. lat/lng must be paired; coords require a name."""
+    loc_set = "location" in fields_set
+    lat_set = "location_lat" in fields_set
+    lng_set = "location_lng" in fields_set
+    if not loc_set and not lat_set and not lng_set:
+        return current
+
+    next_name = _normalize_location_name(location) if loc_set else current.location
+    if lat_set != lng_set:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_location_coordinates")
+    if lat_set and lng_set:
+        next_lat, next_lng = _validate_coordinate_pair(location_lat, location_lng)
+    else:
+        next_lat, next_lng = current.location_lat, current.location_lng
+
+    if loc_set and next_name is None:
+        next_lat, next_lng = None, None
+
+    if next_lat is not None and next_name is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_name_required")
+    return LocationValue(location=next_name, location_lat=next_lat, location_lng=next_lng)
 
 
 def materialize_repeat_occurrences(
@@ -245,4 +307,6 @@ def build_item_out(db: Session, i: Item) -> ItemOut:
         assignee=b(i.assignee_user_id),
         participants=participants,
         location=i.location,
+        location_lat=i.location_lat,
+        location_lng=i.location_lng,
     )

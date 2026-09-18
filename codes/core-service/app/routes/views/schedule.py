@@ -13,6 +13,7 @@ from app.schemas.views.schedule import (
     NaturalLanguageParseRequest,
     ScheduleCalendarViewOut,
     ScheduleFutureViewOut,
+    ScheduleMapViewOut,
     ScheduleOverdueViewOut,
     SchedulePriorityViewOut,
     ScheduleSwimlaneViewOut,
@@ -41,6 +42,7 @@ from app.services.views.schedule_layout import (
     build_swimlane_view,
     build_undated_view,
 )
+from app.services.views.schedule_map import build_map_view, parse_map_statuses
 
 router = APIRouter(prefix="/views/schedule", tags=["views-schedule"])
 
@@ -114,6 +116,38 @@ def schedule_calendar_view(
         )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/map", response_model=ScheduleMapViewOut)
+def schedule_map_view(
+    scope: str = Query("me", pattern="^(me|project)$"),
+    workspace_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    statuses: list[str] | None = Query(None, alias="status"),
+    limit: int = Query(500, ge=1, le=500),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if scope != "me":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="map_scope_unsupported")
+    if project_id is not None and workspace_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="project_id_requires_workspace_id",
+        )
+    try:
+        parsed_statuses = parse_map_statuses(statuses)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    resolved = _resolve_scope(scope, workspace_id, project_id)
+    items = list_schedule_items(db, user, resolved)
+    return build_map_view(
+        items,
+        statuses=parsed_statuses,
+        workspace_id=str(workspace_id) if workspace_id else None,
+        project_id=str(project_id) if project_id else None,
+        limit=limit,
+    )
 
 
 @router.post("/natural-language/parse", response_model=NaturalLanguageParseOut)
