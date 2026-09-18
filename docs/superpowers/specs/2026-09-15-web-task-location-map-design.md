@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-15  
 **Scope:** Web 任务创建/编辑抽屉的地址搜索；`/my/schedule` 地图视图（标记、状态筛选、工作空间/项目筛选）  
-**Out of scope:** iOS 地址搜索与 iOS 地图；计划槽位（plan slot）地点结构化；自然语言解析自动地理编码；在地图上新建任务；导航/路线；项目页 `ScheduleBoard` 内嵌地图；腾讯/高德/Nominatim 等其它搜索供应商
+**Out of scope:** iOS 地址搜索与 iOS 地图；计划槽位（plan slot）地点结构化；自然语言解析自动地理编码；在地图上新建任务；导航/路线；项目页 `ScheduleBoard` 内嵌地图；腾讯/高德/Nominatim 等其它搜索供应商；`codes/map-server` 或自建 Photon/瓦片服务
 
 ## Goal
 
@@ -21,6 +21,7 @@
 | 无坐标的纯文本地点 | 仍允许（「会议室 A」）；**不**出现在地图上 |
 | 地址搜索 | 经 core-service 代理，前端不直连地理编码商 |
 | 搜索供应商 | **只使用 Photon**（Komoot 公共实例 `photon.komoot.io`，免 Key）。不做供应商切换，不接腾讯/高德/Nominatim |
+| 进程拆分 | **不开 `codes/map-server`**。地图 UI 在 web；地点读写与 `/geo/places` 在 core-service。自建 Photon 是可选基础设施，不是 Timia 业务模块 |
 | 地图渲染 | 复用现有 MapLibre + OSM 栅格底图（与 `WorkoutRouteMap` 同一套） |
 | 日程页形态 | 主栏 **日历 \| 地图** 切换，不是日历日/周/月/年的第五种 mode |
 | 地图数据 | 新只读视图 `GET /views/schedule/map`；只返回有坐标的任务 |
@@ -41,6 +42,7 @@
 | 公共 Nominatim 作为默认搜索 | 使用政策明确不适合 autocomplete；全应用合计 1 次/秒；国内 POI 弱 |
 | 高德输入提示作为免费生产方案 | 个人认证基础搜索（含输入提示）月配额约 5,000 次，打字搜索会很快打满 |
 | 一期同时做腾讯/高德等国内供应商 | 已确认 Photon 够用；多供应商会引入 Key、GCJ-02 转换和配置分叉 |
+| 新增 `codes/map-server`（或 notification-service 那种并列进程） | 地图没有独立协议/鉴权模型；自建 Photon 是 Java+OpenSearch+OSM 数据，不是 Timia 业务代码。硬塞进现有 2GB 级轻量云会挤垮 web/core |
 | 日程页用地图 SDK（高德/Google）替换 MapLibre | 健康路线图已用 MapLibre+OSM；两套底图与两套坐标会分叉 |
 | 把「地图」做成日历第五个 mode | 日历 mode 绑定 `anchor` + 日/周/月/年布局；地图按空间筛选，不是按日期格子 |
 | 地图永远堆在日历下方 | 「我的日程」已经是 待办栏 + 日历 + 四象限 + 泳道，再加全高地图不可用 |
@@ -230,7 +232,27 @@ GET https://photon.komoot.io/api?q={query}&limit={limit}&lang=zh
 
 底图继续用 OSM 栅格（健康路线图已在用，需 © OpenStreetMap）。
 
-其它免费供应商（腾讯、高德、Geoapify、公共 Nominatim 等）只作背景对比，**不实现**。公共实例长期不稳时，后续可改为自建 Photon（同一协议，只改 `photon_base_url`）。
+其它免费供应商（腾讯、高德、Geoapify、公共 Nominatim 等）只作背景对比，**不实现**。
+
+### 4.2.1 要不要单独开 map-server：**不要**
+
+生产现有进程是 `web` / `core-service` / `mcp-server` / `db` / `nginx`（`docker-compose.prod.yml`）。`mcp-server` 独立是因为协议是 MCP、鉴权是 PAT，并且规定不进 Postgres。地图功能两头都不符合。
+
+| 能力 | 放哪 | 原因 |
+|------|------|------|
+| 日历/地图切换、标记、筛选、PlaceSearchField | `codes/web` | 已有 MapLibre（`WorkoutRouteMap`） |
+| `location_lat/lng`、`GET /views/schedule/map`、`GET /geo/places` | `codes/core-service` | 任务领域 + 登录鉴权 + 限流；与 MiniMax 一样用 httpx 调外部 HTTP |
+| Photon 公共实例 | 进程外 `https://photon.komoot.io` | 免运维、免数据盘 |
+| 自建 Photon（远期） | **独立机器或独立 compose profile**，core-service 只改 `photon_base_url` | Photon 是 Java + OpenSearch + OSM 索引，不是 FastAPI 业务 |
+
+自建 Photon **不能**塞进当前 timia.online 那台轻量云：官方建议生产规格约 2GB 起，还要编 Next.js；Photon 即便只要中国范围，内存和磁盘也是数 GB 到数十 GB，和业务进程抢资源。
+
+因此：
+
+- **不要**建 `codes/map-server`。
+- **不要**把 Photon 做成 `docker-compose.prod.yml` 的必选服务。
+- 远期若公共实例长期 502：另开一台（或独立 compose overlay）跑官方 Photon 镜像，把 `PHOTON_BASE_URL` 指过去。协议不变，core-service 的 `/geo/places` 不用搬家。
+- 底图继续由浏览器拉 OSM 栅格。只有 OSM 瓦片也被限、必须自建瓦片时，才考虑 nginx/tile 缓存这类**基础设施**，仍然不是 Timia 业务模块。
 
 ### 4.3 抽屉交互
 
@@ -454,7 +476,8 @@ class ScheduleMapViewOut(BaseModel):
 - 按日历当前月过滤地图。
 - 项目页地图（筛选已锁死单项目，复用 `ScheduleMapView` 即可，不在本期）。
 - MCP tools 增加 lat/lng 参数（OpenAPI 加法后旧 tool 仍可用；需要时再扩签名）。
-- 腾讯 / 高德 / Nominatim 等其它搜索供应商；GCJ-02 转换。公共 Photon 不稳时只考虑自建 Photon（改 `photon_base_url`）。
+- 腾讯 / 高德 / Nominatim 等其它搜索供应商；GCJ-02 转换。
+- `codes/map-server`。公共 Photon 不稳时只考虑**另机自建 Photon**（改 `photon_base_url`），不把 geocoder 写进 Timia 仓库当业务包。
 
 ---
 
