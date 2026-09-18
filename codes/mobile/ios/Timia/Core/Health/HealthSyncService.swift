@@ -752,11 +752,11 @@ struct HealthSyncService {
         Self.storeLastSyncedAt(end)
     }
 
-    static func iso(_ date: Date) -> String {
+    nonisolated static func iso(_ date: Date) -> String {
         date.ISO8601Format()
     }
 
-    static func parseISO(_ raw: String) -> Date? {
+    nonisolated static func parseISO(_ raw: String) -> Date? {
         if let date = try? Date(raw, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)) {
             return date
         }

@@ -53,6 +53,43 @@ struct HealthSyncRun: Decodable, Sendable, Identifiable {
     var sourceLabel: String {
         source == "background" ? "后台" : "手动"
     }
+
+    /// True when this run uploaded or deleted something worth keeping in history.
+    var hasSyncedWorkoutData: Bool {
+        workoutCount > 0 || routeCount > 0 || upserted > 0
+    }
+
+    var syncTimeLabel: String {
+        let raw = finishedAt ?? startedAt
+        guard let date = HealthSyncService.parseISO(raw) else { return raw }
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    /// Workout envelope time range stored in `fromAt`/`toAt` when the run had sessions.
+    var trainingRecordTimeLabel: String? {
+        guard workoutCount > 0 || routeCount > 0 else { return nil }
+        let fromDate = fromAt.flatMap(HealthSyncService.parseISO)
+        let toDate = toAt.flatMap(HealthSyncService.parseISO)
+        switch (fromDate, toDate) {
+        case let (from?, to?):
+            if Calendar.current.isDate(from, inSameDayAs: to) {
+                let day = from.formatted(date: .abbreviated, time: .omitted)
+                let start = from.formatted(date: .omitted, time: .shortened)
+                let end = to.formatted(date: .omitted, time: .shortened)
+                if start == end { return "\(day) \(start)" }
+                return "\(day) \(start)–\(end)"
+            }
+            let start = from.formatted(date: .abbreviated, time: .shortened)
+            let end = to.formatted(date: .abbreviated, time: .shortened)
+            return "\(start)–\(end)"
+        case let (from?, nil):
+            return from.formatted(date: .abbreviated, time: .shortened)
+        case let (nil, to?):
+            return to.formatted(date: .abbreviated, time: .shortened)
+        case (nil, nil):
+            return nil
+        }
+    }
 }
 
 struct HealthSyncRunIn: Encodable, Sendable {
