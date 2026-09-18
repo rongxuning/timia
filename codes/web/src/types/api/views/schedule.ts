@@ -19,6 +19,8 @@ export type ScheduleTaskItem = {
   assignee?: TaskUserBrief | null;
   participants?: TaskUserBrief[];
   location?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
   workspace_id: string;
   workspace_name: string;
   project_id: string;

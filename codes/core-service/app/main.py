@@ -12,6 +12,7 @@ from app.routes.plans import notification_router as plan_notifications_router
 from app.routes.plans import router as plans_router
 from app.routes.plans import subscription_router as plan_subscriptions_router
 from app.routes.projects import router as projects_router
+from app.routes.health import router as health_router
 from app.routes.geo import router as geo_router
 from app.routes.sticky_notes import router as sticky_notes_router
 from app.routes.users import router as users_router

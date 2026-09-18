@@ -156,6 +156,40 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     responseJson: { display_name: "string", health_percent: "number | null", task_total: "number" },
   },
   {
+    method: "GET",
+    path: "/views/schedule/map",
+    name: "日程地图视图（带坐标任务）",
+    requestJson: {
+      headers: authBearer,
+      query: {
+        scope: "me",
+        status: "todo | doing | done | archived (repeatable, default todo+doing)",
+        workspace_id: "uuid?",
+        project_id: "uuid? (requires workspace_id)",
+        limit: "number? (1-500, default 500)",
+      },
+      jsonBody: null,
+    },
+    responseJson: {
+      items: "ScheduleMapItem[] — ScheduleTaskItem + location_lat/lng",
+      total: "number",
+      truncated: "boolean",
+    },
+  },
+  {
+    method: "GET",
+    path: "/geo/places",
+    name: "地点搜索（Photon 代理）",
+    requestJson: {
+      headers: authBearer,
+      query: { q: "string (1-200)", limit: "number? (1-10, default 8)" },
+      jsonBody: null,
+    },
+    responseJson: {
+      items: [{ name: "string", address: "string | null", lat: "number", lng: "number" }],
+    },
+  },
+  {
     method: "POST",
     path: "/views/schedule/natural-language/parse",
     name: "自然语言 → 任务草稿（AI 解析）",
@@ -256,6 +290,9 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     responseJson: {
       title: "string",
       completed_at: "string (iso datetime) | null",
+      location: "string | null",
+      location_lat: "number | null",
+      location_lng: "number | null",
       comments: "ItemDetailComment[]",
     },
   },
@@ -1177,6 +1214,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         assignee: "{ id, display_name } | null",
         participants: "UserBrief[]",
         location: "string | null",
+        location_lat: "number | null",
+        location_lng: "number | null",
       },
     },
   },
@@ -1200,6 +1239,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         assignee_user_id: "string | null",
         participant_user_ids: "string[]",
         location: "string | null",
+        location_lat: "number | null",
+        location_lng: "number | null",
       },
     },
     responseJson: {
@@ -1217,6 +1258,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       assignee: "UserBrief | null",
       participants: "UserBrief[]",
       location: "string | null",
+      location_lat: "number | null",
+      location_lng: "number | null",
     },
   },
   {
@@ -1239,6 +1282,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       assignee: "UserBrief | null",
       participants: "UserBrief[]",
       location: "string | null",
+      location_lat: "number | null",
+      location_lng: "number | null",
     },
   },
   {
@@ -1262,6 +1307,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
         assignee_user_id: "string | null",
         participant_user_ids: "string[] | null",
         location: "string | null",
+        location_lat: "number | null",
+        location_lng: "number | null",
       },
     },
     responseJson: {
@@ -1279,6 +1326,8 @@ export const API_CATALOG: ApiCatalogEntry[] = [
       assignee: "UserBrief | null",
       participants: "UserBrief[]",
       location: "string | null",
+      location_lat: "number | null",
+      location_lng: "number | null",
     },
   },
   {

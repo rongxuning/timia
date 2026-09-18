@@ -2,14 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PageMain } from "@/components/layout";
 import { ScheduleBoard } from "@/components/schedule/ScheduleBoard";
+import { ScheduleMapView } from "@/components/schedule/ScheduleMapView";
 import { UndatedTaskList } from "@/components/schedule/UndatedTaskList";
 import { TaskDrawerWithComments, type TaskDrawerSaveContext } from "@/components/TaskDrawerWithComments";
 import { fetchScheduleUndated } from "@/lib/api/schedule-views";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { useTaskCreateDrawer } from "@/components/layout/TaskCreateDrawerContext";
+import {
+  readScheduleBoardMode,
+  writeScheduleBoardMode,
+  type ScheduleBoardMode,
+} from "@/lib/scheduleMapFilters";
 import type {
   PriorityKey,
   ScheduleTaskItem,
@@ -20,8 +27,10 @@ import { canClearScheduleByDrop } from "@/components/schedule/undatedTasks";
 
 export default function MySchedulePage() {
   const router = useRouter();
+  const t = useTranslations("scheduleMap");
   const [authReady, setAuthReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [boardMode, setBoardMode] = useState<ScheduleBoardMode>("calendar");
 
   const scope = useMemo(() => ({ scope: "me" as const }), []);
   const [undatedItems, setUndatedItems] = useState<ScheduleTaskItem[] | null>(null);
@@ -44,11 +53,15 @@ export default function MySchedulePage() {
   } = useTaskCreateDrawer();
 
   useEffect(() => {
-    const t = getToken();
-    setToken(t);
+    const tkn = getToken();
+    setToken(tkn);
     setAuthReady(true);
-    if (!t) router.push("/login");
+    if (!tkn) router.push("/login");
   }, [router]);
+
+  useEffect(() => {
+    setBoardMode(readScheduleBoardMode());
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -189,24 +202,63 @@ export default function MySchedulePage() {
           />
         </aside>
 
-        <div className="min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain">
-          <ScheduleBoard
-            token={token}
-            scope={scope}
-            showProjectContext
-            showAssigneeAvatar
-            refreshNonce={scheduleRefreshNonce}
-            onItemClick={openDrawer}
-            onCreateInColumn={(status) => openTaskCreate(status)}
-            onCreateInPriority={openTaskCreateInPriority}
-            onCreateOnDate={openTaskCreateOnDate}
-            extraItems={undatedItems ?? []}
-            extraDragItemId={undatedDragItemId}
-            onDraggingItemChange={updateDraggingItem}
-            onTasksMutated={() => setScheduleRefreshNonce((n) => n + 1)}
-            calendarFirst
-            simplifiedSectionHeaders
-          />
+        <div
+          className={
+            boardMode === "map"
+              ? "flex min-h-[60vh] min-w-0 flex-col gap-2 lg:h-full lg:min-h-0 lg:overflow-hidden"
+              : "min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
+          }
+        >
+          <div
+            className="mb-2 inline-flex self-start rounded-xl border border-border-subtle bg-white p-0.5"
+            role="group"
+            aria-label={t("boardModeAria")}
+          >
+            {(["calendar", "map"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={[
+                  "rounded-lg px-3 py-1.5 text-sm transition-colors",
+                  boardMode === mode
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "text-text-secondary hover:bg-surface-container-lowest",
+                ].join(" ")}
+                aria-pressed={boardMode === mode}
+                onClick={() => {
+                  setBoardMode(mode);
+                  writeScheduleBoardMode(mode);
+                }}
+              >
+                {mode === "calendar" ? t("calendar") : t("map")}
+              </button>
+            ))}
+          </div>
+          {boardMode === "map" ? (
+            <ScheduleMapView
+              token={token}
+              refreshNonce={scheduleRefreshNonce}
+              onItemClick={openDrawer}
+            />
+          ) : (
+            <ScheduleBoard
+              token={token}
+              scope={scope}
+              showProjectContext
+              showAssigneeAvatar
+              refreshNonce={scheduleRefreshNonce}
+              onItemClick={openDrawer}
+              onCreateInColumn={(status) => openTaskCreate(status)}
+              onCreateInPriority={openTaskCreateInPriority}
+              onCreateOnDate={openTaskCreateOnDate}
+              extraItems={undatedItems ?? []}
+              extraDragItemId={undatedDragItemId}
+              onDraggingItemChange={updateDraggingItem}
+              onTasksMutated={() => setScheduleRefreshNonce((n) => n + 1)}
+              calendarFirst
+              simplifiedSectionHeaders
+            />
+          )}
         </div>
       </div>
 
