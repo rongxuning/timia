@@ -80,6 +80,7 @@ struct ScheduleHomeView: View {
     @State private var futureTasks: [ScheduleTask] = []
     @State private var futureHasMore = false
     @State private var futureTotal = 0
+    @State private var undatedTasks: [ScheduleTask] = []
     @AppStorage("schedule.todoPeopleFilter") private var todoPeopleFilterRaw = TodoPeopleFilter.all.rawValue
     @State private var updatingTodoTaskIds: Set<String> = []
     @State private var updatingCalendarTaskIds: Set<String> = []
@@ -139,6 +140,7 @@ struct ScheduleHomeView: View {
                             overdueHasMore: overdueHasMore,
                             futureTasks: futureTasks,
                             futureHasMore: futureHasMore,
+                            undatedTasks: undatedTasks,
                             loadingStatuses: loadingTodoStatuses,
                             onLoadMore: { status in
                                 Task { await loadMoreTodo(status) }
@@ -881,6 +883,13 @@ struct ScheduleHomeView: View {
         ]
     }
 
+    private func undatedQuery() -> [URLQueryItem] {
+        [
+            URLQueryItem(name: "scope", value: "me"),
+            todoInvolvementQuery()
+        ]
+    }
+
     private func loadTodo(force _: Bool = false) async {
         let requestedDate = selectedDate
         let requestedFilter = todoPeopleFilterRaw
@@ -902,9 +911,15 @@ struct ScheduleHomeView: View {
                 query: todoBucketQuery(limit: 5, offset: 0),
                 response: ScheduleOverdue.self
             )
+            async let undatedResponse = session.api.request(
+                "/views/schedule/undated",
+                query: undatedQuery(),
+                response: ScheduleUndated.self
+            )
             let response = try await swimlaneResponse
             let overdue = try await overdueResponse
             let future = try await futureResponse
+            let undated = try await undatedResponse
             guard Calendar.current.isDate(requestedDate, inSameDayAs: selectedDate),
                   requestedFilter == todoPeopleFilterRaw else { return }
             todoColumns = response.columns
@@ -916,6 +931,7 @@ struct ScheduleHomeView: View {
             futureTasks = future.items
             futureHasMore = future.hasMore
             futureTotal = future.total
+            undatedTasks = undated.items
         } catch {
             showTip(error.localizedDescription)
         }
@@ -1060,6 +1076,7 @@ struct ScheduleHomeView: View {
         todoTotals[newStatus] = (todoTotals[newStatus] ?? 0) + 1
         syncOverdueTask(task)
         syncFutureTask(task)
+        syncUndatedTask(task)
     }
 
     private func replaceTodoTask(_ task: ScheduleTask) {
@@ -1068,10 +1085,12 @@ struct ScheduleHomeView: View {
             todoColumns[status]?[index] = task
             syncOverdueTask(task)
             syncFutureTask(task)
+            syncUndatedTask(task)
             return
         }
         syncOverdueTask(task)
         syncFutureTask(task)
+        syncUndatedTask(task)
     }
 
     private func syncOverdueTask(_ task: ScheduleTask) {
@@ -1098,6 +1117,18 @@ struct ScheduleHomeView: View {
         guard index != nil else { return }
         futureTasks.removeAll { $0.id == task.id }
         futureTotal = max(futureTotal - 1, futureTasks.count)
+    }
+
+    private func syncUndatedTask(_ task: ScheduleTask) {
+        let index = undatedTasks.firstIndex(where: { $0.id == task.id })
+        if isTodoTaskUndated(task), task.status == "todo" || task.status == "doing" {
+            if let index {
+                undatedTasks[index] = task
+            }
+            return
+        }
+        guard index != nil else { return }
+        undatedTasks.removeAll { $0.id == task.id }
     }
 
     private func applyTodoResponse(_ response: ItemResponse, fallback: ScheduleTask) {
@@ -3681,6 +3712,7 @@ private struct TodoScheduleView: View {
     let overdueHasMore: Bool
     let futureTasks: [ScheduleTask]
     let futureHasMore: Bool
+    let undatedTasks: [ScheduleTask]
     let loadingStatuses: Set<String>
     let onLoadMore: (String) -> Void
     let onLoadMoreOverdue: () -> Void
@@ -3710,43 +3742,57 @@ private struct TodoScheduleView: View {
             symbol: "arrow.right.circle",
             color: Color(hex: "#64748B")
         ),
+        SectionStyle(
+            id: "undated",
+            label: "待启动",
+            hint: "（无时间）",
+            symbol: "play.circle",
+            color: Color(hex: "#F59E0B")
+        ),
         SectionStyle(id: "archived", label: "已归档", hint: nil, symbol: "archivebox.fill", color: TaskStatusPalette.archived)
     ]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                peopleFilterBar
+        VStack(spacing: 0) {
+            peopleFilterBar
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(TimiaTheme.canvas)
+                .zIndex(1)
 
-                ForEach(sections) { style in
-                    let allTasks = tasks(for: style.id)
-                    let visible = displayedTasks(allTasks, status: style.id)
-                    taskSection(
-                        id: style.id,
-                        label: style.label,
-                        hint: style.hint,
-                        symbol: style.symbol,
-                        color: style.color,
-                        tasks: visible,
-                        total: sectionTotal(style.id, visibleCount: allTasks.count),
-                        visibleCount: allTasks.count,
-                        loadMoreStatus: style.id
-                    )
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(sections) { style in
+                        let allTasks = tasks(for: style.id)
+                        let visible = displayedTasks(allTasks, status: style.id)
+                        taskSection(
+                            id: style.id,
+                            label: style.label,
+                            hint: style.hint,
+                            symbol: style.symbol,
+                            color: style.color,
+                            tasks: visible,
+                            total: sectionTotal(style.id, visibleCount: allTasks.count),
+                            visibleCount: allTasks.count,
+                            loadMoreStatus: style.id
+                        )
+                    }
+
+                    Color.clear
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                        .contentShape(Rectangle())
                 }
-
-                Color.clear
-                    .frame(maxWidth: .infinity, minHeight: 140)
-                    .contentShape(Rectangle())
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 16)
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .contentShape(Rectangle())
+            .simultaneousGesture(dateSwipeGesture)
         }
-        .scrollIndicators(.hidden)
         .background(TimiaTheme.canvas)
-        .scrollDismissesKeyboard(.interactively)
-        .contentShape(Rectangle())
-        .simultaneousGesture(dateSwipeGesture)
         .onChange(of: ScheduleFormat.dayKey(selectedDate)) { _, _ in
             revealedCounts = [:]
         }
@@ -3778,6 +3824,8 @@ private struct TodoScheduleView: View {
             }
             Spacer(minLength: 0)
         }
+        .contentShape(Rectangle())
+        .simultaneousGesture(dateSwipeGesture)
         .accessibilityIdentifier("todo-people-filter")
     }
 
@@ -3905,6 +3953,8 @@ private struct TodoScheduleView: View {
             source = overdueTasks
         case "future":
             source = futureTasks
+        case "undated":
+            source = undatedTasks
         default:
             source = (columns[status] ?? []).filter { taskCoversLocalDay($0, on: selectedDate) }
         }
@@ -3917,6 +3967,8 @@ private struct TodoScheduleView: View {
             return max(visibleCount, overdueTasks.count)
         case "future":
             return max(visibleCount, futureTasks.count)
+        case "undated":
+            return visibleCount
         default:
             return max(visibleCount, totals[status] ?? 0)
         }
@@ -3934,6 +3986,8 @@ private struct TodoScheduleView: View {
             apiHasMore = overdueHasMore
         case "future":
             apiHasMore = futureHasMore
+        case "undated":
+            apiHasMore = false
         default:
             apiHasMore = status.map { hasMore[$0] == true } ?? false
         }
@@ -3954,6 +4008,8 @@ private struct TodoScheduleView: View {
                 onLoadMoreOverdue()
             case "future":
                 onLoadMoreFuture()
+            case "undated":
+                break
             default:
                 onLoadMore(status)
             }

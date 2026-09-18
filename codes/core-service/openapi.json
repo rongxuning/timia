@@ -6961,6 +6961,23 @@
             }
           },
           {
+            "name": "involvement",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(assignee|participant|any)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Involvement"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,

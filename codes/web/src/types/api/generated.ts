@@ -9381,6 +9381,7 @@ export interface operations {
                 scope?: string;
                 workspace_id?: string | null;
                 project_id?: string | null;
+                involvement?: string | null;
             };
             header?: {
                 authorization?: string | null;

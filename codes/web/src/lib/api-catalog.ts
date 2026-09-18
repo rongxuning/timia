@@ -106,8 +106,17 @@ export const API_CATALOG: ApiCatalogEntry[] = [
   {
     method: "GET",
     path: "/views/schedule/undated",
-    name: "未确认启动时间（无开始结束时间）",
-    requestJson: { headers: authBearer, query: { scope: "me | project", workspace_id: "uuid?", project_id: "uuid?" }, jsonBody: null },
+    name: "待启动任务（无开始结束时间）",
+    requestJson: {
+      headers: authBearer,
+      query: {
+        scope: "me | project",
+        workspace_id: "uuid?",
+        project_id: "uuid?",
+        involvement: "assignee | participant | any?",
+      },
+      jsonBody: null,
+    },
     responseJson: { items: [] },
   },
   {

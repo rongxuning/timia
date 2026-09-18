@@ -231,10 +231,11 @@ def schedule_undated_view(
     scope: str = Query("me", pattern="^(me|project)$"),
     workspace_id: uuid.UUID | None = None,
     project_id: uuid.UUID | None = None,
+    involvement: str | None = Query(None, pattern="^(assignee|participant|any)$"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    resolved = _resolve_scope(scope, workspace_id, project_id)
+    resolved = _resolve_scope(scope, workspace_id, project_id, involvement)
     items = list_schedule_items(db, user, resolved)
     return build_undated_view(items)
 
