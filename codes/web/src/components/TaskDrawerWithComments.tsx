@@ -95,6 +95,8 @@ const TASK_MEMBER_CHIP_REMOVE_CLASS =
 const TASK_MEMBER_FIELD_HEAD_CLASS = "flex h-6 items-center gap-2 min-w-0";
 const TASK_MEMBER_CHIPS_ROW_CLASS =
   "flex h-6 min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:thin]";
+const TASK_DRAWER_SCROLL_CLASS =
+  "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
 
 type RepeatKind = "none" | "daily" | "weekly" | "monthly";
 
@@ -1114,8 +1116,8 @@ export function TaskDrawerWithComments({
             <div
               className={
                 effectiveShowComments
-                  ? "flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6 border-b lg:border-b-0 lg:border-r border-border-subtle"
-                  : "flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-6"
+                  ? `flex-1 min-w-0 min-h-0 overflow-y-auto ${TASK_DRAWER_SCROLL_CLASS} px-6 py-6 border-b lg:border-b-0 lg:border-r border-border-subtle`
+                  : `flex-1 min-w-0 min-h-0 overflow-y-auto ${TASK_DRAWER_SCROLL_CLASS} px-6 py-6`
               }
             >
               <form onSubmit={onSaveTask} className="space-y-4">
@@ -1628,7 +1630,7 @@ export function TaskDrawerWithComments({
                   </button>
                 </div>
               </form>
-              <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+              <div className={`flex-1 min-h-0 overflow-y-auto ${TASK_DRAWER_SCROLL_CLASS} px-6 py-4`}>
                 {commentsLoading && (
                   <div className="text-caption text-neutral-muted">加载评论中…</div>
                 )}
