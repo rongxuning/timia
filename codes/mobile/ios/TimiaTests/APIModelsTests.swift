@@ -290,4 +290,44 @@ final class APIModelsTests: XCTestCase {
         XCTAssertEqual(value.thumbPath, "/files/file-1/content?variant=thumb")
         XCTAssertEqual(value.kind, "image")
     }
+
+    func testScheduleMapViewDecodesRequiredCoordinates() throws {
+        let json = """
+        {
+          "items": [{
+            "id": "task-1", "title": "咖啡馆会议", "color": "#FFFFFF", "status": "todo",
+            "priority": "3", "version": 2,
+            "start_at": "2026-09-18T06:00:00Z", "end_at": "2026-09-18T07:00:00Z",
+            "location": "星巴克", "location_lat": 31.2304, "location_lng": 121.4737,
+            "workspace_id": "workspace-1", "workspace_name": "产品研发",
+            "project_id": "project-1", "project_name": "iOS"
+          }],
+          "total": 1,
+          "truncated": false
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let value = try decoder.decode(ScheduleMapViewResponse.self, from: Data(json.utf8))
+        XCTAssertEqual(value.total, 1)
+        XCTAssertEqual(value.items.first?.locationLat, 31.2304, accuracy: 0.0001)
+        XCTAssertEqual(value.items.first?.asScheduleTask().title, "咖啡馆会议")
+    }
+
+    func testScheduleTaskDecodesWithoutCoordinates() throws {
+        let json = """
+        {
+          "id": "task-1", "title": "会议室 A", "color": "#FFFFFF", "status": "todo",
+          "version": 1, "location": "会议室 A",
+          "workspace_id": "workspace-1", "workspace_name": "产品研发",
+          "project_id": "project-1", "project_name": "iOS"
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let value = try decoder.decode(ScheduleTask.self, from: Data(json.utf8))
+        XCTAssertNil(value.locationLat)
+        XCTAssertNil(value.locationLng)
+        XCTAssertEqual(value.location, "会议室 A")
+    }
 }

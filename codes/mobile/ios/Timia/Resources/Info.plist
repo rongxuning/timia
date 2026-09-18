@@ -32,9 +32,9 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Timia 需要访问你电脑上的开发服务器，以登录并同步健康数据。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找。即使 App 未在运行，小组件也能使用此权限。</string>
+	<string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找；并在日程地图显示您所在的国家与城市。即使 App 未在运行，小组件也能使用此权限。</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找。</string>
+	<string>Timia 在记录便利贴时获取您当前的位置，方便归档和查找；并在日程地图显示您所在的国家与城市。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Timia 需要使用麦克风录制您说的便利贴内容。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
