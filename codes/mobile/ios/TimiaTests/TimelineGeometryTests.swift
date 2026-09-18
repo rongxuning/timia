@@ -66,4 +66,35 @@ final class TimelineGeometryTests: XCTestCase {
         )
         XCTAssertEqual(g.height(forDurationMinutes: 60, startingAt: 9 * 60), 74, accuracy: 0.1)
     }
+
+    func testHourLabelIncludesBusyEndWhenTrailingIdleCollapsed() {
+        // Task 08:00–10:00 → visible [480, 600); idle before/after collapsed.
+        let g = TimelineGeometry(
+            collapsibleIdles: [
+                MinuteRange(start: 0, end: 8 * 60),
+                MinuteRange(start: 10 * 60, end: 1440),
+            ],
+            hourHeight: 74,
+            collapsedHeight: 28,
+            collapseEnabled: true
+        )
+        XCTAssertFalse(g.shouldShowHourLabel(at: 0))
+        XCTAssertTrue(g.shouldShowHourLabel(at: 8 * 60))
+        XCTAssertTrue(g.shouldShowHourLabel(at: 9 * 60))
+        XCTAssertTrue(g.shouldShowHourLabel(at: 10 * 60), "end of busy block must keep its hour tick")
+        XCTAssertFalse(g.shouldShowHourLabel(at: 11 * 60))
+        XCTAssertTrue(g.shouldShowHourLabel(at: 24 * 60))
+    }
+
+    func testHourLabelsCoverFullDayWhenCollapseDisabled() {
+        let g = TimelineGeometry(
+            collapsibleIdles: [MinuteRange(start: 0, end: 8 * 60)],
+            hourHeight: 74,
+            collapsedHeight: 28,
+            collapseEnabled: false
+        )
+        for hour in 0...24 {
+            XCTAssertTrue(g.shouldShowHourLabel(at: hour * 60), "hour \(hour)")
+        }
+    }
 }
