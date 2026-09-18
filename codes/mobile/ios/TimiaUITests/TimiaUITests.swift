@@ -35,6 +35,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-overdue", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-future", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-undated", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-people-filter", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["本人负责"].exists)
@@ -54,10 +55,26 @@ final class TimiaUITests: XCTestCase {
         )
         XCTAssertLessThan(
             element("todo-section-future", in: app).frame.minY,
+            element("todo-section-undated", in: app).frame.minY
+        )
+        XCTAssertLessThan(
+            element("todo-section-undated", in: app).frame.minY,
             element("todo-section-archived", in: app).frame.minY
         )
         XCTAssertTrue(app.staticTexts["（截止当天）"].exists)
         XCTAssertTrue(app.staticTexts["（今天之后）"].exists)
+        XCTAssertTrue(app.staticTexts["（无时间）"].exists)
+        XCTAssertTrue(app.staticTexts["待启动"].exists)
+        let peopleFilter = element("todo-people-filter", in: app)
+        let filterYBeforeScroll = peopleFilter.frame.minY
+        element("todo-section-archived", in: app).swipeUp()
+        XCTAssertTrue(peopleFilter.waitForExistence(timeout: 2))
+        XCTAssertEqual(
+            peopleFilter.frame.minY,
+            filterYBeforeScroll,
+            accuracy: 2,
+            "People filter should stay pinned while the task list scrolls"
+        )
         XCTAssertFalse(element("todo-section-today", in: app).exists)
         XCTAssertFalse(element("todo-section-this-week", in: app).exists)
         XCTAssertTrue(app.buttons["calendar-selected-date"].waitForExistence(timeout: 2))
@@ -141,6 +158,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(element("todo-section-done", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-overdue", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-future", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(element("todo-section-undated", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-section-archived", in: app).waitForExistence(timeout: 3))
         XCTAssertTrue(element("todo-people-filter", in: app).waitForExistence(timeout: 2))
         XCTAssertFalse(element("todo-section-today", in: app).exists)

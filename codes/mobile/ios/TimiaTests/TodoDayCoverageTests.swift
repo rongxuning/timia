@@ -251,15 +251,49 @@ final class TodoDayCoverageTests: XCTestCase {
         )
     }
 
-    func testTodoSectionOrderPutsArchivedLastAndFutureAfterOverdue() {
+    func testTodoSectionOrderPutsUndatedAfterFutureAndArchivedLast() {
         XCTAssertEqual(
             todoScheduleSectionOrder,
-            ["todo", "doing", "done", "overdue", "future", "archived"]
+            ["todo", "doing", "done", "overdue", "future", "undated", "archived"]
         )
         XCTAssertEqual(todoScheduleSectionOrder.last, "archived")
         let overdue = todoScheduleSectionOrder.firstIndex(of: "overdue")!
         let future = todoScheduleSectionOrder.firstIndex(of: "future")!
+        let undated = todoScheduleSectionOrder.firstIndex(of: "undated")!
         XCTAssertEqual(future, overdue + 1)
+        XCTAssertEqual(undated, future + 1)
+    }
+
+    func testUndatedRequiresMissingStartAndEnd() {
+        XCTAssertTrue(isTodoTaskUndated(
+            task(id: "untimed", status: "todo", startAt: nil, endAt: nil)
+        ))
+        XCTAssertFalse(isTodoTaskUndated(
+            task(id: "start-only", status: "todo", startAt: "2026-08-18T09:00:00+08:00", endAt: nil)
+        ))
+        XCTAssertFalse(isTodoTaskUndated(
+            task(id: "end-only", status: "todo", startAt: nil, endAt: "2026-08-18T10:00:00+08:00")
+        ))
+        XCTAssertFalse(isTodoTaskUndated(
+            task(id: "dated", status: "todo", startAt: "2026-08-18T09:00:00+08:00", endAt: "2026-08-18T10:00:00+08:00")
+        ))
+    }
+
+    func testListsUndatedTasksSortedById() {
+        let undatedB = task(id: "b-untimed", status: "todo", startAt: nil, endAt: nil)
+        let undatedA = task(id: "a-untimed", status: "doing", startAt: nil, endAt: nil)
+        let dated = task(id: "dated", status: "todo", startAt: "2026-08-18T09:00:00+08:00", endAt: nil)
+        let columns: [String: [ScheduleTask]] = [
+            "todo": [undatedB, dated],
+            "doing": [undatedA],
+            "done": [],
+            "archived": []
+        ]
+
+        XCTAssertEqual(
+            listUndatedTodoTasks(from: columns).map(\.id),
+            ["a-untimed", "b-untimed"]
+        )
     }
 
     func testFutureUsesStartOfRangeAfterToday() {

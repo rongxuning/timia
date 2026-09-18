@@ -87,7 +87,18 @@ func listOverdueTodoTasks(
         }
 }
 
-let todoScheduleSectionOrder = ["todo", "doing", "done", "overdue", "future", "archived"]
+let todoScheduleSectionOrder = ["todo", "doing", "done", "overdue", "future", "undated", "archived"]
+
+func isTodoTaskUndated(_ task: ScheduleTask) -> Bool {
+    task.startAt == nil && task.endAt == nil
+}
+
+func listUndatedTodoTasks(from columns: [String: [ScheduleTask]]) -> [ScheduleTask] {
+    let tasks = (columns["todo"] ?? []) + (columns["doing"] ?? [])
+    return tasks
+        .filter(isTodoTaskUndated)
+        .sorted { $0.id < $1.id }
+}
 
 enum TodoPeopleFilter: String, CaseIterable, Identifiable {
     case assignee
