@@ -163,11 +163,10 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
           })}
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <span className="mb-2 text-caption font-medium text-text-secondary">{t("scope")}</span>
+          <span className="pb-2 text-caption font-medium text-text-secondary">{t("scope")}</span>
           <div className="min-w-[180px] flex-1">
             <SystemSelect
               label={t("workspace")}
-              hideLabel
               showAccent={false}
               searchable
               searchPlaceholder={t("searchWorkspace")}
@@ -181,7 +180,6 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
           <div className="min-w-[180px] flex-1">
             <SystemSelect
               label={t("project")}
-              hideLabel
               showAccent={false}
               searchable
               searchPlaceholder={t("searchProject")}
