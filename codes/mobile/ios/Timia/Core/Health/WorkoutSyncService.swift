@@ -117,23 +117,23 @@ struct WorkoutSyncService {
             onProgress: onProgress
         )
         await anchorStore.saveAll(newAnchors)
+        let syncedAt = Date()
         let stamped = try await api.checkpoint(
-            toAt: HealthSyncService.iso(Date()),
+            toAt: HealthSyncService.iso(syncedAt),
             timezone: timezone,
             pipeline: Self.pipeline
         )
         if let server = stamped.lastWorkoutSyncedAt.flatMap(HealthSyncService.parseISO) {
             Self.storeLastSyncedAt(server)
         } else {
-            Self.storeLastSyncedAt(Date())
+            Self.storeLastSyncedAt(syncedAt)
         }
         try await finish(
             source: source,
-            start: Date(),
-            end: Date(),
-            workoutCount: export.workouts.count,
+            workouts: export.workouts,
             routeCount: export.routes.count,
-            upserted: upserted
+            upserted: upserted,
+            syncedAt: syncedAt
         )
         onProgress(1, "训练同步完成")
     }
@@ -181,11 +181,10 @@ struct WorkoutSyncService {
         }
         try await finish(
             source: source,
-            start: start,
-            end: end,
-            workoutCount: export.workouts.count,
+            workouts: export.workouts,
             routeCount: export.routes.count,
-            upserted: upserted
+            upserted: upserted,
+            syncedAt: end
         )
         onProgress(1, "训练同步完成")
     }
@@ -235,32 +234,45 @@ struct WorkoutSyncService {
         await anchorStore.saveAll(anchors)
     }
 
+    /// Empty syncs (no workouts/routes/upserts) are not persisted as history rows.
     private func finish(
         source: HealthSyncSource,
-        start: Date,
-        end: Date,
-        workoutCount: Int,
+        workouts: [HealthWorkoutPayload],
         routeCount: Int,
-        upserted: Int
+        upserted: Int,
+        syncedAt: Date
     ) async throws {
+        guard !workouts.isEmpty || routeCount > 0 || upserted > 0 else { return }
+        let range = Self.workoutTimeRange(workouts)
         _ = try await api.finishRun(
             HealthSyncRunIn(
                 source: source.rawValue,
                 status: "success",
                 pipeline: Self.pipeline,
-                fromAt: HealthSyncService.iso(start),
-                toAt: HealthSyncService.iso(end),
+                fromAt: range.map { HealthSyncService.iso($0.start) },
+                toAt: HealthSyncService.iso(range?.end ?? syncedAt),
                 quantityCount: 0,
                 sleepCount: 0,
                 standHourCount: 0,
                 heartbeatSeriesCount: 0,
-                workoutCount: workoutCount,
+                workoutCount: workouts.count,
                 routeCount: routeCount,
                 upserted: upserted,
                 localDates: [],
                 error: nil
             )
         )
+    }
+
+    static func workoutTimeRange(_ workouts: [HealthWorkoutPayload]) -> (start: Date, end: Date)? {
+        var starts: [Date] = []
+        var ends: [Date] = []
+        for workout in workouts {
+            if let start = HealthSyncService.parseISO(workout.startAt) { starts.append(start) }
+            if let end = HealthSyncService.parseISO(workout.endAt) { ends.append(end) }
+        }
+        guard let start = starts.min(), let end = ends.max() else { return nil }
+        return (start, end)
     }
 }
 

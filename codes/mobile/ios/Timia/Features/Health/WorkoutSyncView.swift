@@ -76,6 +76,14 @@ struct WorkoutSyncView: View {
                     ForEach(syncedRuns) { run in
                         VStack(alignment: .leading, spacing: 4) {
                             LabeledContent(run.sourceLabel, value: "训练 \(run.workoutCount)")
+                            Text("同步时间 \(run.syncTimeLabel)")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            if let trainingTime = run.trainingRecordTimeLabel {
+                                Text("训练记录时间 \(trainingTime)")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                             Text(run.summary)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
@@ -131,7 +139,9 @@ struct WorkoutSyncView: View {
         do {
             let status = try await HealthSyncAPI(client: session.api)
                 .syncStatus(timezone: TimeZone.current.identifier, pipeline: "workout")
-            syncedRuns = (status.runs ?? []).filter { ($0.pipeline ?? "workout") == "workout" }
+            syncedRuns = (status.runs ?? []).filter {
+                ($0.pipeline ?? "workout") == "workout" && $0.hasSyncedWorkoutData
+            }
             lastSyncedAt = await WorkoutSyncService.applyServerWatermark(
                 status.lastWorkoutSyncedAt.flatMap(HealthSyncService.parseISO)
             )
