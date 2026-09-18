@@ -2441,7 +2441,7 @@ private struct TimelineGrid: View {
 
                 ForEach(startHour...endHour, id: \.self) { hour in
                     let minutes = hour * 60
-                    if !isMinuteInCollapsedSegment(minutes, geometry: geometry) {
+                    if geometry.shouldShowHourLabel(at: minutes) {
                         Text(String(format: "%02d:00", hour))
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(.secondary)
@@ -2568,7 +2568,7 @@ private struct TimelineGrid: View {
 
                 ForEach(startHour...endHour, id: \.self) { hour in
                     let minutes = hour * 60
-                    if !isMinuteInCollapsedSegment(minutes, geometry: geometry) {
+                    if geometry.shouldShowHourLabel(at: minutes) {
                         Text(String(format: "%02d:00", hour))
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(.secondary)
@@ -2759,15 +2759,6 @@ private struct TimelineGrid: View {
             return geometry.y(forMinutes: minutes)
         }
         return CGFloat(minutes) / 60 * hourHeight
-    }
-
-    private func isMinuteInCollapsedSegment(_ minutes: Int, geometry: TimelineGeometry) -> Bool {
-        geometry.segments.contains { segment in
-            if case .collapsed(let range) = segment {
-                return minutes >= range.start && minutes < range.end
-            }
-            return false
-        }
     }
 
     private func isCollapsed(atY y: CGFloat, geometry: TimelineGeometry) -> Bool {

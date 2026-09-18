@@ -119,6 +119,22 @@ struct TimelineGeometry {
         }
     }
 
+    /// Hour ticks for collapsed timelines: include both ends of each visible
+    /// span so a busy block ending on the hour (e.g. 08:00–10:00) still shows
+    /// `10:00` even when trailing idle starts collapsing at that minute.
+    /// Day-end (`24:00`) stays labeled when the trailing segment is collapsed.
+    func shouldShowHourLabel(at minutes: Int) -> Bool {
+        guard minutes >= 0, minutes <= dayMinutes, minutes % 60 == 0 else { return false }
+        for segment in segments {
+            if case .visible(let range) = segment {
+                if minutes >= range.start && minutes <= range.end {
+                    return true
+                }
+            }
+        }
+        return minutes == dayMinutes
+    }
+
     private func segmentHeight(_ segment: TimelineSegment) -> CGFloat {
         switch segment {
         case .visible(let range):
