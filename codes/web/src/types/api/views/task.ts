@@ -50,5 +50,7 @@ export type ItemDetailView = {
   assignee?: TaskUserBrief | null;
   participants?: TaskUserBrief[];
   location?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
   comments: ItemDetailComment[];
 };

@@ -25,6 +25,8 @@ class ItemCreate(BaseModel):
     assignee_user_id: str | None = None
     participant_user_ids: list[str] = Field(default_factory=list)
     location: str | None = None
+    location_lat: float | None = None
+    location_lng: float | None = None
     repeat: RepeatKind = "none"
 
 
@@ -42,6 +44,8 @@ class ItemUpdate(BaseModel):
     assignee_user_id: str | None = None
     participant_user_ids: list[str] | None = None
     location: str | None = None
+    location_lat: float | None = None
+    location_lng: float | None = None
     target_workspace_id: str | None = None
     target_project_id: str | None = None
     repeat: RepeatKind | None = None
@@ -63,3 +67,5 @@ class ItemOut(BaseModel):
     assignee: UserBrief | None = None
     participants: list[UserBrief] = Field(default_factory=list)
     location: str | None = None
+    location_lat: float | None = None
+    location_lng: float | None = None

@@ -6,6 +6,7 @@ import { PinnedTagSelect } from "@/components/PinnedTagSelect";
 import { ProjectModal, type ProjectModalResult } from "@/components/ProjectModal";
 import { WorkspaceModal } from "@/components/WorkspaceModal";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
+import { PlaceSearchField } from "@/components/PlaceSearchField";
 import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   primeProjectNameForBreadcrumb,
@@ -18,6 +19,13 @@ import { uploadPendingTaskFiles } from "@/lib/file-api";
 import { TaskAttachments } from "@/components/task/TaskAttachments";
 import { PRIORITY_OPTIONS } from "@/components/schedule/taskUtils";
 import { resolveTaskScheduleTimes, validateUndatedTaskStatus } from "@/components/schedule/taskScheduleTimes";
+import {
+  emptyPlace,
+  itemLocationPayload,
+  placeFromFreeText,
+  placeFromItem,
+  type PlaceValue,
+} from "@/lib/placeValue";
 
 export type TaskUserBrief = {
   id: string;
@@ -40,6 +48,8 @@ export type TaskDrawerItem = {
   assignee?: TaskUserBrief | null;
   participants?: TaskUserBrief[];
   location?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
 };
 
 type ItemComment = {
@@ -246,7 +256,8 @@ export function TaskDrawerWithComments({
   const [editCompletedAt, setEditCompletedAt] = useState("");
   const [editAssigneeUserId, setEditAssigneeUserId] = useState("");
   const [editParticipantUserIds, setEditParticipantUserIds] = useState<string[]>([]);
-  const [editLocation, setEditLocation] = useState("");
+  const [editPlace, setEditPlace] = useState<PlaceValue>(emptyPlace);
+  const [placeSearchOpen, setPlaceSearchOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [editRepeat, setEditRepeat] = useState<RepeatKind>("none");
   const [editError, setEditError] = useState<string | null>(null);
@@ -275,6 +286,7 @@ export function TaskDrawerWithComments({
       deleteConfirmOpen ||
       assigneePanelOpen ||
       participantPanelOpen ||
+      placeSearchOpen ||
       createWorkspaceOpen ||
       createProjectOpen,
   });
@@ -544,7 +556,8 @@ export function TaskDrawerWithComments({
     const assigneeId = it.assignee?.id ?? it.created_by?.id ?? "";
     setEditAssigneeUserId(assigneeId);
     setEditParticipantUserIds((it.participants ?? []).map((p) => p.id));
-    setEditLocation(it.location ?? "");
+    setEditPlace(placeFromItem(it));
+    setPlaceSearchOpen(false);
     setEditRepeat("none");
     setAssigneeSearchQuery("");
     setParticipantSearchQuery("");
@@ -568,7 +581,8 @@ export function TaskDrawerWithComments({
     );
     setEditAssigneeUserId("");
     setEditParticipantUserIds([]);
-    setEditLocation(initialCreateLocation ?? "");
+    setEditPlace(placeFromFreeText(initialCreateLocation ?? ""));
+    setPlaceSearchOpen(false);
     setEditRepeat("none");
     setEditError(null);
     setItemLoading(false);
@@ -800,7 +814,7 @@ export function TaskDrawerWithComments({
     const peoplePayload = {
       assignee_user_id: editAssigneeUserId.trim(),
       participant_user_ids: editParticipantUserIds.filter((x) => x && x !== editAssigneeUserId.trim()),
-      location: editLocation.trim() || null,
+      ...itemLocationPayload(editPlace),
     };
     const saveCtx = (item: TaskDrawerItem): TaskDrawerSaveContext => ({
       item,
@@ -1326,21 +1340,14 @@ export function TaskDrawerWithComments({
                     onChange={setEditColor}
                     disabled={editLoading}
                   />
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-on-surface-variant" htmlFor={`${uid}-location`}>
-                      地点
-                    </label>
-                    <input
-                      id={`${uid}-location`}
-                      type="text"
-                      maxLength={500}
-                      placeholder="例如：会议室 A、线上、客户现场…"
-                      className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none"
-                      value={editLocation}
-                      onChange={(e) => setEditLocation(e.target.value)}
-                      disabled={editLoading}
-                    />
-                  </div>
+                  <PlaceSearchField
+                    id={`${uid}-location`}
+                    value={editPlace}
+                    onChange={setEditPlace}
+                    token={token}
+                    disabled={editLoading}
+                    onOpenChange={setPlaceSearchOpen}
+                  />
                   <TaskAttachments
                     workspaceId={selectedWorkspaceId}
                     projectId={selectedProjectId}

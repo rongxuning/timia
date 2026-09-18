@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     minimax_model: str = "MiniMax-M2.7"
     minimax_base_url: str = "https://api.minimaxi.com/v1"
     minimax_timeout_seconds: float = 30.0
+    photon_base_url: str = "https://photon.komoot.io"
+    photon_user_agent: str = "Timia/core-service"
+    photon_timeout_seconds: float = 3.0
     # Empty base skips notify (local tests / file-service down).
     file_service_base: str = ""
     file_internal_token: str = ""

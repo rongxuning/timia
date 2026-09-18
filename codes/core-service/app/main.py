@@ -13,6 +13,7 @@ from app.routes.plans import router as plans_router
 from app.routes.plans import subscription_router as plan_subscriptions_router
 from app.routes.projects import router as projects_router
 from app.routes.health import router as health_router
+from app.routes.geo import router as geo_router
 from app.routes.sticky_notes import router as sticky_notes_router
 from app.routes.users import router as users_router
 from app.routes.web_auth import router as web_auth_router
@@ -52,6 +53,7 @@ app.include_router(members_router)
 app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(items_router)
+app.include_router(geo_router)
 app.include_router(plans_router)
 app.include_router(plan_subscriptions_router)
 app.include_router(plan_apply_runs_router)

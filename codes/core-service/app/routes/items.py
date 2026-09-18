@@ -14,6 +14,7 @@ from app.schemas.item import ItemCreate, ItemOut, ItemUpdate
 from app.services.activity import log_activity
 from app.services.file_notify import notify_item_rehomed, notify_item_unbound
 from app.services.item_api import (
+    LocationValue,
     apply_item_transfer,
     build_item_out,
     materialize_repeat_occurrences,
@@ -21,6 +22,7 @@ from app.services.item_api import (
     parse_participant_ids,
     parse_transfer_target,
     resolve_item_completed_at,
+    resolve_item_location,
     validate_item_people,
     validate_item_schedule_range,
     validate_undated_item_status,
@@ -53,6 +55,8 @@ def _new_item_from_template(
     end_at: datetime | None,
     details: str | None,
     location: str | None,
+    location_lat: float | None = None,
+    location_lng: float | None = None,
 ) -> Item:
     """Construct an Item from a snapshot of fields. Copies are independent rows."""
     return Item(
@@ -71,6 +75,8 @@ def _new_item_from_template(
         assignee_user_id=assignee_id,
         participant_user_ids=list(participant_ids),
         location=location,
+        location_lat=location_lat,
+        location_lng=location_lng,
         version=1,
     )
 
@@ -109,9 +115,13 @@ def create_item(
     participant_ids = parse_participant_ids(payload.participant_user_ids)
     validate_item_people(db, workspace_id, project_id, assignee_id, participant_ids)
 
-    loc = (payload.location or "").strip() or None
-    if loc and len(loc) > 500:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_too_long")
+    loc_fields = resolve_item_location(
+        current=LocationValue(None, None, None),
+        location=payload.location,
+        location_lat=payload.location_lat,
+        location_lng=payload.location_lng,
+        fields_set=set(payload.model_fields_set),
+    )
 
     validate_item_schedule_range(payload.start_at, payload.end_at)
     validate_undated_item_status(payload.start_at, payload.end_at, payload.status)
@@ -143,7 +153,9 @@ def create_item(
         start_at=payload.start_at,
         end_at=payload.end_at,
         details=payload.details,
-        location=loc,
+        location=loc_fields.location,
+        location_lat=loc_fields.location_lat,
+        location_lng=loc_fields.location_lng,
     )
     i.completed_at = completed_at
     db.add(i)
@@ -170,7 +182,9 @@ def create_item(
                 start_at=occ_start,
                 end_at=occ_end,
                 details=payload.details,
-                location=loc,
+                location=loc_fields.location,
+                location_lat=loc_fields.location_lat,
+                location_lng=loc_fields.location_lng,
             )
             db.add(occ)
             repeat_occurrences.append(occ)
@@ -263,6 +277,8 @@ def update_item(
         "assignee_user_id": str(i.assignee_user_id) if i.assignee_user_id else None,
         "participant_user_ids": [str(x) for x in (i.participant_user_ids or [])],
         "location": i.location,
+        "location_lat": i.location_lat,
+        "location_lng": i.location_lng,
         "workspace_id": str(i.workspace_id),
         "project_id": str(i.project_id),
     }
@@ -304,11 +320,16 @@ def update_item(
         else:
             i.participant_user_ids = parse_participant_ids(payload.participant_user_ids)
 
-    if "location" in fields_set:
-        loc = (payload.location or "").strip() or None if payload.location is not None else None
-        if loc and len(loc) > 500:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location_too_long")
-        i.location = loc
+    loc_fields = resolve_item_location(
+        current=LocationValue(i.location, i.location_lat, i.location_lng),
+        location=payload.location,
+        location_lat=payload.location_lat,
+        location_lng=payload.location_lng,
+        fields_set=set(fields_set),
+    )
+    i.location = loc_fields.location
+    i.location_lat = loc_fields.location_lat
+    i.location_lng = loc_fields.location_lng
 
     transferred = False
     if transfer_target:
@@ -338,6 +359,8 @@ def update_item(
         "assignee_user_id": str(i.assignee_user_id) if i.assignee_user_id else None,
         "participant_user_ids": [str(x) for x in (i.participant_user_ids or [])],
         "location": i.location,
+        "location_lat": i.location_lat,
+        "location_lng": i.location_lng,
         "workspace_id": str(i.workspace_id),
         "project_id": str(i.project_id),
     }
@@ -370,6 +393,8 @@ def update_item(
                 end_at=occ_end,
                 details=i.details,
                 location=i.location,
+                location_lat=i.location_lat,
+                location_lng=i.location_lng,
             )
             db.add(occ)
             occurrence_count += 1

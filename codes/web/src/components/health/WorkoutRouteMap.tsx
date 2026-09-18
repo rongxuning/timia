@@ -2,27 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PACE_ZONE_HEX } from "@/components/health/WorkoutZoneBar";
+import { mapLibreStyle } from "@/lib/map/osmStyle";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
 const START_COLOR = "#4648d4";
 const END_COLOR = "#ef4444";
 const TRACK_FALLBACK = "#4648d4";
-
-const OSM_RASTER_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "© OpenStreetMap",
-    },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-};
 
 type RoutePoint = {
   t: number;
@@ -184,10 +171,6 @@ function kmMarkersFromPoints(points: RoutePoint[]): Array<{ km: number; lat: num
   return markers;
 }
 
-function mapStyle(): string | StyleSpecification {
-  return process.env.NEXT_PUBLIC_MAP_STYLE_URL || OSM_RASTER_STYLE;
-}
-
 function drawTrackOverlay(
   ctx: CanvasRenderingContext2D,
   map: maplibregl.Map,
@@ -240,7 +223,7 @@ export function WorkoutRouteMap({ route, paceZones }: WorkoutRouteMapProps) {
     const kmMarkers = kmMarkersFromPoints(routePoints);
     const map = new maplibregl.Map({
       container,
-      style: mapStyle(),
+      style: mapLibreStyle(),
       center: [routePoints[0].lng, routePoints[0].lat],
       zoom: 13,
       attributionControl: { compact: true },

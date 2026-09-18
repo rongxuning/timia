@@ -729,6 +729,23 @@ export interface paths {
         patch: operations["update_item_workspaces__workspace_id__projects__project_id__items__item_id__patch"];
         trace?: never;
     };
+    "/geo/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Places */
+        get: operations["search_places_geo_places_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/plan-templates": {
         parameters: {
             query?: never;
@@ -1379,6 +1396,23 @@ export interface paths {
         };
         /** Schedule Calendar View */
         get: operations["schedule_calendar_view_views_schedule_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/schedule/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Schedule Map View */
+        get: operations["schedule_map_view_views_schedule_map_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2111,6 +2145,22 @@ export interface components {
             item_id: string;
             /** Item Title */
             item_title: string;
+        };
+        /** GeoPlaceOut */
+        GeoPlaceOut: {
+            /** Name */
+            name: string;
+            /** Address */
+            address?: string | null;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
+        /** GeoPlacesOut */
+        GeoPlacesOut: {
+            /** Items */
+            items?: components["schemas"]["GeoPlaceOut"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3272,6 +3322,10 @@ export interface components {
             participant_user_ids?: string[];
             /** Location */
             location?: string | null;
+            /** Location Lat */
+            location_lat?: number | null;
+            /** Location Lng */
+            location_lng?: number | null;
             /**
              * Repeat
              * @default none
@@ -3342,6 +3396,10 @@ export interface components {
             participants?: components["schemas"]["UserBrief"][];
             /** Location */
             location?: string | null;
+            /** Location Lat */
+            location_lat?: number | null;
+            /** Location Lng */
+            location_lng?: number | null;
             /** Comments */
             comments?: components["schemas"]["ItemDetailCommentOut"][];
         };
@@ -3378,6 +3436,10 @@ export interface components {
             participants?: components["schemas"]["UserBrief"][];
             /** Location */
             location?: string | null;
+            /** Location Lat */
+            location_lat?: number | null;
+            /** Location Lng */
+            location_lng?: number | null;
         };
         /** ItemUpdate */
         ItemUpdate: {
@@ -3407,6 +3469,10 @@ export interface components {
             participant_user_ids?: string[] | null;
             /** Location */
             location?: string | null;
+            /** Location Lat */
+            location_lat?: number | null;
+            /** Location Lng */
+            location_lng?: number | null;
             /** Target Workspace Id */
             target_workspace_id?: string | null;
             /** Target Project Id */
@@ -4718,6 +4784,67 @@ export interface components {
              */
             has_more: boolean;
         };
+        /** ScheduleMapItemOut */
+        ScheduleMapItemOut: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body?: string | null;
+            /**
+             * Color
+             * @default #FFFFFF
+             */
+            color: string;
+            /** Status */
+            status: string;
+            /** Priority */
+            priority?: string | null;
+            /** Start At */
+            start_at?: string | null;
+            /** End At */
+            end_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Details */
+            details?: string | null;
+            /** Version */
+            version: number;
+            created_by?: components["schemas"]["UserBrief"] | null;
+            assignee?: components["schemas"]["UserBrief"] | null;
+            /** Participants */
+            participants?: components["schemas"]["UserBrief"][];
+            /** Location */
+            location?: string | null;
+            /** Location Lat */
+            location_lat: number;
+            /** Location Lng */
+            location_lng: number;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Workspace Name */
+            workspace_name: string;
+            /** Project Id */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+        };
+        /** ScheduleMapViewOut */
+        ScheduleMapViewOut: {
+            /** Items */
+            items?: components["schemas"]["ScheduleMapItemOut"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+        };
         /** ScheduleOverdueViewOut */
         ScheduleOverdueViewOut: {
             /** Items */
@@ -4788,6 +4915,10 @@ export interface components {
             participants?: components["schemas"]["UserBrief"][];
             /** Location */
             location?: string | null;
+            /** Location Lat */
+            location_lat?: number | null;
+            /** Location Lng */
+            location_lng?: number | null;
             /** Workspace Id */
             workspace_id: string;
             /** Workspace Name */
@@ -7436,6 +7567,40 @@ export interface operations {
             };
         };
     };
+    search_places_geo_places_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeoPlacesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_template_plan_templates_post: {
         parameters: {
             query?: never;
@@ -9047,6 +9212,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleCalendarViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_map_view_views_schedule_map_get: {
+        parameters: {
+            query?: {
+                scope?: string;
+                workspace_id?: string | null;
+                project_id?: string | null;
+                status?: string[] | null;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleMapViewOut"];
                 };
             };
             /** @description Validation Error */

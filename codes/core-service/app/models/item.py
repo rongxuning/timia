@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,6 +38,8 @@ class Item(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         server_default=text("'{}'::uuid[]"),
     )
     location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    location_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 

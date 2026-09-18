@@ -1,4 +1,5 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type ApiOptions } from "@/lib/api";
+import type { ScheduleMapViewData } from "@/lib/scheduleMapGeo";
 import type {
   CalendarViewMode,
   MyScheduleDashboardView,
@@ -8,6 +9,7 @@ import type {
   ScheduleScopeParams,
   ScheduleSwimlaneView,
   ScheduleUndatedView,
+  StatusKey,
 } from "@/types/api/views/schedule";
 
 function formatDateAnchor(d: Date): string {
@@ -69,4 +71,26 @@ export function fetchScheduleOverdue(
 
 export function fetchMyScheduleDashboard(token: string): Promise<MyScheduleDashboardView> {
   return apiFetch<MyScheduleDashboardView>("/views/schedule/dashboard", { token });
+}
+
+export function fetchScheduleMap(
+  token: string,
+  options: {
+    statuses?: StatusKey[];
+    workspaceId?: string | null;
+    projectId?: string | null;
+    limit?: number;
+  } = {},
+  init: Pick<ApiOptions, "signal"> = {},
+): Promise<ScheduleMapViewData> {
+  const q = new URLSearchParams({ scope: "me" });
+  const statuses = options.statuses ?? ["todo", "doing"];
+  for (const status of statuses) q.append("status", status);
+  if (options.workspaceId) q.set("workspace_id", options.workspaceId);
+  if (options.projectId) q.set("project_id", options.projectId);
+  if (options.limit != null) q.set("limit", String(options.limit));
+  return apiFetch<ScheduleMapViewData>(`/views/schedule/map?${q.toString()}`, {
+    token,
+    signal: init.signal,
+  });
 }

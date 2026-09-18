@@ -52,4 +52,6 @@ class ItemDetailViewOut(BaseModel):
     assignee: UserBrief | None = None
     participants: list[UserBrief] = Field(default_factory=list)
     location: str | None = None
+    location_lat: float | None = None
+    location_lng: float | None = None
     comments: list[ItemDetailCommentOut] = Field(default_factory=list)
