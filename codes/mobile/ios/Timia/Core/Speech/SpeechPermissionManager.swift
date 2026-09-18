@@ -19,7 +19,16 @@ final class SpeechPermissionManager: ObservableObject {
     }
 
     func refresh() {
-        microphone = AVCaptureDevice.authorizationStatus(for: .audio)
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            microphone = .authorized
+        case .denied:
+            microphone = .denied
+        case .undetermined:
+            microphone = .notDetermined
+        @unknown default:
+            microphone = .notDetermined
+        }
         recognition = SFSpeechRecognizer.authorizationStatus()
     }
 
@@ -28,7 +37,12 @@ final class SpeechPermissionManager: ObservableObject {
     @discardableResult
     func requestIfNeeded() async -> Status {
         if microphone == .notDetermined {
-            let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            // Prefer AVAudioApplication so the grant aligns with AVAudioEngine /
+            // AVAudioSession (AVCaptureDevice grant alone has left the route
+            // cold and crashed on `inputNode` on first tap).
+            let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+                AVAudioApplication.requestRecordPermission { cont.resume(returning: $0) }
+            }
             microphone = granted ? .authorized : .denied
         }
         if recognition == .notDetermined {
@@ -37,6 +51,7 @@ final class SpeechPermissionManager: ObservableObject {
             }
             recognition = status
         }
+        refresh()
         return currentStatus()
     }
 

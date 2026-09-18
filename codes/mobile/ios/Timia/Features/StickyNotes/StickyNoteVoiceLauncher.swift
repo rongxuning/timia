@@ -5,10 +5,10 @@ import SwiftUI
 /// Tap mic → mic becomes a red stop square + a compact floating glass
 /// breathing circle appears *above* the button.
 ///
-/// Important: the floating HUD must stay intrinsically sized (`fixedSize`).
-/// A flexible / infinite-height overlay inside the docked bottom bar can
-/// stretch bar layout (and previously crashed when the bar lived in
-/// `safeAreaInset`).
+/// Important: the floating HUD must never contribute to the docked bottom
+/// bar's intrinsic height. Past crashes came from HUD layout feedback inside
+/// `safeAreaInset` / flexible overlays. We anchor the HUD on a zero-size
+/// portal so the bar's `.fixedSize(vertical:)` measurement stays stable.
 struct StickyNoteVoiceLauncher: View {
     @ObservedObject var draft: StickyNoteDraftStore
 
@@ -90,24 +90,32 @@ struct VoiceCaptureButton: View {
         .accessibilityLabel(isRecording ? "停止语音输入" : "语音添加")
         .accessibilityIdentifier(accessibilityId)
         .animation(.snappy(duration: 0.2), value: phase)
-        .overlay(alignment: .bottom) {
-            if showsOverlay {
-                VoiceRecordingOverlay(
-                    isFinalizing: phase == .finalizing,
-                    onFinished: { text in
-                        phase = .idle
-                        onCommit(text)
-                    },
-                    onFailed: { message in
-                        phase = .idle
-                        onFailed?(message)
+        // Lock the control's reported size to the 38pt button. The HUD is
+        // attached via a zero-size portal so it cannot stretch the docked bar.
+        .frame(width: 38, height: 38)
+        .background(alignment: .center) {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .overlay {
+                    if showsOverlay {
+                        VoiceRecordingOverlay(
+                            isFinalizing: phase == .finalizing,
+                            onFinished: { text in
+                                phase = .idle
+                                onCommit(text)
+                            },
+                            onFailed: { message in
+                                phase = .idle
+                                onFailed?(message)
+                            }
+                        )
+                        .id(recordingSession)
+                        .fixedSize()
+                        .offset(y: -96)
+                        .transition(.opacity.combined(with: .scale(scale: 0.92)))
                     }
-                )
-                .id(recordingSession)
-                .fixedSize()
-                .offset(y: -96)
-                .transition(.opacity.combined(with: .scale(scale: 0.92)))
-            }
+                }
+                .allowsHitTesting(false)
         }
         .animation(.snappy(duration: 0.25), value: showsOverlay)
     }
@@ -204,6 +212,7 @@ struct VoiceRecordingOverlay: View {
     }
 
     private func prepareAndStart() async {
+        let prior = SpeechPermissionManager.shared.currentStatus()
         let auth = await SpeechPermissionManager.shared.requestIfNeeded()
         guard !Task.isCancelled else { return }
         guard auth == .authorized else {
@@ -215,6 +224,13 @@ struct VoiceRecordingOverlay: View {
 
         SpeechPermissionManager.shared.refresh()
         guard !Task.isCancelled else { return }
+
+        // First-time mic grant leaves the audio route unsettled; touching
+        // `AVAudioEngine.inputNode` too early hard-faults (ObjC NSException).
+        if prior != .authorized {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+        }
 
         switch OnDeviceSupportChecker.check() {
         case .available:
