@@ -25,13 +25,14 @@
 | 坐标系 | 库内与 API 均为 **WGS-84**；直接喂给 `CLLocationCoordinate2D` |
 | 数据源 | 复用现有 `GET /views/schedule/map`；**不改** core-service |
 | 默认筛选 | 状态 `todo` + `doing`；工作空间/项目 = 全部 |
-| 标记色 | **优先级 accent**（与 `SchedulePriorityStyle` 一致）；`task.color` 非 `#FFFFFF` 时可作为钉点描边或次要强调，一期以优先级主色为准（满足「用颜色标记优先级」） |
+| 标记色 | **只用优先级 accent**（与 `SchedulePriorityStyle` 一致）；**不**使用任务自定义 `color` |
 | 时间文案 | 复用现有日程时间格式化（全日 / 起止 / 仅开始）；无 `start_at` 显示「未排期」 |
-| 用户定位 | 一期**不主动请求**定位、不显示蓝点；看任务分布不需要用户坐标。已有便利贴定位文案不必因本功能改写 |
+| Header 标题 | **当前国家 · 城市**（用户设备定位 + 反向地理编码）；不是「地图」文案，也不是日历日期 |
+| 用户定位 | 进入地图模式时请求 **When In Use**（复用已有便利贴权限与 `StickyNoteLocationManager` 模式）；仅用于 Header 地名。**地图上不显示用户蓝点**，不跟相机到用户位置 |
 | 点击标记 | 打开现有 `TaskEditorView(mode: .edit)` sheet |
 | 同坐标多任务 | 选中该坐标后弹出简短列表（标题 + 时间），再进编辑；避免钉点互相挡住无法点开 |
-| 底栏右侧操作 | 地图模式与日历相同：保留「新建任务」+ 语音解析（不新建「在地图上加点」） |
-| 筛选状态持久化 | 进程内 `@State` 即可；不强制 `@AppStorage`（与 Web session 默认回日历一致） |
+| 底栏右侧操作 | 地图模式与日历相同：**保留**「新建任务」+ 语音解析（不新建「在地图上加点」） |
+| 筛选状态持久化 | **不持久化**；进程内 `@State`，离开地图模式或杀进程后回到默认筛选 |
 
 ### Approaches considered
 
@@ -62,13 +63,39 @@
 - SF Symbol：`map`（选中态与现有 modeButton 一致：深色胶囊底 + 白图标）
 - `accessibilityLabel`：`地图模式`
 - 切到地图时收起日历的日/周/月/年 popover；不显示 `DateStrip`
-- Header 标题：可用「地图」或当日完整日期（与便利贴模式一样用今日全日期亦可）；推荐固定文案 **「地图」**，避免与日历日期导航混淆
+- Header 标题：**当前国家 · 城市**（见下节），字号/字重与其它模式主标题一致（约 29pt rounded bold）
+
+### Header：当前国家 · 城市
+
+进入地图模式后解析用户当前位置，主标题显示：
+
+```
+{国家} · {城市}
+```
+
+示例：`中国 · 北京`、`日本 · 东京`。
+
+| 情况 | 展示 |
+|------|------|
+| 定位 + 反向地理编码成功 | `国家 · 城市`（`CLPlacemark.country` + `locality`；无 locality 则用 `administrativeArea`） |
+| 仅有国家、无城市级字段 | 只显示国家 |
+| 权限未决 | 占位「定位中…」，同时弹系统授权 |
+| 用户拒绝 / 定位失败 | 「位置不可用」（不反复弹窗；可轻触标题重试一次） |
+| 反向编码失败但有坐标 | 「位置不可用」 |
+
+实现要点：
+
+- `CLLocationManager` requestWhenInUse；可抽小 helper 或复用便利贴定位封装思路，**不要**把 Header 逻辑绑死在 `StickyNoteLocationManager` 的芯片 UI 上
+- `CLGeocoder.reverseGeocodeLocation`（工程最低 iOS 17）
+- 缓存上次成功的「国家 · 城市」于内存，同一次 App 会话内切回地图模式先显示缓存再静默刷新
+- **不**把用户坐标画成 Map 蓝点；相机仍按任务钉点 fitBounds
+- Info.plist：现有 When In Use 文案偏便利贴；实现时扩一句「并在日程地图显示您所在的国家与城市」，避免审核文案与用途不符
 
 ### 页面结构
 
 ```
 ┌─────────────────────────────────────┐
-│  Header（地图 / 账户入口等沿用）      │
+│  中国 · 北京          （账户等沿用）   │
 ├─────────────────────────────────────┤
 │ 状态  [未开始] [进行中] [已完成] [已归档] │
 │ 范围  [空间 ▾ 全部]  [项目 ▾ 全部]  n个 │
@@ -108,7 +135,8 @@
    - `"4"` → `#EF4444`
 2. **名称**：`title`，单行截断
 3. **时间**：本地化起止；无开始时间 →「未排期」
-4. 已完成（`done`/`archived`）：钉点可略降饱和（复用现有 `desaturateHex` 思路），名称不强制删除线（地图信息密度高）
+4. **颜色**：仅优先级 accent；忽略 `task.color`
+5. 已完成（`done`/`archived`）：钉点可略降饱和（复用现有 `desaturateHex` 思路），名称不强制删除线（地图信息密度高）
 
 相机：
 
@@ -154,8 +182,9 @@ GET /views/schedule/map
 | 筛选状态 | `Features/Schedule/ScheduleMapFilters.swift` | 默认值、toggle 状态、级联清项目；纯函数便于单测 |
 | 优先级色 | 抽公共 `SchedulePriorityStyle` 到 `Features/Schedule/` 可共享文件 | 地图钉点与日历卡片同源，消掉 `ScheduleHomeView` / `ScheduleView` 两套略不一致的 private 实现 |
 | UI | `Features/Schedule/ScheduleMapView.swift` | 筛选条 + `Map` + 空/错/加载 |
-| 标注 | 同文件或 `ScheduleMapAnnotationView.swift` | 钉点 + 名称/时间 label |
-| 入口 | `ScheduleHomeView.swift` | `ContentMode.map`、modeButton、content 分支、`loadMap` |
+| 标注 | 同文件或 `ScheduleMapAnnotationView.swift` | 钉点 + 名称/时间 label（优先级色） |
+| 地名 | `Features/Schedule/ScheduleMapPlaceTitle.swift`（或等价） | When In Use 定位 + 反向地理编码 → Header「国家 · 城市」 |
+| 入口 | `ScheduleHomeView.swift` | `ContentMode.map`、modeButton、content 分支、`loadMap`、地图模式 `headerTitle` |
 
 `project.yml`：新 Swift 文件落在现有 `Timia/Features/Schedule` sources 下即可（XcodeGen 通配则无需改；若显式列表则补上）。
 
@@ -253,10 +282,11 @@ iOS 目前多为中文硬编码（与现有 Schedule 一致）。关键字符串
 ## Explicit non-goals（一期）
 
 - TaskEditor 地点搜索 / 写入坐标（用户仍可通过 Web 录入坐标；iOS 只读展示）
-- 显示用户当前位置 / 导航到任务
+- 地图上显示用户蓝点 / 导航到任务 / 相机跟随用户
 - 地图上长按新建任务
 - Cluster 数字气泡（同坐标用列表即可；过密时可后续加）
-- 改 Info.plist 定位文案（本功能不依赖定位权限）
+- 钉点使用任务自定义 `color`
+- 筛选条件跨启动持久化
 
 ---
 
@@ -265,28 +295,31 @@ iOS 目前多为中文硬编码（与现有 Schedule 一致）。关键字符串
 1. 模型 + 筛选纯函数 + 单测  
 2. `ScheduleMapView` UI（可先用假数据钉点）  
 3. 接 `/views/schedule/map` + 空间/项目列表  
-4. `ScheduleHomeView` 接入第四模式与刷新  
-5. 同坐标列表 + 编辑回写刷新  
-6. 抽共享 `SchedulePriorityStyle`（若改动面可控）  
-7. 模拟器/真机走查  
+4. Header「国家 · 城市」定位 + 反向地理编码 + Info.plist 文案微调  
+5. `ScheduleHomeView` 接入第四模式与刷新  
+6. 同坐标列表 + 编辑回写刷新  
+7. 抽共享 `SchedulePriorityStyle`（若改动面可控）  
+8. 模拟器/真机走查  
 
 ---
 
-## Open questions（实现前可默认）
+## Resolved decisions（2026-09-18）
 
-| # | Question | Default if unanswered |
-|---|----------|------------------------|
-| 1 | Header 显示「地图」还是今日日期？ | **「地图」** |
-| 2 | 钉点是否叠加任务自定义 `color`？ | 一期**只用优先级色** |
-| 3 | 是否在地图模式隐藏「+ / 语音」？ | **保留**（与日历一致） |
-| 4 | 是否 persist 上次筛选？ | **不 persist** |
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Header 文案？ | **当前国家 · 城市**（定位 + 反向地理编码） |
+| 2 | 钉点是否叠加任务自定义 `color`？ | **只用优先级色** |
+| 3 | 是否在地图模式隐藏「+ / 语音」？ | **保留** |
+| 4 | 是否 persist 上次筛选？ | **不持久化** |
 
 ---
 
 ## Success criteria
 
 - 底栏日历与便利贴之间可进地图模式  
-- 有坐标的 todo/doing 任务出现在地图上，可见名称、时间、优先级色  
-- 状态 / 空间 / 项目筛选与 Web 语义一致，且只影响地图请求  
+- 地图模式 Header 显示当前国家 · 城市（权限与失败有明确降级）  
+- 有坐标的 todo/doing 任务出现在地图上，可见名称、时间、优先级色（不用自定义色）  
+- 状态 / 空间 / 项目筛选与 Web 语义一致，只影响地图请求，且不跨启动持久化  
+- 底栏保留新建与语音  
 - 点标记能打开并编辑任务；保存后地图更新  
 - 无后端 / OpenAPI / Web 变更  
