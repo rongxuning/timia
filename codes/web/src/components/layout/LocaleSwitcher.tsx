@@ -39,11 +39,7 @@ export function LocaleSwitcher({ variant, onSelected }: LocaleSwitcherProps) {
                   : "transition-colors hover:text-text-secondary"
               }
               aria-current={code === locale ? "true" : undefined}
-              onPointerDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                void select(code);
-              }}
+              onClick={() => void select(code)}
             >
               {t(code)}
             </button>
