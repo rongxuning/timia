@@ -1,26 +1,136 @@
+# Full local stack. Entry: http://localhost:8080
+#   docker compose -f docker-compose.local.yml --env-file .env.docker up -d --build
+# Infra only (host-run apps): docker compose -f docker-compose.local.yml up -d db minio
+
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: timia
-      POSTGRES_PASSWORD: timia
-      POSTGRES_DB: timia
+      POSTGRES_USER: ${POSTGRES_USER:-timia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-timia}
+      POSTGRES_DB: ${POSTGRES_DB:-timia}
     ports:
       - "5432:5432"
     volumes:
       - timia_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   minio:
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    image: quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z
+    restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: timia
-      MINIO_ROOT_PASSWORD: timia_minio_dev
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-timia}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-timia_minio_dev}
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - timia_minio:/data
+
+  core-service:
+    image: timia-core-service:local
+    build:
+      context: ./codes/core-service
+      args:
+        BUILD_REVISION: ${CORE_SERVICE_REVISION:-local}
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      FILE_SERVICE_BASE: http://file-service:8003
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m alembic upgrade heads && exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+      ]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    depends_on:
+      db:
+        condition: service_healthy
+
+  file-service:
+    image: timia-file-service:local
+    build:
+      context: ./codes/file-service
+      args:
+        BUILD_REVISION: ${FILE_SERVICE_REVISION:-local}
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      MEDIA_BACKEND: s3
+      MEDIA_S3_ENDPOINT: http://minio:9000
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8003",
+      ]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      core-service:
+        condition: service_healthy
+
+  web:
+    image: timia-web:local
+    build:
+      context: ./codes/web
+      args:
+        BUILD_REVISION: ${WEB_REVISION:-local}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_FILE_API_BASE_URL: ${NEXT_PUBLIC_FILE_API_BASE_URL}
+    restart: unless-stopped
+
+  mcp-server:
+    image: timia-mcp-server:local
+    build:
+      context: ./codes/mcp-server
+      args:
+        BUILD_REVISION: ${MCP_SERVER_REVISION:-local}
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      TIMIA_API_BASE: http://core-service:8000
+      TIMIA_MCP_TRANSPORT: http
+      TIMIA_MCP_HOST: 0.0.0.0
+      TIMIA_MCP_PORT: "8100"
+      TIMIA_MCP_PATH: /mcp
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    depends_on:
+      core-service:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - core-service
+      - file-service
+      - web
+      - mcp-server
 
 volumes:
   timia_pgdata:

@@ -1,4 +1,4 @@
-.PHONY: dev db core-service file-service web core-service-install file-service-install web-install verify local codegen kill-port-8000 kill-port-8003 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http
+.PHONY: dev db core-service file-service web core-service-install file-service-install web-install verify local codegen kill-port-8000 kill-port-8003 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http docker-up docker-down docker-ps docker-logs docker-verify
 
 # Kill whatever is holding port 8000 (uvicorn / fastapi). No-op if free.
 # 1s grace period, then SIGKILL if still alive.
@@ -46,8 +46,48 @@ dev: db
 	@echo "  make file-service-install && make file-service"
 	@echo "  make web-install && make web"
 
+DOCKER_COMPOSE_LOCAL = docker compose -f docker-compose.local.yml --env-file .env.docker
+
 db:
-	docker compose -f docker-compose.local.yml up -d db minio
+	$(DOCKER_COMPOSE_LOCAL) up -d db minio
+
+# Full stack in Docker (web + APIs + mcp + nginx). Open http://localhost:8080
+docker-up:
+	$(DOCKER_COMPOSE_LOCAL) up -d --build
+
+docker-down:
+	$(DOCKER_COMPOSE_LOCAL) down
+
+docker-ps:
+	$(DOCKER_COMPOSE_LOCAL) ps
+
+docker-logs:
+	$(DOCKER_COMPOSE_LOCAL) logs -f --tail=80
+
+docker-verify:
+	@fail=0; \
+	if curl -sf http://127.0.0.1:8080/core-service/health | grep -q '"ok"'; then \
+	  echo "OK  API  http://127.0.0.1:8080/core-service/health"; \
+	else \
+	  echo "FAIL API  http://127.0.0.1:8080/core-service/health"; fail=1; \
+	fi; \
+	if curl -sf http://127.0.0.1:8080/file-service/health | grep -q '"ok"'; then \
+	  echo "OK  File http://127.0.0.1:8080/file-service/health"; \
+	else \
+	  echo "FAIL File http://127.0.0.1:8080/file-service/health"; fail=1; \
+	fi; \
+	if curl -sf http://127.0.0.1:8080/mcp-health | grep -q '"ok"'; then \
+	  echo "OK  MCP  http://127.0.0.1:8080/mcp-health"; \
+	else \
+	  echo "FAIL MCP  http://127.0.0.1:8080/mcp-health"; fail=1; \
+	fi; \
+	code=$$(curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/); \
+	if echo "$$code" | grep -qE '^(200|307|308)$$'; then \
+	  echo "OK  Web  http://127.0.0.1:8080/ ($$code)"; \
+	else \
+	  echo "FAIL Web  http://127.0.0.1:8080/ ($$code)"; fail=1; \
+	fi; \
+	[[ $$fail -eq 0 ]] && echo "Docker stack verify passed." || exit 1
 
 UV_HTTP_TIMEOUT ?= 300
 

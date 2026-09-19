@@ -11,7 +11,18 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 
 ### Local dev
 
-#### Quick start
+#### All services in Docker
+
+```bash
+make docker-up       # build + start db/minio/core/file/web/mcp/nginx
+make docker-verify   # http://localhost:8080
+make docker-ps
+make docker-down
+```
+
+Open **http://localhost:8080**. APIs: `/core-service/health`, `/file-service/health`, `/mcp-health`.
+
+#### Quick start (apps on the host)
 
 ```bash
 make local          # Postgres + MinIO in Docker
