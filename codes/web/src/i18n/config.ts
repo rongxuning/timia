@@ -15,3 +15,8 @@ export function resolveLocale(value: string | null | undefined): Locale {
 export function htmlLang(locale: Locale): "zh-CN" | "en" {
   return locale === "zh" ? "zh-CN" : "en";
 }
+
+export function localeCookieSetter(locale: Locale, secure: boolean): string {
+  const securePart = secure ? "; Secure" : "";
+  return `${LOCALE_COOKIE}=${locale}; Path=/; Max-Age=${LOCALE_MAX_AGE}; SameSite=Lax${securePart}`;
+}

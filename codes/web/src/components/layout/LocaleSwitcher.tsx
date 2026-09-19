@@ -1,22 +1,27 @@
 "use client";
 
+import { useId } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { changeLocaleAction } from "@/i18n/actions";
-import { LOCALES, type Locale } from "@/i18n/config";
+import { LOCALES, localeCookieSetter, type Locale } from "@/i18n/config";
 
 type LocaleSwitcherProps = {
   variant: "menu" | "footer";
+  onSelected?: () => void;
 };
 
-export function LocaleSwitcher({ variant }: LocaleSwitcherProps) {
+export function LocaleSwitcher({ variant, onSelected }: LocaleSwitcherProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations("locale");
   const router = useRouter();
+  const selectId = useId();
 
   async function select(next: Locale) {
     if (next === locale) return;
+    document.cookie = localeCookieSetter(next, window.location.protocol === "https:");
     await changeLocaleAction(next);
+    onSelected?.();
     router.refresh();
   }
 
@@ -45,20 +50,25 @@ export function LocaleSwitcher({ variant }: LocaleSwitcherProps) {
   }
 
   return (
-    <div role="group" aria-label={t("switchAria")}>
-      {LOCALES.map((code) => (
-        <button
-          key={code}
-          type="button"
-          role="menuitemradio"
-          aria-checked={code === locale}
-          className="flex w-full items-center justify-between px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
-          onClick={() => void select(code)}
-        >
-          <span>{t(code)}</span>
-          {code === locale ? <span aria-hidden>✓</span> : null}
-        </button>
-      ))}
+    <div className="px-3 pb-1" onMouseDown={(event) => event.stopPropagation()}>
+      <label className="sr-only" htmlFor={selectId}>
+        {t("switchAria")}
+      </label>
+      <select
+        id={selectId}
+        aria-label={t("switchAria")}
+        className="w-full rounded-lg border border-border-subtle bg-surface px-2 py-1.5 text-small text-text-primary outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+        value={locale}
+        onMouseDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        onChange={(event) => void select(event.target.value as Locale)}
+      >
+        {LOCALES.map((code) => (
+          <option key={code} value={code}>
+            {t(code)}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
