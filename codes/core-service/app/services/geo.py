@@ -94,7 +94,9 @@ def search_photon_places(query: str, limit: int) -> list[GeoPlaceOut]:
         with httpx.Client(timeout=settings.photon_timeout_seconds) as client:
             response = client.get(
                 url,
-                params={"q": query, "limit": limit, "lang": "zh"},
+                # Photon public instance only accepts lang=default|de|en|fr.
+                # zh returns 400 and surfaces as geo_provider_error.
+                params={"q": query, "limit": limit},
                 headers={"User-Agent": settings.photon_user_agent},
             )
             response.raise_for_status()
