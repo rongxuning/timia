@@ -274,8 +274,8 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         aria-busy={loading}
       />
       {emptyMessage ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
-          <p className="max-w-md rounded-xl bg-white/90 px-4 py-3 text-center text-small text-text-secondary shadow-sm">
+        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-6">
+          <p className="w-full max-w-sm rounded-xl bg-white/90 px-4 py-3 text-center text-small text-text-secondary shadow-sm">
             {emptyMessage}
           </p>
         </div>
