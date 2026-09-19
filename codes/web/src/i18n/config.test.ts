@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_LOCALE, htmlLang, isLocale, resolveLocale } from "./config.ts";
+import { DEFAULT_LOCALE, htmlLang, isLocale, localeCookieSetter, resolveLocale } from "./config.ts";
 
 describe("resolveLocale", () => {
   it("returns zh when value is missing", () => {
@@ -39,5 +39,15 @@ describe("htmlLang", () => {
 describe("DEFAULT_LOCALE", () => {
   it("is zh", () => {
     assert.equal(DEFAULT_LOCALE, "zh");
+  });
+});
+
+describe("localeCookieSetter", () => {
+  it("writes a path-wide cookie the next request can read", () => {
+    assert.equal(
+      localeCookieSetter("zh", false),
+      "locale=zh; Path=/; Max-Age=31536000; SameSite=Lax",
+    );
+    assert.match(localeCookieSetter("en", true), /locale=en;.*Secure/);
   });
 });

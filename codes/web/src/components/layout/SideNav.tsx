@@ -23,7 +23,7 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
   const displayName = me?.display_name?.trim() || t("userFallback");
   return (
-    <aside className="hidden h-full w-16 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
+    <aside className="relative z-40 hidden h-full w-16 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
       <div className="px-2">
         <div className="flex h-14 w-full items-center justify-center">
           <Link
@@ -114,7 +114,7 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
               role="menu"
               className="absolute bottom-0 left-full z-50 ml-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
             >
-              <LocaleSwitcher variant="menu" />
+              <LocaleSwitcher variant="menu" onSelected={() => onUserMenuOpenChange(false)} />
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"

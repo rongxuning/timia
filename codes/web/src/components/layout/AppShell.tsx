@@ -15,6 +15,7 @@ import {
   loginRedirectReasonWhenUnauthenticated,
 } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
+import { isUserMenuEventInside } from "@/i18n/userMenuDismiss";
 import { isAdminOnlyPath, isSystemAdmin, type MeWithSystemRole } from "@/lib/system-role";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
@@ -321,18 +322,14 @@ export function AppShell({ children }: AppShellProps) {
 
   useEffect(() => {
     if (!userMenuOpen) return;
-    function onMouseDown(e: MouseEvent) {
-      const target = e.target as Node | null;
-      if (!target) return;
+    function onClick(e: MouseEvent) {
       const sideMenu = document.getElementById("timia-user-menu-side");
       const topMenu = document.getElementById("timia-user-menu-top");
-      if ((sideMenu && sideMenu.contains(target)) || (topMenu && topMenu.contains(target))) {
-        return;
-      }
+      if (isUserMenuEventInside(e.target, [sideMenu, topMenu])) return;
       setUserMenuOpen(false);
     }
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
   }, [userMenuOpen]);
 
   return (

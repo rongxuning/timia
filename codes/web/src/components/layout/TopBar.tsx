@@ -45,7 +45,7 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
               role="menu"
               className="absolute right-0 mt-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
             >
-              <LocaleSwitcher variant="menu" />
+              <LocaleSwitcher variant="menu" onSelected={() => onUserMenuOpenChange(false)} />
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
