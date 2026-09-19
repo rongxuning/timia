@@ -124,10 +124,68 @@ struct ScheduleTask: Codable, Identifiable, Hashable, Equatable, Sendable {
     var assignee: UserBrief?
     var participants: [UserBrief]?
     var location: String?
+    var locationLat: Double? = nil
+    var locationLng: Double? = nil
     var workspaceId: String
     var workspaceName: String
     var projectId: String
     var projectName: String
+}
+
+struct ScheduleMapItem: Codable, Identifiable, Hashable, Equatable, Sendable {
+    let id: String
+    var title: String
+    var body: String?
+    var color: String
+    var status: String
+    var priority: String?
+    var startAt: String?
+    var endAt: String?
+    var completedAt: String?
+    var details: String?
+    var version: Int
+    var createdBy: UserBrief?
+    var assignee: UserBrief?
+    var participants: [UserBrief]?
+    var location: String?
+    var locationLat: Double
+    var locationLng: Double
+    var workspaceId: String
+    var workspaceName: String
+    var projectId: String
+    var projectName: String
+
+    func asScheduleTask() -> ScheduleTask {
+        ScheduleTask(
+            id: id,
+            title: title,
+            body: body,
+            color: color,
+            status: status,
+            priority: priority,
+            startAt: startAt,
+            endAt: endAt,
+            completedAt: completedAt,
+            details: details,
+            version: version,
+            createdBy: createdBy,
+            assignee: assignee,
+            participants: participants,
+            location: location,
+            locationLat: locationLat,
+            locationLng: locationLng,
+            workspaceId: workspaceId,
+            workspaceName: workspaceName,
+            projectId: projectId,
+            projectName: projectName
+        )
+    }
+}
+
+struct ScheduleMapViewResponse: Decodable, Sendable {
+    let items: [ScheduleMapItem]
+    let total: Int
+    let truncated: Bool
 }
 
 struct CalendarDay: Decodable, Identifiable, Sendable {

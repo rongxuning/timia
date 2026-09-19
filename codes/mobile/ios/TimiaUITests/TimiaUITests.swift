@@ -175,6 +175,15 @@ final class TimiaUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 0.4)
         attachScreenshot(named: "schedule-year", app: app)
 
+        XCTAssertTrue(app.buttons["地图模式"].waitForExistence(timeout: 2))
+        app.buttons["地图模式"].tap()
+        XCTAssertTrue(app.buttons["新建任务"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["未开始"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["进行中"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["日"].exists)
+        Thread.sleep(forTimeInterval: 0.4)
+        attachScreenshot(named: "schedule-map", app: app)
+
         XCTAssertTrue(app.buttons["打开我的页面"].exists)
         XCTAssertTrue(app.buttons["打开空间页面"].exists)
         XCTAssertTrue(app.buttons["Todo 模式"].exists)

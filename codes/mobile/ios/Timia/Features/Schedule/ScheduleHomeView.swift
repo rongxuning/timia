@@ -36,6 +36,7 @@ struct ScheduleHomeView: View {
     private enum ContentMode: String, CaseIterable {
         case todo
         case calendar
+        case map
         case stickyNote
     }
 
@@ -92,6 +93,8 @@ struct ScheduleHomeView: View {
     @State private var parseResponse: NaturalLanguageParseResponse?
     @State private var isRangePickerExpanded = false
     @AppStorage("schedule.idleCollapseEnabled") private var idleCollapseEnabled = true
+    @StateObject private var mapPlaceTitle = ScheduleMapPlaceTitle()
+    @State private var mapRefreshNonce = 0
 
     var body: some View {
         ZStack {
@@ -125,6 +128,12 @@ struct ScheduleHomeView: View {
                                 stickyDraft.voiceInputCompleted = false
                             }
                         }
+                    } else if contentMode == .map {
+                        ScheduleMapView(
+                            refreshNonce: mapRefreshNonce,
+                            onTaskTap: { selectedTask = $0 },
+                            onError: { showTip($0) }
+                        )
                     } else if contentMode == .todo {
                         TodoScheduleView(
                             selectedDate: selectedDate,
@@ -215,6 +224,9 @@ struct ScheduleHomeView: View {
                     await loadTodo()
                 case .calendar:
                     await loadCalendar()
+                case .map:
+                    mapPlaceTitle.refresh()
+                    mapRefreshNonce += 1
                 case .stickyNote:
                     break  // StickyNoteView fetches its own data
                 }
@@ -223,7 +235,12 @@ struct ScheduleHomeView: View {
         .sheet(item: $selectedTask) { task in
             NavigationStack {
                 TaskEditorView(mode: .edit(task)) {
-                    Task { await loadVisibleContent(force: true) }
+                    Task {
+                        if contentMode == .map {
+                            mapRefreshNonce += 1
+                        }
+                        await loadVisibleContent(force: true)
+                    }
                 }
             }
         }
@@ -257,6 +274,17 @@ struct ScheduleHomeView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("calendar-header-title")
                     .accessibilityValue(headerTitle)
+                } else if contentMode == .map {
+                    Button {
+                        mapPlaceTitle.refresh(force: true)
+                    } label: {
+                        Text(headerTitle)
+                            .contentTransition(.numericText())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("calendar-header-title")
+                    .accessibilityValue(headerTitle)
+                    .accessibilityHint("轻触重新获取位置")
                 } else {
                     Text(headerTitle)
                         .contentTransition(.numericText())
@@ -437,6 +465,7 @@ struct ScheduleHomeView: View {
             HStack(spacing: 2) {
                 modeButton(.todo, symbol: "checklist")
                 modeButton(.calendar, symbol: "calendar")
+                modeButton(.map, symbol: "map")
                 modeButton(.stickyNote, symbol: "highlighter")
             }
             .padding(4)
@@ -583,11 +612,15 @@ struct ScheduleHomeView: View {
         switch value {
         case .todo: return "Todo 模式"
         case .calendar: return "日历模式"
+        case .map: return "地图模式"
         case .stickyNote: return "便利贴模式"
         }
     }
 
     private var headerTitle: String {
+        if contentMode == .map {
+            return mapPlaceTitle.title
+        }
         if contentMode == .stickyNote {
             // Sticky-note mode: always show today's full date, in the same
             // 29pt rounded-bold style as the other modes.
@@ -714,10 +747,18 @@ struct ScheduleHomeView: View {
     }
 
     private func loadVisibleContent(force: Bool = false) async {
-        if contentMode == .todo {
+        switch contentMode {
+        case .todo:
             await loadTodo(force: force)
-        } else {
+        case .calendar:
             await loadCalendar(force: force)
+        case .map:
+            if force {
+                mapRefreshNonce += 1
+            }
+            mapPlaceTitle.refresh(force: force)
+        case .stickyNote:
+            break
         }
     }
 
