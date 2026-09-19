@@ -1,11 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { HealthDataManage } from "@/components/health/HealthDataManage";
+import { HealthConfigPanel } from "@/components/health/HealthConfigPanel";
 import { HealthMiniCalendar } from "@/components/health/HealthMiniCalendar";
 import { HealthProfileForm } from "@/components/health/HealthProfileForm";
 import { HealthRangePicker } from "@/components/health/HealthRangePicker";
-import { HealthSourcePicker } from "@/components/health/HealthSourcePicker";
 import { PageMain } from "@/components/layout";
 import type { useMyHealthPage } from "@/hooks/useMyHealthPage";
 
@@ -42,8 +41,12 @@ export function HealthPageFrame({ page, children }: HealthPageFrameProps) {
               saving={page.savingProfile}
               onSave={page.saveProfile}
             />
-            <HealthSourcePicker value={source} onChange={page.setSource} />
-            <HealthDataManage token={page.token} onCleared={page.reload} />
+            <HealthConfigPanel
+              source={source}
+              onSourceChange={page.setSource}
+              token={page.token}
+              onCleared={page.reload}
+            />
           </aside>
           <div className="min-w-0 space-y-lg overflow-x-clip">
             {loading && !view ? <p className="text-small text-text-secondary">加载中…</p> : children}

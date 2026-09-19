@@ -184,33 +184,10 @@ export default function MySchedulePage() {
       <div className="grid items-start gap-lg lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
         <aside
           id="my-schedule-undated-panel"
-          className="flex min-h-0 flex-col lg:h-full lg:overflow-hidden"
-        >
-          <UndatedTaskList
-            items={undatedItems}
-            onItemClick={openDrawer}
-            onAddTask={() => {
-              setTaskDrawerOpen(false);
-              setTaskDrawerItemId(null);
-              setTaskDrawerWorkspaceId("");
-              setTaskDrawerProjectId("");
-              openCreate({ status: "todo", startAt: "", endAt: "" });
-            }}
-            onDragItemIdChange={handleUndatedDragItemIdChange}
-            canAcceptDrop={draggingItem != null && canClearScheduleByDrop(draggingItem)}
-            onDropTaskId={handleDropOnUndated}
-          />
-        </aside>
-
-        <div
-          className={
-            boardMode === "map"
-              ? "flex min-h-[60vh] min-w-0 flex-col gap-2 lg:h-full lg:min-h-0 lg:overflow-hidden"
-              : "min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
-          }
+          className="flex min-h-0 flex-col gap-2 lg:h-full lg:overflow-hidden"
         >
           <div
-            className="mb-2 inline-flex self-start rounded-xl border border-border-subtle bg-white p-0.5"
+            className="inline-flex shrink-0 self-start rounded-xl border border-border-subtle bg-white p-0.5"
             role="group"
             aria-label={t("boardModeAria")}
           >
@@ -234,6 +211,31 @@ export default function MySchedulePage() {
               </button>
             ))}
           </div>
+          <div className="min-h-0 flex-1 lg:overflow-hidden">
+            <UndatedTaskList
+              items={undatedItems}
+              onItemClick={openDrawer}
+              onAddTask={() => {
+                setTaskDrawerOpen(false);
+                setTaskDrawerItemId(null);
+                setTaskDrawerWorkspaceId("");
+                setTaskDrawerProjectId("");
+                openCreate({ status: "todo", startAt: "", endAt: "" });
+              }}
+              onDragItemIdChange={handleUndatedDragItemIdChange}
+              canAcceptDrop={draggingItem != null && canClearScheduleByDrop(draggingItem)}
+              onDropTaskId={handleDropOnUndated}
+            />
+          </div>
+        </aside>
+
+        <div
+          className={
+            boardMode === "map"
+              ? "flex min-h-[60vh] min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-hidden"
+              : "min-w-0 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain"
+          }
+        >
           {boardMode === "map" ? (
             <ScheduleMapView
               token={token}
