@@ -17,18 +17,25 @@ const SOURCES: HealthSourceOption[] = [
 type HealthSourcePickerProps = {
   value: string;
   onChange: (id: string) => void;
+  /** 嵌入配置面板时不渲染独立卡片外壳 */
+  embedded?: boolean;
 };
 
-export function HealthSourcePicker({ value, onChange }: HealthSourcePickerProps) {
+export function HealthSourcePicker({ value, onChange, embedded = false }: HealthSourcePickerProps) {
   const visible = SOURCES.filter((item) => item.visible);
 
-  return (
-    <section className="rounded-xl border border-border-subtle bg-white px-md py-sm">
-      <div className="flex items-baseline gap-sm">
-        <h2 className="shrink-0 font-headline text-small text-text-primary">数据源</h2>
-        <p className="min-w-0 text-caption text-neutral-muted">设备与平台</p>
-      </div>
-      <div className="mt-sm flex flex-wrap gap-sm">
+  const body = (
+    <>
+      {!embedded && (
+        <div className="flex items-baseline gap-sm">
+          <h2 className="shrink-0 font-headline text-small text-text-primary">数据源</h2>
+          <p className="min-w-0 text-caption text-neutral-muted">设备与平台</p>
+        </div>
+      )}
+      {embedded && (
+        <p className="text-caption text-neutral-muted">数据源</p>
+      )}
+      <div className={embedded ? "mt-1.5 flex flex-wrap gap-sm" : "mt-sm flex flex-wrap gap-sm"}>
         {visible.map((item) => {
           const active = value === item.id;
           return (
@@ -48,6 +55,12 @@ export function HealthSourcePicker({ value, onChange }: HealthSourcePickerProps)
           );
         })}
       </div>
-    </section>
+    </>
+  );
+
+  if (embedded) return <div>{body}</div>;
+
+  return (
+    <section className="rounded-xl border border-border-subtle bg-white px-md py-sm">{body}</section>
   );
 }

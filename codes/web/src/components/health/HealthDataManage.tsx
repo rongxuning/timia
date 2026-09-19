@@ -6,9 +6,11 @@ import { clearHealthData } from "@/lib/api/health-views";
 type HealthDataManageProps = {
   token: string | null;
   onCleared: () => void;
+  /** 嵌入配置面板时不渲染独立卡片外壳 */
+  embedded?: boolean;
 };
 
-export function HealthDataManage({ token, onCleared }: HealthDataManageProps) {
+export function HealthDataManage({ token, onCleared, embedded = false }: HealthDataManageProps) {
   const [confirming, setConfirming] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -32,12 +34,17 @@ export function HealthDataManage({ token, onCleared }: HealthDataManageProps) {
     }
   }
 
-  return (
-    <section className="rounded-xl border border-border-subtle bg-white px-md py-sm">
-      <div className="flex items-baseline gap-sm">
-        <h2 className="shrink-0 font-headline text-small text-text-primary">数据管理</h2>
-        <p className="min-w-0 text-caption text-neutral-muted">清除服务端健康样本后可重新同步</p>
-      </div>
+  const body = (
+    <>
+      {!embedded && (
+        <div className="flex items-baseline gap-sm">
+          <h2 className="shrink-0 font-headline text-small text-text-primary">数据管理</h2>
+          <p className="min-w-0 text-caption text-neutral-muted">清除服务端健康样本后可重新同步</p>
+        </div>
+      )}
+      {embedded && (
+        <p className="text-caption text-neutral-muted">清除服务端健康样本后可重新同步</p>
+      )}
 
       {!confirming ? (
         <button
@@ -47,12 +54,12 @@ export function HealthDataManage({ token, onCleared }: HealthDataManageProps) {
             setMessage(null);
             setError(null);
           }}
-          className="mt-sm rounded-lg border border-error/40 px-3 py-1.5 text-caption font-medium text-error hover:bg-error-container/10"
+          className={`${embedded ? "mt-1.5" : "mt-sm"} rounded-lg border border-error/40 px-3 py-1.5 text-caption font-medium text-error hover:bg-error-container/10`}
         >
           清除全部健康数据
         </button>
       ) : (
-        <div className="mt-sm space-y-sm">
+        <div className={`${embedded ? "mt-1.5" : "mt-sm"} space-y-sm`}>
           <p className="text-caption text-text-secondary">
             将删除样本、训练、日汇总与同步水位，保留身高等档案。此操作不可撤销。
           </p>
@@ -79,6 +86,12 @@ export function HealthDataManage({ token, onCleared }: HealthDataManageProps) {
 
       {message && <p className="mt-sm text-caption text-text-secondary">{message}</p>}
       {error && <p className="mt-sm text-caption text-error">{error}</p>}
-    </section>
+    </>
+  );
+
+  if (embedded) return <div>{body}</div>;
+
+  return (
+    <section className="rounded-xl border border-border-subtle bg-white px-md py-sm">{body}</section>
   );
 }
