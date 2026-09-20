@@ -26,7 +26,6 @@ private let taskStatusOptions = [
 private enum TaskEditorFocusField: Hashable {
     case title
     case body
-    case location
     case comment
 }
 
@@ -56,7 +55,7 @@ struct TaskEditorView: View {
     @State private var title = ""
     @State private var bodyText = ""
     @State private var details = ""
-    @State private var location = ""
+    @State private var place = PlaceValue.empty
     @State private var color = "#FFFFFF"
     @State private var status = "todo"
     @State private var priority = "1"
@@ -247,15 +246,16 @@ struct TaskEditorView: View {
                 }
             ))
 
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("地点")
-                    .fixedSize()
-                    .frame(width: 40, alignment: .leading)
-                TextField("请输入地点", text: $location)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .focused($focusedField, equals: .location)
-                    .submitLabel(.done)
-                    .onSubmit { focusedField = nil }
+            PlaceSearchField(place: $place) { query in
+                let listed: GeoPlaces = try await session.api.request(
+                    "/geo/places",
+                    query: [
+                        URLQueryItem(name: "q", value: query),
+                        URLQueryItem(name: "limit", value: "8"),
+                    ],
+                    response: GeoPlaces.self
+                )
+                return listed.items
             }
 
             PhotosPicker(
@@ -564,7 +564,8 @@ struct TaskEditorView: View {
     }
 
     private func fill(_ task: ScheduleTask) {
-        title = task.title; bodyText = task.body ?? ""; details = task.details ?? ""; location = task.location ?? ""
+        title = task.title; bodyText = task.body ?? ""; details = task.details ?? ""
+        place = PlaceValue.fromItem(location: task.location, lat: task.locationLat, lng: task.locationLng)
         color = task.color; status = task.status; priority = task.priority ?? "1"; version = task.version
         assigneeUserId = task.assignee?.id ?? task.createdBy?.id ?? ""
         participantUserIds = Set((task.participants ?? []).map(\.id))
@@ -580,7 +581,7 @@ struct TaskEditorView: View {
         let draft = response.draft
         title = draft.title
         bodyText = draft.body ?? ""
-        location = draft.location ?? ""
+        place = PlaceValue.fromFreeText(draft.location ?? "")
         status = draft.status
         priority = draft.priority
         if let recurrence = draft.recurrenceText?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -774,7 +775,8 @@ struct TaskEditorView: View {
                 comments = detail.comments ?? []
                 return
             }
-            title = detail.title; bodyText = detail.body ?? ""; details = detail.details ?? ""; location = detail.location ?? ""
+            title = detail.title; bodyText = detail.body ?? ""; details = detail.details ?? ""
+            place = PlaceValue.fromItem(location: detail.location, lat: detail.locationLat, lng: detail.locationLng)
             color = detail.color; status = detail.status; priority = detail.priority ?? "1"; version = detail.version; comments = detail.comments ?? []
             if let date = Self.parse(detail.startAt) { startDate = date }
             if let date = Self.parse(detail.endAt) { endDate = date }
@@ -783,7 +785,11 @@ struct TaskEditorView: View {
             participantUserIds = Set((detail.participants ?? []).map(\.id))
             mergeMemberBriefs([detail.assignee, detail.createdBy].compactMap { $0 } + (detail.participants ?? []))
             creatorDisplayName = detail.createdBy?.displayName ?? creatorDisplayName
-            await loadAttachments(itemId: taskId)
+            await loadAttachments(
+                workspaceId: sourceWorkspaceId,
+                projectId: sourceProjectId,
+                itemId: taskId
+            )
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -798,6 +804,7 @@ struct TaskEditorView: View {
                 try await uploadPending(itemId: created.id)
             case let .edit(task):
                 let ownershipChanged = workspaceId != task.workspaceId || projectId != task.projectId
+                let loc = place.itemLocationPayload
                 let update = ItemUpdatePayload(
                     version: version, title: title.trimmingCharacters(in: .whitespacesAndNewlines), body: bodyText.nilIfBlank,
                     color: color.uppercased(), status: status, priority: priority,
@@ -806,7 +813,9 @@ struct TaskEditorView: View {
                     details: details.nilIfBlank,
                     assigneeUserId: assigneeUserId.nilIfBlank,
                     participantUserIds: Array(participantUserIds).sorted(),
-                    location: location.nilIfBlank,
+                    location: loc.location,
+                    locationLat: loc.locationLat,
+                    locationLng: loc.locationLng,
                     targetWorkspaceId: ownershipChanged ? workspaceId : nil,
                     targetProjectId: ownershipChanged ? projectId : nil,
                     repeatKind: repeatKind == "none" ? nil : repeatKind
@@ -882,7 +891,7 @@ struct TaskEditorView: View {
         pendingMedia = []
     }
 
-    private func loadAttachments(itemId: String) async {
+    private func loadAttachments(workspaceId: String, projectId: String, itemId: String) async {
         do {
             attachments = try await session.files.listForItem(
                 workspaceId: workspaceId,
@@ -914,7 +923,8 @@ struct TaskEditorView: View {
     }
 
     private func payload() -> ItemPayload {
-        ItemPayload(
+        let loc = place.itemLocationPayload
+        return ItemPayload(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines), body: bodyText.nilIfBlank, color: color.uppercased(),
             status: status, priority: priority, startAt: Self.format(startDate),
             endAt: Self.format(endDate),
@@ -922,7 +932,9 @@ struct TaskEditorView: View {
             details: details.nilIfBlank,
             assigneeUserId: assigneeUserId.nilIfBlank,
             participantUserIds: Array(participantUserIds).sorted(),
-            location: location.nilIfBlank,
+            location: loc.location,
+            locationLat: loc.locationLat,
+            locationLng: loc.locationLng,
             repeatKind: repeatKind
         )
     }

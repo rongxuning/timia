@@ -131,8 +131,7 @@ struct ScheduleHomeView: View {
                     } else if contentMode == .map {
                         ScheduleMapView(
                             refreshNonce: mapRefreshNonce,
-                            onTaskTap: { selectedTask = $0 },
-                            onError: { showTip($0) }
+                            onTaskTap: { selectedTask = $0 }
                         )
                     } else if contentMode == .todo {
                         TodoScheduleView(
@@ -1227,6 +1226,8 @@ struct ScheduleHomeView: View {
                     assigneeUserId: task.assignee?.id,
                     participantUserIds: task.participants?.map(\.id) ?? [],
                     location: task.location,
+                    locationLat: task.locationLat,
+                    locationLng: task.locationLng,
                     targetWorkspaceId: nil,
                     targetProjectId: nil,
                     repeatKind: nil

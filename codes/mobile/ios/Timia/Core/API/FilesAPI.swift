@@ -13,18 +13,22 @@ struct FilesAPI: Sendable {
     }
 
     func listForItem(workspaceId: String, projectId: String, itemId: String) async throws -> [FileOut] {
-        let listed: FileListOut = try await client.request(
-            "/files",
-            query: [
-                URLQueryItem(name: "workspace_id", value: workspaceId),
-                URLQueryItem(name: "project_id", value: projectId),
-                URLQueryItem(name: "binding_type", value: "item"),
-                URLQueryItem(name: "binding_id", value: itemId),
-                URLQueryItem(name: "limit", value: "100"),
-            ],
-            response: FileListOut.self
-        )
-        return listed.items
+        do {
+            let listed: FileListOut = try await client.request(
+                "/files",
+                query: [
+                    URLQueryItem(name: "workspace_id", value: workspaceId),
+                    URLQueryItem(name: "project_id", value: projectId),
+                    URLQueryItem(name: "binding_type", value: "item"),
+                    URLQueryItem(name: "binding_id", value: itemId),
+                    URLQueryItem(name: "limit", value: "100"),
+                ],
+                response: FileListOut.self
+            )
+            return listed.items
+        } catch let error as APIError where error.isNotFound {
+            return []
+        }
     }
 
     func upload(

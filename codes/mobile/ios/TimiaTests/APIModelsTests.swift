@@ -52,6 +52,14 @@ final class APIModelsTests: XCTestCase {
 
     func testAPIErrorHasUserFacingMessage() {
         XCTAssertEqual(APIError.unauthorized.errorDescription, "登录已过期，请重新登录")
+        XCTAssertEqual(APIError.server(status: 404, message: "not found").errorDescription, "未找到")
+        XCTAssertEqual(APIError.server(status: 404, message: "Not Found").errorDescription, "未找到")
+        XCTAssertEqual(APIError.server(status: 404, message: "not_found").errorDescription, "未找到")
+        XCTAssertEqual(APIError.server(status: 502, message: "geo_provider_error").errorDescription, "地点搜索暂时不可用")
+        XCTAssertEqual(APIError.server(status: 429, message: "geo_rate_limited").errorDescription, "搜索过快，请稍后再试")
+        XCTAssertTrue(APIError.server(status: 404, message: "not found").isNotFound)
+        XCTAssertTrue(APIError.server(status: 404, message: "not_found").isNotFound)
+        XCTAssertFalse(APIError.server(status: 500, message: "server_error").isNotFound)
     }
 
     func testWorkspaceMembersPageDecodesPermissionsAndPools() throws {
@@ -147,6 +155,8 @@ final class APIModelsTests: XCTestCase {
                 assigneeUserId: nil,
                 participantUserIds: ["user-2", "user-3"],
                 location: nil,
+                locationLat: nil,
+                locationLng: nil,
                 targetWorkspaceId: "workspace-2",
                 targetProjectId: "project-2",
                 repeatKind: nil
@@ -156,11 +166,73 @@ final class APIModelsTests: XCTestCase {
 
         XCTAssertTrue(json["assignee_user_id"] is NSNull)
         XCTAssertTrue(json["completed_at"] is NSNull)
+        XCTAssertTrue(json["location"] is NSNull)
+        XCTAssertTrue(json["location_lat"] is NSNull)
+        XCTAssertTrue(json["location_lng"] is NSNull)
         XCTAssertEqual(json["start_at"] as? String, startAt)
         XCTAssertEqual(json["end_at"] as? String, endAt)
         XCTAssertEqual(json["participant_user_ids"] as? [String], ["user-2", "user-3"])
         XCTAssertEqual(json["target_workspace_id"] as? String, "workspace-2")
         XCTAssertEqual(json["target_project_id"] as? String, "project-2")
+    }
+
+    func testItemUpdateEncodesPinnedLocationCoordinates() throws {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let data = try encoder.encode(
+            ItemUpdatePayload(
+                version: 1,
+                title: "咖啡馆",
+                body: nil,
+                color: "#FFFFFF",
+                status: "todo",
+                priority: "1",
+                startAt: nil,
+                endAt: nil,
+                completedAt: nil,
+                details: nil,
+                assigneeUserId: "user-1",
+                participantUserIds: [],
+                location: "星巴克",
+                locationLat: 31.2304,
+                locationLng: 121.4737,
+                targetWorkspaceId: nil,
+                targetProjectId: nil,
+                repeatKind: nil
+            )
+        )
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["location"] as? String, "星巴克")
+        XCTAssertEqual(json["location_lat"] as? Double, 31.2304)
+        XCTAssertEqual(json["location_lng"] as? Double, 121.4737)
+    }
+
+    func testItemPayloadEncodesPinnedLocationCoordinates() throws {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let data = try encoder.encode(
+            ItemPayload(
+                title: "咖啡馆",
+                body: nil,
+                color: "#FFFFFF",
+                status: "todo",
+                priority: "1",
+                startAt: nil,
+                endAt: nil,
+                completedAt: nil,
+                details: nil,
+                assigneeUserId: nil,
+                participantUserIds: [],
+                location: "星巴克",
+                locationLat: 31.2304,
+                locationLng: 121.4737,
+                repeatKind: "none"
+            )
+        )
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["location"] as? String, "星巴克")
+        XCTAssertEqual(json["location_lat"] as? Double, 31.2304)
+        XCTAssertEqual(json["location_lng"] as? Double, 121.4737)
     }
 
     func testItemDetailDecodesAssigneeAndParticipantsForEditing() throws {
@@ -172,6 +244,9 @@ final class APIModelsTests: XCTestCase {
           "created_by": {"id": "user-1", "display_name": "创建人"},
           "assignee": {"id": "user-2", "display_name": "负责人"},
           "participants": [{"id": "user-3", "display_name": "成员"}],
+          "location": "星巴克",
+          "location_lat": 39.9836,
+          "location_lng": 116.3168,
           "comments": []
         }
         """
@@ -182,6 +257,25 @@ final class APIModelsTests: XCTestCase {
         XCTAssertEqual(detail.assignee?.id, "user-2")
         XCTAssertEqual(detail.participants?.map(\.id), ["user-3"])
         XCTAssertEqual(detail.completedAt, "2026-08-02T08:30:00Z")
+        XCTAssertEqual(detail.location, "星巴克")
+        XCTAssertEqual(detail.locationLat ?? 0, 39.9836, accuracy: 0.0001)
+        XCTAssertEqual(detail.locationLng ?? 0, 116.3168, accuracy: 0.0001)
+    }
+
+    func testItemDetailDecodesWithoutCoordinates() throws {
+        let json = """
+        {
+          "workspace_id": "workspace-1", "project_id": "project-1", "id": "task-1",
+          "title": "任务", "color": "#FFFFFF", "status": "todo", "version": 1,
+          "location": "线上", "comments": []
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let detail = try decoder.decode(ItemDetail.self, from: Data(json.utf8))
+        XCTAssertEqual(detail.location, "线上")
+        XCTAssertNil(detail.locationLat)
+        XCTAssertNil(detail.locationLng)
     }
 
     func testNaturalLanguageResponseDecodesTaskEditorPrefillFields() throws {

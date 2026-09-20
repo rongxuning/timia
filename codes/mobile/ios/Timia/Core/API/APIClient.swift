@@ -13,8 +13,30 @@ enum APIError: LocalizedError, Equatable {
         case .invalidConfiguration: "API 地址配置无效"
         case .invalidResponse: "服务器返回了无法识别的数据"
         case .unauthorized: "登录已过期，请重新登录"
-        case let .server(_, message): message
+        case let .server(status, message): Self.userFacingServerMessage(status: status, message: message)
         case let .transport(message): message
+        }
+    }
+
+    var isNotFound: Bool {
+        guard case let .server(status, message) = self else { return false }
+        if status == 404 { return true }
+        let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "not_found" || normalized == "not found"
+    }
+
+    static func userFacingServerMessage(status: Int, message: String) -> String {
+        let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "not_found", "not found", "item_not_found":
+            return "未找到"
+        case "geo_provider_error":
+            return "地点搜索暂时不可用"
+        case "geo_rate_limited":
+            return "搜索过快，请稍后再试"
+        default:
+            if status == 404 { return "未找到" }
+            return message
         }
     }
 }
@@ -274,7 +296,16 @@ struct APIClient: Sendable {
     }
 }
 
-private struct ErrorEnvelope: Decodable { let detail: String? }
+private struct ErrorEnvelope: Decodable {
+    let detail: String?
+
+    private enum CodingKeys: String, CodingKey { case detail }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        detail = try? container.decode(String.self, forKey: .detail)
+    }
+}
 
 private struct AnyEncodable: Encodable {
     private let encodeValue: (Encoder) throws -> Void

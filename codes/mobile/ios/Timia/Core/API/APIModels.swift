@@ -399,6 +399,8 @@ struct ItemPayload: Encodable, Sendable {
     let assigneeUserId: String?
     let participantUserIds: [String]
     let location: String?
+    let locationLat: Double?
+    let locationLng: Double?
     let repeatKind: String
 
     private enum CodingKeys: String, CodingKey {
@@ -414,6 +416,8 @@ struct ItemPayload: Encodable, Sendable {
         case assigneeUserId
         case participantUserIds
         case location
+        case locationLat
+        case locationLng
         case repeatKind = "repeat"
     }
 }
@@ -432,6 +436,8 @@ struct ItemUpdatePayload: Encodable, Sendable {
     let assigneeUserId: String?
     let participantUserIds: [String]
     let location: String?
+    let locationLat: Double?
+    let locationLng: Double?
     let targetWorkspaceId: String?
     let targetProjectId: String?
     let repeatKind: String?
@@ -450,6 +456,8 @@ struct ItemUpdatePayload: Encodable, Sendable {
         case assigneeUserId
         case participantUserIds
         case location
+        case locationLat
+        case locationLng
         case targetWorkspaceId
         case targetProjectId
         case repeatKind = "repeat"
@@ -477,7 +485,21 @@ struct ItemUpdatePayload: Encodable, Sendable {
             try container.encodeNil(forKey: .assigneeUserId)
         }
         try container.encode(participantUserIds, forKey: .participantUserIds)
-        try container.encodeIfPresent(location, forKey: .location)
+        if let location {
+            try container.encode(location, forKey: .location)
+        } else {
+            try container.encodeNil(forKey: .location)
+        }
+        if let locationLat {
+            try container.encode(locationLat, forKey: .locationLat)
+        } else {
+            try container.encodeNil(forKey: .locationLat)
+        }
+        if let locationLng {
+            try container.encode(locationLng, forKey: .locationLng)
+        } else {
+            try container.encodeNil(forKey: .locationLng)
+        }
         try container.encodeIfPresent(targetWorkspaceId, forKey: .targetWorkspaceId)
         try container.encodeIfPresent(targetProjectId, forKey: .targetProjectId)
         if let repeatKind {
@@ -582,6 +604,8 @@ struct ItemDetail: Decodable, Sendable {
     let assignee: UserBrief?
     let participants: [UserBrief]?
     let location: String?
+    let locationLat: Double?
+    let locationLng: Double?
     let comments: [TaskComment]?
 }
 

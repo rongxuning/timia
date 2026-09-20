@@ -91,6 +91,36 @@ func scheduleMapCoordinateKey(lat: Double, lng: Double) -> String {
     String(format: "%.6f,%.6f", lat, lng)
 }
 
+enum ScheduleMapFilterBarLayout {
+    static let statusLabel = "状态"
+    static let scopeLabel = "范围"
+    static let labelColumnWidth: Double = 40
+    static let rowMinHeight: Double = 32
+}
+
+func scheduleMapLoadFailureMessage(_ error: Error) -> String {
+    if let api = error as? APIError, api.isNotFound {
+        return "无法加载地图任务"
+    }
+    return (error as? LocalizedError)?.errorDescription ?? "无法加载地图任务"
+}
+
+func scheduleMapCanvasMessage(
+    isLoading: Bool,
+    loadError: String?,
+    hasResponse: Bool,
+    itemCount: Int,
+    isDefaultFilters: Bool
+) -> String? {
+    if let loadError, !loadError.isEmpty {
+        return loadError
+    }
+    guard !isLoading, hasResponse, itemCount == 0 else { return nil }
+    return isDefaultFilters
+        ? "还没有带地点的任务。在网页添加任务并搜索地址后会出现在这里。"
+        : "没有符合筛选条件的地点任务。"
+}
+
 func groupScheduleMapItemsByCoordinate(_ items: [ScheduleMapItem]) -> [[ScheduleMapItem]] {
     var order: [String] = []
     var buckets: [String: [ScheduleMapItem]] = [:]
