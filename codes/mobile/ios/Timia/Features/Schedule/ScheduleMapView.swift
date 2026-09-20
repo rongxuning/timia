@@ -169,10 +169,10 @@ struct ScheduleMapView: View {
             Text(label)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
-                .frame(width: ScheduleMapFilterBarLayout.labelColumnWidth, alignment: .leading)
+                .frame(width: CGFloat(ScheduleMapFilterBarLayout.labelColumnWidth), alignment: .leading)
             content()
         }
-        .frame(minHeight: ScheduleMapFilterBarLayout.rowMinHeight, alignment: .center)
+        .frame(minHeight: CGFloat(ScheduleMapFilterBarLayout.rowMinHeight), alignment: .center)
     }
 
     private var mapCanvas: some View {
