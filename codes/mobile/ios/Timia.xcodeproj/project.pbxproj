@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -13,21 +13,28 @@
 		0B391933F19696163938B8FA /* StickyNoteListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419D2B4E06958ADBD1463496 /* StickyNoteListModel.swift */; };
 		0E0C625DE464E5780B6C56F1 /* PinnedTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */; };
 		0F7C6FDD9A2E0F2C878933F1 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E78D75AE9DCBB7A7D65F154 /* MainTabView.swift */; };
+		10BBEA98AF180F5487590C22 /* SchedulePriorityAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */; };
+		10FF9010D99AB4A7E42926A5 /* WorkoutSyncRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */; };
 		13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */; };
 		14ACCBB6B6F8A34391230101 /* HealthSyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E957781609437059641828 /* HealthSyncAPI.swift */; };
 		16E99362D39572A6C5FB47C9 /* WorkspaceActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A7C44F73401A44586DF4EC /* WorkspaceActivityView.swift */; };
 		172948F3E2131FEAD88ADBBD /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD38F9E831FF4FA469537A7C /* AccountView.swift */; };
 		18BCDE422C1A7474401DCA14 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */; };
+		19E5F4CA0C1973E69CAACDCE /* TimelineInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922589B2FC33AEC4EEFAB7EF /* TimelineInteractionState.swift */; };
 		1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */; };
 		216AC22F2D76EF19DA43F82C /* ScreenNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886152E46EA86A4005A5B3AA /* ScreenNotificationManager.swift */; };
 		295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */; };
 		2B046FB62E0822FA3D838F2A /* StickyNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C481250694F9070FC3FF7CD5 /* StickyNoteView.swift */; };
 		3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */; };
+		329D2CDFA1E24531A8B48B16 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */; };
+		32D51BF53D4B0EBBA634E34A /* TimelineInteractionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28482C2888A5006EEEB5150F /* TimelineInteractionStateTests.swift */; };
 		33053505AA150018921084D0 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */; };
 		3F50C6F41051B52FFB19B5D8 /* HealthPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */; };
 		3FEEFBB29A21FAD280CCA173 /* ScreenNotificationContentBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53260393E4237A9CADE36955 /* ScreenNotificationContentBuilder.swift */; };
 		434167F200A949466A0576AA /* ScreenNotificationSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9515251F961F990A5022ABF /* ScreenNotificationSettingsSection.swift */; };
+		43DFBAA1DE184FBBBC2AFC93 /* ScheduleMapPlaceTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAB9CAF6D9B95739090B528 /* ScheduleMapPlaceTitle.swift */; };
 		48B7B9EAE5EE1276084FA1FA /* MembersManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED6C2C43F4BC0703D2F3243 /* MembersManagementView.swift */; };
+		49513DD35E5C0C2BBB74B46C /* TimelineIdleChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59D1513258836079792A7B7 /* TimelineIdleChrome.swift */; };
 		4AB667730AE22CE12515095D /* TodoDayCoverage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */; };
 		4CE278D74F14DE8184637F6B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3A74ECA9573EA85DE8159DC6 /* WidgetKit.framework */; };
 		50F9300FF795C6658B254510 /* TimiaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21F36DD0BC55F1BD4820FBD9 /* TimiaUITests.swift */; };
@@ -37,23 +44,29 @@
 		54A4CA3BA105DFC7C1762494 /* ScreenNotificationPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */; };
 		55AE29F0FC265551628E74F7 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A6B230FF2917C7BFCEDE3D /* KeychainStore.swift */; };
 		56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */; };
+		57E0500382EFD5E2AD4A528A /* HealthSyncQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */; };
 		5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 358364DC9FBB2361030EFF90 /* HealthKitStore.swift */; };
 		5E5C3FAAF85F2DE1A437C7BF /* StickyNoteVoiceLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E47A83D778195D960B3C530 /* StickyNoteVoiceLauncher.swift */; };
 		5EFE85144584E529F2E31E63 /* StickyNoteCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB78A7BD31C4812B3CE16ED3 /* StickyNoteCard.swift */; };
 		652493CA7C0D5FA5B31298C2 /* PinnedTagSelect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */; };
+		6676E9A83EFAA4BAB128A376 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */; };
+		6A12C520F778E1973C4F6CF3 /* ScheduleMapFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */; };
 		6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */; };
-		A11A0E0A1E77000100000111 /* GzipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000110 /* GzipTests.swift */; };
-		A11A0E0A1E77000100000121 /* HealthSyncQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000120 /* HealthSyncQueueTests.swift */; };
-		A11A0E0A1E77000100000131 /* WorkoutSyncRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000130 /* WorkoutSyncRunTests.swift */; };
 		74DFBF7C4B7D3C7B889D79A9 /* StickyNoteListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016C053A9F4E98EC45B77450 /* StickyNoteListView.swift */; };
 		77FAA4BA7DA83B93C6DD5D1B /* TimiaLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05341B780216C57EBBF7BD95 /* TimiaLiveActivityWidget.swift */; };
 		7936A0BB23E42FA7EB7112D6 /* StickyNotesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081976E5E404E3456C456D54 /* StickyNotesAPI.swift */; };
-		F11E5A91A7C04D0B9E2C3D4F /* FilesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11E5A91A7C04D0B9E2C3D4E /* FilesAPI.swift */; };
+		84B8598F1654854A9B2E7310 /* YearMonthGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */; };
+		85AD3FAE562455FC1A1E535D /* ScheduleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804AAB705371F022C6211B6 /* ScheduleMapView.swift */; };
 		878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DD19186DC70910982C8C46 /* AuthenticationView.swift */; };
 		896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */; };
+		8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */; };
 		99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */; };
+		9A544027B29ABF019DBFCEB4 /* FilesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310A6AD7632431A7BCD789A7 /* FilesAPI.swift */; };
 		9B9382E7383A861B30961442 /* StickyNoteHandleBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ABB1D72902E40767B961B9 /* StickyNoteHandleBar.swift */; };
+		9C48E2936ED48F340148A596 /* WorkoutSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5995265FE526424EF95E8F /* WorkoutSyncService.swift */; };
+		9EE2ED928E138EB73D7F0FC5 /* WorkoutSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36064289994AF342E6FF1725 /* WorkoutSyncView.swift */; };
 		9F243BCD0F832C92549F39CD /* StickyNoteDraftPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ABB198A4F8D3363DB0B2FC /* StickyNoteDraftPreview.swift */; };
+		A22C4012FFE7BFEF716C84CD /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */; };
 		A542917AE1DC25AC30137163 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0E37E4198B3D9197E70666E0 /* Assets.xcassets */; };
 		A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */; };
 		AA95B28B73214B3E8FCF8F92 /* StickyNoteInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */; };
@@ -62,13 +75,12 @@
 		AE76BC2BBEDCCB328BDE27E9 /* WorkspaceDiscussionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2965DAAE7EE6D180ED42C7CB /* WorkspaceDiscussionsView.swift */; };
 		B267B536A67D29DEF35763C5 /* HealthSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */; };
 		B815953B627371B090232172 /* HealthSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34781A49682D42B8CDCA4233 /* HealthSyncService.swift */; };
-		F7A1B2C3D4E5061728394A5E /* WorkoutSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A1B2C3D4E5061728394A5D /* WorkoutSyncView.swift */; };
-		F7A1B2C3D4E5061728394A5C /* WorkoutSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A1B2C3D4E5061728394A5B /* WorkoutSyncService.swift */; };
 		BBB32054EDA720D6E72C3DCC /* TimiaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5CEB0A7EC41E9C7030933C23 /* TimiaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BD309EA09158F16FD56B5355 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */; };
 		BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */; };
 		BEB976AA7D65A297D68640DA /* HealthKitAnchorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416920BC708A66D4F8DC959E /* HealthKitAnchorStore.swift */; };
 		C23A2097840049B995E280F0 /* RescheduleMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */; };
+		C3432F9FC53990C5CEC49E49 /* IdleCollapseToggleStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8A94B8AC39EBAD216CBFB35 /* IdleCollapseToggleStyleTests.swift */; };
 		C3E57282DF6525E6373C2213 /* OnDeviceSupportChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45489BAC5F6AF7B3B48C7B7C /* OnDeviceSupportChecker.swift */; };
 		C507B13C8D0215F1047ABD88 /* SpeechPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874748456061425CD0A7F885 /* SpeechPermissionManager.swift */; };
 		C5CA1F18B20A238D656014AE /* TimiaScreenActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */; };
@@ -83,6 +95,7 @@
 		DD3A7CF92ED67A3FDCF2B208 /* HealthSyncDrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DA66892B881DA84ECB62A8 /* HealthSyncDrain.swift */; };
 		E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 817045A30702570209E9D7F0 /* Data+Gzip.swift */; };
 		E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */; };
+		E4FB9BD6008C3B2ADA0B94B9 /* TimelineIdleChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408911DAC1F4ABFBCF736DB2 /* TimelineIdleChromeTests.swift */; };
 		E54C818CA4B7690E0DA7563E /* RecordingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB43C4FAECFCAA7B8311A6B3 /* RecordingOverlay.swift */; };
 		E550911D00F0C8E995B2B6D4 /* WorkspacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29102C072744826E8F5BF01C /* WorkspacesView.swift */; };
 		EB6604DB9C7DAE8979E52149 /* RescheduleMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 551366E9D4BE5EEF10C296C2 /* RescheduleMath.swift */; };
@@ -93,16 +106,8 @@
 		F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */; };
 		F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25793DC2D71167F0541FC926 /* TimelineGeometry.swift */; };
 		F736E66DA14ACC5BBDA1D78B /* IdleCollapsePlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */; };
-		A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */; };
-		A11A0E0A1E77000100000002 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */; };
-		A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */; };
-		A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */; };
-		A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */; };
-		A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */; };
-		A11A0E0A1E77000100000081 /* TimelineIdleChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000080 /* TimelineIdleChrome.swift */; };
-		A11A0E0A1E77000100000091 /* TimelineIdleChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000090 /* TimelineIdleChromeTests.swift */; };
-		A11A0E0A1E77000100000301 /* YearMonthGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000300 /* YearMonthGrid.swift */; };
-		A11A0E0A1E77000100000311 /* YearMonthGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A0E0A1E77000100000310 /* YearMonthGridTests.swift */; };
+		F786EDECDCE2710DF59156D8 /* GzipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57F52762C0AE9DC40A0571A /* GzipTests.swift */; };
+		FE624B315DEE143BDECDC152 /* YearMonthGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D9F94E61F9F59C3A02A1AE /* YearMonthGrid.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -148,40 +153,42 @@
 		02A7C44F73401A44586DF4EC /* WorkspaceActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceActivityView.swift; sourceTree = "<group>"; };
 		05341B780216C57EBBF7BD95 /* TimiaLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityWidget.swift; sourceTree = "<group>"; };
 		081976E5E404E3456C456D54 /* StickyNotesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNotesAPI.swift; sourceTree = "<group>"; };
-		F11E5A91A7C04D0B9E2C3D4E /* FilesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesAPI.swift; sourceTree = "<group>"; };
 		088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationContentBuilderTests.swift; sourceTree = "<group>"; };
 		0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTasksView.swift; sourceTree = "<group>"; };
 		0E37E4198B3D9197E70666E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0FD26119578B087A0E46AC5E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTagsTests.swift; sourceTree = "<group>"; };
+		17D9F94E61F9F59C3A02A1AE /* YearMonthGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGrid.swift; sourceTree = "<group>"; };
 		1E47A83D778195D960B3C530 /* StickyNoteVoiceLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteVoiceLauncher.swift; sourceTree = "<group>"; };
 		21F36DD0BC55F1BD4820FBD9 /* TimiaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaUITests.swift; sourceTree = "<group>"; };
 		222DA87AAAB082DBD889E905 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		25793DC2D71167F0541FC926 /* TimelineGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometry.swift; sourceTree = "<group>"; };
 		25DA66892B881DA84ECB62A8 /* HealthSyncDrain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncDrain.swift; sourceTree = "<group>"; };
+		28482C2888A5006EEEB5150F /* TimelineInteractionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionStateTests.swift; sourceTree = "<group>"; };
 		29102C072744826E8F5BF01C /* WorkspacesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspacesView.swift; sourceTree = "<group>"; };
 		2965DAAE7EE6D180ED42C7CB /* WorkspaceDiscussionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDiscussionsView.swift; sourceTree = "<group>"; };
 		2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteInputView.swift; sourceTree = "<group>"; };
 		2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationPreference.swift; sourceTree = "<group>"; };
 		30DD19186DC70910982C8C46 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
+		310A6AD7632431A7BCD789A7 /* FilesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesAPI.swift; sourceTree = "<group>"; };
 		3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlannerTests.swift; sourceTree = "<group>"; };
+		32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
 		34781A49682D42B8CDCA4233 /* HealthSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncService.swift; sourceTree = "<group>"; };
-		F7A1B2C3D4E5061728394A5B /* WorkoutSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncService.swift; sourceTree = "<group>"; };
-		F7A1B2C3D4E5061728394A5D /* WorkoutSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncView.swift; sourceTree = "<group>"; };
 		358364DC9FBB2361030EFF90 /* HealthKitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitStore.swift; sourceTree = "<group>"; };
+		36064289994AF342E6FF1725 /* WorkoutSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncView.swift; sourceTree = "<group>"; };
 		3A74ECA9573EA85DE8159DC6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		3B7A0FBE2494948E73EFA87C /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFiltersTests.swift; sourceTree = "<group>"; };
+		408911DAC1F4ABFBCF736DB2 /* TimelineIdleChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChromeTests.swift; sourceTree = "<group>"; };
 		416920BC708A66D4F8DC959E /* HealthKitAnchorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitAnchorStore.swift; sourceTree = "<group>"; };
 		419D2B4E06958ADBD1463496 /* StickyNoteListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteListModel.swift; sourceTree = "<group>"; };
 		44F0BFDABC758661990BE145 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		45489BAC5F6AF7B3B48C7B7C /* OnDeviceSupportChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSupportChecker.swift; sourceTree = "<group>"; };
 		4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModelsTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000110 /* GzipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GzipTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000120 /* HealthSyncQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueueTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000130 /* WorkoutSyncRunTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncRunTests.swift; sourceTree = "<group>"; };
 		46CA9C31948E4DEB3BF26FB9 /* LocationChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationChip.swift; sourceTree = "<group>"; };
 		49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarWeekTitleTests.swift; sourceTree = "<group>"; };
 		4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDetailView.swift; sourceTree = "<group>"; };
+		4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGridTests.swift; sourceTree = "<group>"; };
 		4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteSpeechRecognizer.swift; sourceTree = "<group>"; };
 		4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackgroundDelivery.swift; sourceTree = "<group>"; };
 		4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometryTests.swift; sourceTree = "<group>"; };
@@ -196,7 +203,7 @@
 		75E957781609437059641828 /* HealthSyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncAPI.swift; sourceTree = "<group>"; };
 		7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditorView.swift; sourceTree = "<group>"; };
 		78ABB1D72902E40767B961B9 /* StickyNoteHandleBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteHandleBar.swift; sourceTree = "<group>"; };
-		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79A8422E298A383A62006950 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		7A4118A6CA9F3D8AD476A0C6 /* ScreenNotificationPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationPrompt.swift; sourceTree = "<group>"; };
 		7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -207,16 +214,23 @@
 		86E0CD09843CADCDA60D838F /* TimiaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaTheme.swift; sourceTree = "<group>"; };
 		874748456061425CD0A7F885 /* SpeechPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPermissionManager.swift; sourceTree = "<group>"; };
 		87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarCompletedCardStyle.swift; sourceTree = "<group>"; };
+		8804AAB705371F022C6211B6 /* ScheduleMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapView.swift; sourceTree = "<group>"; };
 		886152E46EA86A4005A5B3AA /* ScreenNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationManager.swift; sourceTree = "<group>"; };
 		8A9EDD178F9B801538C85586 /* TimiaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimiaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncRunTests.swift; sourceTree = "<group>"; };
+		922589B2FC33AEC4EEFAB7EF /* TimelineInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionState.swift; sourceTree = "<group>"; };
 		9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTagSelect.swift; sourceTree = "<group>"; };
 		9E78D75AE9DCBB7A7D65F154 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		9ED6C2C43F4BC0703D2F3243 /* MembersManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembersManagementView.swift; sourceTree = "<group>"; };
 		A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthPermissionManager.swift; sourceTree = "<group>"; };
+		A59D1513258836079792A7B7 /* TimelineIdleChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChrome.swift; sourceTree = "<group>"; };
 		A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncView.swift; sourceTree = "<group>"; };
 		A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTags.swift; sourceTree = "<group>"; };
 		AB78A7BD31C4812B3CE16ED3 /* StickyNoteCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteCard.swift; sourceTree = "<group>"; };
+		B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFilters.swift; sourceTree = "<group>"; };
 		B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
+		B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePriorityAccent.swift; sourceTree = "<group>"; };
+		B57F52762C0AE9DC40A0571A /* GzipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GzipTests.swift; sourceTree = "<group>"; };
 		B68963D3E9E9A5EB743B0E22 /* TimiaWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimiaWidget.entitlements; sourceTree = "<group>"; };
 		BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoDayCoverage.swift; sourceTree = "<group>"; };
 		BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlanner.swift; sourceTree = "<group>"; };
@@ -225,27 +239,23 @@
 		C4A6B230FF2917C7BFCEDE3D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		C6C27357CC0CCEE2A7CCF66B /* StickyNoteLocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteLocalStore.swift; sourceTree = "<group>"; };
 		C7662263C83C52FE6296C3F7 /* TimiaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaApp.swift; sourceTree = "<group>"; };
+		CC5995265FE526424EF95E8F /* WorkoutSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncService.swift; sourceTree = "<group>"; };
 		CD38F9E831FF4FA469537A7C /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
 		CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		CF5A230EDB4DA70BD395B802 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		D0ABB198A4F8D3363DB0B2FC /* StickyNoteDraftPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteDraftPreview.swift; sourceTree = "<group>"; };
+		D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueueTests.swift; sourceTree = "<group>"; };
+		D8A94B8AC39EBAD216CBFB35 /* IdleCollapseToggleStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapseToggleStyleTests.swift; sourceTree = "<group>"; };
 		DAFC8AC913269CDEC75D2917 /* HealthSyncQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueue.swift; sourceTree = "<group>"; };
 		DB43C4FAECFCAA7B8311A6B3 /* RecordingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingOverlay.swift; sourceTree = "<group>"; };
 		E07EE730E9A8DE17EE02F0FC /* AttachmentChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChip.swift; sourceTree = "<group>"; };
 		E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
 		E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaScreenActivityAttributes.swift; sourceTree = "<group>"; };
 		E9515251F961F990A5022ABF /* ScreenNotificationSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationSettingsSection.swift; sourceTree = "<group>"; };
+		EBAB9CAF6D9B95739090B528 /* ScheduleMapPlaceTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapPlaceTitle.swift; sourceTree = "<group>"; };
+		ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPalette.swift; sourceTree = "<group>"; };
 		F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RescheduleMathTests.swift; sourceTree = "<group>"; };
 		FF33F57000AEAE8C19E55B8C /* StickyNoteDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteDraftStore.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPalette.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionState.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionStateTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapseToggleStyleTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000080 /* TimelineIdleChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChrome.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000090 /* TimelineIdleChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChromeTests.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000300 /* YearMonthGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGrid.swift; sourceTree = "<group>"; };
-		A11A0E0A1E77000100000310 /* YearMonthGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGridTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -277,7 +287,7 @@
 				0FD26119578B087A0E46AC5E /* APIClient.swift */,
 				CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */,
 				817045A30702570209E9D7F0 /* Data+Gzip.swift */,
-				F11E5A91A7C04D0B9E2C3D4E /* FilesAPI.swift */,
+				310A6AD7632431A7BCD789A7 /* FilesAPI.swift */,
 				75E957781609437059641828 /* HealthSyncAPI.swift */,
 				081976E5E404E3456C456D54 /* StickyNotesAPI.swift */,
 			);
@@ -331,22 +341,23 @@
 			isa = PBXGroup;
 			children = (
 				4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */,
-				A11A0E0A1E77000100000110 /* GzipTests.swift */,
-				A11A0E0A1E77000100000120 /* HealthSyncQueueTests.swift */,
-				A11A0E0A1E77000100000130 /* WorkoutSyncRunTests.swift */,
 				6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */,
 				49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */,
+				B57F52762C0AE9DC40A0571A /* GzipTests.swift */,
+				D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */,
 				3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */,
+				D8A94B8AC39EBAD216CBFB35 /* IdleCollapseToggleStyleTests.swift */,
 				14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */,
 				F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */,
+				3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */,
 				088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */,
 				4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */,
-				A11A0E0A1E77000100000050 /* TimiaLiveActivityPaletteTests.swift */,
-				A11A0E0A1E77000100000060 /* TimelineInteractionStateTests.swift */,
-				A11A0E0A1E77000100000070 /* IdleCollapseToggleStyleTests.swift */,
-				A11A0E0A1E77000100000090 /* TimelineIdleChromeTests.swift */,
+				408911DAC1F4ABFBCF736DB2 /* TimelineIdleChromeTests.swift */,
+				28482C2888A5006EEEB5150F /* TimelineInteractionStateTests.swift */,
+				32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */,
 				C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */,
-				A11A0E0A1E77000100000310 /* YearMonthGridTests.swift */,
+				8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */,
+				4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */,
 			);
 			path = TimiaTests;
 			sourceTree = "<group>";
@@ -384,12 +395,16 @@
 				BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */,
 				551366E9D4BE5EEF10C296C2 /* RescheduleMath.swift */,
 				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
+				B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */,
+				EBAB9CAF6D9B95739090B528 /* ScheduleMapPlaceTitle.swift */,
+				8804AAB705371F022C6211B6 /* ScheduleMapView.swift */,
+				B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */,
 				B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */,
 				25793DC2D71167F0541FC926 /* TimelineGeometry.swift */,
-				A11A0E0A1E77000100000080 /* TimelineIdleChrome.swift */,
-				A11A0E0A1E77000100000010 /* TimelineInteractionState.swift */,
+				A59D1513258836079792A7B7 /* TimelineIdleChrome.swift */,
+				922589B2FC33AEC4EEFAB7EF /* TimelineInteractionState.swift */,
 				BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */,
-				A11A0E0A1E77000100000300 /* YearMonthGrid.swift */,
+				17D9F94E61F9F59C3A02A1AE /* YearMonthGrid.swift */,
 			);
 			path = Schedule;
 			sourceTree = "<group>";
@@ -505,7 +520,7 @@
 				886152E46EA86A4005A5B3AA /* ScreenNotificationManager.swift */,
 				2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */,
 				7A4118A6CA9F3D8AD476A0C6 /* ScreenNotificationPrompt.swift */,
-				A11A0E0A1E77000100000000 /* TimiaLiveActivityPalette.swift */,
+				ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */,
 				E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */,
 			);
 			path = ScreenNotification;
@@ -539,7 +554,7 @@
 			isa = PBXGroup;
 			children = (
 				A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */,
-				F7A1B2C3D4E5061728394A5D /* WorkoutSyncView.swift */,
+				36064289994AF342E6FF1725 /* WorkoutSyncView.swift */,
 			);
 			path = Health;
 			sourceTree = "<group>";
@@ -554,7 +569,7 @@
 				25DA66892B881DA84ECB62A8 /* HealthSyncDrain.swift */,
 				DAFC8AC913269CDEC75D2917 /* HealthSyncQueue.swift */,
 				34781A49682D42B8CDCA4233 /* HealthSyncService.swift */,
-				F7A1B2C3D4E5061728394A5B /* WorkoutSyncService.swift */,
+				CC5995265FE526424EF95E8F /* WorkoutSyncService.swift */,
 			);
 			path = Health;
 			sourceTree = "<group>";
@@ -678,6 +693,7 @@
 						TestTargetID = F7EBDEFB1EE636D5FF3B122D;
 					};
 					F7EBDEFB1EE636D5FF3B122D = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -692,6 +708,7 @@
 			);
 			mainGroup = 8E35241435C554F9A4DAA6A6;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -728,7 +745,7 @@
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
 				896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */,
 				E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */,
-				F11E5A91A7C04D0B9E2C3D4F /* FilesAPI.swift in Sources */,
+				9A544027B29ABF019DBFCEB4 /* FilesAPI.swift in Sources */,
 				A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */,
 				BEB976AA7D65A297D68640DA /* HealthKitAnchorStore.swift in Sources */,
 				5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */,
@@ -737,9 +754,7 @@
 				DD3A7CF92ED67A3FDCF2B208 /* HealthSyncDrain.swift in Sources */,
 				F1AC7B362F91A0AAD65D5773 /* HealthSyncQueue.swift in Sources */,
 				B815953B627371B090232172 /* HealthSyncService.swift in Sources */,
-				F7A1B2C3D4E5061728394A5C /* WorkoutSyncService.swift in Sources */,
 				B267B536A67D29DEF35763C5 /* HealthSyncView.swift in Sources */,
-				F7A1B2C3D4E5061728394A5E /* WorkoutSyncView.swift in Sources */,
 				EC591944C6197C47A2A79052 /* IdleCollapsePlanner.swift in Sources */,
 				55AE29F0FC265551628E74F7 /* KeychainStore.swift in Sources */,
 				00E00DC5CAF2FD719CF365CD /* LocationChip.swift in Sources */,
@@ -752,6 +767,10 @@
 				E54C818CA4B7690E0DA7563E /* RecordingOverlay.swift in Sources */,
 				EB6604DB9C7DAE8979E52149 /* RescheduleMath.swift in Sources */,
 				D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */,
+				6A12C520F778E1973C4F6CF3 /* ScheduleMapFilters.swift in Sources */,
+				43DFBAA1DE184FBBBC2AFC93 /* ScheduleMapPlaceTitle.swift in Sources */,
+				85AD3FAE562455FC1A1E535D /* ScheduleMapView.swift in Sources */,
+				10BBEA98AF180F5487590C22 /* SchedulePriorityAccent.swift in Sources */,
 				EBAF6BB8B5CB37F360A49DB2 /* ScheduleView.swift in Sources */,
 				3FEEFBB29A21FAD280CCA173 /* ScreenNotificationContentBuilder.swift in Sources */,
 				216AC22F2D76EF19DA43F82C /* ScreenNotificationManager.swift in Sources */,
@@ -773,20 +792,22 @@
 				7936A0BB23E42FA7EB7112D6 /* StickyNotesAPI.swift in Sources */,
 				E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */,
 				F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */,
+				49513DD35E5C0C2BBB74B46C /* TimelineIdleChrome.swift in Sources */,
+				19E5F4CA0C1973E69CAACDCE /* TimelineInteractionState.swift in Sources */,
 				51D5DA889805C0A221723698 /* TimiaApp.swift in Sources */,
+				6676E9A83EFAA4BAB128A376 /* TimiaLiveActivityPalette.swift in Sources */,
 				C5CA1F18B20A238D656014AE /* TimiaScreenActivityAttributes.swift in Sources */,
-				A11A0E0A1E77000100000001 /* TimiaLiveActivityPalette.swift in Sources */,
-				A11A0E0A1E77000100000011 /* TimelineInteractionState.swift in Sources */,
-				A11A0E0A1E77000100000081 /* TimelineIdleChrome.swift in Sources */,
 				AAB8EE3FDFB7671AB0A72B7A /* TimiaTheme.swift in Sources */,
 				1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */,
 				4AB667730AE22CE12515095D /* TodoDayCoverage.swift in Sources */,
-				A11A0E0A1E77000100000301 /* YearMonthGrid.swift in Sources */,
 				13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */,
+				9C48E2936ED48F340148A596 /* WorkoutSyncService.swift in Sources */,
+				9EE2ED928E138EB73D7F0FC5 /* WorkoutSyncView.swift in Sources */,
 				16E99362D39572A6C5FB47C9 /* WorkspaceActivityView.swift in Sources */,
 				CA73C680278A8EF6FF5C6664 /* WorkspaceDetailView.swift in Sources */,
 				AE76BC2BBEDCCB328BDE27E9 /* WorkspaceDiscussionsView.swift in Sources */,
 				E550911D00F0C8E995B2B6D4 /* WorkspacesView.swift in Sources */,
+				FE624B315DEE143BDECDC152 /* YearMonthGrid.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -794,9 +815,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				329D2CDFA1E24531A8B48B16 /* TimiaLiveActivityPalette.swift in Sources */,
 				77FAA4BA7DA83B93C6DD5D1B /* TimiaLiveActivityWidget.swift in Sources */,
 				0ACE6547A4695DCA4B985316 /* TimiaScreenActivityAttributes.swift in Sources */,
-				A11A0E0A1E77000100000002 /* TimiaLiveActivityPalette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -813,22 +834,23 @@
 			buildActionMask = 2147483647;
 			files = (
 				6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */,
-				A11A0E0A1E77000100000111 /* GzipTests.swift in Sources */,
-				A11A0E0A1E77000100000121 /* HealthSyncQueueTests.swift in Sources */,
-				A11A0E0A1E77000100000131 /* WorkoutSyncRunTests.swift in Sources */,
 				BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */,
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
+				F786EDECDCE2710DF59156D8 /* GzipTests.swift in Sources */,
+				57E0500382EFD5E2AD4A528A /* HealthSyncQueueTests.swift in Sources */,
 				F736E66DA14ACC5BBDA1D78B /* IdleCollapsePlannerTests.swift in Sources */,
+				C3432F9FC53990C5CEC49E49 /* IdleCollapseToggleStyleTests.swift in Sources */,
 				F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */,
 				C23A2097840049B995E280F0 /* RescheduleMathTests.swift in Sources */,
+				8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */,
 				02D08393103E9800F2643DE8 /* ScreenNotificationContentBuilderTests.swift in Sources */,
 				295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */,
-				A11A0E0A1E77000100000051 /* TimiaLiveActivityPaletteTests.swift in Sources */,
-				A11A0E0A1E77000100000061 /* TimelineInteractionStateTests.swift in Sources */,
-				A11A0E0A1E77000100000071 /* IdleCollapseToggleStyleTests.swift in Sources */,
-				A11A0E0A1E77000100000091 /* TimelineIdleChromeTests.swift in Sources */,
+				E4FB9BD6008C3B2ADA0B94B9 /* TimelineIdleChromeTests.swift in Sources */,
+				32D51BF53D4B0EBBA634E34A /* TimelineInteractionStateTests.swift in Sources */,
+				A22C4012FFE7BFEF716C84CD /* TimiaLiveActivityPaletteTests.swift in Sources */,
 				56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */,
-				A11A0E0A1E77000100000311 /* YearMonthGridTests.swift in Sources */,
+				10FF9010D99AB4A7E42926A5 /* WorkoutSyncRunTests.swift in Sources */,
+				84B8598F1654854A9B2E7310 /* YearMonthGridTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1036,11 +1058,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = TimiaWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios.widget;
 				PRODUCT_NAME = TimiaWidget;
 				SDKROOT = iphoneos;
@@ -1056,11 +1074,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = TimiaWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios.widget;
 				PRODUCT_NAME = TimiaWidget;
 				SDKROOT = iphoneos;
@@ -1077,7 +1091,6 @@
 				CODE_SIGN_ENTITLEMENTS = Timia/Resources/Timia.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = Timia/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1115,7 +1128,6 @@
 				CODE_SIGN_ENTITLEMENTS = Timia/Resources/Timia.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = Timia/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

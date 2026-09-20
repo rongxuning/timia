@@ -69,7 +69,7 @@ struct HealthSyncView: View {
                             Task { await sync() }
                         }
                         .disabled(isSyncing)
-                        if let lastErrorSummary, !isSyncing {
+                        if lastErrorSummary != nil, !isSyncing {
                             Spacer()
                             Button {
                                 Task { await sync() }

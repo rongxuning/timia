@@ -234,7 +234,7 @@ struct ScheduleMapView: View {
                     .foregroundStyle(.secondary)
                 Text(selectionLabel)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(disabled ? .secondary.opacity(0.6) : .primary)
+                    .foregroundStyle(disabled ? Color.secondary.opacity(0.6) : Color.primary)
                     .lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2.weight(.semibold))
