@@ -11,6 +11,8 @@ export const EMPTY_MAP_CAMERA: ScheduleMapCamera = { lng: 105, lat: 35, zoom: 4 
 export const SINGLE_POINT_ZOOM = 15;
 export const MIN_CAMERA_ZOOM = 4;
 export const MAX_CAMERA_ZOOM = 16;
+/** Fly from the country overview to placed tasks when opening map mode. */
+export const SCHEDULE_MAP_FLY_DURATION_MS = 3000;
 /** Neighborhood-scale radius used to decide that points are "in one area". */
 export const CLUSTER_RADIUS_KM = 12;
 export const CLUSTER_COVERAGE = 0.6;
@@ -80,4 +82,18 @@ function cameraForPoints(points: MapLngLat[]): ScheduleMapCamera {
 export function scheduleMapCamera(points: MapLngLat[]): ScheduleMapCamera {
   if (points.length === 0) return EMPTY_MAP_CAMERA;
   return cameraForPoints(dominantCluster(points));
+}
+
+export type ScheduleMapCameraMove =
+  | { kind: "jump" }
+  | { kind: "fly"; durationMs: number };
+
+export function scheduleMapCameraMove(itemCount: number, animate: boolean): ScheduleMapCameraMove {
+  if (itemCount <= 0 || !animate) return { kind: "jump" };
+  return { kind: "fly", durationMs: SCHEDULE_MAP_FLY_DURATION_MS };
+}
+
+/** Fixed 14rem card: CJK min-content is 1ch, which collapses a centered `w-full` overlay into a column. */
+export function scheduleMapEmptyCardClassName(): string {
+  return "w-56 min-w-56 max-w-[min(14rem,calc(100%-2rem))] shrink-0 rounded-xl bg-white/90 px-4 py-3 text-center text-small leading-relaxed text-text-secondary shadow-sm";
 }

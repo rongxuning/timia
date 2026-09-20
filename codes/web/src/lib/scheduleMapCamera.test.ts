@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { EMPTY_MAP_CAMERA, scheduleMapCamera } from "./scheduleMapCamera.ts";
+import {
+  EMPTY_MAP_CAMERA,
+  SCHEDULE_MAP_FLY_DURATION_MS,
+  scheduleMapCamera,
+  scheduleMapCameraMove,
+  scheduleMapEmptyCardClassName,
+} from "./scheduleMapCamera.ts";
 
 const PUDONG = { lng: 121.5364, lat: 31.1706 };
 const NEAR_PUDONG = { lng: 121.542, lat: 31.176 };
@@ -36,5 +42,24 @@ describe("scheduleMapCamera", () => {
   it("keeps a wide view when points are spread across cities", () => {
     const camera = scheduleMapCamera([PUDONG, BEIJING, CHENGDU]);
     assert.ok(camera.zoom <= 6);
+  });
+
+  it("flies to placed tasks in 3 seconds", () => {
+    assert.equal(SCHEDULE_MAP_FLY_DURATION_MS, 3000);
+    assert.deepEqual(scheduleMapCameraMove(1, true), { kind: "fly", durationMs: 3000 });
+    assert.deepEqual(scheduleMapCameraMove(4, true), { kind: "fly", durationMs: 3000 });
+  });
+
+  it("jumps when the map is empty or animation is off", () => {
+    assert.deepEqual(scheduleMapCameraMove(0, true), { kind: "jump" });
+    assert.deepEqual(scheduleMapCameraMove(2, false), { kind: "jump" });
+  });
+
+  it("gives the empty card a fixed width so CJK wraps to a few lines", () => {
+    const className = scheduleMapEmptyCardClassName();
+    assert.match(className, /\bw-56\b/);
+    assert.match(className, /\bmin-w-56\b/);
+    assert.match(className, /\bshrink-0\b/);
+    assert.doesNotMatch(className, /\bw-full\b/);
   });
 });

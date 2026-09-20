@@ -7,7 +7,11 @@ import { useTranslations } from "next-intl";
 import { formatScheduleTimeRange } from "@/components/schedule/taskUtils";
 import { TASK_STATUS_ICON } from "@/components/schedule/TaskStatusIcon";
 import { CHINA_OVERVIEW, mapLibreStyle } from "@/lib/map/osmStyle";
-import { scheduleMapCamera } from "@/lib/scheduleMapCamera";
+import {
+  scheduleMapCamera,
+  scheduleMapCameraMove,
+  scheduleMapEmptyCardClassName,
+} from "@/lib/scheduleMapCamera";
 import { scheduleMapPinColor, type ScheduleMapItem } from "@/lib/scheduleMapGeo";
 import {
   createScheduleMapPinElement,
@@ -38,8 +42,9 @@ function cameraForItems(items: ScheduleMapItem[]) {
 function applyCamera(map: maplibregl.Map, items: ScheduleMapItem[], animate: boolean) {
   const camera = cameraForItems(items);
   const next = { center: [camera.lng, camera.lat] as [number, number], zoom: camera.zoom };
-  if (animate && items.length > 0) {
-    map.easeTo({ ...next, duration: 450 });
+  const move = scheduleMapCameraMove(items.length, animate);
+  if (move.kind === "fly") {
+    map.flyTo({ ...next, duration: move.durationMs });
     return;
   }
   map.jumpTo(next);
@@ -160,7 +165,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     applyItemsRef.current = applyItems;
 
     const onLoad = () => {
-      applyItems(itemsRef.current, false);
+      applyItems(itemsRef.current, itemsRef.current.length > 0);
     };
 
     if (map.loaded()) onLoad();
@@ -200,10 +205,8 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         aria-busy={loading}
       />
       {emptyMessage ? (
-        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-6">
-          <p className="w-full max-w-sm rounded-xl bg-white/90 px-4 py-3 text-center text-small text-text-secondary shadow-sm">
-            {emptyMessage}
-          </p>
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+          <p className={scheduleMapEmptyCardClassName()}>{emptyMessage}</p>
         </div>
       ) : null}
     </div>
