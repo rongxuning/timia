@@ -8,17 +8,12 @@ import { formatScheduleTimeRange } from "@/components/schedule/taskUtils";
 import { TASK_STATUS_ICON } from "@/components/schedule/TaskStatusIcon";
 import { CHINA_OVERVIEW, mapLibreStyle } from "@/lib/map/osmStyle";
 import { scheduleMapCamera } from "@/lib/scheduleMapCamera";
+import { scheduleMapPinColor, type ScheduleMapItem } from "@/lib/scheduleMapGeo";
 import {
-  buildScheduleMapCollection,
-  emptyScheduleMapCollection,
-  itemsById,
-  type ScheduleMapItem,
-} from "@/lib/scheduleMapGeo";
-
-const SOURCE_ID = "schedule-map-tasks";
-const CLUSTER_LAYER = "schedule-map-clusters";
-const CLUSTER_COUNT_LAYER = "schedule-map-cluster-count";
-const POINT_LAYER = "schedule-map-points";
+  createScheduleMapPinElement,
+  groupScheduleMapItemsByCoordinate,
+  scheduleMapCardCopy,
+} from "@/lib/scheduleMapPins";
 
 type ScheduleMapCanvasProps = {
   items: ScheduleMapItem[];
@@ -40,34 +35,14 @@ function cameraForItems(items: ScheduleMapItem[]) {
   );
 }
 
-function applySourceAndCamera(
-  map: maplibregl.Map,
-  items: ScheduleMapItem[],
-  animate: boolean,
-): boolean {
-  const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-  if (!source) return false;
-  source.setData(buildScheduleMapCollection(items) as never);
+function applyCamera(map: maplibregl.Map, items: ScheduleMapItem[], animate: boolean) {
   const camera = cameraForItems(items);
   const next = { center: [camera.lng, camera.lat] as [number, number], zoom: camera.zoom };
   if (animate && items.length > 0) {
     map.easeTo({ ...next, duration: 450 });
-  } else {
-    map.jumpTo(next);
+    return;
   }
-  return true;
-}
-
-function lookupItems(
-  ids: string[],
-  byId: Map<string, ScheduleMapItem>,
-): ScheduleMapItem[] {
-  const found: ScheduleMapItem[] = [];
-  for (const id of ids) {
-    const item = byId.get(id);
-    if (item) found.push(item);
-  }
-  return found;
+  map.jumpTo(next);
 }
 
 export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }: ScheduleMapCanvasProps) {
@@ -75,10 +50,22 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
+  const applyItemsRef = useRef<(next: ScheduleMapItem[], animate: boolean) => void>();
   const itemsRef = useRef(items);
   const onItemClickRef = useRef(onItemClick);
+  const labelsRef = useRef({
+    unscheduled: t("unscheduled"),
+    moreItems: (title: string, count: number) => t("moreItems", { title, count }),
+    pinAria: (title: string, time: string, location: string) => t("pinAria", { title, time, location }),
+  });
   itemsRef.current = items;
   onItemClickRef.current = onItemClick;
+  labelsRef.current = {
+    unscheduled: t("unscheduled"),
+    moreItems: (title: string, count: number) => t("moreItems", { title, count }),
+    pinAria: (title: string, time: string, location: string) => t("pinAria", { title, time, location }),
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -99,12 +86,6 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       className: "schedule-map-popup",
     });
     popupRef.current = popup;
-    const hoverPopup = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      offset: 14,
-      className: "schedule-map-hover",
-    });
 
     function closePopup() {
       popup.remove();
@@ -133,7 +114,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         const meta = document.createElement("div");
         meta.className = "truncate text-caption text-text-secondary";
         const time = formatScheduleTimeRange(item.start_at, item.end_at);
-        meta.textContent = [statusLabel(item.status), time, `${item.workspace_name} / ${item.project_name}`]
+        meta.textContent = [statusLabel(item.status), time, item.location]
           .filter(Boolean)
           .join(" · ");
         button.append(title, meta);
@@ -143,119 +124,41 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       popup.setLngLat(lngLat).setDOMContent(root).addTo(map);
     }
 
-    function onClusterClick(event: maplibregl.MapMouseEvent) {
-      const feature = map.queryRenderedFeatures(event.point, { layers: [CLUSTER_LAYER] })[0];
-      if (!feature || feature.geometry.type !== "Point") return;
-      const clusterId = feature.properties?.cluster_id as number | undefined;
-      const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-      if (clusterId == null || !source) return;
-      const coordinates = feature.geometry.coordinates as [number, number];
-      void source.getClusterExpansionZoom(clusterId).then((zoom) => {
-        const current = map.getZoom();
-        if (zoom == null || zoom <= current + 0.05) {
-          void source.getClusterLeaves(clusterId, 50, 0).then((leaves) => {
-            const ids = leaves
-              .map((leaf) => (leaf.properties as { id?: string } | null)?.id)
-              .filter((id): id is string => Boolean(id));
-            renderList(coordinates, lookupItems(ids, itemsById(itemsRef.current)));
-          });
-          return;
-        }
-        map.easeTo({ center: coordinates, zoom });
-      });
+    function clearMarkers() {
+      for (const marker of markersRef.current) marker.remove();
+      markersRef.current = [];
     }
 
-    function onPointClick(event: maplibregl.MapMouseEvent) {
-      const features = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER] });
-      if (features.length === 0) return;
-      const ids = features
-        .map((feature) => (feature.properties as { id?: string } | null)?.id)
-        .filter((id): id is string => Boolean(id));
-      const unique = [...new Set(ids)];
-      const list = lookupItems(unique, itemsById(itemsRef.current));
-      const coords =
-        features[0].geometry.type === "Point"
-          ? (features[0].geometry.coordinates as [number, number])
-          : event.lngLat.toArray();
-      renderList(coords, list);
+    function syncMarkers(next: ScheduleMapItem[]) {
+      clearMarkers();
+      const labels = labelsRef.current;
+      for (const group of groupScheduleMapItemsByCoordinate(next)) {
+        const copy = scheduleMapCardCopy(group, labels, formatScheduleTimeRange);
+        const el = createScheduleMapPinElement({
+          ...copy,
+          accent: scheduleMapPinColor(group[0]),
+          ariaLabel: labels.pinAria(copy.title, copy.timeLabel, copy.locationLabel),
+        });
+        el.addEventListener("click", (event) => {
+          event.stopPropagation();
+          renderList([group[0].location_lng, group[0].location_lat], group);
+        });
+        const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+          .setLngLat([group[0].location_lng, group[0].location_lat])
+          .addTo(map);
+        marker.getElement().style.zIndex = "2";
+        markersRef.current.push(marker);
+      }
     }
 
-    function setPointer() {
-      map.getCanvas().style.cursor = "pointer";
+    function applyItems(next: ScheduleMapItem[], animate: boolean) {
+      syncMarkers(next);
+      applyCamera(map, next, animate);
     }
-    function clearPointer() {
-      map.getCanvas().style.cursor = "";
-    }
-
-    function onPointEnter(event: maplibregl.MapMouseEvent) {
-      setPointer();
-      const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER] })[0];
-      if (!feature || feature.geometry.type !== "Point") return;
-      const id = (feature.properties as { id?: string } | null)?.id;
-      const item = id ? itemsById(itemsRef.current).get(id) : undefined;
-      if (!item) return;
-      const root = document.createElement("div");
-      root.className = "px-2 py-1 text-small text-text-primary";
-      root.textContent = item.title;
-      hoverPopup.setLngLat(feature.geometry.coordinates as [number, number]).setDOMContent(root).addTo(map);
-    }
-
-    function onPointLeave() {
-      clearPointer();
-      hoverPopup.remove();
-    }
+    applyItemsRef.current = applyItems;
 
     const onLoad = () => {
-      map.addSource(SOURCE_ID, {
-        type: "geojson",
-        data: emptyScheduleMapCollection() as never,
-        cluster: true,
-        clusterMaxZoom: 12,
-        clusterRadius: 50,
-      });
-      map.addLayer({
-        id: CLUSTER_LAYER,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#4648d4",
-          "circle-radius": ["step", ["get", "point_count"], 16, 8, 20, 25, 26],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-      map.addLayer({
-        id: CLUSTER_COUNT_LAYER,
-        type: "symbol",
-        source: SOURCE_ID,
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": ["get", "point_count_abbreviated"],
-          "text-size": 12,
-          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-        },
-        paint: { "text-color": "#ffffff" },
-      });
-      map.addLayer({
-        id: POINT_LAYER,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": ["get", "pinColor"],
-          "circle-radius": 11,
-          "circle-stroke-width": 3,
-          "circle-stroke-color": ["get", "strokeColor"],
-        },
-      });
-      map.on("click", CLUSTER_LAYER, onClusterClick);
-      map.on("click", POINT_LAYER, onPointClick);
-      map.on("mouseenter", CLUSTER_LAYER, setPointer);
-      map.on("mouseenter", POINT_LAYER, onPointEnter);
-      map.on("mouseleave", CLUSTER_LAYER, clearPointer);
-      map.on("mouseleave", POINT_LAYER, onPointLeave);
-      applySourceAndCamera(map, itemsRef.current, false);
+      applyItems(itemsRef.current, false);
     };
 
     if (map.loaded()) onLoad();
@@ -266,30 +169,21 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
 
     return () => {
       observer.disconnect();
-      hoverPopup.remove();
+      clearMarkers();
       popup.remove();
       map.remove();
       mapRef.current = null;
       popupRef.current = null;
+      applyItemsRef.current = undefined;
     };
   }, []);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const run = () => applySourceAndCamera(map, items, true);
-    if (run()) {
-      popupRef.current?.remove();
-      return;
-    }
-    const onReady = () => {
-      run();
-      popupRef.current?.remove();
-    };
-    map.once("load", onReady);
-    return () => {
-      map.off("load", onReady);
-    };
+    const applyItems = applyItemsRef.current;
+    if (!map || !applyItems) return;
+    applyItems(items, true);
+    popupRef.current?.remove();
   }, [items]);
 
   return (

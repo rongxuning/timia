@@ -118,7 +118,10 @@
     "emptyFiltered": "No placed tasks match these filters.",
     "loadError": "Could not load the map",
     "retry": "Retry",
-    "canvasAria": "Task location map"
+    "canvasAria": "Task location map",
+    "unscheduled": "Unscheduled",
+    "moreItems": "{title} ({count})",
+    "pinAria": "{title}, {time}, {location}"
   },
   "taskAttachments": {
     "label": "Attachments",

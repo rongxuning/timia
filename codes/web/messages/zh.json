@@ -118,7 +118,10 @@
     "emptyFiltered": "没有符合筛选条件的地点任务。",
     "loadError": "地图加载失败",
     "retry": "重试",
-    "canvasAria": "任务地点地图"
+    "canvasAria": "任务地点地图",
+    "unscheduled": "未排期",
+    "moreItems": "{title} 等{count}项",
+    "pinAria": "{title}，{time}，{location}"
   },
   "taskAttachments": {
     "label": "附件",
