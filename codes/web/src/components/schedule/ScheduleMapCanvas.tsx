@@ -51,7 +51,9 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const applyItemsRef = useRef<(next: ScheduleMapItem[], animate: boolean) => void>();
+  const applyItemsRef = useRef<((next: ScheduleMapItem[], animate: boolean) => void) | undefined>(
+    undefined,
+  );
   const itemsRef = useRef(items);
   const onItemClickRef = useRef(onItemClick);
   const labelsRef = useRef({
