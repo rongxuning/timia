@@ -28,6 +28,9 @@
 		3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */; };
 		329D2CDFA1E24531A8B48B16 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */; };
 		32D51BF53D4B0EBBA634E34A /* TimelineInteractionStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28482C2888A5006EEEB5150F /* TimelineInteractionStateTests.swift */; };
+		B2D6F4509C7E1F63A0B8D592 /* PlaceValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */; };
+		D8F2B01C5E3A7B29C6D4F158 /* PlaceValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */; };
+		F0B4D23E7A5C9D41E8F6B370 /* PlaceSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3C12D6F4B8C30D7E5A269 /* PlaceSearchField.swift */; };
 		33053505AA150018921084D0 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */; };
 		3F50C6F41051B52FFB19B5D8 /* HealthPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */; };
 		3FEEFBB29A21FAD280CCA173 /* ScreenNotificationContentBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53260393E4237A9CADE36955 /* ScreenNotificationContentBuilder.swift */; };
@@ -185,6 +188,9 @@
 		44F0BFDABC758661990BE145 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		45489BAC5F6AF7B3B48C7B7C /* OnDeviceSupportChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceSupportChecker.swift; sourceTree = "<group>"; };
 		4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModelsTests.swift; sourceTree = "<group>"; };
+		A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceValueTests.swift; sourceTree = "<group>"; };
+		C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceValue.swift; sourceTree = "<group>"; };
+		E9A3C12D6F4B8C30D7E5A269 /* PlaceSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchField.swift; sourceTree = "<group>"; };
 		46CA9C31948E4DEB3BF26FB9 /* LocationChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationChip.swift; sourceTree = "<group>"; };
 		49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarWeekTitleTests.swift; sourceTree = "<group>"; };
 		4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDetailView.swift; sourceTree = "<group>"; };
@@ -286,6 +292,7 @@
 			children = (
 				0FD26119578B087A0E46AC5E /* APIClient.swift */,
 				CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */,
+				C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */,
 				817045A30702570209E9D7F0 /* Data+Gzip.swift */,
 				310A6AD7632431A7BCD789A7 /* FilesAPI.swift */,
 				75E957781609437059641828 /* HealthSyncAPI.swift */,
@@ -341,6 +348,7 @@
 			isa = PBXGroup;
 			children = (
 				4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */,
+				A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */,
 				6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */,
 				49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */,
 				B57F52762C0AE9DC40A0571A /* GzipTests.swift */,
@@ -474,6 +482,7 @@
 			children = (
 				A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */,
 				9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */,
+				E9A3C12D6F4B8C30D7E5A269 /* PlaceSearchField.swift */,
 				7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */,
 			);
 			path = Tasks;
@@ -738,6 +747,7 @@
 			files = (
 				CC2DDEA8032D997DE66FD327 /* APIClient.swift in Sources */,
 				AAE4EB9F6BA6EB057A3F4022 /* APIModels.swift in Sources */,
+				D8F2B01C5E3A7B29C6D4F158 /* PlaceValue.swift in Sources */,
 				172948F3E2131FEAD88ADBBD /* AccountView.swift in Sources */,
 				CBAA0C70FFD72E2A6316B660 /* AppSession.swift in Sources */,
 				CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */,
@@ -762,6 +772,7 @@
 				48B7B9EAE5EE1276084FA1FA /* MembersManagementView.swift in Sources */,
 				C3E57282DF6525E6373C2213 /* OnDeviceSupportChecker.swift in Sources */,
 				652493CA7C0D5FA5B31298C2 /* PinnedTagSelect.swift in Sources */,
+				F0B4D23E7A5C9D41E8F6B370 /* PlaceSearchField.swift in Sources */,
 				0E0C625DE464E5780B6C56F1 /* PinnedTags.swift in Sources */,
 				3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */,
 				E54C818CA4B7690E0DA7563E /* RecordingOverlay.swift in Sources */,
@@ -834,6 +845,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */,
+				B2D6F4509C7E1F63A0B8D592 /* PlaceValueTests.swift in Sources */,
 				BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */,
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
 				F786EDECDCE2710DF59156D8 /* GzipTests.swift in Sources */,

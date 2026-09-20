@@ -1227,6 +1227,8 @@ struct ScheduleHomeView: View {
                     assigneeUserId: task.assignee?.id,
                     participantUserIds: task.participants?.map(\.id) ?? [],
                     location: task.location,
+                    locationLat: task.locationLat,
+                    locationLng: task.locationLng,
                     targetWorkspaceId: nil,
                     targetProjectId: nil,
                     repeatKind: nil
