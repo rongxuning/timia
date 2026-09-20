@@ -461,7 +461,7 @@ struct HealthKitStore {
         if let value = Self.average(workout, identifier, unit: unit) {
             return value
         }
-        return await statisticsQuantity(workout, identifier, unit: unit, pick: { $0.averageQuantity() })
+        return await statisticsQuantity(workout, identifier, unit: unit, pick: .average)
     }
 
     private func quantityMaximum(
@@ -472,7 +472,7 @@ struct HealthKitStore {
         if let value = Self.maximum(workout, identifier, unit: unit) {
             return value
         }
-        return await statisticsQuantity(workout, identifier, unit: unit, pick: { $0.maximumQuantity() })
+        return await statisticsQuantity(workout, identifier, unit: unit, pick: .maximum)
     }
 
     private func quantitySum(
@@ -483,14 +483,28 @@ struct HealthKitStore {
         if let value = Self.sum(workout, identifier, unit: unit) {
             return value
         }
-        return await statisticsQuantity(workout, identifier, unit: unit, pick: { $0.sumQuantity() })
+        return await statisticsQuantity(workout, identifier, unit: unit, pick: .sum)
+    }
+
+    private enum StatisticsPick: Sendable {
+        case average
+        case maximum
+        case sum
+
+        func quantity(from stats: HKStatistics) -> HKQuantity? {
+            switch self {
+            case .average: stats.averageQuantity()
+            case .maximum: stats.maximumQuantity()
+            case .sum: stats.sumQuantity()
+            }
+        }
     }
 
     private func statisticsQuantity(
         _ workout: HKWorkout,
         _ identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,
-        pick: @escaping (HKStatistics) -> HKQuantity?
+        pick: StatisticsPick
     ) async -> Double? {
         let type = HKQuantityType(identifier)
         let predicate = HKQuery.predicateForSamples(
@@ -507,7 +521,7 @@ struct HealthKitStore {
                 options: options
             ) { _, stats, _ in
                 once.resume {
-                    continuation.resume(returning: stats.flatMap(pick)?.doubleValue(for: unit))
+                    continuation.resume(returning: stats.flatMap { pick.quantity(from: $0) }?.doubleValue(for: unit))
                 }
             }
             store.execute(query)

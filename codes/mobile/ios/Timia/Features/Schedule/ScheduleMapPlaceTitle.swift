@@ -45,8 +45,9 @@ final class ScheduleMapPlaceTitle: NSObject, ObservableObject, CLLocationManager
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
         Task { @MainActor in
-            switch manager.authorizationStatus {
+            switch status {
             case .authorizedWhenInUse, .authorizedAlways:
                 self.manager.requestLocation()
             case .denied, .restricted:
@@ -63,8 +64,10 @@ final class ScheduleMapPlaceTitle: NSObject, ObservableObject, CLLocationManager
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
+        let latitude = location.coordinate.latitude
+        let longitude = location.coordinate.longitude
         Task { @MainActor in
-            await self.resolvePlace(for: location)
+            await self.resolvePlace(for: CLLocation(latitude: latitude, longitude: longitude))
         }
     }
 

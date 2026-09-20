@@ -52,7 +52,7 @@ final class StickyNoteSpeechRecognizer {
         try session.setCategory(
             .playAndRecord,
             mode: .measurement,
-            options: [.duckOthers, .defaultToSpeaker, .allowBluetooth]
+            options: [.duckOthers, .defaultToSpeaker, .allowBluetoothHFP]
         )
         try? session.setPreferredSampleRate(48_000)
         try? session.setPreferredIOBufferDuration(0.005)
