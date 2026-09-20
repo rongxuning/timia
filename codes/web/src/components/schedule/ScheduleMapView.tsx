@@ -128,7 +128,7 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
         ? t("emptyNone")
         : t("emptyFiltered")
       : null;
-  const placeCount =
+  const placeCountLabel =
     view == null
       ? null
       : view.truncated
@@ -137,9 +137,18 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
 
   return (
     <section className="flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-xl border border-border-subtle bg-white lg:min-h-0">
-      <div className="shrink-0 space-y-3 border-b border-border-subtle p-lg">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-caption font-medium text-text-secondary">{t("status")}</span>
+      <div className="relative shrink-0 space-y-2 border-b border-border-subtle px-lg py-3">
+        {view != null && placeCountLabel ? (
+          <span
+            className="absolute right-lg top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-primary/10 px-2 text-small font-medium text-primary"
+            title={placeCountLabel}
+            aria-label={placeCountLabel}
+          >
+            {view.items.length}
+          </span>
+        ) : null}
+        <div className="flex min-h-8 flex-wrap items-center gap-2 pr-12">
+          <span className="w-10 shrink-0 text-caption font-medium text-text-secondary">{t("status")}</span>
           {MAP_STATUS_KEYS.map((key) => {
             const selected = filters.statuses.includes(key);
             return (
@@ -148,7 +157,7 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
                 type="button"
                 aria-pressed={selected}
                 className={[
-                  "rounded-full border px-3 py-1 text-small transition-colors",
+                  "h-8 rounded-full border px-3 text-small transition-colors",
                   selected
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border-subtle bg-white text-text-secondary hover:bg-surface-container-lowest",
@@ -162,11 +171,13 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
             );
           })}
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <span className="pb-2 text-caption font-medium text-text-secondary">{t("scope")}</span>
-          <div className="min-w-[180px] flex-1">
+        <div className="flex min-h-8 flex-wrap items-center gap-2 pr-12">
+          <span className="w-10 shrink-0 text-caption font-medium text-text-secondary">{t("scope")}</span>
+          <div className="min-w-[160px] flex-1">
             <SystemSelect
               label={t("workspace")}
+              hideLabel
+              compact
               showAccent={false}
               searchable
               searchPlaceholder={t("searchWorkspace")}
@@ -177,9 +188,11 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
               placeholder={t("allWorkspaces")}
             />
           </div>
-          <div className="min-w-[180px] flex-1">
+          <div className="min-w-[160px] flex-1">
             <SystemSelect
               label={t("project")}
+              hideLabel
+              compact
               showAccent={false}
               searchable
               searchPlaceholder={t("searchProject")}
@@ -191,9 +204,6 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
               placeholder={t("allProjects")}
             />
           </div>
-          {placeCount ? (
-            <p className="ml-auto pb-2 text-caption text-text-secondary">{placeCount}</p>
-          ) : null}
         </div>
         {error ? (
           <div className="flex flex-wrap items-center gap-3 text-small text-error">

@@ -33,6 +33,7 @@ type Props = {
   emptyText?: string;
   showAccent?: boolean;
   hideLabel?: boolean;
+  compact?: boolean;
   renderTrigger?: (state: SystemSelectTriggerState) => React.ReactNode;
 };
 
@@ -57,6 +58,7 @@ export function SystemSelect({
   emptyText = "暂无可选项",
   showAccent = true,
   hideLabel = false,
+  compact = false,
   renderTrigger,
 }: Props) {
   const uid = useId().replace(/:/g, "");
@@ -331,7 +333,7 @@ export function SystemSelect({
   };
 
   return (
-    <div ref={rootRef} className="space-y-2">
+    <div ref={rootRef} className={hideLabel ? undefined : "space-y-2"}>
       {hideLabel ? null : (
         <div className="text-sm font-medium text-on-surface-variant" id={`${uid}-label`}>
           {label}
@@ -350,7 +352,11 @@ export function SystemSelect({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-activedescendant={open ? `${uid}-option-${activeIndex}` : undefined}
-          className="flex w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-left text-body outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+          className={
+            compact
+              ? "flex h-8 w-full items-center gap-2 rounded-full border border-border-subtle bg-white px-3 text-left text-small outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+              : "flex w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-left text-body outline-none transition-all hover:border-primary/40 focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+          }
           onClick={toggle}
           onKeyDown={handleTriggerKeyDown}
           disabled={disabled || loading}

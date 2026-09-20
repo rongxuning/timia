@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { formatScheduleTimeRange } from "@/components/schedule/taskUtils";
 import { TASK_STATUS_ICON } from "@/components/schedule/TaskStatusIcon";
 import { CHINA_OVERVIEW, mapLibreStyle } from "@/lib/map/osmStyle";
+import { scheduleMapCamera } from "@/lib/scheduleMapCamera";
 import {
   buildScheduleMapCollection,
   emptyScheduleMapCollection,
@@ -31,6 +32,30 @@ function statusLabel(status: string): string {
     return TASK_STATUS_ICON[status].label;
   }
   return status;
+}
+
+function cameraForItems(items: ScheduleMapItem[]) {
+  return scheduleMapCamera(
+    items.map((item) => ({ lng: item.location_lng, lat: item.location_lat })),
+  );
+}
+
+function applySourceAndCamera(
+  map: maplibregl.Map,
+  items: ScheduleMapItem[],
+  animate: boolean,
+): boolean {
+  const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+  if (!source) return false;
+  source.setData(buildScheduleMapCollection(items) as never);
+  const camera = cameraForItems(items);
+  const next = { center: [camera.lng, camera.lat] as [number, number], zoom: camera.zoom };
+  if (animate && items.length > 0) {
+    map.easeTo({ ...next, duration: 450 });
+  } else {
+    map.jumpTo(next);
+  }
+  return true;
 }
 
 function lookupItems(
@@ -74,6 +99,12 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       className: "schedule-map-popup",
     });
     popupRef.current = popup;
+    const hoverPopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 14,
+      className: "schedule-map-hover",
+    });
 
     function closePopup() {
       popup.remove();
@@ -110,24 +141,6 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         root.append(button);
       }
       popup.setLngLat(lngLat).setDOMContent(root).addTo(map);
-    }
-
-    function applyItems(next: ScheduleMapItem[]) {
-      const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-      if (!source) return;
-      source.setData(buildScheduleMapCollection(next) as never);
-      if (next.length === 0) return;
-      const bounds = new maplibregl.LngLatBounds();
-      for (const item of next) bounds.extend([item.location_lng, item.location_lat]);
-      if (next.length === 1) {
-        map.easeTo({
-          center: [next[0].location_lng, next[0].location_lat],
-          zoom: 14,
-          duration: 400,
-        });
-        return;
-      }
-      map.fitBounds(bounds, { padding: 40, maxZoom: 14, duration: 400 });
     }
 
     function onClusterClick(event: maplibregl.MapMouseEvent) {
@@ -174,12 +187,30 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       map.getCanvas().style.cursor = "";
     }
 
+    function onPointEnter(event: maplibregl.MapMouseEvent) {
+      setPointer();
+      const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER] })[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      const id = (feature.properties as { id?: string } | null)?.id;
+      const item = id ? itemsById(itemsRef.current).get(id) : undefined;
+      if (!item) return;
+      const root = document.createElement("div");
+      root.className = "px-2 py-1 text-small text-text-primary";
+      root.textContent = item.title;
+      hoverPopup.setLngLat(feature.geometry.coordinates as [number, number]).setDOMContent(root).addTo(map);
+    }
+
+    function onPointLeave() {
+      clearPointer();
+      hoverPopup.remove();
+    }
+
     const onLoad = () => {
       map.addSource(SOURCE_ID, {
         type: "geojson",
         data: emptyScheduleMapCollection() as never,
         cluster: true,
-        clusterMaxZoom: 14,
+        clusterMaxZoom: 12,
         clusterRadius: 50,
       });
       map.addLayer({
@@ -213,18 +244,18 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         filter: ["!", ["has", "point_count"]],
         paint: {
           "circle-color": ["get", "pinColor"],
-          "circle-radius": 8,
-          "circle-stroke-width": 2,
+          "circle-radius": 11,
+          "circle-stroke-width": 3,
           "circle-stroke-color": ["get", "strokeColor"],
         },
       });
       map.on("click", CLUSTER_LAYER, onClusterClick);
       map.on("click", POINT_LAYER, onPointClick);
       map.on("mouseenter", CLUSTER_LAYER, setPointer);
-      map.on("mouseenter", POINT_LAYER, setPointer);
+      map.on("mouseenter", POINT_LAYER, onPointEnter);
       map.on("mouseleave", CLUSTER_LAYER, clearPointer);
-      map.on("mouseleave", POINT_LAYER, clearPointer);
-      applyItems(itemsRef.current);
+      map.on("mouseleave", POINT_LAYER, onPointLeave);
+      applySourceAndCamera(map, itemsRef.current, false);
     };
 
     if (map.loaded()) onLoad();
@@ -235,6 +266,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
 
     return () => {
       observer.disconnect();
+      hoverPopup.remove();
       popup.remove();
       map.remove();
       mapRef.current = null;
@@ -244,22 +276,20 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map?.isStyleLoaded() || !map.getSource(SOURCE_ID)) return;
-    const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource;
-    source.setData(buildScheduleMapCollection(items) as never);
-    popupRef.current?.remove();
-    if (items.length === 0) return;
-    const bounds = new maplibregl.LngLatBounds();
-    for (const item of items) bounds.extend([item.location_lng, item.location_lat]);
-    if (items.length === 1) {
-      map.easeTo({
-        center: [items[0].location_lng, items[0].location_lat],
-        zoom: 14,
-        duration: 400,
-      });
+    if (!map) return;
+    const run = () => applySourceAndCamera(map, items, true);
+    if (run()) {
+      popupRef.current?.remove();
       return;
     }
-    map.fitBounds(bounds, { padding: 40, maxZoom: 14, duration: 400 });
+    const onReady = () => {
+      run();
+      popupRef.current?.remove();
+    };
+    map.once("load", onReady);
+    return () => {
+      map.off("load", onReady);
+    };
   }, [items]);
 
   return (
@@ -274,8 +304,8 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         aria-busy={loading}
       />
       {emptyMessage ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
-          <p className="max-w-md rounded-xl bg-white/90 px-4 py-3 text-center text-small text-text-secondary shadow-sm">
+        <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-6">
+          <p className="w-full max-w-sm rounded-xl bg-white/90 px-4 py-3 text-center text-small text-text-secondary shadow-sm">
             {emptyMessage}
           </p>
         </div>
