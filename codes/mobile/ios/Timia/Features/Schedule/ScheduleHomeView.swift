@@ -131,8 +131,7 @@ struct ScheduleHomeView: View {
                     } else if contentMode == .map {
                         ScheduleMapView(
                             refreshNonce: mapRefreshNonce,
-                            onTaskTap: { selectedTask = $0 },
-                            onError: { showTip($0) }
+                            onTaskTap: { selectedTask = $0 }
                         )
                     } else if contentMode == .todo {
                         TodoScheduleView(

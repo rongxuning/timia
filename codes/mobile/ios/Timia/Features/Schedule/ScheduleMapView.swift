@@ -6,7 +6,6 @@ struct ScheduleMapView: View {
 
     var refreshNonce: Int = 0
     var onTaskTap: (ScheduleTask) -> Void
-    var onError: (String) -> Void
 
     @State private var filters = ScheduleMapFilters.default
     @State private var workspaces: [WorkspaceCard] = []
@@ -22,6 +21,7 @@ struct ScheduleMapView: View {
     @State private var clusteredSelection: [ScheduleMapItem]?
     @State private var loadGeneration = 0
     @State private var didFitCameraForFingerprint: String?
+    @State private var loadError: String?
 
     private var items: [ScheduleMapItem] { response?.items ?? [] }
     private var clusters: [ScheduleMapCluster] {
@@ -41,12 +41,12 @@ struct ScheduleMapView: View {
                 mapCanvas
                     .opacity(isLoading && response == nil ? 0.55 : 1)
 
-                if isLoading, response == nil {
+                if isLoading, response == nil, loadError == nil {
                     ProgressView("正在加载地图…")
                 }
 
-                if let emptyMessage {
-                    Text(emptyMessage)
+                if let canvasMessage {
+                    Text(canvasMessage)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -87,11 +87,8 @@ struct ScheduleMapView: View {
     }
 
     private var filterBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Text("状态")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            filterRow(label: ScheduleMapFilterBarLayout.statusLabel) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(ScheduleMapStatus.allCases) { status in
@@ -121,40 +118,61 @@ struct ScheduleMapView: View {
                 }
             }
 
-            HStack(spacing: 10) {
-                filterMenu(
-                    title: "空间",
-                    selectionLabel: workspaceLabel,
-                    options: [("全部空间", nil as String?)] + workspaces.map { ($0.name, $0.id as String?) },
-                    onSelect: { value in
-                        filters = setMapWorkspace(filters, workspaceId: value)
-                    }
-                )
-
-                filterMenu(
-                    title: "项目",
-                    selectionLabel: projectLabel,
-                    options: [("全部项目", nil as String?)] + projects.map { ($0.name, $0.id as String?) },
-                    disabled: !filters.isProjectFilterEnabled,
-                    onSelect: { value in
-                        filters = setMapProject(filters, projectId: value)
-                    }
-                )
-
-                Spacer(minLength: 0)
-
-                if let response {
-                    Text(placeCountLabel(response))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+            filterRow(label: ScheduleMapFilterBarLayout.scopeLabel) {
+                HStack(spacing: 8) {
+                    filterMenu(
+                        accessibilityLabel: "空间",
+                        selectionLabel: workspaceLabel,
+                        options: [("全部空间", nil as String?)] + workspaces.map { ($0.name, $0.id as String?) },
+                        onSelect: { value in
+                            filters = setMapWorkspace(filters, workspaceId: value)
+                        }
+                    )
+                    filterMenu(
+                        accessibilityLabel: "项目",
+                        selectionLabel: projectLabel,
+                        options: [("全部项目", nil as String?)] + projects.map { ($0.name, $0.id as String?) },
+                        disabled: !filters.isProjectFilterEnabled,
+                        onSelect: { value in
+                            filters = setMapProject(filters, projectId: value)
+                        }
+                    )
+                    Spacer(minLength: 0)
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
+        .padding(.trailing, 52)
         .padding(.top, 4)
         .padding(.bottom, 10)
         .background(TimiaTheme.surface)
+        .overlay(alignment: .topTrailing) {
+            if let response {
+                Text("\(response.items.count)")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(TimiaTheme.primary)
+                    .padding(.horizontal, 8)
+                    .frame(minWidth: 32, minHeight: 32)
+                    .background(TimiaTheme.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .padding(.trailing, 16)
+                    .padding(.top, 4)
+                    .accessibilityLabel(placeCountLabel(response))
+            }
+        }
+    }
+
+    private func filterRow<Content: View>(
+        label: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: ScheduleMapFilterBarLayout.labelColumnWidth, alignment: .leading)
+            content()
+        }
+        .frame(minHeight: ScheduleMapFilterBarLayout.rowMinHeight, alignment: .center)
     }
 
     private var mapCanvas: some View {
@@ -192,11 +210,14 @@ struct ScheduleMapView: View {
         }
     }
 
-    private var emptyMessage: String? {
-        guard !isLoading, response != nil, items.isEmpty else { return nil }
-        return filters.isDefault
-            ? "还没有带地点的任务。在网页添加任务并搜索地址后会出现在这里。"
-            : "没有符合筛选条件的地点任务。"
+    private var canvasMessage: String? {
+        scheduleMapCanvasMessage(
+            isLoading: isLoading,
+            loadError: loadError,
+            hasResponse: response != nil,
+            itemCount: items.count,
+            isDefaultFilters: filters.isDefault
+        )
     }
 
     private var workspaceLabel: String {
@@ -217,7 +238,7 @@ struct ScheduleMapView: View {
     }
 
     private func filterMenu(
-        title: String,
+        accessibilityLabel: String,
         selectionLabel: String,
         options: [(String, String?)],
         disabled: Bool = false,
@@ -229,9 +250,6 @@ struct ScheduleMapView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(title)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
                 Text(selectionLabel)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(disabled ? Color.secondary.opacity(0.6) : Color.primary)
@@ -245,6 +263,8 @@ struct ScheduleMapView: View {
             .background(TimiaTheme.field, in: Capsule())
             .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.55)))
         }
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(selectionLabel)
         .disabled(disabled)
     }
 
@@ -282,6 +302,7 @@ struct ScheduleMapView: View {
         loadGeneration += 1
         let generation = loadGeneration
         isLoading = true
+        loadError = nil
         defer {
             if generation == loadGeneration {
                 isLoading = false
@@ -295,10 +316,11 @@ struct ScheduleMapView: View {
             )
             guard generation == loadGeneration else { return }
             response = result
+            loadError = nil
             fitCameraIfNeeded(for: result.items)
         } catch {
             guard generation == loadGeneration else { return }
-            onError(error.localizedDescription)
+            loadError = scheduleMapLoadFailureMessage(error)
         }
     }
 

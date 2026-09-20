@@ -77,6 +77,80 @@ final class ScheduleMapFiltersTests: XCTestCase {
         XCTAssertNil(ScheduleMapPlaceTitle.formatPlaceTitle(country: nil, city: nil))
     }
 
+    func testMapLoadFailureUsesChineseMessageForMissingRoute() {
+        XCTAssertEqual(
+            scheduleMapLoadFailureMessage(APIError.server(status: 404, message: "Not Found")),
+            "无法加载地图任务"
+        )
+        XCTAssertEqual(
+            scheduleMapLoadFailureMessage(APIError.server(status: 404, message: "not_found")),
+            "无法加载地图任务"
+        )
+    }
+
+    func testMapLoadFailureUsesLocalizedDescriptionForOtherErrors() {
+        XCTAssertEqual(
+            scheduleMapLoadFailureMessage(APIError.unauthorized),
+            "登录已过期，请重新登录"
+        )
+    }
+
+    func testFilterBarAlignsStatusAndScopeLabels() {
+        XCTAssertEqual(ScheduleMapFilterBarLayout.statusLabel, "状态")
+        XCTAssertEqual(ScheduleMapFilterBarLayout.scopeLabel, "范围")
+        XCTAssertEqual(ScheduleMapFilterBarLayout.statusLabel.count, ScheduleMapFilterBarLayout.scopeLabel.count)
+        XCTAssertEqual(ScheduleMapFilterBarLayout.labelColumnWidth, 40)
+        XCTAssertEqual(ScheduleMapFilterBarLayout.rowMinHeight, 32)
+    }
+
+    func testMapCanvasPrefersLoadErrorOverEmptyState() {
+        XCTAssertEqual(
+            scheduleMapCanvasMessage(
+                isLoading: false,
+                loadError: "无法加载地图任务",
+                hasResponse: false,
+                itemCount: 0,
+                isDefaultFilters: true
+            ),
+            "无法加载地图任务"
+        )
+    }
+
+    func testMapCanvasEmptyStateWhenLoadedWithoutItems() {
+        XCTAssertEqual(
+            scheduleMapCanvasMessage(
+                isLoading: false,
+                loadError: nil,
+                hasResponse: true,
+                itemCount: 0,
+                isDefaultFilters: true
+            ),
+            "还没有带地点的任务。在网页添加任务并搜索地址后会出现在这里。"
+        )
+        XCTAssertEqual(
+            scheduleMapCanvasMessage(
+                isLoading: false,
+                loadError: nil,
+                hasResponse: true,
+                itemCount: 0,
+                isDefaultFilters: false
+            ),
+            "没有符合筛选条件的地点任务。"
+        )
+    }
+
+    func testMapCanvasHidesMessageWhileLoading() {
+        XCTAssertNil(
+            scheduleMapCanvasMessage(
+                isLoading: true,
+                loadError: nil,
+                hasResponse: false,
+                itemCount: 0,
+                isDefaultFilters: true
+            )
+        )
+    }
+
     private func mapItem(id: String, lat: Double, lng: Double) -> ScheduleMapItem {
         ScheduleMapItem(
             id: id,
