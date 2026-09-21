@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -16,6 +16,7 @@ from app.schemas.plan import (
     PlanFavoriteOut,
     PlanFavoriteUpdate,
     PlanConfirmRunOut,
+    PlanImportCurrentPeriodRequest,
     PlanSlotOut,
     PlanSlotPut,
     PlanSubscribeOut,
@@ -229,8 +230,10 @@ def import_subscription_current_period(
     subscription_id: uuid.UUID,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    payload: PlanImportCurrentPeriodRequest | None = Body(default=None),
 ):
-    run = import_current_period(db, user, subscription_id)
+    slot_ids = None if payload is None else payload.slot_ids
+    run = import_current_period(db, user, subscription_id, slot_ids=slot_ids)
     return build_apply_run_out(db, run)
 
 

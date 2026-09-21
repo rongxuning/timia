@@ -180,6 +180,25 @@ def _subscription_template_with_slot(client: TestClient, token: str) -> str:
     return template_id
 
 
+def _subscription_template_with_named_slots(
+    client: TestClient, token: str, specs: list[dict]
+) -> tuple[str, list[str]]:
+    created = client.post(
+        "/plan-templates",
+        json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+        headers=_headers(token),
+    )
+    assert created.status_code == 201, created.text
+    template_id = created.json()["id"]
+    slots = client.put(
+        f"/plan-templates/{template_id}/slots",
+        json=specs,
+        headers=_headers(token),
+    )
+    assert slots.status_code == 200, slots.text
+    return template_id, [row["id"] for row in slots.json()]
+
+
 def _insert_pending_run(
     *,
     email: str,
@@ -1917,6 +1936,7 @@ def test_import_current_period_preview_and_already_imported():
         assert body["project_id"] == project_id
         assert len(body["tasks"]) >= 1
         assert body["tasks"][0]["title"] == "周一晨练"
+        assert body["tasks"][0]["slot_id"]
         imported = client.post(
             f"/plan-subscriptions/{subscription_id}/import-current-period",
             headers=_headers(token),
@@ -2011,5 +2031,154 @@ def test_import_current_period_confirms_existing_pending():
         assert imported.status_code == 200, imported.text
         assert imported.json()["id"] == run_id
         assert imported.json()["status"] == "applied"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_requires_auth():
+    client = TestClient(app)
+    assert (
+        client.post(f"/plan-subscriptions/{uuid.uuid4()}/import-current-period").status_code == 401
+    )
+
+
+def test_import_current_period_selected_slots_only():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id, slot_ids = _subscription_template_with_named_slots(
+            client,
+            token,
+            [
+                _slot(0, rel_day=1, start_minute=9 * 60, end_minute=10 * 60, title="周一晨练"),
+                _slot(1, rel_day=2, start_minute=18 * 60, end_minute=19 * 60, title="周二力量"),
+            ],
+        )
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        _run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current - timedelta(days=7),
+        )
+        preview = client.get(
+            f"/plan-subscriptions/{subscription_id}/current-period",
+            headers=_headers(token),
+        )
+        assert preview.status_code == 200, preview.text
+        preview_ids = [task["slot_id"] for task in preview.json()["tasks"]]
+        assert set(preview_ids) == set(slot_ids)
+
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            json={"slot_ids": [slot_ids[0]]},
+            headers=_headers(token),
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["item_count"] == 1
+
+        db = next(get_db())
+        try:
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert [item.title for item in items] == ["周一晨练"]
+            assert str(items[0].source_plan_slot_id) == slot_ids[0]
+        finally:
+            db.close()
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_empty_selection():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        _run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current - timedelta(days=7),
+        )
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            json={"slot_ids": []},
+            headers=_headers(token),
+        )
+        assert imported.status_code == 400
+        assert imported.json()["detail"] == "empty_selection"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_invalid_slot_ids():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id = _subscription_template_with_slot(client, token)
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        _run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current - timedelta(days=7),
+        )
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            json={"slot_ids": [str(uuid.uuid4())]},
+            headers=_headers(token),
+        )
+        assert imported.status_code == 400
+        assert imported.json()["detail"] == "invalid_slot_ids"
+    finally:
+        _cleanup_emails([email])
+
+
+def test_import_current_period_confirms_pending_with_selected_slots():
+    client = TestClient(app)
+    email, token = _register_and_login(client)
+    try:
+        template_id, slot_ids = _subscription_template_with_named_slots(
+            client,
+            token,
+            [
+                _slot(0, rel_day=1, start_minute=9 * 60, end_minute=10 * 60, title="周一晨练"),
+                _slot(1, rel_day=3, start_minute=19 * 60, end_minute=20 * 60, title="周三综合"),
+            ],
+        )
+        workspace_id, project_id = _workspace_and_project(client, token)
+        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        run_id, subscription_id = _insert_pending_run(
+            email=email,
+            template_id=template_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            period_start=current,
+        )
+        imported = client.post(
+            f"/plan-subscriptions/{subscription_id}/import-current-period",
+            json={"slot_ids": [slot_ids[1]]},
+            headers=_headers(token),
+        )
+        assert imported.status_code == 200, imported.text
+        assert imported.json()["id"] == run_id
+        assert imported.json()["item_count"] == 1
+
+        db = next(get_db())
+        try:
+            items = list(
+                db.scalars(select(Item).where(Item.project_id == uuid.UUID(project_id))).all()
+            )
+            assert [item.title for item in items] == ["周三综合"]
+        finally:
+            db.close()
     finally:
         _cleanup_emails([email])

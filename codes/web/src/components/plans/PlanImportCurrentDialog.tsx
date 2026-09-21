@@ -15,6 +15,9 @@ import {
   buildImportWeekDays,
   formatImportTaskClockRange,
   IMPORT_VISIBLE_TASK_SLOTS,
+  initialSelectedSlotIds,
+  selectedImportSlotIds,
+  toggleSelectedSlotId,
   type ImportPreviewTask,
 } from "./planImportPreview";
 
@@ -43,6 +46,7 @@ export function PlanImportCurrentDialog({
 }: Props) {
   const titleId = useId();
   const [preview, setPreview] = useState<PlanCurrentPeriodPreviewOut | null>(null);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +56,7 @@ export function PlanImportCurrentDialog({
   useEffect(() => {
     if (!open) {
       setPreview(null);
+      setSelectedSlotIds(new Set());
       setError(null);
       setSubmitting(false);
       return;
@@ -61,7 +66,9 @@ export function PlanImportCurrentDialog({
     setError(null);
     fetchSubscriptionCurrentPeriod(token, subscriptionId)
       .then((data) => {
-        if (!cancelled) setPreview(data);
+        if (cancelled) return;
+        setPreview(data);
+        setSelectedSlotIds(initialSelectedSlotIds(data.tasks ?? []));
       })
       .catch((err: { message?: string }) => {
         if (!cancelled) setError(planApiMessage(err?.message ?? "加载失败"));
@@ -76,10 +83,15 @@ export function PlanImportCurrentDialog({
 
   async function onConfirm() {
     if (!preview || preview.already_imported) return;
+    const slotIds = selectedImportSlotIds(preview.tasks ?? [], selectedSlotIds);
+    if (slotIds.length === 0) {
+      setError("请至少勾选一个任务");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      await importSubscriptionCurrentPeriod(token, subscriptionId);
+      await importSubscriptionCurrentPeriod(token, subscriptionId, { slot_ids: slotIds });
       dispatchPlanBadgeRefresh();
       onSuccess?.();
       onClose();
@@ -107,6 +119,10 @@ export function PlanImportCurrentDialog({
   const gapCount = IMPORT_VISIBLE_TASK_SLOTS - 1;
   const taskColumnWidth = `calc((100cqw - ${gapCount} * 0.375rem) / ${IMPORT_VISIBLE_TASK_SLOTS})`;
   const taskSlotStyle = { flex: `0 0 ${taskColumnWidth}` };
+  const selectedCount = selectedImportSlotIds(tasks, selectedSlotIds).length;
+  const canToggle = !submitting && !preview?.already_imported;
+  const canImport =
+    !submitting && !loading && !!preview && !preview.already_imported && selectedCount > 0;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -157,24 +173,67 @@ export function PlanImportCurrentDialog({
                     </div>
                     <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-1 [container-type:inline-size] [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-outline-variant">
                       <div className="flex h-full w-max gap-1.5">
-                        {day.tasks.map((task, index) => {
+                        {day.tasks.map((task) => {
                           const meta = taskMeta(task);
+                          const selected = selectedSlotIds.has(task.slot_id);
                           return (
-                            <div
-                              key={`${task.title}-${task.start_at}-${index}`}
-                              className="flex min-h-0 min-w-0 flex-col justify-center overflow-hidden rounded-md border border-border-subtle bg-white px-1.5 py-0.5"
+                            <button
+                              key={task.slot_id}
+                              type="button"
                               style={taskSlotStyle}
+                              disabled={!canToggle}
+                              aria-pressed={selected}
+                              aria-label={`${selected ? "已勾选" : "未勾选"}，${task.title}，点击切换`}
                               title={meta ? `${task.title} ${meta}` : task.title}
+                              className={[
+                                "relative flex min-h-0 min-w-0 flex-col justify-center overflow-hidden rounded-md border border-border-subtle px-1.5 py-0.5 text-left transition-colors",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                                selected ? "bg-white" : "bg-surface-container-lowest",
+                                canToggle ? "hover:border-primary/40" : "cursor-default",
+                              ].join(" ")}
+                              onClick={() => {
+                                setSelectedSlotIds((current) =>
+                                  toggleSelectedSlotId(current, task.slot_id),
+                                );
+                              }}
                             >
-                              <p className="truncate text-[11px] font-medium leading-4 text-text-primary">
+                              <span
+                                className={[
+                                  "absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center",
+                                  selected ? "text-primary" : "text-zinc-400",
+                                ].join(" ")}
+                                aria-hidden
+                              >
+                                <span
+                                  className="material-symbols-outlined text-[14px] leading-none"
+                                  style={
+                                    selected
+                                      ? { fontVariationSettings: "'FILL' 1" }
+                                      : undefined
+                                  }
+                                >
+                                  {selected ? "check_circle" : "radio_button_unchecked"}
+                                </span>
+                              </span>
+                              <p
+                                className={[
+                                  "truncate pr-4 text-[11px] font-medium leading-4",
+                                  selected ? "text-text-primary" : "text-text-secondary",
+                                ].join(" ")}
+                              >
                                 {task.title}
                               </p>
                               {meta ? (
-                                <p className="truncate text-[10px] leading-4 text-text-secondary">
+                                <p
+                                  className={[
+                                    "truncate text-[10px] leading-4",
+                                    selected ? "text-text-secondary" : "text-neutral-muted",
+                                  ].join(" ")}
+                                >
                                   {meta}
                                 </p>
                               ) : null}
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -198,7 +257,7 @@ export function PlanImportCurrentDialog({
               type="button"
               className="rounded-xl bg-primary px-4 py-2 text-small text-on-primary disabled:opacity-50"
               onClick={() => void onConfirm()}
-              disabled={submitting || loading || !preview || preview.already_imported}
+              disabled={!canImport}
             >
               {submitting ? "导入中…" : "确认导入"}
             </button>

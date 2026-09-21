@@ -87,22 +87,41 @@ def build_apply_run_out(db: Session, run: PlanApplyRun) -> PlanApplyRunOut:
     )
 
 
+def _slots_for_import(
+    slots: list[PlanSlot],
+    slot_ids: list[uuid.UUID] | None,
+) -> list[PlanSlot]:
+    if slot_ids is None:
+        return slots
+    unique_ids = list(dict.fromkeys(slot_ids))
+    if not unique_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="empty_selection")
+    by_id = {slot.id: slot for slot in slots}
+    if any(slot_id not in by_id for slot_id in unique_ids):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_slot_ids")
+    return [by_id[slot_id] for slot_id in unique_ids]
+
+
 def materialize_run(
     db: Session,
     run: PlanApplyRun,
     timezone_name: str = DEFAULT_APPLY_TIMEZONE,
+    slot_ids: list[uuid.UUID] | None = None,
 ) -> PlanApplyRun:
     """Create items for an apply run. Does not commit (subscribe reuses this)."""
     _require_timezone(timezone_name)
     template = db.get(PlanTemplate, run.template_id)
     if template is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
-    slots = list(
-        db.scalars(
-            select(PlanSlot)
-            .where(PlanSlot.template_id == template.id)
-            .order_by(PlanSlot.sort_index, PlanSlot.created_at)
-        ).all()
+    slots = _slots_for_import(
+        list(
+            db.scalars(
+                select(PlanSlot)
+                .where(PlanSlot.template_id == template.id)
+                .order_by(PlanSlot.sort_index, PlanSlot.created_at)
+            ).all()
+        ),
+        slot_ids,
     )
     skipped: list[dict[str, str]] = []
     created = 0
@@ -401,7 +420,12 @@ def cancel_subscription(db: Session, user: User, subscription_id: uuid.UUID) -> 
     db.commit()
 
 
-def confirm_apply_run(db: Session, user: User, run_id: uuid.UUID) -> tuple[PlanApplyRun, bool]:
+def confirm_apply_run(
+    db: Session,
+    user: User,
+    run_id: uuid.UUID,
+    slot_ids: list[uuid.UUID] | None = None,
+) -> tuple[PlanApplyRun, bool]:
     run = _require_pending_run(db, user, run_id)
     require_project_content_access(db, run.workspace_id, run.project_id, user)
     template = db.get(PlanTemplate, run.template_id)
@@ -410,7 +434,7 @@ def confirm_apply_run(db: Session, user: User, run_id: uuid.UUID) -> tuple[PlanA
     template_updated = run.template_version != template.version
     run.template_version = template.version
     try:
-        materialize_run(db, run, timezone_name=_run_timezone(db, run))
+        materialize_run(db, run, timezone_name=_run_timezone(db, run), slot_ids=slot_ids)
         db.commit()
     except HTTPException:
         db.rollback()
@@ -510,6 +534,7 @@ def preview_current_period(
         start_at, end_at = bounds
         tasks.append(
             PlanCurrentPeriodTaskOut(
+                slot_id=str(slot.id),
                 title=slot.title,
                 start_at=start_at,
                 end_at=end_at,
@@ -534,6 +559,7 @@ def import_current_period(
     user: User,
     subscription_id: uuid.UUID,
     now: datetime | None = None,
+    slot_ids: list[uuid.UUID] | None = None,
 ) -> PlanApplyRun:
     subscription, segment, template, period_start = _current_period_context(
         db, user, subscription_id, now
@@ -543,7 +569,7 @@ def import_current_period(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_imported")
     pending = _pending_run_for_period(db, subscription.id, period_start)
     if pending is not None:
-        run, _template_updated = confirm_apply_run(db, user, pending.id)
+        run, _template_updated = confirm_apply_run(db, user, pending.id, slot_ids=slot_ids)
         return run
     run = PlanApplyRun(
         template_id=template.id,
@@ -562,7 +588,7 @@ def import_current_period(
     db.add(run)
     try:
         db.flush()
-        materialize_run(db, run, timezone_name=subscription.timezone)
+        materialize_run(db, run, timezone_name=subscription.timezone, slot_ids=slot_ids)
         db.commit()
     except HTTPException:
         db.rollback()

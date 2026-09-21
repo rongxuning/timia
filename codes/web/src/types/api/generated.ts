@@ -4101,6 +4101,8 @@ export interface components {
         };
         /** PlanCurrentPeriodTaskOut */
         PlanCurrentPeriodTaskOut: {
+            /** Slot Id */
+            slot_id: string;
             /** Title */
             title: string;
             /**
@@ -4162,6 +4164,11 @@ export interface components {
         PlanFavoriteUpdate: {
             /** Is Favorite */
             is_favorite: boolean;
+        };
+        /** PlanImportCurrentPeriodRequest */
+        PlanImportCurrentPeriodRequest: {
+            /** Slot Ids */
+            slot_ids?: string[] | null;
         };
         /** PlanImportedListOut */
         PlanImportedListOut: {
@@ -8067,7 +8074,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PlanImportCurrentPeriodRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

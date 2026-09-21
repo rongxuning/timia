@@ -1882,7 +1882,12 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     method: "POST",
     path: "/plan-subscriptions/{subscription_id}/import-current-period",
     name: "导入本期",
-    requestJson: { headers: authBearer, pathParams: planSubscriptionPath, query: null, jsonBody: null },
+    requestJson: {
+      headers: authBearer,
+      pathParams: planSubscriptionPath,
+      query: null,
+      jsonBody: { slot_ids: "uuid[]?" },
+    },
     responseJson: "PlanApplyRunOut",
   },
   {

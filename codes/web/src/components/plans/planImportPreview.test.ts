@@ -5,15 +5,19 @@ import {
   compareImportTasks,
   formatImportTaskClockRange,
   IMPORT_WEEKDAY_LABELS,
+  initialSelectedSlotIds,
+  selectedImportSlotIds,
+  toggleSelectedSlotId,
 } from "./planImportPreview.ts";
 
 function task(
   title: string,
   startAt: string,
   endAt: string,
-  extra: { all_day?: boolean; location?: string | null } = {},
+  extra: { all_day?: boolean; location?: string | null; slot_id?: string } = {},
 ) {
   return {
+    slot_id: extra.slot_id ?? title,
     title,
     start_at: startAt,
     end_at: endAt,
@@ -101,5 +105,26 @@ describe("compareImportTasks", () => {
     const allDay = task("B", "2026-09-17T08:00:00", "2026-09-17T09:00:00", { all_day: true });
     assert.ok(compareImportTasks(allDay, timed) < 0);
     assert.ok(compareImportTasks(timed, allDay) > 0);
+  });
+});
+
+describe("import slot selection", () => {
+  it("selects every task by default and keeps only checked ids on import", () => {
+    const morning = task("晨练", "2026-09-21T12:10:00", "2026-09-21T12:55:00", {
+      slot_id: "slot-morning",
+    });
+    const evening = task("综合", "2026-09-21T19:00:00", "2026-09-21T20:00:00", {
+      slot_id: "slot-evening",
+    });
+    const selected = initialSelectedSlotIds([morning, evening]);
+    assert.deepEqual([...selected].sort(), ["slot-evening", "slot-morning"]);
+
+    const unchecked = toggleSelectedSlotId(selected, "slot-evening");
+    assert.equal(unchecked.has("slot-evening"), false);
+    assert.deepEqual(selectedImportSlotIds([morning, evening], unchecked), ["slot-morning"]);
+    assert.deepEqual(
+      selectedImportSlotIds([morning, evening], toggleSelectedSlotId(unchecked, "slot-evening")),
+      ["slot-morning", "slot-evening"],
+    );
   });
 });

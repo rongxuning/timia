@@ -241,10 +241,12 @@ export function fetchSubscriptionCurrentPeriod(
 export function importSubscriptionCurrentPeriod(
   token: string,
   subscriptionId: string,
+  payload?: { slot_ids?: string[] },
 ): Promise<PlanApplyRunOut> {
   return apiFetch<PlanApplyRunOut>(`/plan-subscriptions/${subscriptionId}/import-current-period`, {
     method: "POST",
     token,
+    body: payload ? JSON.stringify(payload) : undefined,
   });
 }
 
