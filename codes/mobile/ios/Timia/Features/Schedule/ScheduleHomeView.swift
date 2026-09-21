@@ -208,6 +208,9 @@ struct ScheduleHomeView: View {
             Task { await loadTodo(force: true) }
         }
         .onChange(of: contentMode) { _, newValue in
+            if voiceDock.isActive {
+                voiceDock.cancel()
+            }
             if newValue != .stickyNote {
                 isStickyNoteEditorPresented = false
             }
