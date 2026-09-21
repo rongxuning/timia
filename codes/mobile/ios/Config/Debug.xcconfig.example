@@ -1,3 +1,6 @@
-TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8000
-TIMIA_FILE_API_BASE_URL = http:/$()/127.0.0.1:8003
+// Local Docker stack (`make docker-up`): nginx on :8080.
+// Simulator: 127.0.0.1 is fine. Physical device / same LAN: replace with `ipconfig getifaddr en0`.
+// `$()` keeps `//` from being treated as an xcconfig comment.
+TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8080/core-service
+TIMIA_FILE_API_BASE_URL = http:/$()/127.0.0.1:8080/file-service
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG

@@ -32,8 +32,8 @@ final class AppSession: ObservableObject {
     init() {
         let configured = Bundle.main.object(forInfoDictionaryKey: "TIMIA_API_BASE_URL") as? String
         let fileConfigured = Bundle.main.object(forInfoDictionaryKey: "TIMIA_FILE_API_BASE_URL") as? String
-        baseURL = URL(string: configured ?? "") ?? URL(string: "http://127.0.0.1:8000")!
-        fileBaseURL = URL(string: fileConfigured ?? "") ?? URL(string: "http://127.0.0.1:8003")!
+        baseURL = URL(string: configured ?? "") ?? URL(string: "http://127.0.0.1:8080/core-service")!
+        fileBaseURL = URL(string: fileConfigured ?? "") ?? URL(string: "http://127.0.0.1:8080/file-service")!
         let keychain = KeychainStore()
         if ProcessInfo.processInfo.arguments.contains("-ui-testing") {
             keychain.deleteAuthentication()

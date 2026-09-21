@@ -7,7 +7,7 @@
 - Xcode 26 或更高版本
 - Swift 6
 - XcodeGen（本机可通过 `brew install xcodegen` 安装）
-- 本地 Timia API，默认地址 `http://127.0.0.1:8000`
+- 本地 Timia API，默认走 Docker nginx：`http://127.0.0.1:8080/core-service`
 
 ## 生成与运行
 
@@ -20,7 +20,7 @@ open Timia.xcodeproj
 
 在 Xcode 中选择一个 iPhone Simulator，运行 `Timia` Scheme。
 
-Debug API 地址在 `Config/Debug.xcconfig` 中配置。真机调试时将 `127.0.0.1` 改为 Mac 的局域网地址。Release 默认使用 `https://timia.online/core-service`。
+Debug API 地址在 `Config/Debug.xcconfig` 中配置。本地全套服务是 `make docker-up`，入口为 **8080** 上的 `/core-service` 与 `/file-service`（不再直连 8000/8003）。模拟器可用 `127.0.0.1`；真机或要走同一局域网时，把主机改成 Mac 的局域网 IP。Release 默认使用 `https://timia.online/core-service`。
 
 ## 连接真机调试
 
@@ -46,45 +46,33 @@ ipconfig getifaddr en0
 
 ### 3. 修改 Debug API 地址
 
-编辑 `Config/Debug.xcconfig`，将 `127.0.0.1` 替换为刚才查到的 Mac 局域网 IP：
+编辑 `Config/Debug.xcconfig`，将 `127.0.0.1` 替换为刚才查到的 Mac 局域网 IP，并保持 Docker nginx 的端口与路径前缀：
 
 ```text
-TIMIA_API_BASE_URL = http:/$()/192.168.1.23:8000
+TIMIA_API_BASE_URL = http:/$()/192.168.1.23:8080/core-service
+TIMIA_FILE_API_BASE_URL = http:/$()/192.168.1.23:8080/file-service
 ```
 
-`$()` 用于避免 Xcode 将 URL 中的 `//` 解析为配置文件注释，请勿删除。
+`$()` 用于避免 Xcode 将 URL 中的 `//` 解析为配置文件注释，请勿删除。改完后需要 **Clean + 重新 Run**，xcconfig 才会打进 App。
 
 ### 4. 启动允许局域网访问的后端
 
-先启动数据库：
-
 ```bash
 cd /Users/rongxuning/Documents/timia
-make db
+make docker-up
 ```
 
-然后启动监听所有本机网络接口的 API：
-
-```bash
-cd /Users/rongxuning/Documents/timia/codes/core-service
-PYTHONPATH=. uv run python -m alembic upgrade head
-PYTHONPATH=. uv run python -m uvicorn app.main:app \
-  --reload \
-  --host 0.0.0.0 \
-  --port 8000
-```
-
-保持该终端运行。macOS 防火墙首次询问时，需要允许 Python 或 uvicorn 接收传入连接。
+Docker 把 nginx 绑在 `*:8080`，同一 Wi-Fi 下的模拟器和真机都可以访问。macOS 防火墙若弹出询问，允许 Docker 接收传入连接。
 
 ### 5. 验证网络连接
 
-先在 iPhone 的 Safari 中访问以下地址，其中 IP 替换为 Mac 的实际局域网 IP：
+先在 Safari 中访问以下地址，IP 换成 Mac 的实际局域网地址：
 
 ```text
-http://192.168.1.23:8000/health
+http://192.168.1.23:8080/core-service/health
 ```
 
-看到包含 `"ok"` 的响应后，说明真机能够访问本地 API。
+看到包含 `"ok"` 的响应后，说明设备能够访问本地 API。
 
 ### 6. 从 Xcode 运行
 
@@ -93,10 +81,11 @@ http://192.168.1.23:8000/health
 3. 按 `Command + R` 编译、安装并启动 App。
 4. 如果 iPhone 提示开发者不受信任，按照系统提示在“设置 > 通用 > VPN 与设备管理”中信任对应开发者。
 
-调试完成并切回模拟器时，将 `Config/Debug.xcconfig` 恢复为：
+调试完成并切回仅用模拟器时，可将 `Config/Debug.xcconfig` 恢复为：
 
 ```text
-TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8000
+TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8080/core-service
+TIMIA_FILE_API_BASE_URL = http:/$()/127.0.0.1:8080/file-service
 ```
 
 Mac 的局域网 IP 可能在重新连接 Wi-Fi 后变化。如果真机突然无法连接 API，应先重新检查 IP 地址和 `/health` 页面。

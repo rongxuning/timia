@@ -25,7 +25,7 @@ xcodegen generate
 | `TimiaWidget` | Live Activity |
 | `TimiaTests` | 几何/同步/模型单测 |
 
-Debug API：`Config/Debug.xcconfig`。真机把 `127.0.0.1` 换成 Mac 局域网 IP；URL 里的 `//` 写成 `/$()/`。Release：`https://timia.online/core-service`。
+Debug API：`Config/Debug.xcconfig`（本地 Docker nginx `http://127.0.0.1:8080/core-service`）。真机/同一局域网把主机换成 Mac 的 LAN IP，端口保持 **8080** 且带 `/core-service` 前缀；URL 里的 `//` 写成 `/$()/`。Release：`https://timia.online/core-service`。
 
 ## 约束
 
