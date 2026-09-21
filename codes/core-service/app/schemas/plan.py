@@ -102,11 +102,16 @@ class PlanSubscribeOut(BaseModel):
 
 
 class PlanCurrentPeriodTaskOut(BaseModel):
+    slot_id: str
     title: str
     start_at: datetime
     end_at: datetime
     all_day: bool
     location: str | None = None
+
+
+class PlanImportCurrentPeriodRequest(BaseModel):
+    slot_ids: list[UUID] | None = None
 
 
 class PlanCurrentPeriodPreviewOut(BaseModel):

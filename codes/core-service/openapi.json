@@ -4175,6 +4175,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PlanImportCurrentPeriodRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -15687,6 +15704,10 @@
       },
       "PlanCurrentPeriodTaskOut": {
         "properties": {
+          "slot_id": {
+            "type": "string",
+            "title": "Slot Id"
+          },
           "title": {
             "type": "string",
             "title": "Title"
@@ -15719,6 +15740,7 @@
         },
         "type": "object",
         "required": [
+          "slot_id",
           "title",
           "start_at",
           "end_at",
@@ -15866,6 +15888,27 @@
           "is_favorite"
         ],
         "title": "PlanFavoriteUpdate"
+      },
+      "PlanImportCurrentPeriodRequest": {
+        "properties": {
+          "slot_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot Ids"
+          }
+        },
+        "type": "object",
+        "title": "PlanImportCurrentPeriodRequest"
       },
       "PlanImportedListOut": {
         "properties": {

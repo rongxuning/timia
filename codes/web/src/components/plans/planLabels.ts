@@ -44,6 +44,10 @@ export function planApiMessage(message: string): string {
       return "已开启该规划的订阅模式";
     case "empty_template":
       return "模板没有可导入的时段";
+    case "empty_selection":
+      return "请至少勾选一个任务";
+    case "invalid_slot_ids":
+      return "勾选的任务已失效，请重新打开导入";
     case "wrong_usage_kind":
       return "规划类型不匹配";
     default:

@@ -3,6 +3,7 @@ export const IMPORT_WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "�
 export const IMPORT_VISIBLE_TASK_SLOTS = 5;
 
 export type ImportPreviewTask = {
+  slot_id: string;
   title: string;
   start_at: string;
   end_at: string;
@@ -91,4 +92,22 @@ export function buildImportWeekDays(
     day.tasks.sort(compareImportTasks);
   }
   return days;
+}
+
+export function initialSelectedSlotIds(tasks: ImportPreviewTask[]): Set<string> {
+  return new Set(tasks.map((task) => task.slot_id).filter(Boolean));
+}
+
+export function toggleSelectedSlotId(selected: Set<string>, slotId: string): Set<string> {
+  const next = new Set(selected);
+  if (next.has(slotId)) next.delete(slotId);
+  else next.add(slotId);
+  return next;
+}
+
+export function selectedImportSlotIds(
+  tasks: ImportPreviewTask[],
+  selected: Set<string>,
+): string[] {
+  return tasks.map((task) => task.slot_id).filter((slotId) => selected.has(slotId));
 }
