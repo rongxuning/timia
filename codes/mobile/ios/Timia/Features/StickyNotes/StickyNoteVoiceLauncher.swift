@@ -236,7 +236,10 @@ struct VoiceRecordingOverlay: View {
         case .available:
             break
         case .deviceNotSupported:
-            statusMsg = "当前设备不支持语音识别"
+            // Simulator almost always lands here (`supportsOnDeviceRecognition == false`).
+            // Real devices pass this check and continue into AVAudioEngine — that is the
+            // path that used to flash-quit; failures there must toast, never abort.
+            statusMsg = "当前设备不支持本地语音识别（模拟器常见）"
             statusIsError = true
             finishFailure(statusMsg ?? "")
             return

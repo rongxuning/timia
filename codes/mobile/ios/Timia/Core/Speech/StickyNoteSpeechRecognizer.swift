@@ -4,12 +4,14 @@ import Speech
 
 /// Shared on-device Chinese speech recognizer.
 ///
-/// Hardened against tap-to-speak crashes:
-/// 1. Recreate ``AVAudioEngine`` every session (stale engines after mic auth crash on `inputNode`).
-/// 2. Never `installTap` with a 0 Hz format; use `format: nil` after validating hardware format.
-/// 3. Track tap install state — `removeTap` crashes when none is installed.
-/// 4. Session generation token so a rapid `cancel()` during async start cannot
-///    tear down the engine while `start()` still holds an `inputNode` reference.
+/// Hardened against tap-to-speak crashes on **real devices** (simulators usually
+/// bail earlier via ``OnDeviceSupportChecker.deviceNotSupported``):
+/// 1. Recreate ``AVAudioEngine`` every session.
+/// 2. Match Apple's SpokenWord sample: `.record` + `.measurement`.
+/// 3. Never `installTap` unless hardware format is valid; use that native format.
+/// 4. Wrap `inputNode` / `installTap` / `removeTap` in ``ObjCExceptionCatcher`` —
+///    those APIs raise ObjC ``NSException`` that Swift `do/catch` cannot catch.
+/// 5. Session generation token invalidates in-flight async starts after `cancel()`.
 @MainActor
 final class StickyNoteSpeechRecognizer {
     static let shared = StickyNoteSpeechRecognizer()
@@ -47,16 +49,13 @@ final class StickyNoteSpeechRecognizer {
 
     private func activateAudioSession() throws {
         let session = AVAudioSession.sharedInstance()
-        // Prefer a known sample rate before creating AVAudioEngine — a 0 Hz
-        // route makes `inputNode` / `installTap` throw an uncaught NSException.
-        try session.setCategory(
-            .playAndRecord,
-            mode: .measurement,
-            options: [.duckOthers, .defaultToSpeaker, .allowBluetoothHFP]
-        )
-        try? session.setPreferredSampleRate(48_000)
+        // Apple's "Recognizing Speech in Live Audio" sample uses `.record`,
+        // not `.playAndRecord` — the latter leaves some devices on a 0 Hz
+        // input route that makes `installTap` abort the process.
+        try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try? session.setPreferredSampleRate(44_100)
         try? session.setPreferredIOBufferDuration(0.005)
-        try session.setActive(true)
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
         guard session.isInputAvailable else {
             throw RecognizerError.invalidAudioFormat
         }
@@ -67,31 +66,84 @@ final class StickyNoteSpeechRecognizer {
             isTapInstalled = false
             return
         }
-        engine.inputNode.removeTap(onBus: 0)
+        // removeTap itself can NSException if the graph is in a bad state.
+        _ = ObjCExceptionCatcher.perform({
+            engine.inputNode.removeTap(onBus: 0)
+        }, error: nil)
         isTapInstalled = false
     }
 
     private func tearDownEngine() {
         removeTapIfNeeded()
-        if let engine = audioEngine, engine.isRunning {
-            engine.stop()
+        if let engine = audioEngine {
+            if engine.isRunning {
+                engine.stop()
+            }
+            _ = ObjCExceptionCatcher.perform({
+                engine.reset()
+            }, error: nil)
         }
         audioEngine = nil
+    }
+
+    private func hardwareFormat(on inputNode: AVAudioInputNode) -> AVAudioFormat? {
+        // Prefer outputFormat (what installTap consumes); fall back to inputFormat.
+        let candidates = [
+            inputNode.outputFormat(forBus: 0),
+            inputNode.inputFormat(forBus: 0),
+        ]
+        return candidates.first { format in
+            format.sampleRate >= 8_000 && format.channelCount > 0
+        }
     }
 
     private func waitForValidFormat(
         on inputNode: AVAudioInputNode,
         sessionID: UUID
     ) async -> AVAudioFormat? {
-        for attempt in 0..<12 {
+        for attempt in 0..<16 {
             guard self.sessionID == sessionID else { return nil }
-            let format = inputNode.outputFormat(forBus: 0)
-            if format.sampleRate >= 8_000, format.channelCount > 0 {
+            if let format = hardwareFormat(on: inputNode) {
                 return format
             }
             try? await Task.sleep(for: .milliseconds(40 + attempt * 20))
         }
         return nil
+    }
+
+    /// Access `inputNode` under the ObjC exception shield — a cold mic route
+    /// throws `com.apple.coreaudio.avfaudio` and would otherwise kill the app.
+    private func safeInputNode(of engine: AVAudioEngine) throws -> AVAudioInputNode {
+        var node: AVAudioInputNode?
+        var caught: NSError?
+        let ok = ObjCExceptionCatcher.perform({
+            node = engine.inputNode
+        }, error: &caught)
+        guard ok, let node else {
+            throw RecognizerError.engineFailedToStart(
+                caught?.localizedDescription ?? "无法访问麦克风输入节点"
+            )
+        }
+        return node
+    }
+
+    private func safeInstallTap(
+        on inputNode: AVAudioInputNode,
+        format: AVAudioFormat,
+        request: SFSpeechAudioBufferRecognitionRequest
+    ) throws {
+        var caught: NSError?
+        let ok = ObjCExceptionCatcher.perform({
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+                request.append(buffer)
+            }
+        }, error: &caught)
+        guard ok else {
+            throw RecognizerError.engineFailedToStart(
+                caught?.localizedDescription ?? "安装麦克风监听失败"
+            )
+        }
+        isTapInstalled = true
     }
 
     private func beginRecognition(sessionID: UUID) async {
@@ -116,10 +168,8 @@ final class StickyNoteSpeechRecognizer {
         let engine = AVAudioEngine()
         audioEngine = engine
 
-        // Accessing `inputNode` before the route is live can NSException-crash
-        // the process (Swift `do/catch` cannot catch it). Wait for a usable
-        // hardware format first via a short settle, then read the node once.
-        try? await Task.sleep(for: .milliseconds(50))
+        // Let the session attach to hardware before touching inputNode.
+        try? await Task.sleep(for: .milliseconds(80))
         guard self.sessionID == sessionID else {
             if audioEngine === engine {
                 recognitionRequest = nil
@@ -128,8 +178,17 @@ final class StickyNoteSpeechRecognizer {
             return
         }
 
-        let inputNode = engine.inputNode
-        guard await waitForValidFormat(on: inputNode, sessionID: sessionID) != nil else {
+        let inputNode: AVAudioInputNode
+        do {
+            inputNode = try safeInputNode(of: engine)
+        } catch {
+            recognitionRequest = nil
+            tearDownEngine()
+            onError?(error)
+            return
+        }
+
+        guard let format = await waitForValidFormat(on: inputNode, sessionID: sessionID) else {
             guard self.sessionID == sessionID else { return }
             recognitionRequest = nil
             tearDownEngine()
@@ -144,12 +203,14 @@ final class StickyNoteSpeechRecognizer {
             return
         }
 
-        // `format: nil` → node's native format (avoids installTap NSException).
-        let streamingRequest = request
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { buffer, _ in
-            streamingRequest.append(buffer)
+        do {
+            try safeInstallTap(on: inputNode, format: format, request: request)
+        } catch {
+            recognitionRequest = nil
+            tearDownEngine()
+            onError?(error)
+            return
         }
-        isTapInstalled = true
 
         engine.prepare()
         do {
@@ -182,6 +243,7 @@ final class StickyNoteSpeechRecognizer {
                 }
                 guard let error else { return }
                 let nsError = error as NSError
+                // 1110 = no speech detected; treat as empty success rather than hard fail.
                 if nsError.domain == "kAFAssistantErrorDomain", nsError.code == 1110 {
                     self.onFinal?("")
                     self.cleanup(expectedSession: sessionID)
@@ -219,7 +281,7 @@ final class StickyNoteSpeechRecognizer {
             throw RecognizerError.engineFailedToStart(error.localizedDescription)
         }
         // Let hardware attach after a fresh mic-permission grant.
-        try? await Task.sleep(for: .milliseconds(150))
+        try? await Task.sleep(for: .milliseconds(200))
         guard sessionID == newSession else { return }
 
         let availability = OnDeviceSupportChecker.check()
