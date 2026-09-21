@@ -64,6 +64,26 @@ final class ScheduleMapFiltersTests: XCTestCase {
         XCTAssertEqual(scheduleMapTimeLabel(startAt: nil, endAt: nil), "未排期")
     }
 
+    func testPinCopyAddsStatusAsThirdLine() {
+        let copy = scheduleMapPinCopy(
+            title: "lucy辅导",
+            extraCount: 1,
+            startAt: nil,
+            endAt: nil,
+            status: "done"
+        )
+        XCTAssertEqual(copy.title, "lucy辅导")
+        XCTAssertEqual(copy.timeLabel, "未排期")
+        XCTAssertEqual(copy.statusLabel, "已完成")
+    }
+
+    func testPinCopyUsesPriorityBackgroundHex() {
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: "1").background, "#DBEAFE")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: "2").background, "#DCFCE7")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: "3").background, "#FEF9C3")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: "4").background, "#FEE2E2")
+    }
+
     func testPriorityAccentUsesDistinctColors() {
         XCTAssertEqual(SchedulePriorityAccent.hex(for: "1"), "#3B82F6")
         XCTAssertEqual(SchedulePriorityAccent.hex(for: "2"), "#22C55E")

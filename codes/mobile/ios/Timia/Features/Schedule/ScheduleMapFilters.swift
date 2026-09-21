@@ -18,6 +18,30 @@ enum ScheduleMapStatus: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+struct ScheduleMapPinCopy: Equatable {
+    let title: String
+    let timeLabel: String
+    let statusLabel: String
+}
+
+func scheduleMapStatusLabel(_ status: String) -> String {
+    ScheduleMapStatus(rawValue: status)?.label ?? status
+}
+
+func scheduleMapPinCopy(
+    title: String,
+    extraCount: Int,
+    startAt: String?,
+    endAt: String?,
+    status: String
+) -> ScheduleMapPinCopy {
+    ScheduleMapPinCopy(
+        title: extraCount > 1 ? "\(title) 等\(extraCount)项" : title,
+        timeLabel: scheduleMapTimeLabel(startAt: startAt, endAt: endAt),
+        statusLabel: scheduleMapStatusLabel(status)
+    )
+}
+
 struct ScheduleMapFilters: Equatable, Sendable {
     var statuses: [ScheduleMapStatus]
     var workspaceId: String?

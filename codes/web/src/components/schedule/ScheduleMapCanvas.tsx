@@ -4,7 +4,12 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTranslations } from "next-intl";
-import { formatScheduleTimeRange } from "@/components/schedule/taskUtils";
+import {
+  desaturateHex,
+  formatScheduleTimeRange,
+  isSettledCalendarStatus,
+  taskCalendarColors,
+} from "@/components/schedule/taskUtils";
 import { TASK_STATUS_ICON } from "@/components/schedule/TaskStatusIcon";
 import { CHINA_OVERVIEW, mapLibreStyle } from "@/lib/map/osmStyle";
 import {
@@ -64,14 +69,18 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const labelsRef = useRef({
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
-    pinAria: (title: string, time: string, location: string) => t("pinAria", { title, time, location }),
+    status: (status: string) => statusLabel(status),
+    pinAria: (title: string, time: string, status: string, location: string) =>
+      t("pinAria", { title, time, status, location }),
   });
   itemsRef.current = items;
   onItemClickRef.current = onItemClick;
   labelsRef.current = {
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
-    pinAria: (title: string, time: string, location: string) => t("pinAria", { title, time, location }),
+    status: (status: string) => statusLabel(status),
+    pinAria: (title: string, time: string, status: string, location: string) =>
+      t("pinAria", { title, time, status, location }),
   };
 
   useEffect(() => {
@@ -141,10 +150,16 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       const labels = labelsRef.current;
       for (const group of groupScheduleMapItemsByCoordinate(next)) {
         const copy = scheduleMapCardCopy(group, labels, formatScheduleTimeRange);
+        const colors = taskCalendarColors(group[0].priority);
+        const background = isSettledCalendarStatus(group[0].status)
+          ? desaturateHex(colors.bg)
+          : colors.bg;
         const el = createScheduleMapPinElement({
           ...copy,
           accent: scheduleMapPinColor(group[0]),
-          ariaLabel: labels.pinAria(copy.title, copy.timeLabel, copy.locationLabel),
+          background,
+          foreground: colors.fg,
+          ariaLabel: labels.pinAria(copy.title, copy.timeLabel, copy.statusLabel, copy.locationLabel),
         });
         el.addEventListener("click", (event) => {
           event.stopPropagation();
