@@ -8,7 +8,7 @@ import SwiftUI
 ///     ``onCommit`` and the overlay dismisses.
 ///   * Sliding up cancels the recording (discards the result).
 ///
-/// Note: the live mic button path uses ``VoiceRecordingOverlay`` instead.
+/// Note: the live mic button path uses ``VoiceRecordingDock`` instead.
 /// This view is kept for the long-press flow; do not wrap the shared
 /// ``SpeechPermissionManager`` in ``StateObject`` (it is a singleton).
 struct RecordingOverlay: View {

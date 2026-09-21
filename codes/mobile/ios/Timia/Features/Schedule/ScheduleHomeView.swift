@@ -87,6 +87,7 @@ struct ScheduleHomeView: View {
     @State private var isRangePickerExpanded = false
     @AppStorage("schedule.idleCollapseEnabled") private var idleCollapseEnabled = true
     @StateObject private var mapPlaceTitle = ScheduleMapPlaceTitle()
+    @StateObject private var voiceDock = VoiceDockModel()
     @State private var mapRefreshNonce = 0
 
     var body: some View {
@@ -453,6 +454,25 @@ struct ScheduleHomeView: View {
     }
 
     private var bottomControls: some View {
+        Group {
+            if voiceDock.isActive {
+                VoiceRecordingDock(dock: voiceDock)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                idleBottomControls
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        // Lock vertical intrinsic size so dock swaps / range picker overlays
+        // cannot stretch or shift the bar.
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("schedule-bottom-controls")
+        .animation(.snappy(duration: 0.28), value: voiceDock.isActive)
+        .animation(.snappy(duration: 0.28), value: isRangePickerExpanded)
+    }
+
+    private var idleBottomControls: some View {
         HStack(alignment: .center, spacing: 8) {
             HStack(spacing: 2) {
                 modeButton(.todo, symbol: "checklist")
@@ -488,7 +508,7 @@ struct ScheduleHomeView: View {
                             isStickyNoteEditorPresented = true
                         }
 
-                        StickyNoteVoiceLauncher(draft: stickyDraft)
+                        StickyNoteVoiceLauncher(draft: stickyDraft, dock: voiceDock)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 } else {
@@ -505,6 +525,7 @@ struct ScheduleHomeView: View {
                         }
 
                         ScheduleVoiceLauncher(
+                            dock: voiceDock,
                             isParsing: isParsing,
                             onRecognized: { text in
                                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -529,12 +550,6 @@ struct ScheduleHomeView: View {
         .padding(.bottom, 8)
         // Page surface already covers the home-indicator zone via .background(...).
         .background(.ultraThinMaterial)
-        // Lock vertical intrinsic size so overlays (range picker / voice HUD)
-        // cannot stretch or shift the docked bar.
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity)
-        .accessibilityIdentifier("schedule-bottom-controls")
-        .animation(.snappy(duration: 0.28), value: isRangePickerExpanded)
     }
 
     private var calendarRangePicker: some View {

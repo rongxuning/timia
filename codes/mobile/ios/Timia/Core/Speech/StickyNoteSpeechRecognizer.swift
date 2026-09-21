@@ -45,6 +45,8 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
     var onPartial: ((String) -> Void)?
     var onFinal: ((String) -> Void)?
     var onError: ((Error) -> Void)?
+    /// Approximate mic level 0...1 for waveform UI. Called on the main queue.
+    var onLevel: ((Float) -> Void)?
 
     var isRunning: Bool {
         stateLock.lock()
@@ -120,14 +122,32 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
     nonisolated private static func installTapNonisolated(
         on inputNode: AVAudioInputNode,
         format: AVAudioFormat,
-        request: SFSpeechAudioBufferRecognitionRequest
+        request: SFSpeechAudioBufferRecognitionRequest,
+        levelSink: (@Sendable (Float) -> Void)?
     ) throws {
+        final class LevelGate: @unchecked Sendable {
+            private let lock = NSLock()
+            private var lastEmit: CFTimeInterval = 0
+            private let sink: @Sendable (Float) -> Void
+            init(_ sink: @escaping @Sendable (Float) -> Void) { self.sink = sink }
+            func push(_ level: Float) {
+                let now = CACurrentMediaTime()
+                lock.lock()
+                defer { lock.unlock() }
+                guard now - lastEmit >= 0.05 else { return }
+                lastEmit = now
+                sink(level)
+            }
+        }
+
+        let gate = levelSink.map { LevelGate($0) }
         var caught: NSError?
         let ok = ObjCExceptionCatcher.perform({
-            // Closure must not capture MainActor state. `request.append` is
-            // documented as safe to call from the audio tap thread.
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
                 request.append(buffer)
+                if let gate {
+                    gate.push(Self.rmsLevel(of: buffer))
+                }
             }
         }, error: &caught)
         guard ok else {
@@ -135,6 +155,20 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
                 caught?.localizedDescription ?? "安装麦克风监听失败"
             )
         }
+    }
+
+    nonisolated private static func rmsLevel(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let channel = buffer.floatChannelData?[0] else { return 0 }
+        let frameCount = Int(buffer.frameLength)
+        guard frameCount > 0 else { return 0 }
+        var sum: Float = 0
+        for i in 0..<frameCount {
+            let sample = channel[i]
+            sum += sample * sample
+        }
+        let rms = sqrt(sum / Float(frameCount))
+        // Mic RMS is typically tiny; boost into a usable 0...1 display range.
+        return min(1, max(0, rms * 8))
     }
 
     private func safeInputNode(of engine: AVAudioEngine) throws -> AVAudioInputNode {
@@ -238,7 +272,17 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
 
         do {
             // Install off MainActor isolation (static nonisolated helper).
-            try Self.installTapNonisolated(on: inputNode, format: format, request: request)
+            let levelHandler: (@Sendable (Float) -> Void)? = { [weak self] level in
+                DispatchQueue.main.async {
+                    self?.onLevel?(level)
+                }
+            }
+            try Self.installTapNonisolated(
+                on: inputNode,
+                format: format,
+                request: request,
+                levelSink: levelHandler
+            )
             stateLock.lock()
             isTapInstalled = true
             stateLock.unlock()
