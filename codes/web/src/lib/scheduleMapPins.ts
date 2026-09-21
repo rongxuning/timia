@@ -1,6 +1,7 @@
 export type ScheduleMapPinItem = {
   id: string;
   title: string;
+  status?: string | null;
   location?: string | null;
   location_lat: number;
   location_lng: number;
@@ -11,11 +12,13 @@ export type ScheduleMapPinItem = {
 export type ScheduleMapCardLabels = {
   unscheduled: string;
   moreItems: (title: string, count: number) => string;
+  status: (status: string) => string;
 };
 
 export type ScheduleMapCardCopy = {
   title: string;
   timeLabel: string;
+  statusLabel: string;
   locationLabel: string;
   count: number;
 };
@@ -53,13 +56,19 @@ export function scheduleMapCardCopy<T extends ScheduleMapPinItem>(
   return {
     title,
     timeLabel: formatTime(first.start_at, first.end_at) ?? labels.unscheduled,
+    statusLabel: labels.status(first.status ?? ""),
     locationLabel: (first.location ?? "").trim(),
     count: items.length,
   };
 }
 
 export function createScheduleMapPinElement(
-  copy: ScheduleMapCardCopy & { accent: string; ariaLabel: string },
+  copy: ScheduleMapCardCopy & {
+    accent: string;
+    background: string;
+    foreground: string;
+    ariaLabel: string;
+  },
 ): HTMLButtonElement {
   const root = document.createElement("button");
   root.type = "button";
@@ -68,23 +77,36 @@ export function createScheduleMapPinElement(
   root.style.cssText = "border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 8px 16px rgb(15 23 42 / 0.12));";
 
   const card = document.createElement("div");
-  card.className =
-    "max-w-[220px] rounded-xl border border-border-subtle bg-white/95 px-3 py-2 text-left";
+  card.className = "max-w-[220px] rounded-xl border px-3 py-2 text-left";
+  card.style.background = copy.background;
+  card.style.borderColor = copy.accent;
   card.style.borderLeft = `3px solid ${copy.accent}`;
 
   const title = document.createElement("div");
-  title.className = "truncate text-small font-semibold text-text-primary";
+  title.className = "truncate text-small font-semibold";
+  title.style.color = copy.foreground;
   title.textContent = copy.title;
   card.append(title);
 
   const time = document.createElement("div");
-  time.className = "mt-0.5 truncate text-caption text-text-secondary";
+  time.className = "mt-0.5 truncate text-caption";
+  time.style.color = copy.foreground;
+  time.style.opacity = "0.82";
   time.textContent = copy.timeLabel;
   card.append(time);
 
+  const status = document.createElement("div");
+  status.className = "truncate text-caption";
+  status.style.color = copy.foreground;
+  status.style.opacity = "0.82";
+  status.textContent = copy.statusLabel;
+  card.append(status);
+
   if (copy.locationLabel) {
     const location = document.createElement("div");
-    location.className = "truncate text-caption text-text-secondary";
+    location.className = "truncate text-caption";
+    location.style.color = copy.foreground;
+    location.style.opacity = "0.82";
     location.textContent = copy.locationLabel;
     card.append(location);
   }

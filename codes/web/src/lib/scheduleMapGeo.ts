@@ -1,5 +1,5 @@
 import type { ScheduleTaskItem, StatusKey } from "@/types/api/views/schedule";
-import { taskCalendarColors, taskLabelStripeColor } from "@/components/schedule/taskUtils";
+import { taskCalendarColors } from "@/components/schedule/taskUtils";
 
 const STATUS_STROKE: Record<StatusKey, string> = {
   todo: "#a1a1aa",
@@ -40,8 +40,8 @@ export function emptyScheduleMapCollection(): ScheduleMapFeatureCollection {
   return { type: "FeatureCollection", features: [] };
 }
 
-export function scheduleMapPinColor(item: Pick<ScheduleTaskItem, "color" | "priority">): string {
-  return taskLabelStripeColor(item.color, taskCalendarColors(item.priority).border);
+export function scheduleMapPinColor(item: Pick<ScheduleTaskItem, "priority">): string {
+  return taskCalendarColors(item.priority).border;
 }
 
 export function scheduleMapStrokeColor(status: string): string {

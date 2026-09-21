@@ -8,12 +8,15 @@ import {
 const LABELS = {
   unscheduled: "未排期",
   moreItems: (title: string, count: number) => `${title} 等${count}项`,
+  status: (status: string) =>
+    ({ todo: "未开始", doing: "进行中", done: "已完成", archived: "已归档" }[status] ?? status),
 };
 
 function item(overrides: Record<string, unknown> = {}) {
   return {
     id: "a",
     title: "喂猫",
+    status: "doing",
     location: "文汇小区",
     location_lat: 31.1706,
     location_lng: 121.5364,
@@ -48,8 +51,14 @@ describe("scheduleMapCardCopy", () => {
     const copy = scheduleMapCardCopy([item()], LABELS, () => "09:00 - 10:00");
     assert.equal(copy.title, "喂猫");
     assert.equal(copy.timeLabel, "09:00 - 10:00");
+    assert.equal(copy.statusLabel, "进行中");
     assert.equal(copy.locationLabel, "文汇小区");
     assert.equal(copy.count, 1);
+  });
+
+  it("puts status on the third line for completed tasks", () => {
+    const copy = scheduleMapCardCopy([item({ status: "done" })], LABELS, () => "09:00 - 10:00");
+    assert.equal(copy.statusLabel, "已完成");
   });
 
   it("uses unscheduled when there is no time", () => {

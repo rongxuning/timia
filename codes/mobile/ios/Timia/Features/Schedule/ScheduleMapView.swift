@@ -179,10 +179,21 @@ struct ScheduleMapView: View {
         Map(position: $cameraPosition) {
             ForEach(clusters) { cluster in
                 let anchor = cluster.items[0]
-                Annotation(anchor.title, coordinate: CLLocationCoordinate2D(
-                    latitude: anchor.locationLat,
-                    longitude: anchor.locationLng
-                )) {
+                let copy = scheduleMapPinCopy(
+                    title: anchor.title,
+                    extraCount: cluster.items.count,
+                    startAt: anchor.startAt,
+                    endAt: anchor.endAt,
+                    status: anchor.status
+                )
+                Annotation(
+                    copy.title,
+                    coordinate: ChinaCoordinate.mapKitCoordinate(
+                        lat: anchor.locationLat,
+                        lng: anchor.locationLng
+                    ),
+                    anchor: .bottom
+                ) {
                     Button {
                         if cluster.items.count == 1 {
                             onTaskTap(anchor.asScheduleTask())
@@ -191,10 +202,9 @@ struct ScheduleMapView: View {
                         }
                     } label: {
                         ScheduleMapPinLabel(
-                            title: cluster.items.count == 1
-                                ? anchor.title
-                                : "\(anchor.title) 等\(cluster.items.count)项",
-                            timeLabel: scheduleMapTimeLabel(startAt: anchor.startAt, endAt: anchor.endAt),
+                            title: copy.title,
+                            timeLabel: copy.timeLabel,
+                            statusLabel: copy.statusLabel,
                             priority: anchor.priority,
                             isCompleted: isCalendarTaskCompleted(anchor.status)
                         )
@@ -345,15 +355,18 @@ struct ScheduleMapView: View {
         if items.count == 1, let only = items.first {
             cameraPosition = .region(
                 MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: only.locationLat, longitude: only.locationLng),
+                    center: ChinaCoordinate.mapKitCoordinate(lat: only.locationLat, lng: only.locationLng),
                     span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
                 )
             )
             return
         }
 
-        let lats = items.map(\.locationLat)
-        let lngs = items.map(\.locationLng)
+        let displayed = items.map {
+            ChinaCoordinate.wgs84ToGcj02(lat: $0.locationLat, lng: $0.locationLng)
+        }
+        let lats = displayed.map(\.lat)
+        let lngs = displayed.map(\.lng)
         let minLat = lats.min() ?? 0
         let maxLat = lats.max() ?? 0
         let minLng = lngs.min() ?? 0
@@ -379,37 +392,48 @@ private struct ScheduleMapCluster: Identifiable {
 }
 
 private struct ScheduleMapPinLabel: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let title: String
     let timeLabel: String
+    let statusLabel: String
     let priority: String?
     let isCompleted: Bool
 
     var body: some View {
-        let accent = SchedulePriorityAccent.color(for: priority, isCompleted: isCompleted)
+        let style = SchedulePriorityStyle(
+            priority: priority,
+            colorScheme: colorScheme,
+            isCompleted: isCompleted
+        )
         VStack(spacing: 4) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(style.foreground)
                     .lineLimit(1)
                 Text(timeLabel)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(style.foreground.opacity(0.82))
+                    .lineLimit(1)
+                Text(statusLabel)
+                    .font(.caption2)
+                    .foregroundStyle(style.foreground.opacity(0.82))
                     .lineLimit(1)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(accent.opacity(0.55), lineWidth: 1)
+                    .stroke(style.accent.opacity(0.55), lineWidth: 1)
             )
 
             Circle()
-                .fill(accent)
+                .fill(style.accent)
                 .frame(width: 14, height: 14)
                 .overlay(Circle().stroke(.white, lineWidth: 2))
-                .shadow(color: accent.opacity(0.35), radius: 3, y: 1)
+                .shadow(color: style.accent.opacity(0.35), radius: 3, y: 1)
         }
     }
 }

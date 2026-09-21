@@ -14,6 +14,8 @@
 		0E0C625DE464E5780B6C56F1 /* PinnedTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */; };
 		0F7C6FDD9A2E0F2C878933F1 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E78D75AE9DCBB7A7D65F154 /* MainTabView.swift */; };
 		10BBEA98AF180F5487590C22 /* SchedulePriorityAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */; };
+		B1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */; };
+		B1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift */; };
 		10FF9010D99AB4A7E42926A5 /* WorkoutSyncRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */; };
 		13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */; };
 		14ACCBB6B6F8A34391230101 /* HealthSyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E957781609437059641828 /* HealthSyncAPI.swift */; };
@@ -234,6 +236,8 @@
 		A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTags.swift; sourceTree = "<group>"; };
 		AB78A7BD31C4812B3CE16ED3 /* StickyNoteCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteCard.swift; sourceTree = "<group>"; };
 		B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFilters.swift; sourceTree = "<group>"; };
+		C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChinaCoordinate.swift; sourceTree = "<group>"; };
+		C1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChinaCoordinateTests.swift; sourceTree = "<group>"; };
 		B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePriorityAccent.swift; sourceTree = "<group>"; };
 		B57F52762C0AE9DC40A0571A /* GzipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GzipTests.swift; sourceTree = "<group>"; };
@@ -357,6 +361,7 @@
 				D8A94B8AC39EBAD216CBFB35 /* IdleCollapseToggleStyleTests.swift */,
 				14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */,
 				F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */,
+				C1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift */,
 				3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */,
 				088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */,
 				4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */,
@@ -398,6 +403,7 @@
 		66F25BF3663196DC46717FC2 /* Schedule */ = {
 			isa = PBXGroup;
 			children = (
+				C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */,
 				87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */,
 				640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */,
 				BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */,
@@ -778,6 +784,7 @@
 				E54C818CA4B7690E0DA7563E /* RecordingOverlay.swift in Sources */,
 				EB6604DB9C7DAE8979E52149 /* RescheduleMath.swift in Sources */,
 				D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */,
+				B1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift in Sources */,
 				6A12C520F778E1973C4F6CF3 /* ScheduleMapFilters.swift in Sources */,
 				43DFBAA1DE184FBBBC2AFC93 /* ScheduleMapPlaceTitle.swift in Sources */,
 				85AD3FAE562455FC1A1E535D /* ScheduleMapView.swift in Sources */,
@@ -854,6 +861,7 @@
 				C3432F9FC53990C5CEC49E49 /* IdleCollapseToggleStyleTests.swift in Sources */,
 				F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */,
 				C23A2097840049B995E280F0 /* RescheduleMathTests.swift in Sources */,
+				B1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift in Sources */,
 				8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */,
 				02D08393103E9800F2643DE8 /* ScreenNotificationContentBuilderTests.swift in Sources */,
 				295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */,

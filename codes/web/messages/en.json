@@ -121,7 +121,7 @@
     "canvasAria": "Task location map",
     "unscheduled": "Unscheduled",
     "moreItems": "{title} ({count})",
-    "pinAria": "{title}, {time}, {location}"
+    "pinAria": "{title}, {time}, {status}, {location}"
   },
   "taskAttachments": {
     "label": "Attachments",

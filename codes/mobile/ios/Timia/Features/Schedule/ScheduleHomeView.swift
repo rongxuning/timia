@@ -1,6 +1,6 @@
 import SwiftUI
 
-private struct SchedulePriorityStyle {
+struct SchedulePriorityStyle {
     let background: Color
     let foreground: Color
     let accent: Color
@@ -14,19 +14,12 @@ private struct SchedulePriorityStyle {
     }
 
     init(priority: String?, colorScheme: ColorScheme, isCompleted: Bool = false) {
-        let isDark = colorScheme == .dark
-        let palette: (background: String, foreground: String, accent: String)
-        switch priority?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "2", "low":
-            palette = (isDark ? "#123D26" : "#DCFCE7", isDark ? "#86EFAC" : "#15803D", "#22C55E")
-        case "3", "medium":
-            palette = (isDark ? "#422F08" : "#FEF9C3", isDark ? "#FDE68A" : "#854D0E", "#EAB308")
-        case "4", "high", "urgent":
-            palette = (isDark ? "#4A1618" : "#FEE2E2", isDark ? "#FCA5A5" : "#B91C1C", "#EF4444")
-        default:
-            palette = (isDark ? "#172554" : "#DBEAFE", isDark ? "#93C5FD" : "#1D4ED8", "#3B82F6")
-        }
-        background = Color(hex: isCompleted ? desaturateHex(palette.background) : palette.background)
+        let palette = SchedulePriorityAccent.palette(
+            for: priority,
+            isDark: colorScheme == .dark,
+            isCompleted: isCompleted
+        )
+        background = Color(hex: palette.background)
         foreground = Color(hex: palette.foreground)
         accent = Color(hex: palette.accent)
     }

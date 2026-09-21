@@ -121,7 +121,7 @@
     "canvasAria": "任务地点地图",
     "unscheduled": "未排期",
     "moreItems": "{title} 等{count}项",
-    "pinAria": "{title}，{time}，{location}"
+    "pinAria": "{title}，{time}，{status}，{location}"
   },
   "taskAttachments": {
     "label": "附件",
