@@ -20,9 +20,9 @@ git_sync() {
   export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=30}"
   local prev
   prev="$(git rev-parse HEAD)"
-  echo "$prev"
-  git fetch origin "$ref"
-  git checkout -fB "$ref" "origin/${ref}"
+  git fetch origin "$ref" >&2
+  git checkout -fB "$ref" "origin/${ref}" >&2
+  printf '%s\n' "$prev"
 }
 
 cmd_deploy() {
@@ -53,63 +53,92 @@ cmd_deploy() {
   export BUILDKIT_PROGRESS=plain
   export COMPOSE_PROGRESS=plain
 
-  local build_core=0 build_file=0 build_web=0 build_mcp=0 step=2 cur changed
+  local resolved svc need_nginx=0
+  local -a selected=() app_services=()
 
   case "$deploy_mode" in
-    full) build_core=1; build_file=1; build_web=1; build_mcp=1 ;;
-    quick) build_core=0; build_file=0; build_web=0; build_mcp=0 ;;
-    core-service) build_core=1 ;;
-    file-service) build_file=1 ;;
-    web) build_web=1 ;;
-    mcp-server) build_mcp=1 ;;
-    smart)
-      cur="$(git rev-parse HEAD)"
-      if [[ "$prev_head" == "$cur" ]]; then
-        timia_log "Already up to date — nothing to build."
-        $dc up -d
-        $dc ps
-        return 0
-      fi
-      changed="$(git diff --name-only "$prev_head" "$cur")"
-      echo "$changed" | grep -qE '^codes/core-service/' && build_core=1 || true
-      echo "$changed" | grep -qE '^codes/file-service/' && build_file=1 || true
-      echo "$changed" | grep -qE '^codes/web/' && build_web=1 || true
-      echo "$changed" | grep -qE '^codes/mcp-server/' && build_mcp=1 || true
-      if echo "$changed" | grep -qE '^(docker-compose\.prod\.yml|deploy/nginx\.conf)'; then
-        build_core=1
-        build_file=1
-        build_web=1
-        build_mcp=1
-      fi
-      ;;
+    full|all|quick|none|smart|core-service|file-service|web|mcp-server) ;;
     *)
       echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|file-service|web|mcp-server)" >&2
       exit 2
       ;;
   esac
 
-  if [[ "$build_core" -eq 1 ]]; then
-    timia_log "Step ${step}: docker build core-service ..."
-    $dc build --progress=plain core-service
-    step=$((step + 1))
-  fi
-  if [[ "$build_file" -eq 1 ]]; then
-    timia_log "Step ${step}: docker build file-service ..."
-    $dc build --progress=plain file-service
-    step=$((step + 1))
-  fi
-  if [[ "$build_web" -eq 1 ]]; then
-    timia_log "Step ${step}: docker build web ..."
-    $dc build --progress=plain web
-    step=$((step + 1))
-  fi
-  if [[ "$build_mcp" -eq 1 ]]; then
-    timia_log "Step ${step}: docker build mcp-server ..."
-    $dc build --progress=plain mcp-server
-    step=$((step + 1))
+  if [[ "$deploy_mode" == smart && "$prev_head" == "$(git rev-parse HEAD)" && "${SKIP_GIT_PULL:-0}" != "1" ]]; then
+    timia_log "Already up to date — nothing to build."
+    $dc up -d
+    $dc ps
+    return 0
   fi
 
-  timia_log "Step ${step}: docker compose up -d ..."
+  # When SKIP_GIT_PULL=1 with smart, treat as rebuild of the explicitly requested mode.
+  # For smart after a real sync, compare prev_head → HEAD.
+  if [[ "$deploy_mode" == smart ]]; then
+    resolved="$(timia_resolve_services smart "$prev_head" HEAD)"
+  elif [[ "$deploy_mode" == full ]]; then
+    resolved="$(timia_resolve_services all)"
+  else
+    resolved="$(timia_resolve_services "$deploy_mode")"
+  fi
+  # shellcheck disable=SC2207
+  selected=($(echo "$resolved" | awk 'NF'))
+  # shellcheck disable=SC2207
+  app_services=($(timia_app_services_only "${selected[@]-}"))
+  timia_list_contains nginx "${selected[@]-}" && need_nginx=1 || true
+
+  if [[ "${#selected[@]}" -eq 0 ]]; then
+    timia_log "Deploy checklist: (none) — compose up only."
+  else
+    timia_log "Deploy checklist:"
+    for svc in "${selected[@]}"; do
+      if [[ "$svc" == nginx ]]; then
+        timia_log "  - nginx (recreate)"
+      else
+        timia_log "  - $svc"
+      fi
+    done
+  fi
+
+  if [[ "${#app_services[@]}" -gt 0 ]]; then
+    timia_log "Building ${#app_services[@]} service(s) in parallel ..."
+    local -a pids=() failed=()
+    local i=0
+    mkdir -p /tmp/timia-deploy-logs
+    for svc in "${app_services[@]}"; do
+      (
+        timia_log "docker build $svc ..."
+        $dc build --progress=plain "$svc"
+      ) >/tmp/timia-deploy-logs/build-"$svc".log 2>&1 &
+      pids+=("$!")
+    done
+    i=0
+    for svc in "${app_services[@]}"; do
+      if ! wait "${pids[$i]}"; then
+        failed+=("$svc")
+        timia_log "FAIL build $svc — see /tmp/timia-deploy-logs/build-${svc}.log"
+        tail -n 40 "/tmp/timia-deploy-logs/build-${svc}.log" || true
+      else
+        timia_log "OK   build $svc"
+      fi
+      i=$((i + 1))
+    done
+    if [[ "${#failed[@]}" -gt 0 ]]; then
+      echo "Build failed for: ${failed[*]}" >&2
+      exit 1
+    fi
+    need_nginx=1
+  fi
+
+  if [[ "${#app_services[@]}" -gt 0 ]]; then
+    timia_log "Recreating: ${app_services[*]} ..."
+    # shellcheck disable=SC2086
+    $dc up -d --no-build --force-recreate ${app_services[*]}
+  fi
+  if [[ "$need_nginx" -eq 1 ]]; then
+    timia_log "Recreating nginx ..."
+    $dc up -d --no-build --force-recreate nginx
+  fi
+  timia_log "Ensuring stack is up ..."
   $dc up -d
   timia_log "Deploy finished. Service status:"
   $dc ps

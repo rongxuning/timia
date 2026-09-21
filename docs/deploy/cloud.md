@@ -43,7 +43,7 @@ flowchart LR
 | `docker-compose.prod.yml` | 生产编排 |
 | `deploy/local.sh` | 服务器部署；子命令 `bootstrap` / `poll` / `install-cron` |
 | `deploy/dc.sh` | 带 `.env.prod` 的 compose 命令 |
-| `deploy/remote.sh` | 本机构建镜像并上传到服务器（`pack` / `upload` / 默认全部） |
+| `deploy/remote.sh` | 本机构建并上传；默认 **smart**：只打包有改动的服务，构建/上传可并行 |
 | `deploy/nginx.conf` | `timia.online` HTTPS（compose 挂载此路径） |
 | `.env.prod.example` | 服务器 `.env.prod` 模板 |
 
@@ -254,11 +254,24 @@ bash deploy/local.sh poll
 
 | 命令 | 耗时 | 适用 |
 |------|------|------|
-| `bash deploy/local.sh` | 智能最短 | 日常 push 后（默认 smart） |
+| `bash deploy/local.sh` | 智能最短 | 日常 push 后（默认 smart；只 build 有改动的服务，**并行**） |
 | `DEPLOY_MODE=quick bash deploy/local.sh` | 最快（秒级～1 分钟） | 只改了配置/重启，或镜像已是最新 |
 | `DEPLOY_MODE=full bash deploy/local.sh` | 最慢（全量 build） | 依赖升级、构建异常、首次部署 |
 | `DEPLOY_MODE=core-service bash deploy/local.sh` | 中等 | 只改了后端 |
 | `DEPLOY_MODE=web bash deploy/local.sh` | 慢 | 只改了前端 |
+
+本机 `deploy/remote.sh`（轻量云 SSH 上传镜像）同样默认 **smart**：
+
+```bash
+bash deploy/remote.sh plan          # 对照服务器 HEAD，列出要部署的服务
+bash deploy/remote.sh               # plan → 并行 build → 按服务分别打包上传
+PACK_SERVICES=web bash deploy/remote.sh   # 强制只发 web
+PACK_SERVICES=all bash deploy/remote.sh   # 全量
+DEPLOY_BASE=<sha> bash deploy/remote.sh   # 指定对比基线（不探服务器）
+PARALLEL_UPLOAD=0 bash deploy/remote.sh upload  # 串行上传（SSH 不稳时）
+```
+
+未改动的服务**不会**打进包、也不会上传。
 
 `git fetch + reset` 已替代 `git pull`，一般更快。
 
