@@ -9,6 +9,11 @@ import UIKit
 ///   * ``SFSpeechRecognizer.supportsOnDeviceRecognition == true``
 ///   * The user has downloaded the Chinese (Simplified) offline dictation
 ///     pack in Settings → General → Keyboard → Dictation.
+///
+/// **Simulator note:** iOS Simulator almost always reports
+/// `supportsOnDeviceRecognition == false`, so the app shows a toast and
+/// never starts ``AVAudioEngine``. Real devices pass this check — any
+/// flash-quit on device is in the engine / `installTap` path, not here.
 enum OnDeviceSupportChecker {
     /// The locale we always use for sticky-note voice input. v1 is Chinese-only.
     static let locale: Locale = Locale(identifier: "zh-CN")

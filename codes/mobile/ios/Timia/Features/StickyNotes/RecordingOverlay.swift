@@ -99,7 +99,7 @@ struct RecordingOverlay: View {
         case .available:
             break
         case .deviceNotSupported:
-            statusMessage = "当前设备不支持本地语音识别"
+            statusMessage = "当前设备不支持本地语音识别（模拟器常见）"
             statusIsError = true
             return
         case .localeNotInstalled:
