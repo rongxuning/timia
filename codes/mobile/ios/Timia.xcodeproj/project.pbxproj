@@ -89,6 +89,7 @@
 		EBAF6BB8B5CB37F360A49DB2 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */; };
 		EC591944C6197C47A2A79052 /* IdleCollapsePlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */; };
 		EF73394B6AC5E310284AE649 /* StickyNoteSpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */; };
+		7781389E0121244215D97B8B /* ObjCExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = DD96CCFF7FA668BD8944FE7B /* ObjCExceptionCatcher.m */; };
 		F1AC7B362F91A0AAD65D5773 /* HealthSyncQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAFC8AC913269CDEC75D2917 /* HealthSyncQueue.swift */; };
 		F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */; };
 		F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25793DC2D71167F0541FC926 /* TimelineGeometry.swift */; };
@@ -183,6 +184,9 @@
 		49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarWeekTitleTests.swift; sourceTree = "<group>"; };
 		4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDetailView.swift; sourceTree = "<group>"; };
 		4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteSpeechRecognizer.swift; sourceTree = "<group>"; };
+		DD96CCFF7FA668BD8944FE7B /* ObjCExceptionCatcher.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ObjCExceptionCatcher.m; sourceTree = "<group>"; };
+		86F92E36A355F013FC7D8552 /* ObjCExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ObjCExceptionCatcher.h; sourceTree = "<group>"; };
+		D776DC6AEB689A2D31CBFC37 /* Timia-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Timia-Bridging-Header.h"; sourceTree = "<group>"; };
 		4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackgroundDelivery.swift; sourceTree = "<group>"; };
 		4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometryTests.swift; sourceTree = "<group>"; };
 		53260393E4237A9CADE36955 /* ScreenNotificationContentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationContentBuilder.swift; sourceTree = "<group>"; };
@@ -321,8 +325,11 @@
 			isa = PBXGroup;
 			children = (
 				45489BAC5F6AF7B3B48C7B7C /* OnDeviceSupportChecker.swift */,
+				86F92E36A355F013FC7D8552 /* ObjCExceptionCatcher.h */,
+				DD96CCFF7FA668BD8944FE7B /* ObjCExceptionCatcher.m */,
 				874748456061425CD0A7F885 /* SpeechPermissionManager.swift */,
 				4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */,
+				D776DC6AEB689A2D31CBFC37 /* Timia-Bridging-Header.h */,
 			);
 			path = Speech;
 			sourceTree = "<group>";
@@ -759,6 +766,7 @@
 				D9065BFE9D1D0A23FE7C7457 /* ScreenNotificationPrompt.swift in Sources */,
 				434167F200A949466A0576AA /* ScreenNotificationSettingsSection.swift in Sources */,
 				C507B13C8D0215F1047ABD88 /* SpeechPermissionManager.swift in Sources */,
+				7781389E0121244215D97B8B /* ObjCExceptionCatcher.m in Sources */,
 				5EFE85144584E529F2E31E63 /* StickyNoteCard.swift in Sources */,
 				9F243BCD0F832C92549F39CD /* StickyNoteDraftPreview.swift in Sources */,
 				5199082DBC269D01F3621E7F /* StickyNoteDraftStore.swift in Sources */,
@@ -1086,6 +1094,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios;
 				PRODUCT_NAME = Timia;
 				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "Timia/Core/Speech/Timia-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -1124,6 +1133,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios;
 				PRODUCT_NAME = Timia;
 				SDKROOT = iphoneos;
+				SWIFT_OBJC_BRIDGING_HEADER = "Timia/Core/Speech/Timia-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
