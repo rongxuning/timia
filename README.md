@@ -88,5 +88,6 @@ See [docs/deploy/cloud.md](docs/deploy/cloud.md).
 | Command | Where | Purpose |
 |---------|-------|---------|
 | `bash deploy/local.sh` | production server | git sync → build → up |
-| `bash deploy/remote.sh` | dev machine | build images locally → upload to server |
+| `bash deploy/remote.sh` | dev machine | smart: only changed services, parallel build/upload |
+| `bash deploy/remote.sh plan` | dev machine | print which services need deploy |
 
