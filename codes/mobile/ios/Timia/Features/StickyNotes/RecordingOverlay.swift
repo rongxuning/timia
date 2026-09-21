@@ -113,20 +113,14 @@ struct RecordingOverlay: View {
         }
 
         recognizer.onPartial = { text in
-            Task { @MainActor in
-                partialText = text
-            }
+            partialText = text
         }
         recognizer.onFinal = { text in
-            Task { @MainActor in
-                onCommit(text)
-            }
+            onCommit(text)
         }
         recognizer.onError = { err in
-            Task { @MainActor in
-                statusMessage = err.localizedDescription
-                statusIsError = true
-            }
+            statusMessage = err.localizedDescription
+            statusIsError = true
         }
 
         do {

@@ -256,24 +256,18 @@ struct VoiceRecordingOverlay: View {
         }
 
         recognizer.onPartial = { text in
-            Task { @MainActor in
-                transcript = text
-            }
+            transcript = text
         }
         recognizer.onFinal = { text in
-            Task { @MainActor in
-                guard !hasFinished else { return }
-                hasFinished = true
-                onFinished(text)
-            }
+            guard !hasFinished else { return }
+            hasFinished = true
+            onFinished(text)
         }
         recognizer.onError = { err in
-            Task { @MainActor in
-                guard !hasFinished else { return }
-                statusMsg = err.localizedDescription
-                statusIsError = true
-                finishFailure(err.localizedDescription)
-            }
+            guard !hasFinished else { return }
+            statusMsg = err.localizedDescription
+            statusIsError = true
+            finishFailure(err.localizedDescription)
         }
 
         do {
