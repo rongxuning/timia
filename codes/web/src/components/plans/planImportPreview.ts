@@ -94,12 +94,13 @@ export function buildImportWeekDays(
   return days;
 }
 
-export function initialSelectedSlotIds(tasks: ImportPreviewTask[]): Set<string> {
-  return new Set(tasks.map((task) => task.slot_id).filter(Boolean));
+/** Empty set means every card is selected. */
+export function isImportTaskSelected(slotId: string, unselected: Set<string>): boolean {
+  return !unselected.has(slotId);
 }
 
-export function toggleSelectedSlotId(selected: Set<string>, slotId: string): Set<string> {
-  const next = new Set(selected);
+export function toggleUnselectedSlotId(unselected: Set<string>, slotId: string): Set<string> {
+  const next = new Set(unselected);
   if (next.has(slotId)) next.delete(slotId);
   else next.add(slotId);
   return next;
@@ -107,7 +108,9 @@ export function toggleSelectedSlotId(selected: Set<string>, slotId: string): Set
 
 export function selectedImportSlotIds(
   tasks: ImportPreviewTask[],
-  selected: Set<string>,
+  unselected: Set<string>,
 ): string[] {
-  return tasks.map((task) => task.slot_id).filter((slotId) => selected.has(slotId));
+  return tasks
+    .map((task) => task.slot_id)
+    .filter((slotId) => Boolean(slotId) && !unselected.has(slotId));
 }

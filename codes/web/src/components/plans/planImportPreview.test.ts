@@ -5,9 +5,9 @@ import {
   compareImportTasks,
   formatImportTaskClockRange,
   IMPORT_WEEKDAY_LABELS,
-  initialSelectedSlotIds,
+  isImportTaskSelected,
   selectedImportSlotIds,
-  toggleSelectedSlotId,
+  toggleUnselectedSlotId,
 } from "./planImportPreview.ts";
 
 function task(
@@ -116,14 +116,19 @@ describe("import slot selection", () => {
     const evening = task("综合", "2026-09-21T19:00:00", "2026-09-21T20:00:00", {
       slot_id: "slot-evening",
     });
-    const selected = initialSelectedSlotIds([morning, evening]);
-    assert.deepEqual([...selected].sort(), ["slot-evening", "slot-morning"]);
+    const unselected = new Set<string>();
+    assert.equal(isImportTaskSelected(morning.slot_id, unselected), true);
+    assert.equal(isImportTaskSelected(evening.slot_id, unselected), true);
+    assert.deepEqual(selectedImportSlotIds([morning, evening], unselected), [
+      "slot-morning",
+      "slot-evening",
+    ]);
 
-    const unchecked = toggleSelectedSlotId(selected, "slot-evening");
-    assert.equal(unchecked.has("slot-evening"), false);
+    const unchecked = toggleUnselectedSlotId(unselected, "slot-evening");
+    assert.equal(isImportTaskSelected("slot-evening", unchecked), false);
     assert.deepEqual(selectedImportSlotIds([morning, evening], unchecked), ["slot-morning"]);
     assert.deepEqual(
-      selectedImportSlotIds([morning, evening], toggleSelectedSlotId(unchecked, "slot-evening")),
+      selectedImportSlotIds([morning, evening], toggleUnselectedSlotId(unchecked, "slot-evening")),
       ["slot-morning", "slot-evening"],
     );
   });

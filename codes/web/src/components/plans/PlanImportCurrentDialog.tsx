@@ -15,9 +15,9 @@ import {
   buildImportWeekDays,
   formatImportTaskClockRange,
   IMPORT_VISIBLE_TASK_SLOTS,
-  initialSelectedSlotIds,
+  isImportTaskSelected,
   selectedImportSlotIds,
-  toggleSelectedSlotId,
+  toggleUnselectedSlotId,
   type ImportPreviewTask,
 } from "./planImportPreview";
 
@@ -46,7 +46,7 @@ export function PlanImportCurrentDialog({
 }: Props) {
   const titleId = useId();
   const [preview, setPreview] = useState<PlanCurrentPeriodPreviewOut | null>(null);
-  const [selectedSlotIds, setSelectedSlotIds] = useState<Set<string>>(new Set());
+  const [unselectedSlotIds, setUnselectedSlotIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function PlanImportCurrentDialog({
   useEffect(() => {
     if (!open) {
       setPreview(null);
-      setSelectedSlotIds(new Set());
+      setUnselectedSlotIds(new Set());
       setError(null);
       setSubmitting(false);
       return;
@@ -64,11 +64,11 @@ export function PlanImportCurrentDialog({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setUnselectedSlotIds(new Set());
     fetchSubscriptionCurrentPeriod(token, subscriptionId)
       .then((data) => {
         if (cancelled) return;
         setPreview(data);
-        setSelectedSlotIds(initialSelectedSlotIds(data.tasks ?? []));
       })
       .catch((err: { message?: string }) => {
         if (!cancelled) setError(planApiMessage(err?.message ?? "加载失败"));
@@ -83,15 +83,20 @@ export function PlanImportCurrentDialog({
 
   async function onConfirm() {
     if (!preview || preview.already_imported) return;
-    const slotIds = selectedImportSlotIds(preview.tasks ?? [], selectedSlotIds);
-    if (slotIds.length === 0) {
+    const slotIds = selectedImportSlotIds(preview.tasks ?? [], unselectedSlotIds);
+    const importAll = unselectedSlotIds.size === 0;
+    if (!importAll && slotIds.length === 0) {
       setError("请至少勾选一个任务");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await importSubscriptionCurrentPeriod(token, subscriptionId, { slot_ids: slotIds });
+      await importSubscriptionCurrentPeriod(
+        token,
+        subscriptionId,
+        importAll ? (slotIds.length > 0 ? { slot_ids: slotIds } : undefined) : { slot_ids: slotIds },
+      );
       dispatchPlanBadgeRefresh();
       onSuccess?.();
       onClose();
@@ -119,10 +124,14 @@ export function PlanImportCurrentDialog({
   const gapCount = IMPORT_VISIBLE_TASK_SLOTS - 1;
   const taskColumnWidth = `calc((100cqw - ${gapCount} * 0.375rem) / ${IMPORT_VISIBLE_TASK_SLOTS})`;
   const taskSlotStyle = { flex: `0 0 ${taskColumnWidth}` };
-  const selectedCount = selectedImportSlotIds(tasks, selectedSlotIds).length;
+  const selectedCount = selectedImportSlotIds(tasks, unselectedSlotIds).length;
   const canToggle = !submitting && !preview?.already_imported;
   const canImport =
-    !submitting && !loading && !!preview && !preview.already_imported && selectedCount > 0;
+    !submitting &&
+    !loading &&
+    !!preview &&
+    !preview.already_imported &&
+    (selectedCount > 0 || (tasks.length > 0 && unselectedSlotIds.size === 0));
 
   return (
     <div className="fixed inset-0 z-50">
@@ -175,7 +184,7 @@ export function PlanImportCurrentDialog({
                       <div className="flex h-full w-max gap-1.5">
                         {day.tasks.map((task) => {
                           const meta = taskMeta(task);
-                          const selected = selectedSlotIds.has(task.slot_id);
+                          const selected = isImportTaskSelected(task.slot_id, unselectedSlotIds);
                           return (
                             <button
                               key={task.slot_id}
@@ -186,38 +195,38 @@ export function PlanImportCurrentDialog({
                               aria-label={`${selected ? "已勾选" : "未勾选"}，${task.title}，点击切换`}
                               title={meta ? `${task.title} ${meta}` : task.title}
                               className={[
-                                "relative flex min-h-0 min-w-0 flex-col justify-center overflow-hidden rounded-md border border-border-subtle px-1.5 py-0.5 text-left transition-colors",
+                                "relative flex min-h-0 min-w-0 flex-col justify-center rounded-md border border-border-subtle px-2 py-1 text-left transition-colors",
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                                 selected ? "bg-white" : "bg-surface-container-lowest",
                                 canToggle ? "hover:border-primary/40" : "cursor-default",
                               ].join(" ")}
                               onClick={() => {
-                                setSelectedSlotIds((current) =>
-                                  toggleSelectedSlotId(current, task.slot_id),
+                                setUnselectedSlotIds((current) =>
+                                  toggleUnselectedSlotId(current, task.slot_id),
                                 );
                               }}
                             >
                               <span
                                 className={[
-                                  "absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center",
-                                  selected ? "text-primary" : "text-zinc-400",
+                                  "pointer-events-none absolute right-2 top-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full border",
+                                  selected
+                                    ? "border-primary bg-primary text-on-primary"
+                                    : "border-zinc-300 bg-white",
                                 ].join(" ")}
                                 aria-hidden
                               >
-                                <span
-                                  className="material-symbols-outlined text-[14px] leading-none"
-                                  style={
-                                    selected
-                                      ? { fontVariationSettings: "'FILL' 1" }
-                                      : undefined
-                                  }
-                                >
-                                  {selected ? "check_circle" : "radio_button_unchecked"}
-                                </span>
+                                {selected ? (
+                                  <span
+                                    className="material-symbols-outlined text-[10px] leading-none text-white"
+                                    style={{ fontVariationSettings: "'FILL' 1", fontSize: "10px" }}
+                                  >
+                                    check
+                                  </span>
+                                ) : null}
                               </span>
                               <p
                                 className={[
-                                  "truncate pr-4 text-[11px] font-medium leading-4",
+                                  "min-w-0 truncate pr-5 text-[11px] font-medium leading-4",
                                   selected ? "text-text-primary" : "text-text-secondary",
                                 ].join(" ")}
                               >
