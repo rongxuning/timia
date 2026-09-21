@@ -8,7 +8,7 @@ import SwiftUI
 ///     ``onCommit`` and the overlay dismisses.
 ///   * Sliding up cancels the recording (discards the result).
 ///
-/// Note: the live mic button path uses ``VoiceRecordingOverlay`` instead.
+/// Note: the live mic button path uses ``VoiceRecordingDock`` instead.
 /// This view is kept for the long-press flow; do not wrap the shared
 /// ``SpeechPermissionManager`` in ``StateObject`` (it is a singleton).
 struct RecordingOverlay: View {
@@ -99,7 +99,7 @@ struct RecordingOverlay: View {
         case .available:
             break
         case .deviceNotSupported:
-            statusMessage = "当前设备不支持本地语音识别"
+            statusMessage = "当前设备不支持本地语音识别（模拟器常见）"
             statusIsError = true
             return
         case .localeNotInstalled:
@@ -113,20 +113,14 @@ struct RecordingOverlay: View {
         }
 
         recognizer.onPartial = { text in
-            Task { @MainActor in
-                partialText = text
-            }
+            partialText = text
         }
         recognizer.onFinal = { text in
-            Task { @MainActor in
-                onCommit(text)
-            }
+            onCommit(text)
         }
         recognizer.onError = { err in
-            Task { @MainActor in
-                statusMessage = err.localizedDescription
-                statusIsError = true
-            }
+            statusMessage = err.localizedDescription
+            statusIsError = true
         }
 
         do {

@@ -38,9 +38,12 @@ final class TimiaUITests: XCTestCase {
         // Nudge the interruption monitor if a system permission sheet appeared.
         app.tap()
 
+        // Bottom nav should morph into the recording dock (cancel · waveform · confirm).
+        let dock = app.otherElements["voice-recording-dock"]
+        let cancel = app.buttons["voice-dock-cancel"]
         XCTAssertTrue(
-            app.buttons["schedule-voice-input"].waitForExistence(timeout: 4),
-            "App terminated or voice control disappeared after mic tap"
+            dock.waitForExistence(timeout: 4) || cancel.waitForExistence(timeout: 4),
+            "Recording dock did not appear after mic tap (app may have crashed)"
         )
         XCTAssertTrue(
             element("schedule-bottom-controls", in: app).waitForExistence(timeout: 2),
@@ -51,6 +54,9 @@ final class TimiaUITests: XCTestCase {
             app.frame.height * 0.75,
             "Bottom bar drifted mid-screen after mic tap"
         )
+        if cancel.exists {
+            cancel.tap()
+        }
     }
 
     func testScheduleRedesignModes() {

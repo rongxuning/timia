@@ -32,6 +32,8 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Timia/Resources/Timia.entitlements
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "1,2"
+        # AVAudioEngine raises ObjC NSExceptions; catch via ObjCExceptionCatcher.
+        SWIFT_OBJC_BRIDGING_HEADER: Timia/Core/Speech/Timia-Bridging-Header.h
     dependencies:
       - sdk: HealthKit.framework
       - sdk: ActivityKit.framework
