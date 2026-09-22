@@ -3,7 +3,13 @@ import { describe, it } from "node:test";
 import {
   groupScheduleMapItemsByCoordinate,
   scheduleMapCardCopy,
+  scheduleMapChestCopy,
 } from "./scheduleMapPins.ts";
+
+const CHEST_LABELS = {
+  chestTasks: (count: number) => `${count} 个任务`,
+  chestAria: (place: string, count: number) => `${place}，${count} 个任务，点按查看`,
+};
 
 const LABELS = {
   unscheduled: "未排期",
@@ -71,5 +77,19 @@ describe("scheduleMapCardCopy", () => {
     assert.equal(copy.title, "喂猫 等2项");
     assert.equal(copy.locationLabel, "文汇小区");
     assert.equal(copy.count, 2);
+  });
+});
+
+describe("scheduleMapChestCopy", () => {
+  it("uses the place title and caps the badge at 99+", () => {
+    const copy = scheduleMapChestCopy({ placeTitle: "文汇小区", count: 3 }, CHEST_LABELS);
+    assert.equal(copy.placeTitle, "文汇小区");
+    assert.equal(copy.countDisplay, "3");
+    assert.equal(copy.countLabel, "3 个任务");
+    assert.equal(copy.ariaLabel, "文汇小区，3 个任务，点按查看");
+    assert.equal(
+      scheduleMapChestCopy({ placeTitle: "文汇小区", count: 120 }, CHEST_LABELS).countDisplay,
+      "99+",
+    );
   });
 });

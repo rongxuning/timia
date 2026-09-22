@@ -128,3 +128,91 @@ export function createScheduleMapPinElement(
   return root;
 }
 
+export type ScheduleMapChestLabels = {
+  chestTasks: (count: number) => string;
+  chestAria: (place: string, count: number) => string;
+};
+
+export type ScheduleMapChestCopy = {
+  placeTitle: string;
+  countDisplay: string;
+  countLabel: string;
+  ariaLabel: string;
+};
+
+export function scheduleMapChestCopy(
+  cluster: { placeTitle: string; count: number },
+  labels: ScheduleMapChestLabels,
+): ScheduleMapChestCopy {
+  const countDisplay = cluster.count > 99 ? "99+" : String(cluster.count);
+  return {
+    placeTitle: cluster.placeTitle,
+    countDisplay,
+    countLabel: labels.chestTasks(cluster.count),
+    ariaLabel: labels.chestAria(cluster.placeTitle, cluster.count),
+  };
+}
+
+export function createScheduleMapChestElement(
+  copy: ScheduleMapChestCopy,
+): HTMLButtonElement {
+  const root = document.createElement("button");
+  root.type = "button";
+  root.className = "schedule-map-chest flex flex-col items-center";
+  root.setAttribute("aria-label", copy.ariaLabel);
+  root.setAttribute("aria-expanded", "false");
+  root.style.cssText =
+    "border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 8px 16px rgb(15 23 42 / 0.12));";
+
+  const stack = document.createElement("div");
+  stack.style.cssText = "position:relative;width:min(220px,70vw);";
+
+  for (const layer of [2, 1]) {
+    const back = document.createElement("div");
+    back.setAttribute("aria-hidden", "true");
+    back.style.cssText = [
+      "position:absolute",
+      "inset:0",
+      `transform:translate(${layer * 4}px,${-layer * 4}px)`,
+      "border-radius:12px",
+      "border:1px solid var(--color-border-subtle, #e4e4e7)",
+      "background:#fff",
+    ].join(";");
+    stack.append(back);
+  }
+
+  const card = document.createElement("div");
+  card.className = "relative rounded-xl border border-border-subtle bg-surface px-3 py-2 text-left";
+  const titleRow = document.createElement("div");
+  titleRow.className = "flex items-center gap-2";
+  const title = document.createElement("div");
+  title.className = "min-w-0 flex-1 truncate text-small font-semibold text-text-primary";
+  title.textContent = copy.placeTitle;
+  const badge = document.createElement("span");
+  badge.className =
+    "rounded-full bg-primary/10 px-1.5 text-caption font-semibold text-primary";
+  badge.textContent = copy.countDisplay;
+  titleRow.append(title, badge);
+  const subtitle = document.createElement("div");
+  subtitle.className = "mt-0.5 truncate text-caption text-text-secondary";
+  subtitle.textContent = copy.countLabel;
+  card.append(titleRow, subtitle);
+  stack.append(card);
+
+  const pin = document.createElement("span");
+  pin.setAttribute("aria-hidden", "true");
+  pin.style.cssText = [
+    "display:block",
+    "width:14px",
+    "height:14px",
+    "margin-top:4px",
+    "border-radius:999px",
+    "background:var(--color-primary, #4f46e5)",
+    "border:2px solid #fff",
+    "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
+  ].join(";");
+
+  root.append(stack, pin);
+  return root;
+}
+
