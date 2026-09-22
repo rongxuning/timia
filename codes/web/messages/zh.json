@@ -121,7 +121,12 @@
     "canvasAria": "任务地点地图",
     "unscheduled": "未排期",
     "moreItems": "{title} 等{count}项",
-    "pinAria": "{title}，{time}，{status}，{location}"
+    "pinAria": "{title}，{time}，{status}，{location}",
+    "chestTasks": "{count} 个任务",
+    "chestAria": "{place}，{count} 个任务，点按查看",
+    "chestPlaceFallback": "这个地点",
+    "fanPosition": "{current} / {total}",
+    "fanAria": "第 {current} 张，共 {total} 张，{title}，{time}，{status}"
   },
   "taskAttachments": {
     "label": "附件",

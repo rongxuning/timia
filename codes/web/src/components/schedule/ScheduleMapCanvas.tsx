@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTranslations } from "next-intl";
@@ -10,6 +10,7 @@ import {
   isSettledCalendarStatus,
   taskCalendarColors,
 } from "@/components/schedule/taskUtils";
+import { ScheduleMapFanOverlay } from "@/components/schedule/ScheduleMapFanOverlay";
 import { TASK_STATUS_ICON } from "@/components/schedule/TaskStatusIcon";
 import { CHINA_OVERVIEW, mapLibreStyle } from "@/lib/map/osmStyle";
 import {
@@ -17,11 +18,18 @@ import {
   scheduleMapCameraMove,
   scheduleMapEmptyCardClassName,
 } from "@/lib/scheduleMapCamera";
+import {
+  clusterScheduleMapItems,
+  findScheduleMapClusterByItemIds,
+  scheduleMapClusterFocusIndex,
+  type ScheduleMapCluster,
+} from "@/lib/scheduleMapClusters";
 import { scheduleMapPinColor, type ScheduleMapItem } from "@/lib/scheduleMapGeo";
 import {
+  createScheduleMapChestElement,
   createScheduleMapPinElement,
-  groupScheduleMapItemsByCoordinate,
   scheduleMapCardCopy,
+  scheduleMapChestCopy,
 } from "@/lib/scheduleMapPins";
 
 type ScheduleMapCanvasProps = {
@@ -36,6 +44,13 @@ function statusLabel(status: string): string {
     return TASK_STATUS_ICON[status].label;
   }
   return status;
+}
+
+function itemIdSignature(items: { id: string }[]): string {
+  return items
+    .map((item) => item.id)
+    .sort()
+    .join("\0");
 }
 
 function cameraForItems(items: ScheduleMapItem[]) {
@@ -55,33 +70,99 @@ function applyCamera(map: maplibregl.Map, items: ScheduleMapItem[], animate: boo
   map.jumpTo(next);
 }
 
+function projectFanOrigin(map: maplibregl.Map, cluster: ScheduleMapCluster<ScheduleMapItem>) {
+  const point = map.project([cluster.location_lng, cluster.location_lat]);
+  const container = map.getContainer();
+  return {
+    origin: { x: point.x, y: point.y },
+    canvas: { width: container.clientWidth, height: container.clientHeight },
+  };
+}
+
 export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }: ScheduleMapCanvasProps) {
   const t = useTranslations("scheduleMap");
+  const placeFallback = t("chestPlaceFallback");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const applyItemsRef = useRef<((next: ScheduleMapItem[], animate: boolean) => void) | undefined>(
     undefined,
   );
   const itemsRef = useRef(items);
   const onItemClickRef = useRef(onItemClick);
+  const placeFallbackRef = useRef(placeFallback);
+  const openClusterIdRef = useRef<string | null>(null);
+  const chestExpandedRef = useRef(false);
+  const openItemIdsRef = useRef("");
+  const clustersRef = useRef<ScheduleMapCluster<ScheduleMapItem>[]>([]);
+  const [openClusterId, setOpenClusterId] = useState<string | null>(null);
+  const [openItemIds, setOpenItemIds] = useState("");
+  const [fanIndex, setFanIndex] = useState(0);
+  const [fanOrigin, setFanOrigin] = useState<{ x: number; y: number } | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [chestExpanded, setChestExpanded] = useState(false);
   const labelsRef = useRef({
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
     status: (status: string) => statusLabel(status),
     pinAria: (title: string, time: string, status: string, location: string) =>
       t("pinAria", { title, time, status, location }),
+    chestTasks: (count: number) => t("chestTasks", { count }),
+    chestAria: (place: string, count: number) => t("chestAria", { place, count }),
   });
   itemsRef.current = items;
+  chestExpandedRef.current = chestExpanded;
   onItemClickRef.current = onItemClick;
+  placeFallbackRef.current = placeFallback;
   labelsRef.current = {
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
     status: (status: string) => statusLabel(status),
     pinAria: (title: string, time: string, status: string, location: string) =>
       t("pinAria", { title, time, status, location }),
+    chestTasks: (count: number) => t("chestTasks", { count }),
+    chestAria: (place: string, count: number) => t("chestAria", { place, count }),
   };
+
+  const clusters = useMemo(
+    () => clusterScheduleMapItems(items, { now: new Date(), placeFallback }),
+    [items, placeFallback],
+  );
+  clustersRef.current = clusters;
+  openItemIdsRef.current = openItemIds;
+
+  const matchedCluster =
+    openClusterId !== null
+      ? findScheduleMapClusterByItemIds(clusters, openItemIds ? openItemIds.split("\0") : [])
+      : undefined;
+  const fanIdentityLost = openClusterId !== null && matchedCluster == null;
+  if (fanIdentityLost) {
+    openClusterIdRef.current = null;
+    openItemIdsRef.current = "";
+    setOpenClusterId(null);
+    setOpenItemIds("");
+    setFanOrigin(null);
+  } else if (matchedCluster && matchedCluster.id !== openClusterId) {
+    openClusterIdRef.current = matchedCluster.id;
+    setOpenClusterId(matchedCluster.id);
+    const maxIndex = Math.max(0, matchedCluster.items.length - 1);
+    setFanIndex((current) => Math.min(Math.max(0, current), maxIndex));
+  }
+  const fanCluster = fanIdentityLost ? null : (matchedCluster ?? null);
+
+  function closeFan() {
+    openClusterIdRef.current = null;
+    openItemIdsRef.current = "";
+    setOpenClusterId(null);
+    setOpenItemIds("");
+    setFanOrigin(null);
+  }
+
+  function publishFanOrigin(map: maplibregl.Map, cluster: ScheduleMapCluster<ScheduleMapItem>) {
+    const projected = projectFanOrigin(map, cluster);
+    setFanOrigin(projected.origin);
+    setCanvasSize(projected.canvas);
+  }
 
   useEffect(() => {
     const container = containerRef.current;
@@ -95,50 +176,6 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       attributionControl: { compact: true },
     });
     mapRef.current = map;
-    const popup = new maplibregl.Popup({
-      closeButton: true,
-      closeOnClick: true,
-      maxWidth: "320px",
-      className: "schedule-map-popup",
-    });
-    popupRef.current = popup;
-
-    function closePopup() {
-      popup.remove();
-    }
-
-    function openTask(item: ScheduleMapItem) {
-      closePopup();
-      onItemClickRef.current(item);
-    }
-
-    function renderList(lngLat: maplibregl.LngLatLike, list: ScheduleMapItem[]) {
-      if (list.length === 1) {
-        openTask(list[0]);
-        return;
-      }
-      const root = document.createElement("div");
-      root.className = "flex max-h-64 min-w-56 flex-col gap-1 overflow-y-auto p-1";
-      for (const item of list) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className =
-          "rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-container-lowest";
-        const title = document.createElement("div");
-        title.className = "truncate text-small font-medium text-text-primary";
-        title.textContent = item.title;
-        const meta = document.createElement("div");
-        meta.className = "truncate text-caption text-text-secondary";
-        const time = formatScheduleTimeRange(item.start_at, item.end_at);
-        meta.textContent = [statusLabel(item.status), time, item.location]
-          .filter(Boolean)
-          .join(" · ");
-        button.append(title, meta);
-        button.addEventListener("click", () => openTask(item));
-        root.append(button);
-      }
-      popup.setLngLat(lngLat).setDOMContent(root).addTo(map);
-    }
 
     function clearMarkers() {
       for (const marker of markersRef.current) marker.remove();
@@ -148,36 +185,82 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     function syncMarkers(next: ScheduleMapItem[]) {
       clearMarkers();
       const labels = labelsRef.current;
-      for (const group of groupScheduleMapItemsByCoordinate(next)) {
-        const copy = scheduleMapCardCopy(group, labels, formatScheduleTimeRange);
-        const colors = taskCalendarColors(group[0].priority);
-        const background = isSettledCalendarStatus(group[0].status)
-          ? desaturateHex(colors.bg)
-          : colors.bg;
-        const el = createScheduleMapPinElement({
-          ...copy,
-          accent: scheduleMapPinColor(group[0]),
-          background,
-          foreground: colors.fg,
-          ariaLabel: labels.pinAria(copy.title, copy.timeLabel, copy.statusLabel, copy.locationLabel),
-        });
-        el.addEventListener("click", (event) => {
-          event.stopPropagation();
-          renderList([group[0].location_lng, group[0].location_lat], group);
-        });
+      const nextClusters = clusterScheduleMapItems(next, {
+        now: new Date(),
+        placeFallback: placeFallbackRef.current,
+      });
+      for (const cluster of nextClusters) {
+        const el =
+          cluster.items.length === 1
+            ? createSinglePin(cluster, labels)
+            : createChest(cluster, labels);
+        if (cluster.items.length === 1) {
+          el.addEventListener("click", (event) => {
+            event.stopPropagation();
+            onItemClickRef.current(cluster.items[0]);
+          });
+        } else {
+          el.dataset.clusterId = cluster.id;
+          el.setAttribute("aria-expanded", openClusterIdRef.current === cluster.id ? "true" : "false");
+          el.addEventListener("click", (event) => {
+            event.stopPropagation();
+            map.stop();
+            const signature = itemIdSignature(cluster.items);
+            openClusterIdRef.current = cluster.id;
+            openItemIdsRef.current = signature;
+            setOpenClusterId(cluster.id);
+            setOpenItemIds(signature);
+            setFanIndex(scheduleMapClusterFocusIndex(cluster.items, new Date()));
+          });
+        }
         const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
-          .setLngLat([group[0].location_lng, group[0].location_lat])
+          .setLngLat([cluster.location_lng, cluster.location_lat])
           .addTo(map);
         marker.getElement().style.zIndex = "2";
         markersRef.current.push(marker);
+      }
+      for (const marker of markersRef.current) {
+        const el = marker.getElement();
+        if (!el.dataset.clusterId) continue;
+        const open = el.dataset.clusterId === openClusterIdRef.current;
+        el.setAttribute("aria-expanded", open ? "true" : "false");
+        const body = el.querySelector(".schedule-map-chest-body");
+        if (body instanceof HTMLElement) {
+          body.style.transform = open && chestExpandedRef.current ? "scale(1.04)" : "scale(1)";
+        }
+      }
+      const open = findScheduleMapClusterByItemIds(
+        nextClusters,
+        openItemIdsRef.current ? openItemIdsRef.current.split("\0") : [],
+      );
+      if (open) {
+        if (open.id !== openClusterIdRef.current) {
+          openClusterIdRef.current = open.id;
+          setOpenClusterId(open.id);
+        }
+        const maxIndex = Math.max(0, open.items.length - 1);
+        setFanIndex((current) => Math.min(Math.max(0, current), maxIndex));
+        publishFanOrigin(map, open);
       }
     }
 
     function applyItems(next: ScheduleMapItem[], animate: boolean) {
       syncMarkers(next);
+      if (openClusterIdRef.current) return;
       applyCamera(map, next, animate);
     }
     applyItemsRef.current = applyItems;
+
+    const projectOpen = () => {
+      const cluster = findScheduleMapClusterByItemIds(
+        clustersRef.current,
+        openItemIdsRef.current ? openItemIdsRef.current.split("\0") : [],
+      );
+      if (!cluster) return;
+      publishFanOrigin(map, cluster);
+    };
+    map.on("move", projectOpen);
+    map.on("resize", projectOpen);
 
     const onLoad = () => {
       applyItems(itemsRef.current, itemsRef.current.length > 0);
@@ -191,11 +274,11 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
 
     return () => {
       observer.disconnect();
+      map.off("move", projectOpen);
+      map.off("resize", projectOpen);
       clearMarkers();
-      popup.remove();
       map.remove();
       mapRef.current = null;
-      popupRef.current = null;
       applyItemsRef.current = undefined;
     };
   }, []);
@@ -205,8 +288,47 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     const applyItems = applyItemsRef.current;
     if (!map || !applyItems) return;
     applyItems(items, true);
-    popupRef.current?.remove();
   }, [items]);
+
+  useEffect(() => {
+    if (openClusterId) setChestExpanded(true);
+  }, [openClusterId]);
+
+  useEffect(() => {
+    openClusterIdRef.current = openClusterId;
+    for (const marker of markersRef.current) {
+      const el = marker.getElement();
+      if (!el.dataset.clusterId) continue;
+      const open = el.dataset.clusterId === openClusterId;
+      el.setAttribute("aria-expanded", open ? "true" : "false");
+      const body = el.querySelector(".schedule-map-chest-body");
+      if (body instanceof HTMLElement) {
+        body.style.transform = open && chestExpanded ? "scale(1.04)" : "scale(1)";
+      }
+    }
+    const map = mapRef.current;
+    if (!map) return;
+    if (openClusterId) {
+      map.stop();
+      map.dragPan.disable();
+      map.scrollZoom.disable();
+      map.touchZoomRotate.disable();
+      const cluster = findScheduleMapClusterByItemIds(
+        clustersRef.current,
+        openItemIds ? openItemIds.split("\0") : [],
+      );
+      if (cluster) publishFanOrigin(map, cluster);
+      return;
+    }
+    map.dragPan.enable();
+    map.scrollZoom.enable();
+    map.touchZoomRotate.enable();
+  }, [openClusterId, chestExpanded]);
+
+  const fanPosition =
+    fanCluster && fanOrigin
+      ? Math.min(fanCluster.items.length, Math.max(1, Math.round(fanIndex) + 1))
+      : 1;
 
   return (
     <div className="relative min-h-[60vh] flex-1 overflow-hidden rounded-b-xl bg-white lg:min-h-0">
@@ -224,6 +346,65 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
           <p className={scheduleMapEmptyCardClassName()}>{emptyMessage}</p>
         </div>
       ) : null}
+      {fanCluster && fanOrigin ? (
+        <ScheduleMapFanOverlay
+          cluster={fanCluster}
+          index={fanIndex}
+          origin={fanOrigin}
+          canvas={canvasSize}
+          positionLabel={t("fanPosition", { current: fanPosition, total: fanCluster.items.length })}
+          unscheduled={t("unscheduled")}
+          statusLabel={statusLabel}
+          fanAria={(current, total, title, time, status) =>
+            t("fanAria", { current, total, title, time, status })
+          }
+          onIndexChange={setFanIndex}
+          onCloseStart={() => setChestExpanded(false)}
+          onSelect={(item) => {
+            closeFan();
+            onItemClick(item);
+          }}
+          onDismiss={closeFan}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function createSinglePin(
+  cluster: ScheduleMapCluster<ScheduleMapItem>,
+  labels: {
+    unscheduled: string;
+    moreItems: (title: string, count: number) => string;
+    status: (status: string) => string;
+    pinAria: (title: string, time: string, status: string, location: string) => string;
+  },
+) {
+  const copy = scheduleMapCardCopy(cluster.items, labels, formatScheduleTimeRange);
+  const colors = taskCalendarColors(cluster.items[0].priority);
+  const background = isSettledCalendarStatus(cluster.items[0].status)
+    ? desaturateHex(colors.bg)
+    : colors.bg;
+  return createScheduleMapPinElement({
+    ...copy,
+    accent: scheduleMapPinColor(cluster.items[0]),
+    background,
+    foreground: colors.fg,
+    ariaLabel: labels.pinAria(copy.title, copy.timeLabel, copy.statusLabel, copy.locationLabel),
+  });
+}
+
+function createChest(
+  cluster: ScheduleMapCluster<ScheduleMapItem>,
+  labels: {
+    chestTasks: (count: number) => string;
+    chestAria: (place: string, count: number) => string;
+  },
+) {
+  return createScheduleMapChestElement(
+    scheduleMapChestCopy(
+      { placeTitle: cluster.placeTitle, count: cluster.items.length },
+      labels,
+    ),
   );
 }

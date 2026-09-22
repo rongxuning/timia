@@ -121,7 +121,12 @@
     "canvasAria": "Task location map",
     "unscheduled": "Unscheduled",
     "moreItems": "{title} ({count})",
-    "pinAria": "{title}, {time}, {status}, {location}"
+    "pinAria": "{title}, {time}, {status}, {location}",
+    "chestTasks": "{count} tasks",
+    "chestAria": "{place}, {count} tasks, double tap to open",
+    "chestPlaceFallback": "This place",
+    "fanPosition": "{current} / {total}",
+    "fanAria": "Card {current} of {total}, {title}, {time}, {status}"
   },
   "taskAttachments": {
     "label": "Attachments",

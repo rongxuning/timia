@@ -18,20 +18,23 @@ struct ScheduleMapView: View {
             span: MKCoordinateSpan(latitudeDelta: 35, longitudeDelta: 40)
         )
     )
-    @State private var clusteredSelection: [ScheduleMapItem]?
+    @State private var openClusterId: String?
+    @State private var openItemIds: [String] = []
+    @State private var fanIndex: Double = 0
+    @State private var fanClosing = false
     @State private var loadGeneration = 0
     @State private var didFitCameraForFingerprint: String?
     @State private var loadError: String?
 
     private var items: [ScheduleMapItem] { response?.items ?? [] }
-    private var clusters: [ScheduleMapCluster] {
-        groupScheduleMapItemsByCoordinate(items).compactMap { group in
-            guard let first = group.first else { return nil }
-            return ScheduleMapCluster(
-                id: scheduleMapCoordinateKey(lat: first.locationLat, lng: first.locationLng),
-                items: group
-            )
-        }
+    private var clusters: [ScheduleMapTaskCluster] {
+        clusterScheduleMapItems(items, now: Date(), placeFallback: "这个地点")
+    }
+
+    /// Same identity as Web `findScheduleMapClusterByItemIds`: the sorted item-id set, not `cluster.id`.
+    private var openCluster: ScheduleMapTaskCluster? {
+        guard openClusterId != nil, !openItemIds.isEmpty else { return nil }
+        return clusters.first { scheduleMapItemIdSet($0.items) == openItemIds }
     }
 
     var body: some View {
@@ -68,21 +71,8 @@ struct ScheduleMapView: View {
         .onChange(of: filters.workspaceId) { _, workspaceId in
             Task { await loadProjects(workspaceId: workspaceId) }
         }
-        .confirmationDialog("选择任务", isPresented: Binding(
-            get: { clusteredSelection != nil },
-            set: { if !$0 { clusteredSelection = nil } }
-        ), titleVisibility: .visible) {
-            if let clusteredSelection {
-                ForEach(clusteredSelection) { item in
-                    Button("\(item.title) · \(scheduleMapTimeLabel(startAt: item.startAt, endAt: item.endAt))") {
-                        onTaskTap(item.asScheduleTask())
-                        self.clusteredSelection = nil
-                    }
-                }
-            }
-            Button("取消", role: .cancel) {
-                clusteredSelection = nil
-            }
+        .onChange(of: items) { _, _ in
+            syncOpenFan()
         }
     }
 
@@ -176,47 +166,104 @@ struct ScheduleMapView: View {
     }
 
     private var mapCanvas: some View {
-        Map(position: $cameraPosition) {
-            ForEach(clusters) { cluster in
-                let anchor = cluster.items[0]
-                let copy = scheduleMapPinCopy(
-                    title: anchor.title,
-                    extraCount: cluster.items.count,
-                    startAt: anchor.startAt,
-                    endAt: anchor.endAt,
-                    status: anchor.status
-                )
-                Annotation(
-                    copy.title,
-                    coordinate: ChinaCoordinate.mapKitCoordinate(
-                        lat: anchor.locationLat,
-                        lng: anchor.locationLng
-                    ),
-                    anchor: .bottom
-                ) {
-                    Button {
-                        if cluster.items.count == 1 {
-                            onTaskTap(anchor.asScheduleTask())
-                        } else {
-                            clusteredSelection = cluster.items
-                        }
-                    } label: {
-                        ScheduleMapPinLabel(
-                            title: copy.title,
-                            timeLabel: copy.timeLabel,
-                            statusLabel: copy.statusLabel,
-                            priority: anchor.priority,
-                            isCompleted: isCalendarTaskCompleted(anchor.status)
-                        )
+        MapReader { proxy in
+            Map(position: $cameraPosition, interactionModes: openClusterId == nil ? .all : []) {
+                ForEach(clusters) { cluster in
+                    if cluster.items.count == 1, let anchor = cluster.items.first {
+                        singlePin(anchor)
+                    } else if cluster.items.count >= 2 {
+                        chestPin(cluster)
                     }
-                    .buttonStyle(.plain)
+                }
+            }
+            .mapStyle(.standard(elevation: .realistic))
+            .mapControls {
+                MapCompass()
+                MapScaleView()
+            }
+            .overlay {
+                if let cluster = openCluster {
+                    fanOverlay(cluster: cluster, proxy: proxy)
                 }
             }
         }
-        .mapStyle(.standard(elevation: .realistic))
-        .mapControls {
-            MapCompass()
-            MapScaleView()
+    }
+
+    private func singlePin(_ anchor: ScheduleMapItem) -> some MapContent {
+        let copy = scheduleMapPinCopy(
+            title: anchor.title,
+            extraCount: 1,
+            startAt: anchor.startAt,
+            endAt: anchor.endAt,
+            status: anchor.status
+        )
+        return Annotation(
+            copy.title,
+            coordinate: ChinaCoordinate.mapKitCoordinate(lat: anchor.locationLat, lng: anchor.locationLng),
+            anchor: .bottom
+        ) {
+            Button {
+                onTaskTap(anchor.asScheduleTask())
+            } label: {
+                ScheduleMapPinLabel(
+                    title: copy.title,
+                    timeLabel: copy.timeLabel,
+                    statusLabel: copy.statusLabel,
+                    priority: anchor.priority,
+                    isCompleted: isCalendarTaskCompleted(anchor.status)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func chestPin(_ cluster: ScheduleMapTaskCluster) -> some MapContent {
+        Annotation(
+            cluster.placeTitle,
+            coordinate: ChinaCoordinate.mapKitCoordinate(lat: cluster.locationLat, lng: cluster.locationLng),
+            anchor: .bottom
+        ) {
+            Button {
+                fanClosing = false
+                openClusterId = cluster.id
+                openItemIds = scheduleMapItemIdSet(cluster.items)
+                fanIndex = Double(scheduleMapClusterFocusIndex(cluster.items, now: Date()))
+            } label: {
+                ScheduleMapChestLabel(
+                    placeTitle: cluster.placeTitle,
+                    count: cluster.items.count,
+                    isExpanded: !fanClosing && scheduleMapItemIdSet(cluster.items) == openItemIds
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// `MapProxy` points are in global space. The fan's offsets are local to this overlay, so the origin is translated by the overlay's global frame. A nil convert means the point is not on screen yet — render nothing rather than a fake center.
+    private func fanOverlay(cluster: ScheduleMapTaskCluster, proxy: MapProxy) -> some View {
+        GeometryReader { geo in
+            let coordinate = ChinaCoordinate.mapKitCoordinate(lat: cluster.locationLat, lng: cluster.locationLng)
+            let frame = geo.frame(in: .global)
+            if let global = proxy.convert(coordinate, to: .global) {
+                ScheduleMapFanOverlay(
+                    cluster: cluster,
+                    origin: CGPoint(x: global.x - frame.minX, y: global.y - frame.minY),
+                    canvas: geo.size,
+                    index: $fanIndex,
+                    onCloseStart: { fanClosing = true },
+                    onSelect: { item in
+                        openClusterId = nil
+                        openItemIds = []
+                        fanClosing = false
+                        onTaskTap(item.asScheduleTask())
+                    },
+                    onDismiss: {
+                        openClusterId = nil
+                        openItemIds = []
+                        fanClosing = false
+                    }
+                )
+            }
         }
     }
 
@@ -327,6 +374,7 @@ struct ScheduleMapView: View {
             guard generation == loadGeneration else { return }
             response = result
             loadError = nil
+            syncOpenFan()
             fitCameraIfNeeded(for: result.items)
         } catch {
             guard generation == loadGeneration else { return }
@@ -335,6 +383,7 @@ struct ScheduleMapView: View {
     }
 
     private func fitCameraIfNeeded(for items: [ScheduleMapItem]) {
+        guard openClusterId == nil else { return }
         let fingerprint = items
             .map { scheduleMapCoordinateKey(lat: $0.locationLat, lng: $0.locationLng) }
             .sorted()
@@ -384,11 +433,23 @@ struct ScheduleMapView: View {
             )
         )
     }
+
+    private func syncOpenFan() {
+        guard openClusterId != nil else { return }
+        guard !openItemIds.isEmpty,
+              let match = clusters.first(where: { scheduleMapItemIdSet($0.items) == openItemIds }) else {
+            openClusterId = nil
+            openItemIds = []
+            return
+        }
+        openClusterId = match.id
+        let maxIndex = Double(max(0, match.items.count - 1))
+        fanIndex = min(max(fanIndex, 0), maxIndex)
+    }
 }
 
-private struct ScheduleMapCluster: Identifiable {
-    let id: String
-    let items: [ScheduleMapItem]
+private func scheduleMapItemIdSet(_ items: [ScheduleMapItem]) -> [String] {
+    items.map(\.id).sorted()
 }
 
 private struct ScheduleMapPinLabel: View {
