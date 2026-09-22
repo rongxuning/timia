@@ -50,15 +50,15 @@ struct ScheduleMapFanOverlay: View {
                         dragStartIndex = index
                         dragStartedAt = value.time
                     }
-                    index = applyScheduleMapFanDrag(index: dragStartIndex ?? index, dx: value.translation.width, count: cluster.items.count)
+                    index = applyScheduleMapFanDrag(index: dragStartIndex ?? index, dx: Double(value.translation.width), count: cluster.items.count)
                 }
                 .onEnded { value in
                     let start = dragStartIndex ?? index
                     let startedAt = dragStartedAt
                     dragStartIndex = nil
                     dragStartedAt = nil
-                    let dx = value.translation.width
-                    let dy = value.translation.height
+                    let dx = Double(value.translation.width)
+                    let dy = Double(value.translation.height)
                     let elapsed = startedAt.map { value.time.timeIntervalSince($0) } ?? 0
                     let dt = max(0.001, elapsed)
                     let vx = dx / dt
