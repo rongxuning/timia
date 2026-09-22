@@ -10,16 +10,18 @@ struct ScheduleMapFanOverlay: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var dragStartIndex: Double?
+    @State private var dragStartedAt: Date?
 
     var body: some View {
         let layout = scheduleMapFanLayout(origin: origin, canvas: canvas)
-        let center = Int(index.rounded())
+        let count = cluster.items.count
+        let center = min(max(0, count - 1), max(0, Int(index.rounded())))
         ZStack(alignment: .topLeading) {
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture { onDismiss() }
             VStack(spacing: 8) {
-                Text("\(center + 1) / \(cluster.items.count)")
+                Text("\(center + 1) / \(count)")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 ZStack {
@@ -44,17 +46,23 @@ struct ScheduleMapFanOverlay: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    if dragStartIndex == nil { dragStartIndex = index }
+                    if dragStartIndex == nil {
+                        dragStartIndex = index
+                        dragStartedAt = value.time
+                    }
                     index = applyScheduleMapFanDrag(index: dragStartIndex ?? index, dx: value.translation.width, count: cluster.items.count)
                 }
                 .onEnded { value in
                     let start = dragStartIndex ?? index
+                    let startedAt = dragStartedAt
                     dragStartIndex = nil
+                    dragStartedAt = nil
                     let dx = value.translation.width
                     let dy = value.translation.height
-                    let predicted = value.predictedEndTranslation
-                    let vx = predicted.width
-                    let vy = predicted.height
+                    let elapsed = startedAt.map { value.time.timeIntervalSince($0) } ?? 0
+                    let dt = max(0.001, elapsed)
+                    let vx = dx / dt
+                    let vy = dy / dt
                     if isScheduleMapFanDismissFlick(vx: vx, vy: vy) {
                         onDismiss()
                         return
