@@ -212,7 +212,11 @@ export function createScheduleMapChestElement(
     "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
   ].join(";");
 
-  root.append(stack, pin);
+  const body = document.createElement("div");
+  body.className = "schedule-map-chest-body";
+  body.style.cssText = "transform-origin:center bottom;transition:transform 120ms ease-out;transform:scale(1);";
+  body.append(stack, pin);
+  root.append(body);
   return root;
 }
 

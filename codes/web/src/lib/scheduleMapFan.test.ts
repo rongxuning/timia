@@ -5,6 +5,8 @@ import {
   applyScheduleMapFanDrag,
   isScheduleMapFanDismissFlick,
   isScheduleMapFanTap,
+  SCHEDULE_MAP_FAN_CARD_HEIGHT,
+  scheduleMapFanCardOffset,
   scheduleMapFanLayout,
   scheduleMapFanSlot,
   snapScheduleMapFanIndex,
@@ -64,5 +66,24 @@ describe("scheduleMapFanLayout", () => {
     const tight = scheduleMapFanLayout({ x: 10, y: 400 }, { width: 80, height: 600 });
     assert.ok(tight.angleStep >= 10);
     assert.ok(tight.angleStep <= 16);
+  });
+
+  it("places a downward fan below the anchor and keeps an upward fan above it", () => {
+    const down = scheduleMapFanLayout({ x: 200, y: 40 }, { width: 400, height: 600 });
+    const downCenter = scheduleMapFanCardOffset(0, down);
+    const downSide = scheduleMapFanCardOffset(1, down);
+    assert.equal(down.direction, 1);
+    assert.equal(downCenter.x, 0);
+    assert.equal(downCenter.y, 0);
+    assert.ok(downSide.y > downCenter.y);
+    assert.ok(downSide.x > 0);
+
+    const up = scheduleMapFanLayout({ x: 200, y: 400 }, { width: 400, height: 600 });
+    const upCenter = scheduleMapFanCardOffset(0, up);
+    const upSide = scheduleMapFanCardOffset(1, up);
+    assert.equal(up.direction, -1);
+    assert.equal(upCenter.y, -SCHEDULE_MAP_FAN_CARD_HEIGHT);
+    assert.ok(upSide.y < upCenter.y);
+    assert.ok(upSide.x > 0);
   });
 });

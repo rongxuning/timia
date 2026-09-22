@@ -11,6 +11,12 @@ export const SCHEDULE_MAP_FAN_MIN_ANGLE_STEP_DEG = 10;
 export const SCHEDULE_MAP_FAN_MAX_SHIFT = 48;
 export const SCHEDULE_MAP_FAN_CARD_HEIGHT = 88;
 export const SCHEDULE_MAP_FAN_TOP_PAD = 24;
+export const SCHEDULE_MAP_FAN_OPEN_MS = 320;
+export const SCHEDULE_MAP_FAN_OPEN_STAGGER_MS = 40;
+export const SCHEDULE_MAP_FAN_SNAP_MS = 220;
+export const SCHEDULE_MAP_FAN_CLOSE_MS = 280;
+export const SCHEDULE_MAP_FAN_CLOSE_STAGGER_MS = 32;
+export const SCHEDULE_MAP_FAN_CHEST_SCALE_MS = 120;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -67,4 +73,20 @@ export function scheduleMapFanLayout(
     origin.x + shiftX - half < 0 || origin.x + shiftX + half > canvas.width;
   const angleStep = stillOverflows ? SCHEDULE_MAP_FAN_MIN_ANGLE_STEP_DEG : SCHEDULE_MAP_FAN_ANGLE_STEP_DEG;
   return { direction, shiftX, angleStep };
+}
+
+/** Top-center of a card relative to the chest anchor. Downward fans sit below the pin. */
+export function scheduleMapFanCardOffset(
+  indexOffset: number,
+  layout: { direction: 1 | -1; angleStep: number },
+): { x: number; y: number } {
+  const angle = (indexOffset * layout.angleStep * Math.PI) / 180;
+  const x = Math.sin(angle) * SCHEDULE_MAP_FAN_RADIUS;
+  const arc = (1 - Math.cos(angle)) * SCHEDULE_MAP_FAN_RADIUS;
+  if (layout.direction === 1) return { x, y: arc };
+  return { x, y: -arc - SCHEDULE_MAP_FAN_CARD_HEIGHT };
+}
+
+export function scheduleMapFanCloseTotalMs(count: number): number {
+  return SCHEDULE_MAP_FAN_CLOSE_MS + Math.max(0, count - 1) * SCHEDULE_MAP_FAN_CLOSE_STAGGER_MS;
 }

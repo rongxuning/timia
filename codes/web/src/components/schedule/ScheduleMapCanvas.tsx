@@ -92,6 +92,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const onItemClickRef = useRef(onItemClick);
   const placeFallbackRef = useRef(placeFallback);
   const openClusterIdRef = useRef<string | null>(null);
+  const chestExpandedRef = useRef(false);
   const openItemIdsRef = useRef("");
   const clustersRef = useRef<ScheduleMapCluster<ScheduleMapItem>[]>([]);
   const [openClusterId, setOpenClusterId] = useState<string | null>(null);
@@ -99,6 +100,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const [fanIndex, setFanIndex] = useState(0);
   const [fanOrigin, setFanOrigin] = useState<{ x: number; y: number } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [chestExpanded, setChestExpanded] = useState(false);
   const labelsRef = useRef({
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
@@ -109,6 +111,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     chestAria: (place: string, count: number) => t("chestAria", { place, count }),
   });
   itemsRef.current = items;
+  chestExpandedRef.current = chestExpanded;
   onItemClickRef.current = onItemClick;
   placeFallbackRef.current = placeFallback;
   labelsRef.current = {
@@ -201,6 +204,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
           el.setAttribute("aria-expanded", openClusterIdRef.current === cluster.id ? "true" : "false");
           el.addEventListener("click", (event) => {
             event.stopPropagation();
+            map.stop();
             const signature = itemIdSignature(cluster.items);
             openClusterIdRef.current = cluster.id;
             openItemIdsRef.current = signature;
@@ -214,6 +218,16 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
           .addTo(map);
         marker.getElement().style.zIndex = "2";
         markersRef.current.push(marker);
+      }
+      for (const marker of markersRef.current) {
+        const el = marker.getElement();
+        if (!el.dataset.clusterId) continue;
+        const open = el.dataset.clusterId === openClusterIdRef.current;
+        el.setAttribute("aria-expanded", open ? "true" : "false");
+        const body = el.querySelector(".schedule-map-chest-body");
+        if (body instanceof HTMLElement) {
+          body.style.transform = open && chestExpandedRef.current ? "scale(1.04)" : "scale(1)";
+        }
       }
       const open = findScheduleMapClusterByItemIds(
         nextClusters,
@@ -232,6 +246,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
 
     function applyItems(next: ScheduleMapItem[], animate: boolean) {
       syncMarkers(next);
+      if (openClusterIdRef.current) return;
       applyCamera(map, next, animate);
     }
     applyItemsRef.current = applyItems;
@@ -276,15 +291,25 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   }, [items]);
 
   useEffect(() => {
+    if (openClusterId) setChestExpanded(true);
+  }, [openClusterId]);
+
+  useEffect(() => {
     openClusterIdRef.current = openClusterId;
     for (const marker of markersRef.current) {
       const el = marker.getElement();
       if (!el.dataset.clusterId) continue;
-      el.setAttribute("aria-expanded", el.dataset.clusterId === openClusterId ? "true" : "false");
+      const open = el.dataset.clusterId === openClusterId;
+      el.setAttribute("aria-expanded", open ? "true" : "false");
+      const body = el.querySelector(".schedule-map-chest-body");
+      if (body instanceof HTMLElement) {
+        body.style.transform = open && chestExpanded ? "scale(1.04)" : "scale(1)";
+      }
     }
     const map = mapRef.current;
     if (!map) return;
     if (openClusterId) {
+      map.stop();
       map.dragPan.disable();
       map.scrollZoom.disable();
       map.touchZoomRotate.disable();
@@ -298,7 +323,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     map.dragPan.enable();
     map.scrollZoom.enable();
     map.touchZoomRotate.enable();
-  }, [openClusterId]);
+  }, [openClusterId, chestExpanded]);
 
   const fanPosition =
     fanCluster && fanOrigin
@@ -334,6 +359,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
             t("fanAria", { current, total, title, time, status })
           }
           onIndexChange={setFanIndex}
+          onCloseStart={() => setChestExpanded(false)}
           onSelect={(item) => {
             closeFan();
             onItemClick(item);
