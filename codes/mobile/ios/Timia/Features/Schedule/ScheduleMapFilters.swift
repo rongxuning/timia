@@ -176,7 +176,7 @@ func scheduleMapTimeLabel(startAt: String?, endAt: String?) -> String {
     return "\(dayFormatter.string(from: start)) – \(dayFormatter.string(from: end))"
 }
 
-private func scheduleMapParseISO(_ value: String?) -> Date? {
+func scheduleMapParseISO(_ value: String?) -> Date? {
     guard let value, !value.isEmpty else { return nil }
     let withFractional = ISO8601DateFormatter()
     withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

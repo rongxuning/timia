@@ -1,0 +1,75 @@
+import CoreGraphics
+import Foundation
+
+let scheduleMapFanStepPx = 148.0
+let scheduleMapFanVelocityDivisor = 900.0
+let scheduleMapFanVelocityClamp = 1.25
+let scheduleMapFanEdgeResistance = 0.35
+let scheduleMapFanTapSlop = 8.0
+let scheduleMapFanTapSpeed = 200.0
+let scheduleMapFanFlickDown = 800.0
+let scheduleMapFanRadius = 168.0
+let scheduleMapFanAngleStepDeg = 16.0
+let scheduleMapFanMinAngleStepDeg = 10.0
+let scheduleMapFanMaxShift = 48.0
+let scheduleMapFanCardHeight = 88.0
+let scheduleMapFanTopPad = 24.0
+
+struct ScheduleMapFanSlot: Equatable {
+    let rotate: Double
+    let scale: Double
+    let opacity: Double
+}
+
+struct ScheduleMapFanLayout: Equatable {
+    let direction: Double
+    let shiftX: Double
+    let angleStep: Double
+}
+
+func applyScheduleMapFanDrag(index: Double, dx: Double, count: Int) -> Double {
+    let raw = index - dx / scheduleMapFanStepPx
+    let maxIndex = Double(max(0, count - 1))
+    if raw < 0 { return raw * scheduleMapFanEdgeResistance }
+    if raw > maxIndex { return maxIndex + (raw - maxIndex) * scheduleMapFanEdgeResistance }
+    return raw
+}
+
+func snapScheduleMapFanIndex(index: Double, vx: Double, count: Int) -> Int {
+    let velocity = min(scheduleMapFanVelocityClamp, max(-scheduleMapFanVelocityClamp, -vx / scheduleMapFanVelocityDivisor))
+    let rounded = Int((index + velocity).rounded())
+    return min(max(0, count - 1), max(0, rounded))
+}
+
+func isScheduleMapFanTap(dx: Double, dy: Double, speed: Double) -> Bool {
+    hypot(dx, dy) < scheduleMapFanTapSlop && speed < scheduleMapFanTapSpeed
+}
+
+func isScheduleMapFanDismissFlick(vx: Double, vy: Double) -> Bool {
+    vy > scheduleMapFanFlickDown && abs(vy) > abs(vx)
+}
+
+func scheduleMapFanSlot(offset: Double) -> ScheduleMapFanSlot? {
+    let absOffset = abs(offset)
+    guard absOffset <= 2 else { return nil }
+    let scale = absOffset <= 1 ? 1 - 0.12 * absOffset : 0.88 - 0.12 * (absOffset - 1)
+    let opacity = absOffset <= 1 ? 1 - 0.14 * absOffset : 0.86 - 0.3 * (absOffset - 1)
+    return ScheduleMapFanSlot(rotate: offset * scheduleMapFanAngleStepDeg, scale: scale, opacity: opacity)
+}
+
+func scheduleMapFanLayout(origin: CGPoint, canvas: CGSize) -> ScheduleMapFanLayout {
+    let needed = scheduleMapFanRadius + scheduleMapFanCardHeight + scheduleMapFanTopPad
+    let direction = origin.y >= needed ? -1.0 : 1.0
+    let half = 2 * scheduleMapFanRadius * sin(scheduleMapFanAngleStepDeg * .pi / 180)
+    var shiftX = 0.0
+    if origin.x - half < 0 { shiftX = min(scheduleMapFanMaxShift, half - origin.x) }
+    if origin.x + half > canvas.width {
+        shiftX = max(-scheduleMapFanMaxShift, canvas.width - origin.x - half)
+    }
+    let stillOverflows = origin.x + shiftX - half < 0 || origin.x + shiftX + half > canvas.width
+    return ScheduleMapFanLayout(
+        direction: direction,
+        shiftX: shiftX,
+        angleStep: stillOverflows ? scheduleMapFanMinAngleStepDeg : scheduleMapFanAngleStepDeg
+    )
+}
