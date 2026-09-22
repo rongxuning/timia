@@ -43,17 +43,11 @@ export function sortScheduleMapClusterItems<T extends { id: string; title: strin
     .sort((left, right) => {
       const start = (left.start_at ?? "").localeCompare(right.start_at ?? "");
       if (start !== 0) return start;
-      const title = left.title.localeCompare(right.title);
+      const title = left.title.localeCompare(right.title, "zh");
       if (title !== 0) return title;
       return left.id.localeCompare(right.id);
     });
-  const undated = items
-    .filter((item) => !item.start_at)
-    .sort((left, right) => {
-      const title = left.title.localeCompare(right.title);
-      if (title !== 0) return title;
-      return left.id.localeCompare(right.id);
-    });
+  const undated = items.filter((item) => !item.start_at);
   return [...timed, ...undated];
 }
 

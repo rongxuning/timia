@@ -100,7 +100,7 @@ describe("clusterScheduleMapItems", () => {
 });
 
 describe("sortScheduleMapClusterItems", () => {
-  it("puts timed tasks first, undated last, then title and id", () => {
+  it("sorts timed by start_at then zh title and id; undated keep API order", () => {
     const sorted = sortScheduleMapClusterItems([
       item({ id: "d", title: "未排期后", start_at: null }),
       item({ id: "c", title: "未排期前", start_at: null }),
@@ -109,7 +109,7 @@ describe("sortScheduleMapClusterItems", () => {
       item({ id: "e", title: "同时B", start_at: "2026-09-20T01:00:00.000Z" }),
       item({ id: "f", title: "同时A", start_at: "2026-09-20T01:00:00.000Z" }),
     ]);
-    assert.deepEqual(sorted.map((row) => row.id), ["a", "f", "e", "b", "c", "d"]);
+    assert.deepEqual(sorted.map((row) => row.id), ["f", "e", "a", "b", "d", "c"]);
   });
 });
 
