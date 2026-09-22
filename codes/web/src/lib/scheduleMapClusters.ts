@@ -112,10 +112,10 @@ export function clusterScheduleMapItems<T extends Clusterable>(
 
   return clusters.map((cluster) => {
     const itemsSorted = sortScheduleMapClusterItems(cluster.items);
-    const anchor = majority(itemsSorted, (item) =>
+    const anchor = majority(cluster.items, (item) =>
       scheduleMapCoordinateKey(item.location_lat, item.location_lng),
     );
-    const named = itemsSorted
+    const named = cluster.items
       .map((item) => (item.location ?? "").trim())
       .filter((name) => name.length > 0)
       .map((name) => ({ name }));

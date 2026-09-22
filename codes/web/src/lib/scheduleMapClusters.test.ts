@@ -77,6 +77,21 @@ describe("clusterScheduleMapItems", () => {
     }
   });
 
+  it("breaks majority ties by first seen in merge order, not sort order", () => {
+    const other = offsetMeters(ORIGIN.location_lat, ORIGIN.location_lng, 0, 8);
+    const clusters = clustersOf([
+      item({ id: "a", location: "后见名", start_at: "2026-09-25T01:00:00.000Z" }),
+      item({ id: "b", location: "后见名", start_at: "2026-09-26T01:00:00.000Z" }),
+      item({ id: "c", location: "先排序名", ...other, start_at: "2026-09-20T01:00:00.000Z" }),
+      item({ id: "d", location: "先排序名", ...other, start_at: "2026-09-21T01:00:00.000Z" }),
+    ]);
+    assert.equal(clusters.length, 1);
+    assert.equal(clusters[0].location_lat, ORIGIN.location_lat);
+    assert.equal(clusters[0].location_lng, ORIGIN.location_lng);
+    assert.equal(clusters[0].placeTitle, "后见名");
+    assert.deepEqual(clusters[0].items.map((task) => task.id), ["c", "d", "a", "b"]);
+  });
+
   it("uses the majority coordinate and place name", () => {
     const other = offsetMeters(ORIGIN.location_lat, ORIGIN.location_lng, 0, 8);
     const clusters = clustersOf([
