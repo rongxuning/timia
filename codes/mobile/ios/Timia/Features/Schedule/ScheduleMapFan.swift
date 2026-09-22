@@ -73,3 +73,19 @@ func scheduleMapFanLayout(origin: CGPoint, canvas: CGSize) -> ScheduleMapFanLayo
         angleStep: stillOverflows ? scheduleMapFanMinAngleStepDeg : scheduleMapFanAngleStepDeg
     )
 }
+
+/// Top of a card relative to the chest anchor. `x` is the horizontal center.
+/// Downward fans (`direction > 0`) sit below the pin; upward fans sit above it.
+func scheduleMapFanCardOffset(indexOffset: Double, layout: ScheduleMapFanLayout) -> CGPoint {
+    let angle = indexOffset * layout.angleStep * .pi / 180
+    let arc = (1 - cos(angle)) * scheduleMapFanRadius
+    let x = sin(angle) * scheduleMapFanRadius
+    if layout.direction > 0 {
+        return CGPoint(x: CGFloat(x), y: CGFloat(arc))
+    }
+    return CGPoint(x: CGFloat(x), y: CGFloat(-arc - scheduleMapFanCardHeight))
+}
+
+func scheduleMapFanCloseTotalSeconds(count: Int) -> Double {
+    0.28 + Double(max(0, count - 1)) * 0.032
+}

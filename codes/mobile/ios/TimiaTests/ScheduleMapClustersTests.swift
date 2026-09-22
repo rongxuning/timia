@@ -98,6 +98,23 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertEqual(scheduleMapFanLayout(origin: CGPoint(x: 200, y: 400), canvas: CGSize(width: 400, height: 600)).direction, -1)
     }
 
+    func testFanMirrorsBelowTheAnchorNearTheTop() {
+        let canvas = CGSize(width: 400, height: 600)
+        let down = scheduleMapFanLayout(origin: CGPoint(x: 200, y: 40), canvas: canvas)
+        XCTAssertEqual(down.direction, 1)
+        let downCenter = scheduleMapFanCardOffset(indexOffset: 0, layout: down)
+        let downSide = scheduleMapFanCardOffset(indexOffset: 1, layout: down)
+        XCTAssertEqual(downCenter.y, 0, accuracy: 0.001)
+        XCTAssertGreaterThan(downSide.y, downCenter.y)
+        XCTAssertGreaterThan(downSide.x, 0)
+
+        let up = scheduleMapFanLayout(origin: CGPoint(x: 200, y: 400), canvas: canvas)
+        let upCenter = scheduleMapFanCardOffset(indexOffset: 0, layout: up)
+        let upSide = scheduleMapFanCardOffset(indexOffset: 1, layout: up)
+        XCTAssertEqual(upCenter.y, -scheduleMapFanCardHeight, accuracy: 0.001)
+        XCTAssertLessThan(upSide.y, upCenter.y)
+    }
+
     private func titled(_ id: String, _ title: String, startAt: String?) -> ScheduleMapItem {
         var item = mapItem(id: id, lat: 31.1706, lng: 121.5364, startAt: startAt)
         item.title = title

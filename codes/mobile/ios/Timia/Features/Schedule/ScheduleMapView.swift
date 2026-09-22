@@ -21,6 +21,7 @@ struct ScheduleMapView: View {
     @State private var openClusterId: String?
     @State private var openItemIds: [String] = []
     @State private var fanIndex: Double = 0
+    @State private var fanClosing = false
     @State private var loadGeneration = 0
     @State private var didFitCameraForFingerprint: String?
     @State private var loadError: String?
@@ -223,6 +224,7 @@ struct ScheduleMapView: View {
             anchor: .bottom
         ) {
             Button {
+                fanClosing = false
                 openClusterId = cluster.id
                 openItemIds = scheduleMapItemIdSet(cluster.items)
                 fanIndex = Double(scheduleMapClusterFocusIndex(cluster.items, now: Date()))
@@ -230,39 +232,38 @@ struct ScheduleMapView: View {
                 ScheduleMapChestLabel(
                     placeTitle: cluster.placeTitle,
                     count: cluster.items.count,
-                    isExpanded: scheduleMapItemIdSet(cluster.items) == openItemIds
+                    isExpanded: !fanClosing && scheduleMapItemIdSet(cluster.items) == openItemIds
                 )
             }
             .buttonStyle(.plain)
         }
     }
 
-    /// `MapProxy` points are in global space. The fan's `.position` is local to this overlay, so the origin is translated by the overlay's global frame.
+    /// `MapProxy` points are in global space. The fan's offsets are local to this overlay, so the origin is translated by the overlay's global frame. A nil convert means the point is not on screen yet — render nothing rather than a fake center.
     private func fanOverlay(cluster: ScheduleMapTaskCluster, proxy: MapProxy) -> some View {
         GeometryReader { geo in
             let coordinate = ChinaCoordinate.mapKitCoordinate(lat: cluster.locationLat, lng: cluster.locationLng)
             let frame = geo.frame(in: .global)
-            let origin: CGPoint = {
-                guard let global = proxy.convert(coordinate, to: .global) else {
-                    return CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
-                }
-                return CGPoint(x: global.x - frame.minX, y: global.y - frame.minY)
-            }()
-            ScheduleMapFanOverlay(
-                cluster: cluster,
-                origin: origin,
-                canvas: geo.size,
-                index: $fanIndex,
-                onSelect: { item in
-                    openClusterId = nil
-                    openItemIds = []
-                    onTaskTap(item.asScheduleTask())
-                },
-                onDismiss: {
-                    openClusterId = nil
-                    openItemIds = []
-                }
-            )
+            if let global = proxy.convert(coordinate, to: .global) {
+                ScheduleMapFanOverlay(
+                    cluster: cluster,
+                    origin: CGPoint(x: global.x - frame.minX, y: global.y - frame.minY),
+                    canvas: geo.size,
+                    index: $fanIndex,
+                    onCloseStart: { fanClosing = true },
+                    onSelect: { item in
+                        openClusterId = nil
+                        openItemIds = []
+                        fanClosing = false
+                        onTaskTap(item.asScheduleTask())
+                    },
+                    onDismiss: {
+                        openClusterId = nil
+                        openItemIds = []
+                        fanClosing = false
+                    }
+                )
+            }
         }
     }
 
@@ -382,6 +383,7 @@ struct ScheduleMapView: View {
     }
 
     private func fitCameraIfNeeded(for items: [ScheduleMapItem]) {
+        guard openClusterId == nil else { return }
         let fingerprint = items
             .map { scheduleMapCoordinateKey(lat: $0.locationLat, lng: $0.locationLng) }
             .sorted()

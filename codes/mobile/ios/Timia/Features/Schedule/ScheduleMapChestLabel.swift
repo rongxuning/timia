@@ -41,6 +41,7 @@ struct ScheduleMapChestLabel: View {
                 .overlay(Circle().stroke(.white, lineWidth: 2))
         }
         .scaleEffect(isExpanded ? 1.04 : 1)
+        .animation(.easeOut(duration: 0.12), value: isExpanded)
         .accessibilityLabel("\(placeTitle)，\(count) 个任务，点按查看")
         .accessibilityAddTraits(isExpanded ? .isSelected : [])
     }
