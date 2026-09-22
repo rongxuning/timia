@@ -4,6 +4,7 @@ import {
   EARTH_RADIUS_M,
   SCHEDULE_MAP_CLUSTER_RADIUS_M,
   clusterScheduleMapItems,
+  findScheduleMapClusterByItemIds,
   haversineMeters,
   scheduleMapClusterFocusIndex,
   sortScheduleMapClusterItems,
@@ -125,6 +126,22 @@ describe("sortScheduleMapClusterItems", () => {
       item({ id: "f", title: "同时A", start_at: "2026-09-20T01:00:00.000Z" }),
     ]);
     assert.deepEqual(sorted.map((row) => row.id), ["f", "e", "a", "b", "d", "c"]);
+  });
+});
+
+describe("findScheduleMapClusterByItemIds", () => {
+  it("keeps the fan when the origin key changes but the sorted item-id set matches", () => {
+    const shifted = offsetMeters(ORIGIN.location_lat, ORIGIN.location_lng, 5, 0);
+    const before = clustersOf([item({ id: "b" }), item({ id: "a" })]);
+    const after = clustersOf([
+      item({ id: "a", ...shifted }),
+      item({ id: "b", title: "遛狗", ...shifted }),
+    ]);
+    assert.notEqual(before[0].id, after[0].id);
+    const found = findScheduleMapClusterByItemIds(after, ["b", "a"]);
+    assert.equal(found, after[0]);
+    assert.equal(findScheduleMapClusterByItemIds(after, ["a", "missing"]), undefined);
+    assert.equal(findScheduleMapClusterByItemIds(after, []), undefined);
   });
 });
 

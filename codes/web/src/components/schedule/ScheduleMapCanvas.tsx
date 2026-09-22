@@ -20,6 +20,7 @@ import {
 } from "@/lib/scheduleMapCamera";
 import {
   clusterScheduleMapItems,
+  findScheduleMapClusterByItemIds,
   scheduleMapClusterFocusIndex,
   type ScheduleMapCluster,
 } from "@/lib/scheduleMapClusters";
@@ -91,6 +92,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const onItemClickRef = useRef(onItemClick);
   const placeFallbackRef = useRef(placeFallback);
   const openClusterIdRef = useRef<string | null>(null);
+  const openItemIdsRef = useRef("");
   const clustersRef = useRef<ScheduleMapCluster<ScheduleMapItem>[]>([]);
   const [openClusterId, setOpenClusterId] = useState<string | null>(null);
   const [openItemIds, setOpenItemIds] = useState("");
@@ -124,22 +126,30 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     [items, placeFallback],
   );
   clustersRef.current = clusters;
+  openItemIdsRef.current = openItemIds;
 
-  const openCluster = openClusterId
-    ? (clusters.find((cluster) => cluster.id === openClusterId) ?? null)
-    : null;
-  const openSignature = openCluster ? itemIdSignature(openCluster.items) : "";
-  const openSetChanged = openClusterId !== null && openItemIds !== openSignature;
-  if (openSetChanged) {
+  const matchedCluster =
+    openClusterId !== null
+      ? findScheduleMapClusterByItemIds(clusters, openItemIds ? openItemIds.split("\0") : [])
+      : undefined;
+  const fanIdentityLost = openClusterId !== null && matchedCluster == null;
+  if (fanIdentityLost) {
     openClusterIdRef.current = null;
+    openItemIdsRef.current = "";
     setOpenClusterId(null);
     setOpenItemIds("");
     setFanOrigin(null);
+  } else if (matchedCluster && matchedCluster.id !== openClusterId) {
+    openClusterIdRef.current = matchedCluster.id;
+    setOpenClusterId(matchedCluster.id);
+    const maxIndex = Math.max(0, matchedCluster.items.length - 1);
+    setFanIndex((current) => Math.min(Math.max(0, current), maxIndex));
   }
-  const fanCluster = openSetChanged ? null : openCluster;
+  const fanCluster = fanIdentityLost ? null : (matchedCluster ?? null);
 
   function closeFan() {
     openClusterIdRef.current = null;
+    openItemIdsRef.current = "";
     setOpenClusterId(null);
     setOpenItemIds("");
     setFanOrigin(null);
@@ -191,9 +201,11 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
           el.setAttribute("aria-expanded", openClusterIdRef.current === cluster.id ? "true" : "false");
           el.addEventListener("click", (event) => {
             event.stopPropagation();
+            const signature = itemIdSignature(cluster.items);
             openClusterIdRef.current = cluster.id;
+            openItemIdsRef.current = signature;
             setOpenClusterId(cluster.id);
-            setOpenItemIds(itemIdSignature(cluster.items));
+            setOpenItemIds(signature);
             setFanIndex(scheduleMapClusterFocusIndex(cluster.items, new Date()));
           });
         }
@@ -203,10 +215,19 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         marker.getElement().style.zIndex = "2";
         markersRef.current.push(marker);
       }
-      const openId = openClusterIdRef.current;
-      if (!openId) return;
-      const open = nextClusters.find((cluster) => cluster.id === openId);
-      if (open) publishFanOrigin(map, open);
+      const open = findScheduleMapClusterByItemIds(
+        nextClusters,
+        openItemIdsRef.current ? openItemIdsRef.current.split("\0") : [],
+      );
+      if (open) {
+        if (open.id !== openClusterIdRef.current) {
+          openClusterIdRef.current = open.id;
+          setOpenClusterId(open.id);
+        }
+        const maxIndex = Math.max(0, open.items.length - 1);
+        setFanIndex((current) => Math.min(Math.max(0, current), maxIndex));
+        publishFanOrigin(map, open);
+      }
     }
 
     function applyItems(next: ScheduleMapItem[], animate: boolean) {
@@ -216,9 +237,10 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     applyItemsRef.current = applyItems;
 
     const projectOpen = () => {
-      const openId = openClusterIdRef.current;
-      if (!openId) return;
-      const cluster = clustersRef.current.find((entry) => entry.id === openId);
+      const cluster = findScheduleMapClusterByItemIds(
+        clustersRef.current,
+        openItemIdsRef.current ? openItemIdsRef.current.split("\0") : [],
+      );
       if (!cluster) return;
       publishFanOrigin(map, cluster);
     };
@@ -250,14 +272,6 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     const map = mapRef.current;
     const applyItems = applyItemsRef.current;
     if (!map || !applyItems) return;
-    const openId = openClusterIdRef.current;
-    if (openId) {
-      const cluster = clustersRef.current.find((entry) => entry.id === openId);
-      if (cluster) {
-        const maxIndex = Math.max(0, cluster.items.length - 1);
-        setFanIndex((current) => Math.min(current, maxIndex));
-      }
-    }
     applyItems(items, true);
   }, [items]);
 
@@ -274,7 +288,10 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
       map.dragPan.disable();
       map.scrollZoom.disable();
       map.touchZoomRotate.disable();
-      const cluster = clustersRef.current.find((entry) => entry.id === openClusterId);
+      const cluster = findScheduleMapClusterByItemIds(
+        clustersRef.current,
+        openItemIds ? openItemIds.split("\0") : [],
+      );
       if (cluster) publishFanOrigin(map, cluster);
       return;
     }

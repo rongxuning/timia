@@ -51,6 +51,18 @@ export function sortScheduleMapClusterItems<T extends { id: string; title: strin
   return [...timed, ...undated];
 }
 
+export function findScheduleMapClusterByItemIds<T extends { id: string }>(
+  clusters: readonly ScheduleMapCluster<T>[],
+  itemIds: readonly string[],
+): ScheduleMapCluster<T> | undefined {
+  const wanted = [...itemIds].sort().join("\0");
+  if (!wanted) return undefined;
+  return clusters.find((cluster) => {
+    const ids = cluster.items.map((item) => item.id).sort().join("\0");
+    return ids === wanted;
+  });
+}
+
 export function scheduleMapClusterFocusIndex<T extends { start_at?: string | null }>(
   items: T[],
   now: Date,

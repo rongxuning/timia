@@ -50,7 +50,8 @@ export function ScheduleMapFanOverlay({
   const dragRef = useRef<{ x: number; y: number; t: number; index: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const layout = scheduleMapFanLayout(origin, canvas);
-  const center = Math.round(index);
+  const count = cluster.items.length;
+  const center = Math.min(Math.max(0, count - 1), Math.max(0, Math.round(index)));
 
   useEffect(() => {
     rootRef.current?.focus();
@@ -74,7 +75,8 @@ export function ScheduleMapFanOverlay({
       const button = target instanceof HTMLElement ? target.closest("[data-fan-index]") : null;
       const tapped = Number(button?.getAttribute("data-fan-index"));
       if (Number.isInteger(tapped) && tapped === center) {
-        onSelect(cluster.items[center]);
+        const selected = cluster.items[center];
+        if (selected) onSelect(selected);
         return;
       }
       if (Number.isInteger(tapped)) {
@@ -113,7 +115,8 @@ export function ScheduleMapFanOverlay({
         if (event.key === "ArrowRight") onIndexChange(Math.min(cluster.items.length - 1, center + 1));
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect(cluster.items[center]);
+          const selected = cluster.items[center];
+          if (selected) onSelect(selected);
         }
       }}
     >
@@ -142,7 +145,7 @@ export function ScheduleMapFanOverlay({
               type="button"
               data-fan-index={itemIndex}
               aria-label={fanAria(itemIndex + 1, cluster.items.length, item.title, time, status)}
-              className="absolute w-[200px] -translate-x-1/2 rounded-xl border px-3 py-2 text-left shadow-sm"
+              className="absolute w-[200px] rounded-xl border px-3 py-2 text-left shadow-sm"
               style={{
                 left: x,
                 top: y - SCHEDULE_MAP_FAN_CARD_HEIGHT,
