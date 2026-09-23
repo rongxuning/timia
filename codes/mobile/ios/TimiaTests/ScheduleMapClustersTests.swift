@@ -105,8 +105,8 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertNil(scheduleMapReelSlot(offset: 2.01))
         XCTAssertEqual(scheduleMapReelSide(originX: 240, canvasWidth: 400), "left")
         XCTAssertEqual(scheduleMapReelSide(originX: 40, canvasWidth: 400), "right")
-        XCTAssertEqual(scheduleMapCardWidth, 200)
-        XCTAssertEqual(scheduleMapCardHeight, 96)
+        XCTAssertEqual(scheduleMapCardWidth, 148.0, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapCardHeight, 70.0, accuracy: 0.0001)
         let anchor = scheduleMapAnchorOffsets()
         XCTAssertEqual(anchor.pinTop + anchor.pinSize, 0, accuracy: 0.0001)
         XCTAssertEqual(anchor.cardTop + scheduleMapCardHeight + scheduleMapPinGap, anchor.pinTop, accuracy: 0.0001)
@@ -123,7 +123,7 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertEqual(scheduleMapReelCloseSeconds, 0.28, accuracy: 0.0001)
         XCTAssertEqual(scheduleMapReelEnterScale, 0.78, accuracy: 0.0001)
         XCTAssertEqual(scheduleMapCardAccentWidth, 3.0, accuracy: 0.0001)
-        XCTAssertEqual(scheduleMapCardCornerRadius, 12.0, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapCardCornerRadius, 10.0, accuracy: 0.0001)
         let hidden = scheduleMapReelPresentedSlot(offset: 1, revealed: false)
         XCTAssertEqual(hidden?.y ?? -1, 0, accuracy: 0.001)
         XCTAssertEqual(hidden?.scale ?? 0, scheduleMapReelEnterScale, accuracy: 0.001)
@@ -132,6 +132,35 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertEqual(shown?.y ?? 0, scheduleMapReelStepPx, accuracy: 0.001)
         XCTAssertLessThan(shown?.scale ?? 1, 1)
         XCTAssertNil(scheduleMapReelPresentedSlot(offset: 2.01, revealed: true))
+    }
+
+    func testCardZoomScaleGrowsAsTheMapZoomsIn() {
+        let street = scheduleMapCardZoomScale(latitudeDelta: 0.02)
+        let district = scheduleMapCardZoomScale(latitudeDelta: 0.08)
+        let city = scheduleMapCardZoomScale(latitudeDelta: 0.45)
+        let region = scheduleMapCardZoomScale(latitudeDelta: 2.0)
+        XCTAssertEqual(street, scheduleMapCardZoomScaleMax, accuracy: 0.0001)
+        XCTAssertEqual(region, scheduleMapCardZoomScaleMin, accuracy: 0.0001)
+        XCTAssertGreaterThan(street, district)
+        XCTAssertGreaterThan(district, city)
+        XCTAssertGreaterThan(city, region)
+        XCTAssertEqual(
+            scheduleMapCardZoomScaleQuantized(latitudeDelta: 0.02),
+            scheduleMapCardZoomScaleMax,
+            accuracy: 0.0001
+        )
+        XCTAssertEqual(
+            scheduleMapCardZoomScaleQuantized(latitudeDelta: 2.0),
+            scheduleMapCardZoomScaleMin,
+            accuracy: 0.0001
+        )
+        let local = scheduleMapUnzoomPoint(
+            origin: CGPoint(x: 100, y: 200),
+            screen: CGPoint(x: 130, y: 170),
+            scale: 0.5
+        )
+        XCTAssertEqual(local.x, 60, accuracy: 0.001)
+        XCTAssertEqual(local.y, -60, accuracy: 0.001)
     }
 
     func testFanMirrorsBelowTheAnchorNearTheTop() {

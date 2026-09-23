@@ -4,6 +4,7 @@ struct ScheduleMapFanOverlay: View {
     let cluster: ScheduleMapTaskCluster
     let origin: CGPoint
     let canvas: CGSize
+    var zoomScale: Double = 1
     @Binding var index: Double
     var onSelect: (ScheduleMapItem) -> Void
     var onDismiss: () -> Void
@@ -18,7 +19,12 @@ struct ScheduleMapFanOverlay: View {
         let count = cluster.items.count
         let center = min(max(0, count - 1), max(0, Int(index.rounded())))
         let selected = cluster.items.indices.contains(center) ? cluster.items[center] : nil
-        let side = scheduleMapReelSide(originX: Double(origin.x), canvasWidth: Double(canvas.width))
+        let visualCardWidth = scheduleMapCardWidth * zoomScale
+        let side = scheduleMapReelSide(
+            originX: Double(origin.x),
+            canvasWidth: Double(canvas.width),
+            cardWidth: visualCardWidth
+        )
         let cardHalf = scheduleMapCardWidth / 2
         let reelCenterX = side == "left"
             ? -(cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2)
@@ -31,37 +37,42 @@ struct ScheduleMapFanOverlay: View {
             : .easeOut(duration: revealed ? scheduleMapReelSnapSeconds : scheduleMapReelOpenSeconds)
         ZStack(alignment: .topLeading) {
             Color.clear
-            ForEach(Array(cluster.items.enumerated()), id: \.element.id) { itemIndex, item in
-                if let slot = scheduleMapReelPresentedSlot(offset: Double(itemIndex) - index, revealed: revealed) {
-                    reelTile(item: item, itemIndex: itemIndex)
-                        .scaleEffect(slot.scale)
-                        .opacity(slot.opacity)
-                        .offset(
-                            x: origin.x + CGFloat(reelCenterX) - CGFloat(scheduleMapReelTile / 2),
-                            y: origin.y + CGFloat(cardMidY + slot.y) - CGFloat(scheduleMapReelTile / 2)
-                        )
-                        .zIndex(10 - abs(Double(itemIndex) - index) * 10)
-                        .allowsHitTesting(false)
-                        .animation(tileAnimation, value: index)
-                        .animation(tileAnimation, value: revealed)
+            ZStack(alignment: .topLeading) {
+                Color.clear.frame(width: 1, height: 1)
+                ForEach(Array(cluster.items.enumerated()), id: \.element.id) { itemIndex, item in
+                    if let slot = scheduleMapReelPresentedSlot(offset: Double(itemIndex) - index, revealed: revealed) {
+                        reelTile(item: item, itemIndex: itemIndex)
+                            .scaleEffect(slot.scale)
+                            .opacity(slot.opacity)
+                            .offset(
+                                x: CGFloat(reelCenterX) - CGFloat(scheduleMapReelTile / 2),
+                                y: CGFloat(cardMidY + slot.y) - CGFloat(scheduleMapReelTile / 2)
+                            )
+                            .zIndex(10 - abs(Double(itemIndex) - index) * 10)
+                            .allowsHitTesting(false)
+                            .animation(tileAnimation, value: index)
+                            .animation(tileAnimation, value: revealed)
+                    }
                 }
-            }
-            if let selected {
-                selectedCard(selected, count: count)
-                    .offset(x: origin.x - CGFloat(scheduleMapCardWidth / 2), y: origin.y + CGFloat(cardTop))
-                    .zIndex(30)
+                if let selected {
+                    selectedCard(selected, count: count)
+                        .offset(x: -CGFloat(scheduleMapCardWidth / 2), y: CGFloat(cardTop))
+                        .zIndex(30)
+                        .allowsHitTesting(false)
+                }
+                Circle()
+                    .fill(selectedAccent(selected))
+                    .frame(width: CGFloat(anchor.pinSize), height: CGFloat(anchor.pinSize))
+                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                    .shadow(color: selectedAccent(selected).opacity(0.35), radius: 3, y: 1)
+                    .offset(
+                        x: -CGFloat(anchor.pinSize / 2),
+                        y: CGFloat(anchor.pinTop)
+                    )
                     .allowsHitTesting(false)
             }
-            Circle()
-                .fill(selectedAccent(selected))
-                .frame(width: CGFloat(anchor.pinSize), height: CGFloat(anchor.pinSize))
-                .overlay(Circle().stroke(.white, lineWidth: 2))
-                .shadow(color: selectedAccent(selected).opacity(0.35), radius: 3, y: 1)
-                .offset(
-                    x: origin.x - CGFloat(anchor.pinSize / 2),
-                    y: origin.y + CGFloat(anchor.pinTop)
-                )
-                .allowsHitTesting(false)
+            .scaleEffect(zoomScale, anchor: .topLeading)
+            .offset(x: origin.x, y: origin.y)
         }
         .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
         .contentShape(Rectangle())
@@ -100,7 +111,7 @@ struct ScheduleMapFanOverlay: View {
                         index: dragStartIndex ?? index,
                         dx: Double(value.translation.height),
                         count: cluster.items.count,
-                        step: scheduleMapReelStepPx
+                        step: scheduleMapReelStepPx * zoomScale
                     )
                 }
             }
@@ -133,7 +144,7 @@ struct ScheduleMapFanOverlay: View {
                         index: start,
                         dx: dy,
                         count: cluster.items.count,
-                        step: scheduleMapReelStepPx
+                        step: scheduleMapReelStepPx * zoomScale
                     ),
                     vx: vy,
                     count: cluster.items.count
@@ -145,27 +156,29 @@ struct ScheduleMapFanOverlay: View {
     }
 
     private func tappedReelIndex(at point: CGPoint, reelCenterX: Double, cardMidY: Double) -> Int? {
+        let local = scheduleMapUnzoomPoint(origin: origin, screen: point, scale: zoomScale)
         for itemIndex in cluster.items.indices {
             guard let slot = scheduleMapReelSlot(offset: Double(itemIndex) - index) else { continue }
             let rect = CGRect(
-                x: origin.x + CGFloat(reelCenterX) - CGFloat(scheduleMapReelTile / 2),
-                y: origin.y + CGFloat(cardMidY + slot.y) - CGFloat(scheduleMapReelTile / 2),
+                x: CGFloat(reelCenterX) - CGFloat(scheduleMapReelTile / 2),
+                y: CGFloat(cardMidY + slot.y) - CGFloat(scheduleMapReelTile / 2),
                 width: CGFloat(scheduleMapReelTile),
                 height: CGFloat(scheduleMapReelTile)
             )
-            if rect.contains(point) { return itemIndex }
+            if rect.contains(local) { return itemIndex }
         }
         return nil
     }
 
     private func tappedSelectedCard(at point: CGPoint, cardTop: Double) -> Bool {
-        CGRect(
-            x: origin.x - CGFloat(scheduleMapCardWidth / 2),
-            y: origin.y + CGFloat(cardTop),
+        let local = scheduleMapUnzoomPoint(origin: origin, screen: point, scale: zoomScale)
+        return CGRect(
+            x: -CGFloat(scheduleMapCardWidth / 2),
+            y: CGFloat(cardTop),
             width: CGFloat(scheduleMapCardWidth),
             height: CGFloat(scheduleMapCardHeight)
         )
-        .contains(point)
+        .contains(local)
     }
 
     private func reelTile(item: ScheduleMapItem, itemIndex: Int) -> some View {
