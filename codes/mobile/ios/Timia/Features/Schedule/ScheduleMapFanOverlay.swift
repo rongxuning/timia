@@ -12,6 +12,7 @@ struct ScheduleMapFanOverlay: View {
     @State private var dragStartIndex: Double?
     @State private var dragStartedAt: Date?
     @State private var dragActive = false
+    @State private var revealed = false
 
     var body: some View {
         let count = cluster.items.count
@@ -25,10 +26,13 @@ struct ScheduleMapFanOverlay: View {
         let anchor = scheduleMapAnchorOffsets()
         let cardTop = anchor.cardTop
         let cardMidY = cardTop + scheduleMapCardHeight / 2
+        let tileAnimation: Animation? = dragActive
+            ? nil
+            : .easeOut(duration: revealed ? scheduleMapReelSnapSeconds : scheduleMapReelOpenSeconds)
         ZStack(alignment: .topLeading) {
             Color.clear
             ForEach(Array(cluster.items.enumerated()), id: \.element.id) { itemIndex, item in
-                if let slot = scheduleMapReelSlot(offset: Double(itemIndex) - index) {
+                if let slot = scheduleMapReelPresentedSlot(offset: Double(itemIndex) - index, revealed: revealed) {
                     reelTile(item: item, itemIndex: itemIndex)
                         .scaleEffect(slot.scale)
                         .opacity(slot.opacity)
@@ -38,7 +42,8 @@ struct ScheduleMapFanOverlay: View {
                         )
                         .zIndex(10 - abs(Double(itemIndex) - index) * 10)
                         .allowsHitTesting(false)
-                        .animation(dragActive ? nil : .easeOut(duration: 0.22), value: index)
+                        .animation(tileAnimation, value: index)
+                        .animation(tileAnimation, value: revealed)
                 }
             }
             if let selected {
@@ -51,6 +56,7 @@ struct ScheduleMapFanOverlay: View {
                 .fill(selectedAccent(selected))
                 .frame(width: CGFloat(anchor.pinSize), height: CGFloat(anchor.pinSize))
                 .overlay(Circle().stroke(.white, lineWidth: 2))
+                .shadow(color: selectedAccent(selected).opacity(0.35), radius: 3, y: 1)
                 .offset(
                     x: origin.x - CGFloat(anchor.pinSize / 2),
                     y: origin.y + CGFloat(anchor.pinTop)
@@ -60,6 +66,14 @@ struct ScheduleMapFanOverlay: View {
         .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
         .contentShape(Rectangle())
         .gesture(reelDrag(center: center, reelCenterX: reelCenterX, cardMidY: cardMidY, cardTop: cardTop))
+        .onAppear {
+            revealed = false
+            DispatchQueue.main.async {
+                withAnimation(.easeOut(duration: scheduleMapReelOpenSeconds)) {
+                    revealed = true
+                }
+            }
+        }
     }
 
     private func selectedAccent(_ item: ScheduleMapItem?) -> Color {
@@ -104,7 +118,7 @@ struct ScheduleMapFanOverlay: View {
                 let vy = dy / dt
                 if isScheduleMapFanTap(dx: dx, dy: dy, speed: hypot(vx, vy)) {
                     if let hit = tappedReelIndex(at: value.location, reelCenterX: reelCenterX, cardMidY: cardMidY) {
-                        withAnimation(.easeOut(duration: 0.22)) { index = Double(hit) }
+                        withAnimation(.easeOut(duration: scheduleMapReelSnapSeconds)) { index = Double(hit) }
                         return
                     }
                     if tappedSelectedCard(at: value.location, cardTop: cardTop), cluster.items.indices.contains(center) {
@@ -124,7 +138,7 @@ struct ScheduleMapFanOverlay: View {
                     vx: vy,
                     count: cluster.items.count
                 )
-                withAnimation(.easeOut(duration: 0.22)) {
+                withAnimation(.easeOut(duration: scheduleMapReelSnapSeconds)) {
                     index = Double(snapped)
                 }
             }
@@ -184,34 +198,16 @@ struct ScheduleMapFanOverlay: View {
         let time = scheduleMapTimeLabel(startAt: item.startAt, endAt: item.endAt)
         let status = scheduleMapStatusLabel(item.status)
         let badge = scheduleMapCountDisplay(count)
-        return ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.caption.weight(.semibold)).foregroundStyle(style.foreground).lineLimit(1)
-                Text(time).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
-                Text(status).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
-                if let location = item.location?.trimmingCharacters(in: .whitespacesAndNewlines), !location.isEmpty {
-                    Text(location).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(width: CGFloat(scheduleMapCardWidth), height: CGFloat(scheduleMapCardHeight), alignment: .topLeading)
-            .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(style.accent.opacity(0.55), lineWidth: 1)
-            )
-            if !badge.isEmpty {
-                Text(badge)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .frame(minWidth: 20, minHeight: 20)
-                    .background(TimiaTheme.primary, in: Capsule())
-                    .overlay(Capsule().stroke(.white, lineWidth: 2))
-                    .offset(x: 8, y: -8)
-            }
-        }
+        return ScheduleMapTaskCardFace(
+            title: item.title,
+            timeLabel: time,
+            statusLabel: status,
+            locationLabel: item.location?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            badge: badge,
+            background: style.background,
+            accent: style.accent,
+            foreground: style.foreground
+        )
         .accessibilityLabel("\(item.title)，\(time)，\(status)")
     }
 }

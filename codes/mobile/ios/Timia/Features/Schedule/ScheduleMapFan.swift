@@ -111,6 +111,12 @@ func scheduleMapFanCloseTotalSeconds(count: Int) -> Double {
 let scheduleMapReelStepPx = 58.0
 let scheduleMapReelTile = 64.0
 let scheduleMapReelGap = 12.0
+let scheduleMapReelOpenSeconds = 0.32
+let scheduleMapReelSnapSeconds = 0.22
+let scheduleMapReelCloseSeconds = 0.28
+let scheduleMapReelEnterScale = 0.78
+let scheduleMapCardAccentWidth = 3.0
+let scheduleMapCardCornerRadius = 12.0
 
 struct ScheduleMapReelSlot: Equatable {
     let scale: Double
@@ -132,4 +138,11 @@ func scheduleMapReelSide(originX: Double, canvasWidth: Double) -> String {
     if originX < need + half { return "right" }
     if originX > canvasWidth - half { return "left" }
     return "left"
+}
+
+/// Closed tiles sit on the selected-card midline, then spread to their reel slots.
+func scheduleMapReelPresentedSlot(offset: Double, revealed: Bool) -> ScheduleMapReelSlot? {
+    guard let slot = scheduleMapReelSlot(offset: offset) else { return nil }
+    if revealed { return slot }
+    return ScheduleMapReelSlot(scale: scheduleMapReelEnterScale, opacity: 0, y: 0)
 }
