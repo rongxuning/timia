@@ -13,6 +13,8 @@ let scheduleMapFanAngleStepDeg = 16.0
 let scheduleMapFanMinAngleStepDeg = 10.0
 let scheduleMapFanMaxShift = 48.0
 let scheduleMapFanCardHeight = 88.0
+let scheduleMapCardWidth = 200.0
+let scheduleMapCardHeight = 96.0
 let scheduleMapFanTopPad = 24.0
 
 struct ScheduleMapFanSlot: Equatable {
@@ -110,6 +112,8 @@ func scheduleMapReelSlot(offset: Double) -> ScheduleMapReelSlot? {
 
 func scheduleMapReelSide(originX: Double, canvasWidth: Double) -> String {
     let need = scheduleMapReelTile + scheduleMapReelGap + 24
-    if originX < need + 110 { return "right" }
+    let half = scheduleMapCardWidth / 2 + 10
+    if originX < need + half { return "right" }
+    if originX > canvasWidth - half { return "left" }
     return "left"
 }

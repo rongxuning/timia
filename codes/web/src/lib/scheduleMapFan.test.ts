@@ -10,6 +10,9 @@ import {
   scheduleMapFanCardOffset,
   scheduleMapFanLayout,
   scheduleMapFanSlot,
+  SCHEDULE_MAP_CARD_HEIGHT,
+  SCHEDULE_MAP_CARD_WIDTH,
+  scheduleMapReelHit,
   scheduleMapReelSide,
   scheduleMapReelSlot,
   snapScheduleMapFanIndex,
@@ -110,5 +113,24 @@ describe("scheduleMapReelSide", () => {
   it("keeps the reel left unless the card is near the left edge", () => {
     assert.equal(scheduleMapReelSide(240, 400), "left");
     assert.equal(scheduleMapReelSide(40, 400), "right");
+  });
+});
+
+describe("schedule map card size", () => {
+  it("keeps the main card at a fixed 200 by 96", () => {
+    assert.equal(SCHEDULE_MAP_CARD_WIDTH, 200);
+    assert.equal(SCHEDULE_MAP_CARD_HEIGHT, 96);
+  });
+});
+
+describe("scheduleMapReelHit", () => {
+  it("opens the selected card even when the event target is not the button", () => {
+    assert.deepEqual(scheduleMapReelHit("open", null), { action: "open" });
+  });
+
+  it("focuses a reel tile by index", () => {
+    assert.deepEqual(scheduleMapReelHit("focus", "2"), { action: "focus", index: 2 });
+    assert.equal(scheduleMapReelHit("focus", "x"), null);
+    assert.equal(scheduleMapReelHit(null, "2"), null);
   });
 });

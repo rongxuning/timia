@@ -209,6 +209,7 @@ struct ScheduleMapView: View {
                     title: copy.title,
                     timeLabel: copy.timeLabel,
                     statusLabel: copy.statusLabel,
+                    locationLabel: (anchor.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
                     priority: anchor.priority,
                     isCompleted: isCalendarTaskCompleted(anchor.status)
                 )
@@ -241,6 +242,7 @@ struct ScheduleMapView: View {
                     title: copy.title,
                     timeLabel: copy.timeLabel,
                     statusLabel: copy.statusLabel,
+                    locationLabel: (item.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
                     priority: item.priority,
                     isCompleted: isCalendarTaskCompleted(item.status),
                     count: cluster.items.count
@@ -467,6 +469,7 @@ private struct ScheduleMapPinLabel: View {
     let title: String
     let timeLabel: String
     let statusLabel: String
+    var locationLabel: String = ""
     let priority: String?
     let isCompleted: Bool
     var count: Int = 1
@@ -493,9 +496,16 @@ private struct ScheduleMapPinLabel: View {
                         .font(.caption2)
                         .foregroundStyle(style.foreground.opacity(0.82))
                         .lineLimit(1)
+                    if !locationLabel.isEmpty {
+                        Text(locationLabel)
+                            .font(.caption2)
+                            .foregroundStyle(style.foreground.opacity(0.82))
+                            .lineLimit(1)
+                    }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(width: CGFloat(scheduleMapCardWidth), height: CGFloat(scheduleMapCardHeight), alignment: .topLeading)
                 .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)

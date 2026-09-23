@@ -1,3 +1,5 @@
+import { SCHEDULE_MAP_CARD_HEIGHT, SCHEDULE_MAP_CARD_WIDTH } from "./scheduleMapFan.ts";
+
 export type ScheduleMapPinItem = {
   id: string;
   title: string;
@@ -82,7 +84,9 @@ export function createScheduleMapPinElement(
   root.style.cssText = "border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 8px 16px rgb(15 23 42 / 0.12));";
 
   const card = document.createElement("div");
-  card.className = "relative max-w-[220px] rounded-xl border px-3 py-2 text-left";
+  card.className = "relative box-border overflow-hidden rounded-xl border px-3 py-2 text-left";
+  card.style.width = `${SCHEDULE_MAP_CARD_WIDTH}px`;
+  card.style.height = `${SCHEDULE_MAP_CARD_HEIGHT}px`;
   card.style.background = copy.background;
   card.style.borderColor = copy.accent;
   card.style.borderLeft = `3px solid ${copy.accent}`;
