@@ -117,6 +117,23 @@ final class ScheduleMapClustersTests: XCTestCase {
         )
     }
 
+    func testReelMotionMatchesWeb() {
+        XCTAssertEqual(scheduleMapReelOpenSeconds, 0.32, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapReelSnapSeconds, 0.22, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapReelCloseSeconds, 0.28, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapReelEnterScale, 0.78, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapCardAccentWidth, 3.0, accuracy: 0.0001)
+        XCTAssertEqual(scheduleMapCardCornerRadius, 12.0, accuracy: 0.0001)
+        let hidden = scheduleMapReelPresentedSlot(offset: 1, revealed: false)
+        XCTAssertEqual(hidden?.y ?? -1, 0, accuracy: 0.001)
+        XCTAssertEqual(hidden?.scale ?? 0, scheduleMapReelEnterScale, accuracy: 0.001)
+        XCTAssertEqual(hidden?.opacity ?? 1, 0, accuracy: 0.001)
+        let shown = scheduleMapReelPresentedSlot(offset: 1, revealed: true)
+        XCTAssertEqual(shown?.y ?? 0, scheduleMapReelStepPx, accuracy: 0.001)
+        XCTAssertLessThan(shown?.scale ?? 1, 1)
+        XCTAssertNil(scheduleMapReelPresentedSlot(offset: 2.01, revealed: true))
+    }
+
     func testFanMirrorsBelowTheAnchorNearTheTop() {
         let canvas = CGSize(width: 400, height: 600)
         let down = scheduleMapFanLayout(origin: CGPoint(x: 200, y: 40), canvas: canvas)

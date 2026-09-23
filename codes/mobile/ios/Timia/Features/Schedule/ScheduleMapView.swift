@@ -461,6 +461,76 @@ private func scheduleMapItemIdSet(_ items: [ScheduleMapItem]) -> [String] {
     items.map(\.id).sorted()
 }
 
+struct ScheduleMapTaskCardFace: View {
+    let title: String
+    let timeLabel: String
+    let statusLabel: String
+    var locationLabel: String = ""
+    var badge: String = ""
+    let background: Color
+    let accent: Color
+    let foreground: Color
+
+    var body: some View {
+        let radius = CGFloat(scheduleMapCardCornerRadius)
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(foreground)
+                    .lineLimit(1)
+                Text(timeLabel)
+                    .font(.caption2)
+                    .foregroundStyle(foreground.opacity(0.82))
+                    .lineLimit(1)
+                Text(statusLabel)
+                    .font(.caption2)
+                    .foregroundStyle(foreground.opacity(0.82))
+                    .lineLimit(1)
+                if !locationLabel.isEmpty {
+                    Text(locationLabel)
+                        .font(.caption2)
+                        .foregroundStyle(foreground.opacity(0.82))
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(width: CGFloat(scheduleMapCardWidth), height: CGFloat(scheduleMapCardHeight), alignment: .topLeading)
+            .background(background, in: shape)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(accent)
+                    .frame(width: CGFloat(scheduleMapCardAccentWidth))
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: radius,
+                            bottomLeadingRadius: radius,
+                            bottomTrailingRadius: 0,
+                            topTrailingRadius: 0,
+                            style: .continuous
+                        )
+                    )
+            }
+            .overlay(shape.stroke(accent.opacity(0.55), lineWidth: 1))
+
+            if !badge.isEmpty {
+                Text(badge)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(TimiaTheme.primary, in: Capsule())
+                    .overlay(Capsule().stroke(.white, lineWidth: 2))
+                    .shadow(color: Color.black.opacity(0.18), radius: 2, y: 1)
+                    .offset(x: 8, y: -8)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
 private struct ScheduleMapPinLabel: View {
     @Environment(\.colorScheme) private var colorScheme
 
@@ -478,54 +548,21 @@ private struct ScheduleMapPinLabel: View {
             colorScheme: colorScheme,
             isCompleted: isCompleted
         )
-        let badge = scheduleMapCountDisplay(count)
-        VStack(spacing: 4) {
-            ZStack(alignment: .topTrailing) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(style.foreground)
-                        .lineLimit(1)
-                    Text(timeLabel)
-                        .font(.caption2)
-                        .foregroundStyle(style.foreground.opacity(0.82))
-                        .lineLimit(1)
-                    Text(statusLabel)
-                        .font(.caption2)
-                        .foregroundStyle(style.foreground.opacity(0.82))
-                        .lineLimit(1)
-                    if !locationLabel.isEmpty {
-                        Text(locationLabel)
-                            .font(.caption2)
-                            .foregroundStyle(style.foreground.opacity(0.82))
-                            .lineLimit(1)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .frame(width: CGFloat(scheduleMapCardWidth), height: CGFloat(scheduleMapCardHeight), alignment: .topLeading)
-                .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(style.accent.opacity(0.55), lineWidth: 1)
-                )
-
-                if !badge.isEmpty {
-                    Text(badge)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 5)
-                        .frame(minWidth: 20, minHeight: 20)
-                        .background(TimiaTheme.primary, in: Capsule())
-                        .overlay(Capsule().stroke(.white, lineWidth: 2))
-                        .offset(x: 8, y: -8)
-                        .accessibilityHidden(true)
-                }
-            }
+        VStack(spacing: CGFloat(scheduleMapPinGap)) {
+            ScheduleMapTaskCardFace(
+                title: title,
+                timeLabel: timeLabel,
+                statusLabel: statusLabel,
+                locationLabel: locationLabel,
+                badge: scheduleMapCountDisplay(count),
+                background: style.background,
+                accent: style.accent,
+                foreground: style.foreground
+            )
 
             Circle()
                 .fill(style.accent)
-                .frame(width: 14, height: 14)
+                .frame(width: CGFloat(scheduleMapPinSize), height: CGFloat(scheduleMapPinSize))
                 .overlay(Circle().stroke(.white, lineWidth: 2))
                 .shadow(color: style.accent.opacity(0.35), radius: 3, y: 1)
         }
