@@ -265,8 +265,6 @@ struct ScheduleMapView: View {
                     canvas: geo.size,
                     index: $fanIndex,
                     onSelect: { item in
-                        openClusterId = nil
-                        openItemIds = []
                         onTaskTap(item.asScheduleTask())
                     },
                     onDismiss: {

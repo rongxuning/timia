@@ -12,6 +12,7 @@ import type { ScheduleMapCluster } from "@/lib/scheduleMapClusters";
 import {
   SCHEDULE_MAP_CARD_HEIGHT,
   SCHEDULE_MAP_CARD_WIDTH,
+  scheduleMapAnchorOffsets,
   SCHEDULE_MAP_FAN_CLOSE_MS,
   SCHEDULE_MAP_FAN_OPEN_MS,
   SCHEDULE_MAP_FAN_SNAP_MS,
@@ -66,7 +67,7 @@ export function ScheduleMapFanOverlay({
     side === "left"
       ? -(cardHalf + SCHEDULE_MAP_REEL_GAP + SCHEDULE_MAP_REEL_TILE / 2)
       : cardHalf + SCHEDULE_MAP_REEL_GAP + SCHEDULE_MAP_REEL_TILE / 2;
-  const cardTop = -(SCHEDULE_MAP_CARD_HEIGHT + 4);
+  const { cardTop, pinTop, pinSize } = scheduleMapAnchorOffsets();
   const cardMidY = cardTop + SCHEDULE_MAP_CARD_HEIGHT / 2;
 
   useEffect(() => {
@@ -198,7 +199,7 @@ export function ScheduleMapFanOverlay({
             type="button"
             data-reel-action="open"
             aria-label={fanAria(center + 1, count, selected.title, selectedTime, selectedStatus)}
-            className="pointer-events-auto absolute box-border overflow-hidden rounded-xl border px-3 py-2 text-left shadow-sm"
+            className="pointer-events-auto absolute text-left shadow-sm"
             style={{
               left: 0,
               top: cardTop,
@@ -206,42 +207,53 @@ export function ScheduleMapFanOverlay({
               height: SCHEDULE_MAP_CARD_HEIGHT,
               transform: "translate(-50%, 0)",
               zIndex: 30,
-              background: isSettledCalendarStatus(selected.status)
-                ? desaturateHex(selectedColors.bg)
-                : selectedColors.bg,
-              color: selectedColors.fg,
-              borderColor: scheduleMapPinColor(selected),
-              borderLeftWidth: 3,
+              overflow: "visible",
               transition: motion === "drag" ? "none" : `opacity ${SCHEDULE_MAP_FAN_CLOSE_MS}ms ease-out`,
             }}
           >
             {badge ? (
               <span
-                className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[11px] font-semibold leading-none text-white"
+                className="absolute -right-2 -top-2 z-[1] flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[11px] font-semibold leading-none text-white"
                 aria-label={countAria(count)}
               >
                 {badge}
               </span>
             ) : null}
-            <div className="truncate text-small font-semibold">{selected.title}</div>
-            <div className="mt-0.5 truncate text-caption" style={{ opacity: 0.82 }}>
-              {selectedTime}
-            </div>
-            <div className="truncate text-caption" style={{ opacity: 0.82 }}>
-              {selectedStatus}
-            </div>
-            {selected.location?.trim() ? (
-              <div className="truncate text-caption" style={{ opacity: 0.82 }}>
-                {selected.location.trim()}
+            <div
+              className="box-border h-full overflow-hidden rounded-xl border px-3 py-2"
+              style={{
+                background: isSettledCalendarStatus(selected.status)
+                  ? desaturateHex(selectedColors.bg)
+                  : selectedColors.bg,
+                color: selectedColors.fg,
+                borderColor: scheduleMapPinColor(selected),
+                borderLeftWidth: 3,
+              }}
+            >
+              <div className="truncate text-small font-semibold">{selected.title}</div>
+              <div className="mt-0.5 truncate text-caption" style={{ opacity: 0.82 }}>
+                {selectedTime}
               </div>
-            ) : null}
+              <div className="truncate text-caption" style={{ opacity: 0.82 }}>
+                {selectedStatus}
+              </div>
+              {selected.location?.trim() ? (
+                <div className="truncate text-caption" style={{ opacity: 0.82 }}>
+                  {selected.location.trim()}
+                </div>
+              ) : null}
+            </div>
           </button>
         ) : null}
 
         <span
           aria-hidden="true"
-          className="absolute left-0 top-0 block h-3.5 w-3.5 -translate-x-1/2 rounded-full border-2 border-white"
+          className="absolute left-0 block rounded-full border-2 border-white"
           style={{
+            top: pinTop,
+            width: pinSize,
+            height: pinSize,
+            transform: "translate(-50%, 0)",
             background: selected ? scheduleMapPinColor(selected) : "var(--color-primary, #4f46e5)",
             boxShadow: "0 1px 3px rgb(15 23 42 / 0.28)",
           }}

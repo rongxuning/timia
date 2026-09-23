@@ -336,7 +336,6 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
           }
           onIndexChange={setFanIndex}
           onSelect={(item) => {
-            closeFan();
             onItemClick(item);
           }}
           onDismiss={closeFan}

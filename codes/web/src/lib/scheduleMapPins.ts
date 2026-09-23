@@ -83,39 +83,17 @@ export function createScheduleMapPinElement(
   root.setAttribute("aria-label", copy.ariaLabel);
   root.style.cssText = "border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 8px 16px rgb(15 23 42 / 0.12));";
 
+  const wrap = document.createElement("div");
+  wrap.className = "relative";
+  wrap.style.width = `${SCHEDULE_MAP_CARD_WIDTH}px`;
+
   const card = document.createElement("div");
-  card.className = "relative box-border overflow-hidden rounded-xl border px-3 py-2 text-left";
+  card.className = "box-border overflow-hidden rounded-xl border px-3 py-2 text-left";
   card.style.width = `${SCHEDULE_MAP_CARD_WIDTH}px`;
   card.style.height = `${SCHEDULE_MAP_CARD_HEIGHT}px`;
   card.style.background = copy.background;
   card.style.borderColor = copy.accent;
   card.style.borderLeft = `3px solid ${copy.accent}`;
-  if (copy.countDisplay) {
-    const badge = document.createElement("span");
-    badge.className = "schedule-map-count-badge";
-    badge.textContent = copy.countDisplay;
-    badge.setAttribute("aria-hidden", "true");
-    badge.style.cssText = [
-      "position:absolute",
-      "top:-8px",
-      "right:-8px",
-      "min-width:20px",
-      "height:20px",
-      "padding:0 5px",
-      "border-radius:999px",
-      "display:flex",
-      "align-items:center",
-      "justify-content:center",
-      "background:var(--color-primary, #4f46e5)",
-      "color:#fff",
-      "font-size:11px",
-      "font-weight:600",
-      "line-height:1",
-      "border:2px solid #fff",
-      "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
-    ].join(";");
-    card.append(badge);
-  }
 
   const title = document.createElement("div");
   title.className = "truncate text-small font-semibold";
@@ -146,6 +124,35 @@ export function createScheduleMapPinElement(
     card.append(location);
   }
 
+  wrap.append(card);
+  if (copy.countDisplay) {
+    const badge = document.createElement("span");
+    badge.className = "schedule-map-count-badge";
+    badge.textContent = copy.countDisplay;
+    badge.setAttribute("aria-hidden", "true");
+    badge.style.cssText = [
+      "position:absolute",
+      "top:-8px",
+      "right:-8px",
+      "min-width:20px",
+      "height:20px",
+      "padding:0 5px",
+      "border-radius:999px",
+      "display:flex",
+      "align-items:center",
+      "justify-content:center",
+      "background:var(--color-primary, #4f46e5)",
+      "color:#fff",
+      "font-size:11px",
+      "font-weight:600",
+      "line-height:1",
+      "border:2px solid #fff",
+      "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
+      "z-index:1",
+    ].join(";");
+    wrap.append(badge);
+  }
+
   const pin = document.createElement("span");
   pin.setAttribute("aria-hidden", "true");
   pin.style.cssText = [
@@ -159,7 +166,7 @@ export function createScheduleMapPinElement(
     "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
   ].join(";");
 
-  root.append(card, pin);
+  root.append(wrap, pin);
   return root;
 }
 

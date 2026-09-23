@@ -12,6 +12,7 @@ import {
   scheduleMapFanSlot,
   SCHEDULE_MAP_CARD_HEIGHT,
   SCHEDULE_MAP_CARD_WIDTH,
+  scheduleMapAnchorOffsets,
   scheduleMapReelHit,
   scheduleMapReelSide,
   scheduleMapReelSlot,
@@ -120,6 +121,15 @@ describe("schedule map card size", () => {
   it("keeps the main card at a fixed 200 by 96", () => {
     assert.equal(SCHEDULE_MAP_CARD_WIDTH, 200);
     assert.equal(SCHEDULE_MAP_CARD_HEIGHT, 96);
+  });
+});
+
+describe("scheduleMapAnchorOffsets", () => {
+  it("keeps the pin bottom on the geographic point and the card above the pin", () => {
+    const offsets = scheduleMapAnchorOffsets();
+    assert.equal(offsets.pinTop + offsets.pinSize, 0);
+    assert.equal(offsets.cardTop + SCHEDULE_MAP_CARD_HEIGHT + 4, offsets.pinTop);
+    assert.equal(offsets.cardTop, -(SCHEDULE_MAP_CARD_HEIGHT + 4 + 14));
   });
 });
 

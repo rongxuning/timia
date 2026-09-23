@@ -12,6 +12,16 @@ export const SCHEDULE_MAP_FAN_MAX_SHIFT = 48;
 export const SCHEDULE_MAP_FAN_CARD_HEIGHT = 88;
 export const SCHEDULE_MAP_CARD_WIDTH = 200;
 export const SCHEDULE_MAP_CARD_HEIGHT = 96;
+export const SCHEDULE_MAP_PIN_SIZE = 14;
+export const SCHEDULE_MAP_PIN_GAP = 4;
+
+export function scheduleMapAnchorOffsets(): { cardTop: number; pinTop: number; pinSize: number } {
+  return {
+    cardTop: -(SCHEDULE_MAP_CARD_HEIGHT + SCHEDULE_MAP_PIN_GAP + SCHEDULE_MAP_PIN_SIZE),
+    pinTop: -SCHEDULE_MAP_PIN_SIZE,
+    pinSize: SCHEDULE_MAP_PIN_SIZE,
+  };
+}
 export const SCHEDULE_MAP_FAN_TOP_PAD = 24;
 export const SCHEDULE_MAP_FAN_OPEN_MS = 320;
 export const SCHEDULE_MAP_FAN_OPEN_STAGGER_MS = 40;
