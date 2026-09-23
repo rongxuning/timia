@@ -241,6 +241,9 @@ export default function MySchedulePage() {
               token={token}
               refreshNonce={scheduleRefreshNonce}
               onItemClick={openDrawer}
+              drawerOpen={
+                taskDrawerOpen && !!taskDrawerWorkspaceId && !!taskDrawerProjectId && !!taskDrawerItemId
+              }
             />
           ) : (
             <ScheduleBoard

@@ -32,6 +32,7 @@ type ScheduleMapCanvasProps = {
   loading: boolean;
   emptyMessage: string | null;
   onItemClick: (item: ScheduleMapItem) => void;
+  drawerOpen?: boolean;
 };
 
 function statusLabel(status: string): string {
@@ -74,7 +75,13 @@ function projectFanOrigin(map: maplibregl.Map, cluster: ScheduleMapCluster<Sched
   };
 }
 
-export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }: ScheduleMapCanvasProps) {
+export function ScheduleMapCanvas({
+  items,
+  loading,
+  emptyMessage,
+  onItemClick,
+  drawerOpen = false,
+}: ScheduleMapCanvasProps) {
   const t = useTranslations("scheduleMap");
   const placeFallback = t("chestPlaceFallback");
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -339,6 +346,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
             onItemClick(item);
           }}
           onDismiss={closeFan}
+          drawerOpen={drawerOpen}
         />
       ) : null}
     </div>

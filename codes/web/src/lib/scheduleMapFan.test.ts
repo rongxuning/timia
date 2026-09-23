@@ -16,6 +16,7 @@ import {
   scheduleMapReelHit,
   scheduleMapReelSide,
   scheduleMapReelSlot,
+  shouldDismissReelOnEscape,
   snapScheduleMapFanIndex,
 } from "./scheduleMapFan.ts";
 
@@ -142,5 +143,15 @@ describe("scheduleMapReelHit", () => {
     assert.deepEqual(scheduleMapReelHit("focus", "2"), { action: "focus", index: 2 });
     assert.equal(scheduleMapReelHit("focus", "x"), null);
     assert.equal(scheduleMapReelHit(null, "2"), null);
+  });
+});
+
+describe("shouldDismissReelOnEscape", () => {
+  it("keeps the reel open while the task drawer is open", () => {
+    assert.equal(shouldDismissReelOnEscape({ drawerOpen: true }), false);
+  });
+
+  it("dismisses the reel after the drawer is already closed", () => {
+    assert.equal(shouldDismissReelOnEscape({ drawerOpen: false }), true);
   });
 });

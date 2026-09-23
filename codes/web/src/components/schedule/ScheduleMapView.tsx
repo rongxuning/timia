@@ -22,6 +22,7 @@ type ScheduleMapViewProps = {
   token: string;
   refreshNonce?: number;
   onItemClick: (item: ScheduleMapItem) => void;
+  drawerOpen?: boolean;
 };
 
 const STATUS_LABEL_KEY = {
@@ -31,7 +32,12 @@ const STATUS_LABEL_KEY = {
   archived: "statusArchived",
 } as const;
 
-export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: ScheduleMapViewProps) {
+export function ScheduleMapView({
+  token,
+  refreshNonce = 0,
+  onItemClick,
+  drawerOpen = false,
+}: ScheduleMapViewProps) {
   const t = useTranslations("scheduleMap");
   const [filters, setFilters] = useState<ScheduleMapFilters>(() => defaultScheduleMapFilters());
   const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>([]);
@@ -223,6 +229,7 @@ export function ScheduleMapView({ token, refreshNonce = 0, onItemClick }: Schedu
         loading={loading}
         emptyMessage={emptyMessage}
         onItemClick={onItemClick}
+        drawerOpen={drawerOpen}
       />
     </section>
   );
