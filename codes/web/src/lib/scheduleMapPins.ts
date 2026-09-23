@@ -1,4 +1,17 @@
-import { SCHEDULE_MAP_CARD_HEIGHT, SCHEDULE_MAP_CARD_WIDTH } from "./scheduleMapFan";
+import {
+  SCHEDULE_MAP_CARD_HEIGHT,
+  SCHEDULE_MAP_CARD_WIDTH,
+  SCHEDULE_MAP_PIN_GAP,
+  SCHEDULE_MAP_PIN_SIZE,
+} from "./scheduleMapFan";
+
+export const SCHEDULE_MAP_PIN_BODY_CLASS = "schedule-map-pin-body";
+
+export function applyScheduleMapPinZoomScale(root: HTMLElement, scale: number): void {
+  const body = root.querySelector(`.${SCHEDULE_MAP_PIN_BODY_CLASS}`);
+  if (!(body instanceof HTMLElement)) return;
+  body.style.transform = `scale(${scale})`;
+}
 
 export type ScheduleMapPinItem = {
   id: string;
@@ -83,12 +96,16 @@ export function createScheduleMapPinElement(
   root.setAttribute("aria-label", copy.ariaLabel);
   root.style.cssText = "border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 8px 16px rgb(15 23 42 / 0.12));";
 
+  const body = document.createElement("div");
+  body.className = `${SCHEDULE_MAP_PIN_BODY_CLASS} flex flex-col items-center`;
+  body.style.cssText = "transform-origin:center bottom;transform:scale(1);";
+
   const wrap = document.createElement("div");
   wrap.className = "relative";
   wrap.style.width = `${SCHEDULE_MAP_CARD_WIDTH}px`;
 
   const card = document.createElement("div");
-  card.className = "box-border overflow-hidden rounded-xl border px-3 py-2 text-left";
+  card.className = "box-border overflow-hidden rounded-[10px] border px-2 py-1.5 text-left";
   card.style.width = `${SCHEDULE_MAP_CARD_WIDTH}px`;
   card.style.height = `${SCHEDULE_MAP_CARD_HEIGHT}px`;
   card.style.background = copy.background;
@@ -96,20 +113,20 @@ export function createScheduleMapPinElement(
   card.style.borderLeft = `3px solid ${copy.accent}`;
 
   const title = document.createElement("div");
-  title.className = "truncate text-small font-semibold";
+  title.className = "truncate text-[12px] font-semibold leading-tight";
   title.style.color = copy.foreground;
   title.textContent = copy.title;
   card.append(title);
 
   const time = document.createElement("div");
-  time.className = "mt-0.5 truncate text-caption";
+  time.className = "mt-0.5 truncate text-[10px] leading-tight";
   time.style.color = copy.foreground;
   time.style.opacity = "0.82";
   time.textContent = copy.timeLabel;
   card.append(time);
 
   const status = document.createElement("div");
-  status.className = "truncate text-caption";
+  status.className = "truncate text-[10px] leading-tight";
   status.style.color = copy.foreground;
   status.style.opacity = "0.82";
   status.textContent = copy.statusLabel;
@@ -117,7 +134,7 @@ export function createScheduleMapPinElement(
 
   if (copy.locationLabel) {
     const location = document.createElement("div");
-    location.className = "truncate text-caption";
+    location.className = "truncate text-[10px] leading-tight";
     location.style.color = copy.foreground;
     location.style.opacity = "0.82";
     location.textContent = copy.locationLabel;
@@ -132,21 +149,21 @@ export function createScheduleMapPinElement(
     badge.setAttribute("aria-hidden", "true");
     badge.style.cssText = [
       "position:absolute",
-      "top:-8px",
-      "right:-8px",
-      "min-width:20px",
-      "height:20px",
-      "padding:0 5px",
+      "top:-6px",
+      "right:-6px",
+      "min-width:16px",
+      "height:16px",
+      "padding:0 4px",
       "border-radius:999px",
       "display:flex",
       "align-items:center",
       "justify-content:center",
       "background:var(--color-primary, #4f46e5)",
       "color:#fff",
-      "font-size:11px",
+      "font-size:10px",
       "font-weight:600",
       "line-height:1",
-      "border:2px solid #fff",
+      "border:1.5px solid #fff",
       "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
       "z-index:1",
     ].join(";");
@@ -157,16 +174,17 @@ export function createScheduleMapPinElement(
   pin.setAttribute("aria-hidden", "true");
   pin.style.cssText = [
     "display:block",
-    "width:14px",
-    "height:14px",
-    "margin-top:4px",
+    `width:${SCHEDULE_MAP_PIN_SIZE}px`,
+    `height:${SCHEDULE_MAP_PIN_SIZE}px`,
+    `margin-top:${SCHEDULE_MAP_PIN_GAP}px`,
     "border-radius:999px",
     `background:${copy.accent}`,
     "border:2px solid #fff",
     "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
   ].join(";");
 
-  root.append(wrap, pin);
+  body.append(wrap, pin);
+  root.append(body);
   return root;
 }
 
