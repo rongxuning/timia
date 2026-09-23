@@ -18,12 +18,12 @@ struct ScheduleMapFanOverlay: View {
         let center = min(max(0, count - 1), max(0, Int(index.rounded())))
         let selected = cluster.items.indices.contains(center) ? cluster.items[center] : nil
         let side = scheduleMapReelSide(originX: Double(origin.x), canvasWidth: Double(canvas.width))
-        let cardHalf = 100.0
+        let cardHalf = scheduleMapCardWidth / 2
         let reelCenterX = side == "left"
             ? -(cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2)
             : cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2
-        let cardTop = -(scheduleMapFanCardHeight + 4)
-        let cardMidY = cardTop + scheduleMapFanCardHeight / 2
+        let cardTop = -(scheduleMapCardHeight + 4)
+        let cardMidY = cardTop + scheduleMapCardHeight / 2
         ZStack(alignment: .topLeading) {
             Color.clear
             ForEach(Array(cluster.items.enumerated()), id: \.element.id) { itemIndex, item in
@@ -42,7 +42,7 @@ struct ScheduleMapFanOverlay: View {
             }
             if let selected {
                 selectedCard(selected, count: count)
-                    .offset(x: origin.x - 100, y: origin.y + CGFloat(cardTop))
+                    .offset(x: origin.x - CGFloat(scheduleMapCardWidth / 2), y: origin.y + CGFloat(cardTop))
                     .zIndex(30)
                     .allowsHitTesting(false)
             }
@@ -141,8 +141,13 @@ struct ScheduleMapFanOverlay: View {
     }
 
     private func tappedSelectedCard(at point: CGPoint, cardTop: Double) -> Bool {
-        CGRect(x: origin.x - 100, y: origin.y + CGFloat(cardTop), width: 200, height: CGFloat(scheduleMapFanCardHeight))
-            .contains(point)
+        CGRect(
+            x: origin.x - CGFloat(scheduleMapCardWidth / 2),
+            y: origin.y + CGFloat(cardTop),
+            width: CGFloat(scheduleMapCardWidth),
+            height: CGFloat(scheduleMapCardHeight)
+        )
+        .contains(point)
     }
 
     private func reelTile(item: ScheduleMapItem, itemIndex: Int) -> some View {
@@ -184,9 +189,9 @@ struct ScheduleMapFanOverlay: View {
                     Text(location).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .frame(width: 200, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(width: CGFloat(scheduleMapCardWidth), height: CGFloat(scheduleMapCardHeight), alignment: .topLeading)
             .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

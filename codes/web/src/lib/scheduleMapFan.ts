@@ -10,6 +10,8 @@ export const SCHEDULE_MAP_FAN_ANGLE_STEP_DEG = 16;
 export const SCHEDULE_MAP_FAN_MIN_ANGLE_STEP_DEG = 10;
 export const SCHEDULE_MAP_FAN_MAX_SHIFT = 48;
 export const SCHEDULE_MAP_FAN_CARD_HEIGHT = 88;
+export const SCHEDULE_MAP_CARD_WIDTH = 200;
+export const SCHEDULE_MAP_CARD_HEIGHT = 96;
 export const SCHEDULE_MAP_FAN_TOP_PAD = 24;
 export const SCHEDULE_MAP_FAN_OPEN_MS = 320;
 export const SCHEDULE_MAP_FAN_OPEN_STAGGER_MS = 40;
@@ -115,7 +117,24 @@ export function scheduleMapReelSide(
   canvasWidth: number,
 ): "left" | "right" {
   const need = SCHEDULE_MAP_REEL_TILE + SCHEDULE_MAP_REEL_GAP + 24;
-  if (originX < need + 110) return "right";
-  if (originX > canvasWidth - 110) return "left";
+  const half = SCHEDULE_MAP_CARD_WIDTH / 2 + 10;
+  if (originX < need + half) return "right";
+  if (originX > canvasWidth - half) return "left";
   return "left";
+}
+
+export type ScheduleMapReelHit = { action: "open" } | { action: "focus"; index: number };
+
+export function scheduleMapReelHit(action: string | null, indexAttr: string | null): ScheduleMapReelHit | null {
+  if (action === "open") return { action: "open" };
+  if (action === "focus") {
+    const index = Number(indexAttr);
+    if (Number.isInteger(index)) return { action: "focus", index };
+  }
+  return null;
+}
+
+export function scheduleMapReelHitFromElement(el: Element | null): ScheduleMapReelHit | null {
+  const hit = el?.closest("[data-reel-action]") ?? null;
+  return scheduleMapReelHit(hit?.getAttribute("data-reel-action") ?? null, hit?.getAttribute("data-fan-index") ?? null);
 }

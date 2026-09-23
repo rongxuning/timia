@@ -10,7 +10,8 @@ import {
 import { scheduleMapPinColor, type ScheduleMapItem } from "@/lib/scheduleMapGeo";
 import type { ScheduleMapCluster } from "@/lib/scheduleMapClusters";
 import {
-  SCHEDULE_MAP_FAN_CARD_HEIGHT,
+  SCHEDULE_MAP_CARD_HEIGHT,
+  SCHEDULE_MAP_CARD_WIDTH,
   SCHEDULE_MAP_FAN_CLOSE_MS,
   SCHEDULE_MAP_FAN_OPEN_MS,
   SCHEDULE_MAP_FAN_SNAP_MS,
@@ -19,6 +20,7 @@ import {
   SCHEDULE_MAP_REEL_TILE,
   applyScheduleMapFanDrag,
   isScheduleMapFanTap,
+  scheduleMapReelHitFromElement,
   scheduleMapReelSide,
   scheduleMapReelSlot,
   snapScheduleMapFanIndex,
@@ -59,13 +61,13 @@ export function ScheduleMapFanOverlay({
   const center = Math.min(Math.max(0, count - 1), Math.max(0, Math.round(index)));
   const selected = cluster.items[center];
   const side = scheduleMapReelSide(origin.x, canvas.width);
-  const cardHalf = 100;
+  const cardHalf = SCHEDULE_MAP_CARD_WIDTH / 2;
   const reelCenterX =
     side === "left"
       ? -(cardHalf + SCHEDULE_MAP_REEL_GAP + SCHEDULE_MAP_REEL_TILE / 2)
       : cardHalf + SCHEDULE_MAP_REEL_GAP + SCHEDULE_MAP_REEL_TILE / 2;
-  const cardTop = -(SCHEDULE_MAP_FAN_CARD_HEIGHT + 4);
-  const cardMidY = cardTop + SCHEDULE_MAP_FAN_CARD_HEIGHT / 2;
+  const cardTop = -(SCHEDULE_MAP_CARD_HEIGHT + 4);
+  const cardMidY = cardTop + SCHEDULE_MAP_CARD_HEIGHT / 2;
 
   useEffect(() => {
     rootRef.current?.focus();
@@ -82,17 +84,16 @@ export function ScheduleMapFanOverlay({
     const vx = (dx / dt) * 1000;
     const vy = (dy / dt) * 1000;
     if (isScheduleMapFanTap(dx, dy, Math.hypot(vx, vy))) {
-      const target = event.target;
-      const hit = target instanceof HTMLElement ? target.closest("[data-reel-action]") : null;
-      const action = hit?.getAttribute("data-reel-action");
-      if (action === "open" && selected) {
+      // Pointer capture retargets event.target to the overlay; hit-test the point instead.
+      const underPoint = document.elementFromPoint(event.clientX, event.clientY);
+      const hit = scheduleMapReelHitFromElement(underPoint);
+      if (hit?.action === "open" && selected) {
         onSelect(selected);
         return;
       }
-      const tapped = Number(hit?.getAttribute("data-fan-index"));
-      if (Number.isInteger(tapped)) {
+      if (hit?.action === "focus") {
         setMotion("snap");
-        onIndexChange(tapped);
+        onIndexChange(hit.index);
         return;
       }
       onDismiss();
@@ -197,10 +198,12 @@ export function ScheduleMapFanOverlay({
             type="button"
             data-reel-action="open"
             aria-label={fanAria(center + 1, count, selected.title, selectedTime, selectedStatus)}
-            className="pointer-events-auto absolute w-[200px] rounded-xl border px-3 py-2 text-left shadow-sm"
+            className="pointer-events-auto absolute box-border overflow-hidden rounded-xl border px-3 py-2 text-left shadow-sm"
             style={{
               left: 0,
               top: cardTop,
+              width: SCHEDULE_MAP_CARD_WIDTH,
+              height: SCHEDULE_MAP_CARD_HEIGHT,
               transform: "translate(-50%, 0)",
               zIndex: 30,
               background: isSettledCalendarStatus(selected.status)

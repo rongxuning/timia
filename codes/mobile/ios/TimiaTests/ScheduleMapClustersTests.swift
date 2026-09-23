@@ -105,6 +105,8 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertNil(scheduleMapReelSlot(offset: 2.01))
         XCTAssertEqual(scheduleMapReelSide(originX: 240, canvasWidth: 400), "left")
         XCTAssertEqual(scheduleMapReelSide(originX: 40, canvasWidth: 400), "right")
+        XCTAssertEqual(scheduleMapCardWidth, 200)
+        XCTAssertEqual(scheduleMapCardHeight, 96)
         XCTAssertEqual(
             applyScheduleMapFanDrag(index: 1, dx: -scheduleMapReelStepPx, count: 5, step: scheduleMapReelStepPx),
             2,
