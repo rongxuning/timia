@@ -10,10 +10,15 @@ export const SCHEDULE_MAP_FAN_ANGLE_STEP_DEG = 16;
 export const SCHEDULE_MAP_FAN_MIN_ANGLE_STEP_DEG = 10;
 export const SCHEDULE_MAP_FAN_MAX_SHIFT = 48;
 export const SCHEDULE_MAP_FAN_CARD_HEIGHT = 88;
-export const SCHEDULE_MAP_CARD_WIDTH = 200;
-export const SCHEDULE_MAP_CARD_HEIGHT = 96;
-export const SCHEDULE_MAP_PIN_SIZE = 14;
-export const SCHEDULE_MAP_PIN_GAP = 4;
+export const SCHEDULE_MAP_CARD_WIDTH = 148;
+export const SCHEDULE_MAP_CARD_HEIGHT = 70;
+export const SCHEDULE_MAP_PIN_SIZE = 12;
+export const SCHEDULE_MAP_PIN_GAP = 3;
+export const SCHEDULE_MAP_CARD_ZOOM_IN_LATITUDE_DELTA = 0.02;
+export const SCHEDULE_MAP_CARD_ZOOM_OUT_LATITUDE_DELTA = 1.2;
+export const SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN = 0.56;
+export const SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX = 1.18;
+export const SCHEDULE_MAP_CARD_ZOOM_SCALE_STEP = 0.04;
 
 export function scheduleMapAnchorOffsets(): { cardTop: number; pinTop: number; pinSize: number } {
   return {
@@ -125,12 +130,39 @@ export function scheduleMapReelSlot(
 export function scheduleMapReelSide(
   originX: number,
   canvasWidth: number,
+  cardWidth = SCHEDULE_MAP_CARD_WIDTH,
 ): "left" | "right" {
   const need = SCHEDULE_MAP_REEL_TILE + SCHEDULE_MAP_REEL_GAP + 24;
-  const half = SCHEDULE_MAP_CARD_WIDTH / 2 + 10;
+  const half = cardWidth / 2 + 10;
   if (originX < need + half) return "right";
   if (originX > canvasWidth - half) return "left";
   return "left";
+}
+
+export function scheduleMapLatitudeDelta(north: number, south: number): number {
+  return Math.max(0.0001, north - south);
+}
+
+export function scheduleMapCardZoomScale(latitudeDelta: number): number {
+  const delta = Math.max(latitudeDelta, 0.0001);
+  const zoomedIn = Math.log(SCHEDULE_MAP_CARD_ZOOM_IN_LATITUDE_DELTA);
+  const zoomedOut = Math.log(SCHEDULE_MAP_CARD_ZOOM_OUT_LATITUDE_DELTA);
+  const t = (Math.log(delta) - zoomedOut) / (zoomedIn - zoomedOut);
+  const clamped = clamp(t, 0, 1);
+  return (
+    SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN +
+    (SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX - SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN) * clamped
+  );
+}
+
+export function scheduleMapCardZoomScaleQuantized(
+  latitudeDelta: number,
+  step = SCHEDULE_MAP_CARD_ZOOM_SCALE_STEP,
+): number {
+  const raw = scheduleMapCardZoomScale(latitudeDelta);
+  if (raw <= SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN) return SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN;
+  if (raw >= SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX) return SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX;
+  return clamp(Math.round(raw / step) * step, SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN, SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX);
 }
 
 export type ScheduleMapReelHit = { action: "open" } | { action: "focus"; index: number };

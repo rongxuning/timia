@@ -25,7 +25,15 @@ import {
   type ScheduleMapCluster,
 } from "@/lib/scheduleMapClusters";
 import { scheduleMapPinColor, type ScheduleMapItem } from "@/lib/scheduleMapGeo";
-import { createScheduleMapPinElement, scheduleMapCardCopy } from "@/lib/scheduleMapPins";
+import {
+  applyScheduleMapPinZoomScale,
+  createScheduleMapPinElement,
+  scheduleMapCardCopy,
+} from "@/lib/scheduleMapPins";
+import {
+  scheduleMapCardZoomScaleQuantized,
+  scheduleMapLatitudeDelta,
+} from "@/lib/scheduleMapFan";
 
 type ScheduleMapCanvasProps = {
   items: ScheduleMapItem[];
@@ -101,6 +109,8 @@ export function ScheduleMapCanvas({
   const [fanIndex, setFanIndex] = useState(0);
   const [fanOrigin, setFanOrigin] = useState<{ x: number; y: number } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [cardZoomScale, setCardZoomScale] = useState(1);
+  const cardZoomScaleRef = useRef(1);
   const labelsRef = useRef({
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
@@ -163,6 +173,18 @@ export function ScheduleMapCanvas({
     setCanvasSize(projected.canvas);
   }
 
+  function publishZoomScale(map: maplibregl.Map) {
+    const bounds = map.getBounds();
+    const next = scheduleMapCardZoomScaleQuantized(
+      scheduleMapLatitudeDelta(bounds.getNorth(), bounds.getSouth()),
+    );
+    cardZoomScaleRef.current = next;
+    setCardZoomScale((current) => (current === next ? current : next));
+    for (const marker of markersRef.current) {
+      applyScheduleMapPinZoomScale(marker.getElement(), next);
+    }
+  }
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -213,6 +235,7 @@ export function ScheduleMapCanvas({
           .setLngLat([cluster.location_lng, cluster.location_lat])
           .addTo(map);
         marker.getElement().style.zIndex = "2";
+        applyScheduleMapPinZoomScale(el, cardZoomScaleRef.current);
         markersRef.current.push(marker);
       }
       for (const marker of markersRef.current) {
@@ -246,6 +269,7 @@ export function ScheduleMapCanvas({
     applyItemsRef.current = applyItems;
 
     const projectOpen = () => {
+      publishZoomScale(map);
       const cluster = findScheduleMapClusterByItemIds(
         clustersRef.current,
         openItemIdsRef.current ? openItemIdsRef.current.split("\0") : [],
@@ -335,6 +359,7 @@ export function ScheduleMapCanvas({
           index={fanIndex}
           origin={fanOrigin}
           canvas={canvasSize}
+          zoomScale={cardZoomScale}
           unscheduled={t("unscheduled")}
           statusLabel={statusLabel}
           countAria={(count) => t("chestTasks", { count })}

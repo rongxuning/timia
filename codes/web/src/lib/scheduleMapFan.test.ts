@@ -12,7 +12,14 @@ import {
   scheduleMapFanSlot,
   SCHEDULE_MAP_CARD_HEIGHT,
   SCHEDULE_MAP_CARD_WIDTH,
+  SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX,
+  SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN,
+  SCHEDULE_MAP_PIN_GAP,
+  SCHEDULE_MAP_PIN_SIZE,
   scheduleMapAnchorOffsets,
+  scheduleMapCardZoomScale,
+  scheduleMapCardZoomScaleQuantized,
+  scheduleMapLatitudeDelta,
   scheduleMapReelHit,
   scheduleMapReelSide,
   scheduleMapReelSlot,
@@ -119,9 +126,9 @@ describe("scheduleMapReelSide", () => {
 });
 
 describe("schedule map card size", () => {
-  it("keeps the main card at a fixed 200 by 96", () => {
-    assert.equal(SCHEDULE_MAP_CARD_WIDTH, 200);
-    assert.equal(SCHEDULE_MAP_CARD_HEIGHT, 96);
+  it("keeps the main card at a compact 148 by 70", () => {
+    assert.equal(SCHEDULE_MAP_CARD_WIDTH, 148);
+    assert.equal(SCHEDULE_MAP_CARD_HEIGHT, 70);
   });
 });
 
@@ -129,8 +136,25 @@ describe("scheduleMapAnchorOffsets", () => {
   it("keeps the pin bottom on the geographic point and the card above the pin", () => {
     const offsets = scheduleMapAnchorOffsets();
     assert.equal(offsets.pinTop + offsets.pinSize, 0);
-    assert.equal(offsets.cardTop + SCHEDULE_MAP_CARD_HEIGHT + 4, offsets.pinTop);
-    assert.equal(offsets.cardTop, -(SCHEDULE_MAP_CARD_HEIGHT + 4 + 14));
+    assert.equal(offsets.cardTop + SCHEDULE_MAP_CARD_HEIGHT + SCHEDULE_MAP_PIN_GAP, offsets.pinTop);
+    assert.equal(offsets.cardTop, -(SCHEDULE_MAP_CARD_HEIGHT + SCHEDULE_MAP_PIN_GAP + SCHEDULE_MAP_PIN_SIZE));
+  });
+});
+
+describe("scheduleMapCardZoomScale", () => {
+  it("grows as the visible latitude span shrinks", () => {
+    const street = scheduleMapCardZoomScale(0.02);
+    const district = scheduleMapCardZoomScale(0.08);
+    const city = scheduleMapCardZoomScale(0.45);
+    const region = scheduleMapCardZoomScale(2);
+    assert.equal(street, SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX);
+    assert.equal(region, SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN);
+    assert.ok(street > district);
+    assert.ok(district > city);
+    assert.ok(city > region);
+    assert.equal(scheduleMapCardZoomScaleQuantized(0.02), SCHEDULE_MAP_CARD_ZOOM_SCALE_MAX);
+    assert.equal(scheduleMapCardZoomScaleQuantized(2), SCHEDULE_MAP_CARD_ZOOM_SCALE_MIN);
+    assert.equal(scheduleMapLatitudeDelta(40, 10), 30);
   });
 });
 

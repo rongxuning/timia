@@ -43,6 +43,7 @@ type ScheduleMapFanOverlayProps = {
   onSelect: (item: ScheduleMapItem) => void;
   onDismiss: () => void;
   drawerOpen?: boolean;
+  zoomScale?: number;
 };
 
 export function ScheduleMapFanOverlay({
@@ -58,6 +59,7 @@ export function ScheduleMapFanOverlay({
   onSelect,
   onDismiss,
   drawerOpen = false,
+  zoomScale = 1,
 }: ScheduleMapFanOverlayProps) {
   const dragRef = useRef<{ x: number; y: number; t: number; index: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -66,8 +68,9 @@ export function ScheduleMapFanOverlay({
   const count = cluster.items.length;
   const center = Math.min(Math.max(0, count - 1), Math.max(0, Math.round(index)));
   const selected = cluster.items[center];
-  const side = scheduleMapReelSide(origin.x, canvas.width);
+  const side = scheduleMapReelSide(origin.x, canvas.width, SCHEDULE_MAP_CARD_WIDTH * zoomScale);
   const cardHalf = SCHEDULE_MAP_CARD_WIDTH / 2;
+  const reelStep = SCHEDULE_MAP_REEL_STEP_PX * zoomScale;
   const reelCenterX =
     side === "left"
       ? -(cardHalf + SCHEDULE_MAP_REEL_GAP + SCHEDULE_MAP_REEL_TILE / 2)
@@ -125,7 +128,7 @@ export function ScheduleMapFanOverlay({
     }
     setMotion("snap");
     onIndexChange(
-      snapScheduleMapFanIndex(applyScheduleMapFanDrag(drag.index, dy, count, SCHEDULE_MAP_REEL_STEP_PX), vy, count),
+      snapScheduleMapFanIndex(applyScheduleMapFanDrag(drag.index, dy, count, reelStep), vy, count),
     );
   }
 
@@ -156,7 +159,7 @@ export function ScheduleMapFanOverlay({
       onPointerMove={(event) => {
         const drag = dragRef.current;
         if (!drag) return;
-        onIndexChange(applyScheduleMapFanDrag(drag.index, event.clientY - drag.y, count, SCHEDULE_MAP_REEL_STEP_PX));
+        onIndexChange(applyScheduleMapFanDrag(drag.index, event.clientY - drag.y, count, reelStep));
       }}
       onPointerUp={endPointer}
       onPointerCancel={endPointer}
@@ -176,7 +179,15 @@ export function ScheduleMapFanOverlay({
         }
       }}
     >
-      <div className="pointer-events-none absolute" style={{ left: origin.x, top: origin.y }}>
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          left: origin.x,
+          top: origin.y,
+          transform: `scale(${zoomScale})`,
+          transformOrigin: "0 0",
+        }}
+      >
         {cluster.items.map((item, itemIndex) => {
           const slot = scheduleMapReelSlot(itemIndex - index);
           if (!slot) return null;
@@ -236,14 +247,14 @@ export function ScheduleMapFanOverlay({
           >
             {badge ? (
               <span
-                className="absolute -right-2 -top-2 z-[1] flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-primary px-1 text-[11px] font-semibold leading-none text-white"
+                className="absolute -right-1.5 -top-1.5 z-[1] flex h-4 min-w-4 items-center justify-center rounded-full border-[1.5px] border-white bg-primary px-1 text-[10px] font-semibold leading-none text-white"
                 aria-label={countAria(count)}
               >
                 {badge}
               </span>
             ) : null}
             <div
-              className="box-border h-full overflow-hidden rounded-xl border px-3 py-2"
+              className="box-border h-full overflow-hidden rounded-[10px] border px-2 py-1.5"
               style={{
                 background: isSettledCalendarStatus(selected.status)
                   ? desaturateHex(selectedColors.bg)
@@ -253,15 +264,15 @@ export function ScheduleMapFanOverlay({
                 borderLeftWidth: 3,
               }}
             >
-              <div className="truncate text-small font-semibold">{selected.title}</div>
-              <div className="mt-0.5 truncate text-caption" style={{ opacity: 0.82 }}>
+              <div className="truncate text-[12px] font-semibold leading-tight">{selected.title}</div>
+              <div className="mt-0.5 truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
                 {selectedTime}
               </div>
-              <div className="truncate text-caption" style={{ opacity: 0.82 }}>
+              <div className="truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
                 {selectedStatus}
               </div>
               {selected.location?.trim() ? (
-                <div className="truncate text-caption" style={{ opacity: 0.82 }}>
+                <div className="truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
                   {selected.location.trim()}
                 </div>
               ) : null}
