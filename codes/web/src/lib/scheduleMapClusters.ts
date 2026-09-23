@@ -1,4 +1,4 @@
-import { groupScheduleMapItemsByCoordinate, scheduleMapCoordinateKey } from "./scheduleMapPins.ts";
+import { groupScheduleMapItemsByCoordinate, scheduleMapCoordinateKey } from "./scheduleMapPins";
 
 export const EARTH_RADIUS_M = 6_371_000;
 export const SCHEDULE_MAP_CLUSTER_RADIUS_M = 30;
