@@ -13,10 +13,15 @@ let scheduleMapFanAngleStepDeg = 16.0
 let scheduleMapFanMinAngleStepDeg = 10.0
 let scheduleMapFanMaxShift = 48.0
 let scheduleMapFanCardHeight = 88.0
-let scheduleMapCardWidth = 200.0
-let scheduleMapCardHeight = 96.0
-let scheduleMapPinSize = 14.0
-let scheduleMapPinGap = 4.0
+let scheduleMapCardWidth = 148.0
+let scheduleMapCardHeight = 70.0
+let scheduleMapPinSize = 12.0
+let scheduleMapPinGap = 3.0
+let scheduleMapCardZoomInLatitudeDelta = 0.02
+let scheduleMapCardZoomOutLatitudeDelta = 1.2
+let scheduleMapCardZoomScaleMin = 0.56
+let scheduleMapCardZoomScaleMax = 1.18
+let scheduleMapCardZoomScaleStep = 0.04
 
 struct ScheduleMapAnchorOffsets: Equatable {
     let cardTop: Double
@@ -116,7 +121,7 @@ let scheduleMapReelSnapSeconds = 0.22
 let scheduleMapReelCloseSeconds = 0.28
 let scheduleMapReelEnterScale = 0.78
 let scheduleMapCardAccentWidth = 3.0
-let scheduleMapCardCornerRadius = 12.0
+let scheduleMapCardCornerRadius = 10.0
 
 struct ScheduleMapReelSlot: Equatable {
     let scale: Double
@@ -132,12 +137,43 @@ func scheduleMapReelSlot(offset: Double) -> ScheduleMapReelSlot? {
     return ScheduleMapReelSlot(scale: scale, opacity: opacity, y: offset * scheduleMapReelStepPx)
 }
 
-func scheduleMapReelSide(originX: Double, canvasWidth: Double) -> String {
+func scheduleMapReelSide(
+    originX: Double,
+    canvasWidth: Double,
+    cardWidth: Double = scheduleMapCardWidth
+) -> String {
     let need = scheduleMapReelTile + scheduleMapReelGap + 24
-    let half = scheduleMapCardWidth / 2 + 10
+    let half = cardWidth / 2 + 10
     if originX < need + half { return "right" }
     if originX > canvasWidth - half { return "left" }
     return "left"
+}
+
+func scheduleMapCardZoomScale(latitudeDelta: Double) -> Double {
+    let delta = max(latitudeDelta, 0.0001)
+    let zoomedIn = log(scheduleMapCardZoomInLatitudeDelta)
+    let zoomedOut = log(scheduleMapCardZoomOutLatitudeDelta)
+    let t = (log(delta) - zoomedOut) / (zoomedIn - zoomedOut)
+    let clamped = min(1, max(0, t))
+    return scheduleMapCardZoomScaleMin
+        + (scheduleMapCardZoomScaleMax - scheduleMapCardZoomScaleMin) * clamped
+}
+
+func scheduleMapCardZoomScaleQuantized(
+    latitudeDelta: Double,
+    step: Double = scheduleMapCardZoomScaleStep
+) -> Double {
+    let snapped = (scheduleMapCardZoomScale(latitudeDelta: latitudeDelta) / step).rounded() * step
+    return min(scheduleMapCardZoomScaleMax, max(scheduleMapCardZoomScaleMin, snapped))
+}
+
+func scheduleMapUnzoomPoint(origin: CGPoint, screen: CGPoint, scale: Double) -> CGPoint {
+    let safe = max(scale, 0.0001)
+    return CGPoint(x: (screen.x - origin.x) / safe, y: (screen.y - origin.y) / safe)
+}
+
+func scheduleMapPinStackHeight() -> Double {
+    scheduleMapCardHeight + scheduleMapPinGap + scheduleMapPinSize
 }
 
 /// Closed tiles sit on the selected-card midline, then spread to their reel slots.

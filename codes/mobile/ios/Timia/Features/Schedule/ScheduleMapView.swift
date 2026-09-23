@@ -24,6 +24,7 @@ struct ScheduleMapView: View {
     @State private var loadGeneration = 0
     @State private var didFitCameraForFingerprint: String?
     @State private var loadError: String?
+    @State private var cardZoomScale = 1.0
 
     private var items: [ScheduleMapItem] { response?.items ?? [] }
     private var clusters: [ScheduleMapTaskCluster] {
@@ -181,6 +182,14 @@ struct ScheduleMapView: View {
                 MapCompass()
                 MapScaleView()
             }
+            .onMapCameraChange(frequency: .continuous) { context in
+                let next = scheduleMapCardZoomScaleQuantized(
+                    latitudeDelta: context.region.span.latitudeDelta
+                )
+                if abs(next - cardZoomScale) >= scheduleMapCardZoomScaleStep / 2 {
+                    cardZoomScale = next
+                }
+            }
             .overlay {
                 if let cluster = openCluster {
                     fanOverlay(cluster: cluster, proxy: proxy)
@@ -211,7 +220,8 @@ struct ScheduleMapView: View {
                     statusLabel: copy.statusLabel,
                     locationLabel: (anchor.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
                     priority: anchor.priority,
-                    isCompleted: isCalendarTaskCompleted(anchor.status)
+                    isCompleted: isCalendarTaskCompleted(anchor.status),
+                    zoomScale: cardZoomScale
                 )
             }
             .buttonStyle(.plain)
@@ -245,7 +255,8 @@ struct ScheduleMapView: View {
                     locationLabel: (item.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
                     priority: item.priority,
                     isCompleted: isCalendarTaskCompleted(item.status),
-                    count: cluster.items.count
+                    count: cluster.items.count,
+                    zoomScale: cardZoomScale
                 )
             }
             .buttonStyle(.plain)
@@ -263,6 +274,7 @@ struct ScheduleMapView: View {
                     cluster: cluster,
                     origin: CGPoint(x: global.x - frame.minX, y: global.y - frame.minY),
                     canvas: geo.size,
+                    zoomScale: cardZoomScale,
                     index: $fanIndex,
                     onSelect: { item in
                         onTaskTap(item.asScheduleTask())
@@ -475,28 +487,28 @@ struct ScheduleMapTaskCardFace: View {
         let radius = CGFloat(scheduleMapCardCornerRadius)
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(foreground)
                     .lineLimit(1)
                 Text(timeLabel)
-                    .font(.caption2)
+                    .font(.system(size: 10))
                     .foregroundStyle(foreground.opacity(0.82))
                     .lineLimit(1)
                 Text(statusLabel)
-                    .font(.caption2)
+                    .font(.system(size: 10))
                     .foregroundStyle(foreground.opacity(0.82))
                     .lineLimit(1)
                 if !locationLabel.isEmpty {
                     Text(locationLabel)
-                        .font(.caption2)
+                        .font(.system(size: 10))
                         .foregroundStyle(foreground.opacity(0.82))
                         .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
             .frame(width: CGFloat(scheduleMapCardWidth), height: CGFloat(scheduleMapCardHeight), alignment: .topLeading)
             .background(background, in: shape)
             .overlay(alignment: .leading) {
@@ -517,14 +529,14 @@ struct ScheduleMapTaskCardFace: View {
 
             if !badge.isEmpty {
                 Text(badge)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .frame(minWidth: 20, minHeight: 20)
+                    .padding(.horizontal, 4)
+                    .frame(minWidth: 16, minHeight: 16)
                     .background(TimiaTheme.primary, in: Capsule())
-                    .overlay(Capsule().stroke(.white, lineWidth: 2))
+                    .overlay(Capsule().stroke(.white, lineWidth: 1.5))
                     .shadow(color: Color.black.opacity(0.18), radius: 2, y: 1)
-                    .offset(x: 8, y: -8)
+                    .offset(x: 6, y: -6)
                     .accessibilityHidden(true)
             }
         }
@@ -541,6 +553,7 @@ private struct ScheduleMapPinLabel: View {
     let priority: String?
     let isCompleted: Bool
     var count: Int = 1
+    var zoomScale: Double = 1
 
     var body: some View {
         let style = SchedulePriorityStyle(
@@ -548,6 +561,7 @@ private struct ScheduleMapPinLabel: View {
             colorScheme: colorScheme,
             isCompleted: isCompleted
         )
+        let stackHeight = scheduleMapPinStackHeight()
         VStack(spacing: CGFloat(scheduleMapPinGap)) {
             ScheduleMapTaskCardFace(
                 title: title,
@@ -566,5 +580,12 @@ private struct ScheduleMapPinLabel: View {
                 .overlay(Circle().stroke(.white, lineWidth: 2))
                 .shadow(color: style.accent.opacity(0.35), radius: 3, y: 1)
         }
+        .scaleEffect(zoomScale, anchor: .bottom)
+        .animation(nil, value: zoomScale)
+        .frame(
+            width: CGFloat(scheduleMapCardWidth * zoomScale),
+            height: CGFloat(stackHeight * zoomScale),
+            alignment: .bottom
+        )
     }
 }
