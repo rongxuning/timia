@@ -107,6 +107,9 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertEqual(scheduleMapReelSide(originX: 40, canvasWidth: 400), "right")
         XCTAssertEqual(scheduleMapCardWidth, 200)
         XCTAssertEqual(scheduleMapCardHeight, 96)
+        let anchor = scheduleMapAnchorOffsets()
+        XCTAssertEqual(anchor.pinTop + anchor.pinSize, 0, accuracy: 0.0001)
+        XCTAssertEqual(anchor.cardTop + scheduleMapCardHeight + scheduleMapPinGap, anchor.pinTop, accuracy: 0.0001)
         XCTAssertEqual(
             applyScheduleMapFanDrag(index: 1, dx: -scheduleMapReelStepPx, count: 5, step: scheduleMapReelStepPx),
             2,

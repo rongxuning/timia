@@ -15,6 +15,22 @@ let scheduleMapFanMaxShift = 48.0
 let scheduleMapFanCardHeight = 88.0
 let scheduleMapCardWidth = 200.0
 let scheduleMapCardHeight = 96.0
+let scheduleMapPinSize = 14.0
+let scheduleMapPinGap = 4.0
+
+struct ScheduleMapAnchorOffsets: Equatable {
+    let cardTop: Double
+    let pinTop: Double
+    let pinSize: Double
+}
+
+func scheduleMapAnchorOffsets() -> ScheduleMapAnchorOffsets {
+    ScheduleMapAnchorOffsets(
+        cardTop: -(scheduleMapCardHeight + scheduleMapPinGap + scheduleMapPinSize),
+        pinTop: -scheduleMapPinSize,
+        pinSize: scheduleMapPinSize
+    )
+}
 let scheduleMapFanTopPad = 24.0
 
 struct ScheduleMapFanSlot: Equatable {

@@ -22,7 +22,8 @@ struct ScheduleMapFanOverlay: View {
         let reelCenterX = side == "left"
             ? -(cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2)
             : cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2
-        let cardTop = -(scheduleMapCardHeight + 4)
+        let anchor = scheduleMapAnchorOffsets()
+        let cardTop = anchor.cardTop
         let cardMidY = cardTop + scheduleMapCardHeight / 2
         ZStack(alignment: .topLeading) {
             Color.clear
@@ -48,9 +49,12 @@ struct ScheduleMapFanOverlay: View {
             }
             Circle()
                 .fill(selectedAccent(selected))
-                .frame(width: 14, height: 14)
+                .frame(width: CGFloat(anchor.pinSize), height: CGFloat(anchor.pinSize))
                 .overlay(Circle().stroke(.white, lineWidth: 2))
-                .offset(x: origin.x - 7, y: origin.y - 7)
+                .offset(
+                    x: origin.x - CGFloat(anchor.pinSize / 2),
+                    y: origin.y + CGFloat(anchor.pinTop)
+                )
                 .allowsHitTesting(false)
         }
         .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
