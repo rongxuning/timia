@@ -122,6 +122,7 @@
     "unscheduled": "未排期",
     "moreItems": "{title} 等{count}项",
     "pinAria": "{title}，{time}，{status}，{location}",
+    "pinClusterAria": "{title}，{time}，{status}，{location}，共 {count} 个任务，点按查看",
     "chestTasks": "{count} 个任务",
     "chestAria": "{place}，{count} 个任务，点按查看",
     "chestPlaceFallback": "这个地点",

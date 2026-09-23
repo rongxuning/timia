@@ -98,6 +98,20 @@ final class ScheduleMapClustersTests: XCTestCase {
         XCTAssertEqual(scheduleMapFanLayout(origin: CGPoint(x: 200, y: 400), canvas: CGSize(width: 400, height: 600)).direction, -1)
     }
 
+    func testReelStacksTilesVerticallyAndFlipsNearTheLeftEdge() {
+        XCTAssertEqual(scheduleMapReelSlot(offset: 0)?.y ?? -1, 0, accuracy: 0.001)
+        XCTAssertEqual(scheduleMapReelSlot(offset: 1)?.y ?? 0, 58, accuracy: 0.001)
+        XCTAssertLessThan(scheduleMapReelSlot(offset: 1)?.scale ?? 1, 1)
+        XCTAssertNil(scheduleMapReelSlot(offset: 2.01))
+        XCTAssertEqual(scheduleMapReelSide(originX: 240, canvasWidth: 400), "left")
+        XCTAssertEqual(scheduleMapReelSide(originX: 40, canvasWidth: 400), "right")
+        XCTAssertEqual(
+            applyScheduleMapFanDrag(index: 1, dx: -scheduleMapReelStepPx, count: 5, step: scheduleMapReelStepPx),
+            2,
+            accuracy: 0.0001
+        )
+    }
+
     func testFanMirrorsBelowTheAnchorNearTheTop() {
         let canvas = CGSize(width: 400, height: 600)
         let down = scheduleMapFanLayout(origin: CGPoint(x: 200, y: 40), canvas: canvas)

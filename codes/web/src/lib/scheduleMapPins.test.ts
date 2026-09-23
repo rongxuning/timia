@@ -4,6 +4,7 @@ import {
   groupScheduleMapItemsByCoordinate,
   scheduleMapCardCopy,
   scheduleMapChestCopy,
+  scheduleMapCountDisplay,
 } from "./scheduleMapPins.ts";
 
 const CHEST_LABELS = {
@@ -60,6 +61,7 @@ describe("scheduleMapCardCopy", () => {
     assert.equal(copy.statusLabel, "进行中");
     assert.equal(copy.locationLabel, "文汇小区");
     assert.equal(copy.count, 1);
+    assert.equal(copy.countDisplay, "");
   });
 
   it("puts status on the third line for completed tasks", () => {
@@ -72,11 +74,22 @@ describe("scheduleMapCardCopy", () => {
     assert.equal(copy.timeLabel, "未排期");
   });
 
-  it("summarizes stacked tasks and keeps the shared location", () => {
+  it("keeps the selected title and puts the stack count on a badge", () => {
     const copy = scheduleMapCardCopy([item(), item({ id: "b", title: "遛狗" })], LABELS, () => "09:00");
-    assert.equal(copy.title, "喂猫 等2项");
+    assert.equal(copy.title, "喂猫");
+    assert.equal(copy.title.includes("等"), false);
     assert.equal(copy.locationLabel, "文汇小区");
     assert.equal(copy.count, 2);
+    assert.equal(copy.countDisplay, "2");
+  });
+});
+
+describe("scheduleMapCountDisplay", () => {
+  it("hides a single task and caps the badge at 99+", () => {
+    assert.equal(scheduleMapCountDisplay(1), "");
+    assert.equal(scheduleMapCountDisplay(2), "2");
+    assert.equal(scheduleMapCountDisplay(99), "99");
+    assert.equal(scheduleMapCountDisplay(120), "99+");
   });
 });
 
