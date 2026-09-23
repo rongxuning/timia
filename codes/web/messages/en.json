@@ -122,6 +122,7 @@
     "unscheduled": "Unscheduled",
     "moreItems": "{title} ({count})",
     "pinAria": "{title}, {time}, {status}, {location}",
+    "pinClusterAria": "{title}, {time}, {status}, {location}, {count} tasks, double tap to browse",
     "chestTasks": "{count} tasks",
     "chestAria": "{place}, {count} tasks, double tap to open",
     "chestPlaceFallback": "This place",

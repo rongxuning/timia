@@ -5,7 +5,6 @@ struct ScheduleMapFanOverlay: View {
     let origin: CGPoint
     let canvas: CGSize
     @Binding var index: Double
-    var onCloseStart: () -> Void = {}
     var onSelect: (ScheduleMapItem) -> Void
     var onDismiss: () -> Void
 
@@ -13,73 +12,64 @@ struct ScheduleMapFanOverlay: View {
     @State private var dragStartIndex: Double?
     @State private var dragStartedAt: Date?
     @State private var dragActive = false
-    @State private var presented = false
-    @State private var closing = false
-    @State private var closeTask: Task<Void, Never>?
 
     var body: some View {
-        let layout = scheduleMapFanLayout(origin: origin, canvas: canvas)
         let count = cluster.items.count
         let center = min(max(0, count - 1), max(0, Int(index.rounded())))
-        let flying = presented && !closing
+        let selected = cluster.items.indices.contains(center) ? cluster.items[center] : nil
+        let side = scheduleMapReelSide(originX: Double(origin.x), canvasWidth: Double(canvas.width))
+        let cardHalf = 100.0
+        let reelCenterX = side == "left"
+            ? -(cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2)
+            : cardHalf + scheduleMapReelGap + scheduleMapReelTile / 2
+        let cardTop = -(scheduleMapFanCardHeight + 4)
+        let cardMidY = cardTop + scheduleMapFanCardHeight / 2
         ZStack(alignment: .topLeading) {
             Color.clear
-            Text("\(center + 1) / \(count)")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .position(x: origin.x + layout.shiftX, y: counterY(layout: layout))
-                .allowsHitTesting(false)
             ForEach(Array(cluster.items.enumerated()), id: \.element.id) { itemIndex, item in
-                if let slot = scheduleMapFanSlot(offset: Double(itemIndex) - index) {
-                    let point = scheduleMapFanCardOffset(indexOffset: Double(itemIndex) - index, layout: layout)
-                    fanCard(item: item, itemIndex: itemIndex)
-                        .rotationEffect(.degrees(flying ? slot.rotate * layout.direction : 0))
-                        .scaleEffect(flying ? slot.scale : 0.92)
-                        .opacity(flying ? slot.opacity : 0)
+                if let slot = scheduleMapReelSlot(offset: Double(itemIndex) - index) {
+                    reelTile(item: item, itemIndex: itemIndex)
+                        .scaleEffect(slot.scale)
+                        .opacity(slot.opacity)
                         .offset(
-                            x: origin.x + layout.shiftX + (flying ? point.x : 0) - 100,
-                            y: origin.y + (flying ? point.y : 0)
+                            x: origin.x + CGFloat(reelCenterX) - CGFloat(scheduleMapReelTile / 2),
+                            y: origin.y + CGFloat(cardMidY + slot.y) - CGFloat(scheduleMapReelTile / 2)
                         )
-                        .zIndex(20 - abs(Double(itemIndex) - index) * 10)
+                        .zIndex(10 - abs(Double(itemIndex) - index) * 10)
                         .allowsHitTesting(false)
-                        .animation(cardAnimation(itemIndex: itemIndex), value: presented)
-                        .animation(cardAnimation(itemIndex: itemIndex), value: closing)
                         .animation(dragActive ? nil : .easeOut(duration: 0.22), value: index)
                 }
             }
+            if let selected {
+                selectedCard(selected, count: count)
+                    .offset(x: origin.x - 100, y: origin.y + CGFloat(cardTop))
+                    .zIndex(30)
+                    .allowsHitTesting(false)
+            }
+            Circle()
+                .fill(selectedAccent(selected))
+                .frame(width: 14, height: 14)
+                .overlay(Circle().stroke(.white, lineWidth: 2))
+                .offset(x: origin.x - 7, y: origin.y - 7)
+                .allowsHitTesting(false)
         }
         .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
         .contentShape(Rectangle())
-        .gesture(fanDrag(layout: layout, center: center))
-        .onAppear {
-            presented = false
-            Task { @MainActor in
-                presented = true
-            }
-        }
-        .onDisappear {
-            closeTask?.cancel()
-        }
+        .gesture(reelDrag(center: center, reelCenterX: reelCenterX, cardMidY: cardMidY, cardTop: cardTop))
     }
 
-    private func counterY(layout: ScheduleMapFanLayout) -> CGFloat {
-        if layout.direction > 0 {
-            return origin.y + CGFloat(scheduleMapFanCardHeight) + 16
-        }
-        return origin.y - CGFloat(scheduleMapFanCardHeight) - 12
+    private func selectedAccent(_ item: ScheduleMapItem?) -> Color {
+        let style = SchedulePriorityStyle(
+            priority: item?.priority,
+            colorScheme: colorScheme,
+            isCompleted: isCalendarTaskCompleted(item?.status ?? "")
+        )
+        return style.accent
     }
 
-    private func cardAnimation(itemIndex: Int) -> Animation {
-        if closing {
-            return .easeIn(duration: 0.28).delay(Double(max(0, cluster.items.count - 1 - itemIndex)) * 0.032)
-        }
-        return .easeOut(duration: 0.32).delay(Double(itemIndex) * 0.04)
-    }
-
-    private func fanDrag(layout: ScheduleMapFanLayout, center: Int) -> some Gesture {
+    private func reelDrag(center: Int, reelCenterX: Double, cardMidY: Double, cardTop: Double) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
-                guard !closing else { return }
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
@@ -90,8 +80,9 @@ struct ScheduleMapFanOverlay: View {
                     dragActive = true
                     index = applyScheduleMapFanDrag(
                         index: dragStartIndex ?? index,
-                        dx: Double(value.translation.width),
-                        count: cluster.items.count
+                        dx: Double(value.translation.height),
+                        count: cluster.items.count,
+                        step: scheduleMapReelStepPx
                     )
                 }
             }
@@ -101,37 +92,32 @@ struct ScheduleMapFanOverlay: View {
                 dragStartIndex = nil
                 dragStartedAt = nil
                 dragActive = false
-                guard !closing else { return }
                 let dx = Double(value.translation.width)
                 let dy = Double(value.translation.height)
                 let elapsed = startedAt.map { value.time.timeIntervalSince($0) } ?? 0
                 let dt = max(0.001, elapsed)
                 let vx = dx / dt
                 let vy = dy / dt
-                if isScheduleMapFanDismissFlick(vx: vx, vy: vy) {
-                    beginClose(onDismiss)
-                    return
-                }
                 if isScheduleMapFanTap(dx: dx, dy: dy, speed: hypot(vx, vy)) {
-                    if let hit = tappedItemIndex(at: value.location, layout: layout) {
-                        if hit == center {
-                            if cluster.items.indices.contains(hit) {
-                                let item = cluster.items[hit]
-                                beginClose { onSelect(item) }
-                            }
-                        } else {
-                            withAnimation(.easeOut(duration: 0.22)) {
-                                index = Double(hit)
-                            }
-                        }
-                    } else {
-                        beginClose(onDismiss)
+                    if let hit = tappedReelIndex(at: value.location, reelCenterX: reelCenterX, cardMidY: cardMidY) {
+                        withAnimation(.easeOut(duration: 0.22)) { index = Double(hit) }
+                        return
                     }
+                    if tappedSelectedCard(at: value.location, cardTop: cardTop), cluster.items.indices.contains(center) {
+                        onSelect(cluster.items[center])
+                        return
+                    }
+                    onDismiss()
                     return
                 }
                 let snapped = snapScheduleMapFanIndex(
-                    index: applyScheduleMapFanDrag(index: start, dx: dx, count: cluster.items.count),
-                    vx: vx,
+                    index: applyScheduleMapFanDrag(
+                        index: start,
+                        dx: dy,
+                        count: cluster.items.count,
+                        step: scheduleMapReelStepPx
+                    ),
+                    vx: vy,
                     count: cluster.items.count
                 )
                 withAnimation(.easeOut(duration: 0.22)) {
@@ -140,42 +126,47 @@ struct ScheduleMapFanOverlay: View {
             }
     }
 
-    private func tappedItemIndex(at point: CGPoint, layout: ScheduleMapFanLayout) -> Int? {
-        var best: (index: Int, z: Double)?
+    private func tappedReelIndex(at point: CGPoint, reelCenterX: Double, cardMidY: Double) -> Int? {
         for itemIndex in cluster.items.indices {
-            let offset = Double(itemIndex) - index
-            guard scheduleMapFanSlot(offset: offset) != nil else { continue }
-            let card = scheduleMapFanCardOffset(indexOffset: offset, layout: layout)
+            guard let slot = scheduleMapReelSlot(offset: Double(itemIndex) - index) else { continue }
             let rect = CGRect(
-                x: origin.x + layout.shiftX + card.x - 100,
-                y: origin.y + card.y,
-                width: 200,
-                height: CGFloat(scheduleMapFanCardHeight)
+                x: origin.x + CGFloat(reelCenterX) - CGFloat(scheduleMapReelTile / 2),
+                y: origin.y + CGFloat(cardMidY + slot.y) - CGFloat(scheduleMapReelTile / 2),
+                width: CGFloat(scheduleMapReelTile),
+                height: CGFloat(scheduleMapReelTile)
             )
-            guard rect.contains(point) else { continue }
-            let z = 20 - abs(offset) * 10
-            if best == nil || z > best!.z {
-                best = (itemIndex, z)
-            }
+            if rect.contains(point) { return itemIndex }
         }
-        return best?.index
+        return nil
     }
 
-    private func beginClose(_ action: @escaping () -> Void) {
-        guard !closing else { return }
-        closing = true
-        presented = false
-        onCloseStart()
-        let wait = scheduleMapFanCloseTotalSeconds(count: cluster.items.count)
-        closeTask?.cancel()
-        closeTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
-            guard !Task.isCancelled else { return }
-            action()
-        }
+    private func tappedSelectedCard(at point: CGPoint, cardTop: Double) -> Bool {
+        CGRect(x: origin.x - 100, y: origin.y + CGFloat(cardTop), width: 200, height: CGFloat(scheduleMapFanCardHeight))
+            .contains(point)
     }
 
-    private func fanCard(item: ScheduleMapItem, itemIndex: Int) -> some View {
+    private func reelTile(item: ScheduleMapItem, itemIndex: Int) -> some View {
+        let style = SchedulePriorityStyle(
+            priority: item.priority,
+            colorScheme: colorScheme,
+            isCompleted: isCalendarTaskCompleted(item.status)
+        )
+        let time = scheduleMapTimeLabel(startAt: item.startAt, endAt: item.endAt)
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(item.title).font(.system(size: 11, weight: .semibold)).foregroundStyle(style.foreground).lineLimit(2)
+            Text(time).font(.system(size: 10)).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
+        }
+        .padding(6)
+        .frame(width: CGFloat(scheduleMapReelTile), height: CGFloat(scheduleMapReelTile), alignment: .topLeading)
+        .background(style.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(style.accent.opacity(0.55), lineWidth: 1)
+        )
+        .accessibilityLabel("第 \(itemIndex + 1) 张，共 \(cluster.items.count) 张，\(item.title)，\(time)")
+    }
+
+    private func selectedCard(_ item: ScheduleMapItem, count: Int) -> some View {
         let style = SchedulePriorityStyle(
             priority: item.priority,
             colorScheme: colorScheme,
@@ -183,19 +174,35 @@ struct ScheduleMapFanOverlay: View {
         )
         let time = scheduleMapTimeLabel(startAt: item.startAt, endAt: item.endAt)
         let status = scheduleMapStatusLabel(item.status)
-        return VStack(alignment: .leading, spacing: 2) {
-            Text(item.title).font(.caption.weight(.semibold)).foregroundStyle(style.foreground).lineLimit(1)
-            Text(time).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
-            Text(status).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
+        let badge = scheduleMapCountDisplay(count)
+        return ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title).font(.caption.weight(.semibold)).foregroundStyle(style.foreground).lineLimit(1)
+                Text(time).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
+                Text(status).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
+                if let location = item.location?.trimmingCharacters(in: .whitespacesAndNewlines), !location.isEmpty {
+                    Text(location).font(.caption2).foregroundStyle(style.foreground.opacity(0.82)).lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(width: 200, alignment: .leading)
+            .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(style.accent.opacity(0.55), lineWidth: 1)
+            )
+            if !badge.isEmpty {
+                Text(badge)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .frame(minWidth: 20, minHeight: 20)
+                    .background(TimiaTheme.primary, in: Capsule())
+                    .overlay(Capsule().stroke(.white, lineWidth: 2))
+                    .offset(x: 8, y: -8)
+            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .frame(width: 200, height: CGFloat(scheduleMapFanCardHeight), alignment: .topLeading)
-        .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(style.accent.opacity(0.55), lineWidth: 1)
-        )
-        .accessibilityLabel("第 \(itemIndex + 1) 张，共 \(cluster.items.count) 张，\(item.title)，\(time)，\(status)")
+        .accessibilityLabel("\(item.title)，\(time)，\(status)")
     }
 }

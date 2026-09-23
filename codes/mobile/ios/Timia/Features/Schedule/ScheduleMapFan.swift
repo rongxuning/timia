@@ -27,8 +27,8 @@ struct ScheduleMapFanLayout: Equatable {
     let angleStep: Double
 }
 
-func applyScheduleMapFanDrag(index: Double, dx: Double, count: Int) -> Double {
-    let raw = index - dx / scheduleMapFanStepPx
+func applyScheduleMapFanDrag(index: Double, dx: Double, count: Int, step: Double = scheduleMapFanStepPx) -> Double {
+    let raw = index - dx / step
     let maxIndex = Double(max(0, count - 1))
     if raw < 0 { return raw * scheduleMapFanEdgeResistance }
     if raw > maxIndex { return maxIndex + (raw - maxIndex) * scheduleMapFanEdgeResistance }
@@ -88,4 +88,28 @@ func scheduleMapFanCardOffset(indexOffset: Double, layout: ScheduleMapFanLayout)
 
 func scheduleMapFanCloseTotalSeconds(count: Int) -> Double {
     0.28 + Double(max(0, count - 1)) * 0.032
+}
+
+let scheduleMapReelStepPx = 58.0
+let scheduleMapReelTile = 64.0
+let scheduleMapReelGap = 12.0
+
+struct ScheduleMapReelSlot: Equatable {
+    let scale: Double
+    let opacity: Double
+    let y: Double
+}
+
+func scheduleMapReelSlot(offset: Double) -> ScheduleMapReelSlot? {
+    let absOffset = abs(offset)
+    guard absOffset <= 2 else { return nil }
+    let scale = absOffset <= 1 ? 1 - 0.22 * absOffset : 0.78 - 0.16 * (absOffset - 1)
+    let opacity = absOffset <= 1 ? 1 - 0.28 * absOffset : 0.72 - 0.32 * (absOffset - 1)
+    return ScheduleMapReelSlot(scale: scale, opacity: opacity, y: offset * scheduleMapReelStepPx)
+}
+
+func scheduleMapReelSide(originX: Double, canvasWidth: Double) -> String {
+    let need = scheduleMapReelTile + scheduleMapReelGap + 24
+    if originX < need + 110 { return "right" }
+    return "left"
 }

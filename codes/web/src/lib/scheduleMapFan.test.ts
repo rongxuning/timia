@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   SCHEDULE_MAP_FAN_STEP_PX,
+  SCHEDULE_MAP_REEL_STEP_PX,
   applyScheduleMapFanDrag,
   isScheduleMapFanDismissFlick,
   isScheduleMapFanTap,
@@ -9,6 +10,8 @@ import {
   scheduleMapFanCardOffset,
   scheduleMapFanLayout,
   scheduleMapFanSlot,
+  scheduleMapReelSide,
+  scheduleMapReelSlot,
   snapScheduleMapFanIndex,
 } from "./scheduleMapFan.ts";
 
@@ -85,5 +88,27 @@ describe("scheduleMapFanLayout", () => {
     assert.equal(upCenter.y, -SCHEDULE_MAP_FAN_CARD_HEIGHT);
     assert.ok(upSide.y < upCenter.y);
     assert.ok(upSide.x > 0);
+  });
+});
+
+describe("applyScheduleMapFanDrag reel step", () => {
+  it("moves one reel tile when dragged 58 px", () => {
+    assert.equal(applyScheduleMapFanDrag(1, -SCHEDULE_MAP_REEL_STEP_PX, 5, SCHEDULE_MAP_REEL_STEP_PX), 2);
+  });
+});
+
+describe("scheduleMapReelSlot", () => {
+  it("stacks tiles vertically and hides cards beyond ±2", () => {
+    assert.deepEqual(scheduleMapReelSlot(0), { scale: 1, opacity: 1, y: 0 });
+    assert.equal(scheduleMapReelSlot(1)?.y, 58);
+    assert.ok((scheduleMapReelSlot(1)?.scale ?? 1) < 1);
+    assert.equal(scheduleMapReelSlot(2.01), null);
+  });
+});
+
+describe("scheduleMapReelSide", () => {
+  it("keeps the reel left unless the card is near the left edge", () => {
+    assert.equal(scheduleMapReelSide(240, 400), "left");
+    assert.equal(scheduleMapReelSide(40, 400), "right");
   });
 });

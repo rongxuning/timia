@@ -25,12 +25,7 @@ import {
   type ScheduleMapCluster,
 } from "@/lib/scheduleMapClusters";
 import { scheduleMapPinColor, type ScheduleMapItem } from "@/lib/scheduleMapGeo";
-import {
-  createScheduleMapChestElement,
-  createScheduleMapPinElement,
-  scheduleMapCardCopy,
-  scheduleMapChestCopy,
-} from "@/lib/scheduleMapPins";
+import { createScheduleMapPinElement, scheduleMapCardCopy } from "@/lib/scheduleMapPins";
 
 type ScheduleMapCanvasProps = {
   items: ScheduleMapItem[];
@@ -92,7 +87,6 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const onItemClickRef = useRef(onItemClick);
   const placeFallbackRef = useRef(placeFallback);
   const openClusterIdRef = useRef<string | null>(null);
-  const chestExpandedRef = useRef(false);
   const openItemIdsRef = useRef("");
   const clustersRef = useRef<ScheduleMapCluster<ScheduleMapItem>[]>([]);
   const [openClusterId, setOpenClusterId] = useState<string | null>(null);
@@ -100,18 +94,16 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   const [fanIndex, setFanIndex] = useState(0);
   const [fanOrigin, setFanOrigin] = useState<{ x: number; y: number } | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-  const [chestExpanded, setChestExpanded] = useState(false);
   const labelsRef = useRef({
     unscheduled: t("unscheduled"),
     moreItems: (title: string, count: number) => t("moreItems", { title, count }),
     status: (status: string) => statusLabel(status),
     pinAria: (title: string, time: string, status: string, location: string) =>
       t("pinAria", { title, time, status, location }),
-    chestTasks: (count: number) => t("chestTasks", { count }),
-    chestAria: (place: string, count: number) => t("chestAria", { place, count }),
+    pinClusterAria: (title: string, time: string, status: string, location: string, count: number) =>
+      t("pinClusterAria", { title, time, status, location, count }),
   });
   itemsRef.current = items;
-  chestExpandedRef.current = chestExpanded;
   onItemClickRef.current = onItemClick;
   placeFallbackRef.current = placeFallback;
   labelsRef.current = {
@@ -120,8 +112,8 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     status: (status: string) => statusLabel(status),
     pinAria: (title: string, time: string, status: string, location: string) =>
       t("pinAria", { title, time, status, location }),
-    chestTasks: (count: number) => t("chestTasks", { count }),
-    chestAria: (place: string, count: number) => t("chestAria", { place, count }),
+    pinClusterAria: (title: string, time: string, status: string, location: string, count: number) =>
+      t("pinClusterAria", { title, time, status, location, count }),
   };
 
   const clusters = useMemo(
@@ -190,10 +182,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         placeFallback: placeFallbackRef.current,
       });
       for (const cluster of nextClusters) {
-        const el =
-          cluster.items.length === 1
-            ? createSinglePin(cluster, labels)
-            : createChest(cluster, labels);
+        const el = createClusterPin(cluster, labels);
         if (cluster.items.length === 1) {
           el.addEventListener("click", (event) => {
             event.stopPropagation();
@@ -224,10 +213,8 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
         if (!el.dataset.clusterId) continue;
         const open = el.dataset.clusterId === openClusterIdRef.current;
         el.setAttribute("aria-expanded", open ? "true" : "false");
-        const body = el.querySelector(".schedule-map-chest-body");
-        if (body instanceof HTMLElement) {
-          body.style.transform = open && chestExpandedRef.current ? "scale(1.04)" : "scale(1)";
-        }
+        el.style.opacity = open ? "0" : "1";
+        el.style.pointerEvents = open ? "none" : "auto";
       }
       const open = findScheduleMapClusterByItemIds(
         nextClusters,
@@ -291,20 +278,14 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   }, [items]);
 
   useEffect(() => {
-    if (openClusterId) setChestExpanded(true);
-  }, [openClusterId]);
-
-  useEffect(() => {
     openClusterIdRef.current = openClusterId;
     for (const marker of markersRef.current) {
       const el = marker.getElement();
       if (!el.dataset.clusterId) continue;
       const open = el.dataset.clusterId === openClusterId;
       el.setAttribute("aria-expanded", open ? "true" : "false");
-      const body = el.querySelector(".schedule-map-chest-body");
-      if (body instanceof HTMLElement) {
-        body.style.transform = open && chestExpanded ? "scale(1.04)" : "scale(1)";
-      }
+      el.style.opacity = open ? "0" : "1";
+      el.style.pointerEvents = open ? "none" : "auto";
     }
     const map = mapRef.current;
     if (!map) return;
@@ -323,12 +304,7 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
     map.dragPan.enable();
     map.scrollZoom.enable();
     map.touchZoomRotate.enable();
-  }, [openClusterId, chestExpanded]);
-
-  const fanPosition =
-    fanCluster && fanOrigin
-      ? Math.min(fanCluster.items.length, Math.max(1, Math.round(fanIndex) + 1))
-      : 1;
+  }, [openClusterId, openItemIds]);
 
   return (
     <div className="relative min-h-[60vh] flex-1 overflow-hidden rounded-b-xl bg-white lg:min-h-0">
@@ -352,14 +328,13 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
           index={fanIndex}
           origin={fanOrigin}
           canvas={canvasSize}
-          positionLabel={t("fanPosition", { current: fanPosition, total: fanCluster.items.length })}
           unscheduled={t("unscheduled")}
           statusLabel={statusLabel}
+          countAria={(count) => t("chestTasks", { count })}
           fanAria={(current, total, title, time, status) =>
             t("fanAria", { current, total, title, time, status })
           }
           onIndexChange={setFanIndex}
-          onCloseStart={() => setChestExpanded(false)}
           onSelect={(item) => {
             closeFan();
             onItemClick(item);
@@ -371,40 +346,31 @@ export function ScheduleMapCanvas({ items, loading, emptyMessage, onItemClick }:
   );
 }
 
-function createSinglePin(
+function createClusterPin(
   cluster: ScheduleMapCluster<ScheduleMapItem>,
   labels: {
     unscheduled: string;
     moreItems: (title: string, count: number) => string;
     status: (status: string) => string;
     pinAria: (title: string, time: string, status: string, location: string) => string;
+    pinClusterAria: (title: string, time: string, status: string, location: string, count: number) => string;
   },
 ) {
-  const copy = scheduleMapCardCopy(cluster.items, labels, formatScheduleTimeRange);
-  const colors = taskCalendarColors(cluster.items[0].priority);
-  const background = isSettledCalendarStatus(cluster.items[0].status)
-    ? desaturateHex(colors.bg)
-    : colors.bg;
+  const focus = scheduleMapClusterFocusIndex(cluster.items, new Date());
+  const shown = [cluster.items[focus], ...cluster.items.filter((_, index) => index !== focus)];
+  const copy = scheduleMapCardCopy(shown, labels, formatScheduleTimeRange);
+  const item = shown[0];
+  const colors = taskCalendarColors(item.priority);
+  const background = isSettledCalendarStatus(item.status) ? desaturateHex(colors.bg) : colors.bg;
+  const ariaLabel =
+    copy.count > 1
+      ? labels.pinClusterAria(copy.title, copy.timeLabel, copy.statusLabel, copy.locationLabel, copy.count)
+      : labels.pinAria(copy.title, copy.timeLabel, copy.statusLabel, copy.locationLabel);
   return createScheduleMapPinElement({
     ...copy,
-    accent: scheduleMapPinColor(cluster.items[0]),
+    accent: scheduleMapPinColor(item),
     background,
     foreground: colors.fg,
-    ariaLabel: labels.pinAria(copy.title, copy.timeLabel, copy.statusLabel, copy.locationLabel),
+    ariaLabel,
   });
-}
-
-function createChest(
-  cluster: ScheduleMapCluster<ScheduleMapItem>,
-  labels: {
-    chestTasks: (count: number) => string;
-    chestAria: (place: string, count: number) => string;
-  },
-) {
-  return createScheduleMapChestElement(
-    scheduleMapChestCopy(
-      { placeTitle: cluster.placeTitle, count: cluster.items.length },
-      labels,
-    ),
-  );
 }
