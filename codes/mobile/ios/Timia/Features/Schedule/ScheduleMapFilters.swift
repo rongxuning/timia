@@ -22,23 +22,30 @@ struct ScheduleMapPinCopy: Equatable {
     let title: String
     let timeLabel: String
     let statusLabel: String
+    let countDisplay: String
 }
 
 func scheduleMapStatusLabel(_ status: String) -> String {
     ScheduleMapStatus(rawValue: status)?.label ?? status
 }
 
+func scheduleMapCountDisplay(_ count: Int) -> String {
+    if count <= 1 { return "" }
+    return count > 99 ? "99+" : "\(count)"
+}
+
 func scheduleMapPinCopy(
     title: String,
-    extraCount: Int,
+    count: Int,
     startAt: String?,
     endAt: String?,
     status: String
 ) -> ScheduleMapPinCopy {
     ScheduleMapPinCopy(
-        title: extraCount > 1 ? "\(title) 等\(extraCount)项" : title,
+        title: title,
         timeLabel: scheduleMapTimeLabel(startAt: startAt, endAt: endAt),
-        statusLabel: scheduleMapStatusLabel(status)
+        statusLabel: scheduleMapStatusLabel(status),
+        countDisplay: scheduleMapCountDisplay(count)
     )
 }
 

@@ -22,8 +22,13 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function applyScheduleMapFanDrag(index: number, dx: number, count: number): number {
-  const raw = index - dx / SCHEDULE_MAP_FAN_STEP_PX;
+export function applyScheduleMapFanDrag(
+  index: number,
+  dx: number,
+  count: number,
+  step = SCHEDULE_MAP_FAN_STEP_PX,
+): number {
+  const raw = index - dx / step;
   const max = Math.max(0, count - 1);
   if (raw < 0) return raw * SCHEDULE_MAP_FAN_EDGE_RESISTANCE;
   if (raw > max) return max + (raw - max) * SCHEDULE_MAP_FAN_EDGE_RESISTANCE;
@@ -89,4 +94,28 @@ export function scheduleMapFanCardOffset(
 
 export function scheduleMapFanCloseTotalMs(count: number): number {
   return SCHEDULE_MAP_FAN_CLOSE_MS + Math.max(0, count - 1) * SCHEDULE_MAP_FAN_CLOSE_STAGGER_MS;
+}
+
+export const SCHEDULE_MAP_REEL_STEP_PX = 58;
+export const SCHEDULE_MAP_REEL_TILE = 64;
+export const SCHEDULE_MAP_REEL_GAP = 12;
+
+export function scheduleMapReelSlot(
+  offset: number,
+): { scale: number; opacity: number; y: number } | null {
+  const abs = Math.abs(offset);
+  if (abs > 2) return null;
+  const scale = abs <= 1 ? 1 - 0.22 * abs : 0.78 - 0.16 * (abs - 1);
+  const opacity = abs <= 1 ? 1 - 0.28 * abs : 0.72 - 0.32 * (abs - 1);
+  return { scale, opacity, y: offset * SCHEDULE_MAP_REEL_STEP_PX };
+}
+
+export function scheduleMapReelSide(
+  originX: number,
+  canvasWidth: number,
+): "left" | "right" {
+  const need = SCHEDULE_MAP_REEL_TILE + SCHEDULE_MAP_REEL_GAP + 24;
+  if (originX < need + 110) return "right";
+  if (originX > canvasWidth - 110) return "left";
+  return "left";
 }

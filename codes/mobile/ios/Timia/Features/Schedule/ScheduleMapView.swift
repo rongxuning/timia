@@ -21,7 +21,6 @@ struct ScheduleMapView: View {
     @State private var openClusterId: String?
     @State private var openItemIds: [String] = []
     @State private var fanIndex: Double = 0
-    @State private var fanClosing = false
     @State private var loadGeneration = 0
     @State private var didFitCameraForFingerprint: String?
     @State private var loadError: String?
@@ -171,8 +170,9 @@ struct ScheduleMapView: View {
                 ForEach(clusters) { cluster in
                     if cluster.items.count == 1, let anchor = cluster.items.first {
                         singlePin(anchor)
-                    } else if cluster.items.count >= 2 {
-                        chestPin(cluster)
+                    } else if cluster.items.count >= 2,
+                              scheduleMapItemIdSet(cluster.items) != openItemIds {
+                        clusterPin(cluster)
                     }
                 }
             }
@@ -192,7 +192,7 @@ struct ScheduleMapView: View {
     private func singlePin(_ anchor: ScheduleMapItem) -> some MapContent {
         let copy = scheduleMapPinCopy(
             title: anchor.title,
-            extraCount: 1,
+            count: 1,
             startAt: anchor.startAt,
             endAt: anchor.endAt,
             status: anchor.status
@@ -217,25 +217,37 @@ struct ScheduleMapView: View {
         }
     }
 
-    private func chestPin(_ cluster: ScheduleMapTaskCluster) -> some MapContent {
-        Annotation(
-            cluster.placeTitle,
+    private func clusterPin(_ cluster: ScheduleMapTaskCluster) -> some MapContent {
+        let focus = scheduleMapClusterFocusIndex(cluster.items, now: Date())
+        let item = cluster.items[focus]
+        let copy = scheduleMapPinCopy(
+            title: item.title,
+            count: cluster.items.count,
+            startAt: item.startAt,
+            endAt: item.endAt,
+            status: item.status
+        )
+        return Annotation(
+            copy.title,
             coordinate: ChinaCoordinate.mapKitCoordinate(lat: cluster.locationLat, lng: cluster.locationLng),
             anchor: .bottom
         ) {
             Button {
-                fanClosing = false
                 openClusterId = cluster.id
                 openItemIds = scheduleMapItemIdSet(cluster.items)
-                fanIndex = Double(scheduleMapClusterFocusIndex(cluster.items, now: Date()))
+                fanIndex = Double(focus)
             } label: {
-                ScheduleMapChestLabel(
-                    placeTitle: cluster.placeTitle,
-                    count: cluster.items.count,
-                    isExpanded: !fanClosing && scheduleMapItemIdSet(cluster.items) == openItemIds
+                ScheduleMapPinLabel(
+                    title: copy.title,
+                    timeLabel: copy.timeLabel,
+                    statusLabel: copy.statusLabel,
+                    priority: item.priority,
+                    isCompleted: isCalendarTaskCompleted(item.status),
+                    count: cluster.items.count
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(copy.title)，\(copy.timeLabel)，\(copy.statusLabel)，\(cluster.items.count) 个任务，点按查看")
         }
     }
 
@@ -250,17 +262,14 @@ struct ScheduleMapView: View {
                     origin: CGPoint(x: global.x - frame.minX, y: global.y - frame.minY),
                     canvas: geo.size,
                     index: $fanIndex,
-                    onCloseStart: { fanClosing = true },
                     onSelect: { item in
                         openClusterId = nil
                         openItemIds = []
-                        fanClosing = false
                         onTaskTap(item.asScheduleTask())
                     },
                     onDismiss: {
                         openClusterId = nil
                         openItemIds = []
-                        fanClosing = false
                     }
                 )
             }
@@ -460,6 +469,7 @@ private struct ScheduleMapPinLabel: View {
     let statusLabel: String
     let priority: String?
     let isCompleted: Bool
+    var count: Int = 1
 
     var body: some View {
         let style = SchedulePriorityStyle(
@@ -467,28 +477,43 @@ private struct ScheduleMapPinLabel: View {
             colorScheme: colorScheme,
             isCompleted: isCompleted
         )
+        let badge = scheduleMapCountDisplay(count)
         VStack(spacing: 4) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(style.foreground)
-                    .lineLimit(1)
-                Text(timeLabel)
-                    .font(.caption2)
-                    .foregroundStyle(style.foreground.opacity(0.82))
-                    .lineLimit(1)
-                Text(statusLabel)
-                    .font(.caption2)
-                    .foregroundStyle(style.foreground.opacity(0.82))
-                    .lineLimit(1)
+            ZStack(alignment: .topTrailing) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(style.foreground)
+                        .lineLimit(1)
+                    Text(timeLabel)
+                        .font(.caption2)
+                        .foregroundStyle(style.foreground.opacity(0.82))
+                        .lineLimit(1)
+                    Text(statusLabel)
+                        .font(.caption2)
+                        .foregroundStyle(style.foreground.opacity(0.82))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(style.accent.opacity(0.55), lineWidth: 1)
+                )
+
+                if !badge.isEmpty {
+                    Text(badge)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .frame(minWidth: 20, minHeight: 20)
+                        .background(TimiaTheme.primary, in: Capsule())
+                        .overlay(Capsule().stroke(.white, lineWidth: 2))
+                        .offset(x: 8, y: -8)
+                        .accessibilityHidden(true)
+                }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(style.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(style.accent.opacity(0.55), lineWidth: 1)
-            )
 
             Circle()
                 .fill(style.accent)

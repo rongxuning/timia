@@ -67,7 +67,7 @@ final class ScheduleMapFiltersTests: XCTestCase {
     func testPinCopyAddsStatusAsThirdLine() {
         let copy = scheduleMapPinCopy(
             title: "lucy辅导",
-            extraCount: 1,
+            count: 1,
             startAt: nil,
             endAt: nil,
             status: "done"
@@ -75,6 +75,26 @@ final class ScheduleMapFiltersTests: XCTestCase {
         XCTAssertEqual(copy.title, "lucy辅导")
         XCTAssertEqual(copy.timeLabel, "未排期")
         XCTAssertEqual(copy.statusLabel, "已完成")
+        XCTAssertEqual(copy.countDisplay, "")
+    }
+
+    func testPinCopyKeepsTitleAndPutsCountOnBadge() {
+        let copy = scheduleMapPinCopy(
+            title: "喂猫",
+            count: 3,
+            startAt: nil,
+            endAt: nil,
+            status: "todo"
+        )
+        XCTAssertEqual(copy.title, "喂猫")
+        XCTAssertFalse(copy.title.contains("等"))
+        XCTAssertEqual(copy.countDisplay, "3")
+    }
+
+    func testCountDisplayHidesSingleAndCapsAt99Plus() {
+        XCTAssertEqual(scheduleMapCountDisplay(1), "")
+        XCTAssertEqual(scheduleMapCountDisplay(2), "2")
+        XCTAssertEqual(scheduleMapCountDisplay(120), "99+")
     }
 
     func testPinCopyUsesPriorityBackgroundHex() {

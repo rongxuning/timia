@@ -21,6 +21,7 @@ export type ScheduleMapCardCopy = {
   statusLabel: string;
   locationLabel: string;
   count: number;
+  countDisplay: string;
 };
 
 export function scheduleMapCoordinateKey(lat: number, lng: number): string {
@@ -45,20 +46,24 @@ export function groupScheduleMapItemsByCoordinate<T extends { location_lat: numb
   return order.map((key) => buckets.get(key) ?? []);
 }
 
+export function scheduleMapCountDisplay(count: number): string {
+  if (count <= 1) return "";
+  return count > 99 ? "99+" : String(count);
+}
+
 export function scheduleMapCardCopy<T extends ScheduleMapPinItem>(
   items: T[],
   labels: ScheduleMapCardLabels,
   formatTime: (start?: string | null, end?: string | null) => string | null,
 ): ScheduleMapCardCopy {
   const first = items[0];
-  const title =
-    items.length > 1 ? labels.moreItems(first.title, items.length) : first.title;
   return {
-    title,
+    title: first.title,
     timeLabel: formatTime(first.start_at, first.end_at) ?? labels.unscheduled,
     statusLabel: labels.status(first.status ?? ""),
     locationLabel: (first.location ?? "").trim(),
     count: items.length,
+    countDisplay: scheduleMapCountDisplay(items.length),
   };
 }
 
@@ -77,10 +82,36 @@ export function createScheduleMapPinElement(
   root.style.cssText = "border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 8px 16px rgb(15 23 42 / 0.12));";
 
   const card = document.createElement("div");
-  card.className = "max-w-[220px] rounded-xl border px-3 py-2 text-left";
+  card.className = "relative max-w-[220px] rounded-xl border px-3 py-2 text-left";
   card.style.background = copy.background;
   card.style.borderColor = copy.accent;
   card.style.borderLeft = `3px solid ${copy.accent}`;
+  if (copy.countDisplay) {
+    const badge = document.createElement("span");
+    badge.className = "schedule-map-count-badge";
+    badge.textContent = copy.countDisplay;
+    badge.setAttribute("aria-hidden", "true");
+    badge.style.cssText = [
+      "position:absolute",
+      "top:-8px",
+      "right:-8px",
+      "min-width:20px",
+      "height:20px",
+      "padding:0 5px",
+      "border-radius:999px",
+      "display:flex",
+      "align-items:center",
+      "justify-content:center",
+      "background:var(--color-primary, #4f46e5)",
+      "color:#fff",
+      "font-size:11px",
+      "font-weight:600",
+      "line-height:1",
+      "border:2px solid #fff",
+      "box-shadow:0 1px 3px rgb(15 23 42 / 0.28)",
+    ].join(";");
+    card.append(badge);
+  }
 
   const title = document.createElement("div");
   title.className = "truncate text-small font-semibold";

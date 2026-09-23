@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** On Web and iOS schedule maps, collapse overlapping place tasks into one chest and open it as a swipeable poker-card fan.
+**Goal:** On Web and iOS schedule maps, collapse overlapping place tasks into one focus-task pin with a count badge, then open a left vertical reel plus the selected full card.
+
+**UX revision (2026-09-23):** Closed state is the focus task card (not a place chest) with a circular count badge and no「等N项」. Open state is a vertical reel on the left and the selected full card on the right; tapping that card opens the existing drawer / editor. Clustering, sort, focus, item-id identity, and camera lock are unchanged.
 
 **Architecture:** Keep `/views/schedule/map` unchanged. Add shared-semantics pure functions for 30 m complete-linkage clustering, sort/focus, and fan physics; Web and iOS each implement those functions. Markers stay MapLibre HTML / MapKit annotations; the open fan is a React or SwiftUI overlay anchored with `map.project` / `MapProxy.convert`.
 
