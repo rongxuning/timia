@@ -1,4 +1,4 @@
-import { SCHEDULE_MAP_CARD_HEIGHT, SCHEDULE_MAP_CARD_WIDTH } from "./scheduleMapFan";
+import { SCHEDULE_MAP_CARD_HEIGHT, SCHEDULE_MAP_CARD_WIDTH } from "./scheduleMapFan.ts";
 
 export type ScheduleMapPinItem = {
   id: string;
