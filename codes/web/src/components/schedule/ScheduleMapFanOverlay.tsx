@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   desaturateHex,
   formatScheduleTimeRange,
@@ -24,6 +25,7 @@ import {
   scheduleMapReelHitFromElement,
   scheduleMapReelSide,
   scheduleMapReelSlot,
+  shouldDismissReelOnEscape,
   snapScheduleMapFanIndex,
 } from "@/lib/scheduleMapFan";
 import { scheduleMapCountDisplay } from "@/lib/scheduleMapPins";
@@ -40,6 +42,7 @@ type ScheduleMapFanOverlayProps = {
   onIndexChange: (index: number) => void;
   onSelect: (item: ScheduleMapItem) => void;
   onDismiss: () => void;
+  drawerOpen?: boolean;
 };
 
 export function ScheduleMapFanOverlay({
@@ -54,10 +57,12 @@ export function ScheduleMapFanOverlay({
   onIndexChange,
   onSelect,
   onDismiss,
+  drawerOpen = false,
 }: ScheduleMapFanOverlayProps) {
   const dragRef = useRef<{ x: number; y: number; t: number; index: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [motion, setMotion] = useState<"enter" | "drag" | "snap">("enter");
+  const reelDismissible = shouldDismissReelOnEscape({ drawerOpen });
   const count = cluster.items.length;
   const center = Math.min(Math.max(0, count - 1), Math.max(0, Math.round(index)));
   const selected = cluster.items[center];
@@ -70,10 +75,28 @@ export function ScheduleMapFanOverlay({
   const { cardTop, pinTop, pinSize } = scheduleMapAnchorOffsets();
   const cardMidY = cardTop + SCHEDULE_MAP_CARD_HEIGHT / 2;
 
+  useEscapeDismiss({
+    open: reelDismissible,
+    onDismiss,
+    restoreFocus: false,
+  });
+
   useEffect(() => {
-    rootRef.current?.focus();
     setMotion("enter");
   }, [cluster.id]);
+
+  useEffect(() => {
+    if (drawerOpen) {
+      rootRef.current?.blur();
+      return;
+    }
+    rootRef.current?.focus();
+  }, [cluster.id, drawerOpen]);
+
+  function openSelected(item: ScheduleMapItem) {
+    rootRef.current?.blur();
+    onSelect(item);
+  }
 
   function endPointer(event: PointerEvent | React.PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
@@ -89,7 +112,7 @@ export function ScheduleMapFanOverlay({
       const underPoint = document.elementFromPoint(event.clientX, event.clientY);
       const hit = scheduleMapReelHitFromElement(underPoint);
       if (hit?.action === "open" && selected) {
-        onSelect(selected);
+        openSelected(selected);
         return;
       }
       if (hit?.action === "focus") {
@@ -118,7 +141,7 @@ export function ScheduleMapFanOverlay({
       ref={rootRef}
       tabIndex={0}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!drawerOpen}
       className="pointer-events-auto absolute inset-0 z-20 outline-none"
       style={{ touchAction: "none" }}
       onPointerDown={(event) => {
@@ -138,7 +161,7 @@ export function ScheduleMapFanOverlay({
       onPointerUp={endPointer}
       onPointerCancel={endPointer}
       onKeyDown={(event) => {
-        if (event.key === "Escape") onDismiss();
+        if (drawerOpen) return;
         if (event.key === "ArrowUp") {
           setMotion("snap");
           onIndexChange(Math.max(0, center - 1));
@@ -149,7 +172,7 @@ export function ScheduleMapFanOverlay({
         }
         if ((event.key === "Enter" || event.key === " ") && selected) {
           event.preventDefault();
-          onSelect(selected);
+          openSelected(selected);
         }
       }}
     >

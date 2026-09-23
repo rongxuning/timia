@@ -148,3 +148,8 @@ export function scheduleMapReelHitFromElement(el: Element | null): ScheduleMapRe
   const hit = el?.closest("[data-reel-action]") ?? null;
   return scheduleMapReelHit(hit?.getAttribute("data-reel-action") ?? null, hit?.getAttribute("data-fan-index") ?? null);
 }
+
+/** Escape closes the task drawer first; the reel stays until a later Escape. */
+export function shouldDismissReelOnEscape({ drawerOpen }: { drawerOpen: boolean }): boolean {
+  return !drawerOpen;
+}
