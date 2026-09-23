@@ -49,9 +49,14 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
     var onLevel: ((Float) -> Void)?
 
     var isRunning: Bool {
+        withState { _isRunning }
+    }
+
+    /// Synchronous so `NSLock.lock()` is not called from an `async` function.
+    private func withState<T>(_ body: () -> T) -> T {
         stateLock.lock()
         defer { stateLock.unlock() }
-        return _isRunning
+        return body()
     }
 
     private func activateAudioSession() throws {
@@ -71,9 +76,9 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
             isTapInstalled = false
             return
         }
-        _ = ObjCExceptionCatcher.perform({
+        _ = try? ObjCExceptionCatcher.perform {
             engine.inputNode.removeTap(onBus: 0)
-        }, error: nil)
+        }
         isTapInstalled = false
     }
 
@@ -83,9 +88,9 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
             if engine.isRunning {
                 engine.stop()
             }
-            _ = ObjCExceptionCatcher.perform({
+            _ = try? ObjCExceptionCatcher.perform {
                 engine.reset()
-            }, error: nil)
+            }
         }
         audioEngine = nil
     }
@@ -105,9 +110,7 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
         sessionID: UUID
     ) async -> AVAudioFormat? {
         for attempt in 0..<16 {
-            stateLock.lock()
-            let current = self.sessionID
-            stateLock.unlock()
+            let current = withState { self.sessionID }
             guard current == sessionID else { return nil }
             if let format = hardwareFormat(on: inputNode) {
                 return format
@@ -141,19 +144,17 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
         }
 
         let gate = levelSink.map { LevelGate($0) }
-        var caught: NSError?
-        let ok = ObjCExceptionCatcher.perform({
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-                request.append(buffer)
-                if let gate {
-                    gate.push(Self.rmsLevel(of: buffer))
+        do {
+            try ObjCExceptionCatcher.perform {
+                inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+                    request.append(buffer)
+                    if let gate {
+                        gate.push(Self.rmsLevel(of: buffer))
+                    }
                 }
             }
-        }, error: &caught)
-        guard ok else {
-            throw RecognizerError.engineFailedToStart(
-                caught?.localizedDescription ?? "安装麦克风监听失败"
-            )
+        } catch {
+            throw RecognizerError.engineFailedToStart(error.localizedDescription)
         }
     }
 
@@ -173,14 +174,15 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
 
     private func safeInputNode(of engine: AVAudioEngine) throws -> AVAudioInputNode {
         var node: AVAudioInputNode?
-        var caught: NSError?
-        let ok = ObjCExceptionCatcher.perform({
-            node = engine.inputNode
-        }, error: &caught)
-        guard ok, let node else {
-            throw RecognizerError.engineFailedToStart(
-                caught?.localizedDescription ?? "无法访问麦克风输入节点"
-            )
+        do {
+            try ObjCExceptionCatcher.perform {
+                node = engine.inputNode
+            }
+        } catch {
+            throw RecognizerError.engineFailedToStart(error.localizedDescription)
+        }
+        guard let node else {
+            throw RecognizerError.engineFailedToStart("无法访问麦克风输入节点")
         }
         return node
     }
@@ -206,12 +208,12 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
             return
         }
 
-        stateLock.lock()
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        tearDownEngine_locked()
-        let stillCurrent = self.sessionID == sessionID
-        stateLock.unlock()
+        let stillCurrent = withState { () -> Bool in
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            tearDownEngine_locked()
+            return self.sessionID == sessionID
+        }
         guard stillCurrent else { return }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -221,53 +223,57 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
             request.addsPunctuation = true
         }
 
-        stateLock.lock()
-        recognitionRequest = request
-        let engine = AVAudioEngine()
-        audioEngine = engine
-        stateLock.unlock()
+        let engine = withState { () -> AVAudioEngine in
+            recognitionRequest = request
+            let engine = AVAudioEngine()
+            audioEngine = engine
+            return engine
+        }
 
         try? await Task.sleep(for: .milliseconds(80))
-        stateLock.lock()
-        let afterSettle = self.sessionID == sessionID
-        if !afterSettle, audioEngine === engine {
-            recognitionRequest = nil
-            tearDownEngine_locked()
+        let afterSettle = withState { () -> Bool in
+            let afterSettle = self.sessionID == sessionID
+            if !afterSettle, audioEngine === engine {
+                recognitionRequest = nil
+                tearDownEngine_locked()
+            }
+            return afterSettle
         }
-        stateLock.unlock()
         guard afterSettle else { return }
 
         let inputNode: AVAudioInputNode
         do {
             inputNode = try safeInputNode(of: engine)
         } catch {
-            stateLock.lock()
-            recognitionRequest = nil
-            tearDownEngine_locked()
-            stateLock.unlock()
+            withState {
+                recognitionRequest = nil
+                tearDownEngine_locked()
+            }
             emitError(error)
             return
         }
 
         guard let format = await waitForValidFormat(on: inputNode, sessionID: sessionID) else {
-            stateLock.lock()
-            let still = self.sessionID == sessionID
-            if still {
-                recognitionRequest = nil
-                tearDownEngine_locked()
+            let still = withState { () -> Bool in
+                let still = self.sessionID == sessionID
+                if still {
+                    recognitionRequest = nil
+                    tearDownEngine_locked()
+                }
+                return still
             }
-            stateLock.unlock()
             if still { emitError(RecognizerError.invalidAudioFormat) }
             return
         }
 
-        stateLock.lock()
-        let beforeTap = self.sessionID == sessionID
-        if !beforeTap, audioEngine === engine {
-            recognitionRequest = nil
-            tearDownEngine_locked()
+        let beforeTap = withState { () -> Bool in
+            let beforeTap = self.sessionID == sessionID
+            if !beforeTap, audioEngine === engine {
+                recognitionRequest = nil
+                tearDownEngine_locked()
+            }
+            return beforeTap
         }
-        stateLock.unlock()
         guard beforeTap else { return }
 
         do {
@@ -283,14 +289,12 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
                 request: request,
                 levelSink: levelHandler
             )
-            stateLock.lock()
-            isTapInstalled = true
-            stateLock.unlock()
+            withState { isTapInstalled = true }
         } catch {
-            stateLock.lock()
-            recognitionRequest = nil
-            tearDownEngine_locked()
-            stateLock.unlock()
+            withState {
+                recognitionRequest = nil
+                tearDownEngine_locked()
+            }
             emitError(error)
             return
         }
@@ -299,28 +303,29 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
         do {
             try engine.start()
         } catch {
-            stateLock.lock()
-            let still = self.sessionID == sessionID
-            if still {
-                tearDownEngine_locked()
-                recognitionRequest = nil
+            let still = withState { () -> Bool in
+                let still = self.sessionID == sessionID
+                if still {
+                    tearDownEngine_locked()
+                    recognitionRequest = nil
+                }
+                return still
             }
-            stateLock.unlock()
             if still {
                 emitError(RecognizerError.engineFailedToStart(error.localizedDescription))
             }
             return
         }
 
-        stateLock.lock()
-        let afterStart = self.sessionID == sessionID
-        if !afterStart {
-            tearDownEngine_locked()
-            recognitionRequest = nil
-            stateLock.unlock()
-            return
+        let afterStart = withState { () -> Bool in
+            let afterStart = self.sessionID == sessionID
+            if !afterStart {
+                tearDownEngine_locked()
+                recognitionRequest = nil
+            }
+            return afterStart
         }
-        stateLock.unlock()
+        guard afterStart else { return }
 
         // Capture handlers / session under lock; callback must not touch
         // MainActor-isolated `self` before hopping to main.
@@ -337,10 +342,10 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
             }
         }
 
-        stateLock.lock()
-        recognitionTask = task
-        _isRunning = true
-        stateLock.unlock()
+        withState {
+            recognitionTask = task
+            _isRunning = true
+        }
     }
 
     private func handleRecognitionResult(
@@ -349,9 +354,7 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
         nsError: NSError?
     ) {
         // Always invoked on the main queue.
-        stateLock.lock()
-        let still = self.sessionID == sessionID
-        stateLock.unlock()
+        let still = withState { self.sessionID == sessionID }
         guard still else { return }
 
         if let partial {
@@ -385,14 +388,14 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
 
     func start() async throws {
         let newSession = UUID()
-        stateLock.lock()
-        sessionID = newSession
-        _isRunning = false
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        recognitionRequest = nil
-        tearDownEngine_locked()
-        stateLock.unlock()
+        withState {
+            sessionID = newSession
+            _isRunning = false
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            recognitionRequest = nil
+            tearDownEngine_locked()
+        }
 
         do {
             try activateAudioSession()
@@ -401,9 +404,7 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
         }
         try? await Task.sleep(for: .milliseconds(200))
 
-        stateLock.lock()
-        let still = sessionID == newSession
-        stateLock.unlock()
+        let still = withState { sessionID == newSession }
         guard still else { return }
 
         let availability = OnDeviceSupportChecker.check()
@@ -414,11 +415,10 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
     }
 
     func stopRecording() {
-        stateLock.lock()
-        let running = _isRunning || recognitionRequest != nil
-        let request = recognitionRequest
-        let engine = audioEngine
-        stateLock.unlock()
+        let snapshot = withState {
+            (_isRunning || recognitionRequest != nil, recognitionRequest, audioEngine)
+        }
+        let (running, request, engine) = snapshot
         guard running else { return }
         request?.endAudio()
         if let engine, engine.isRunning {
@@ -427,34 +427,33 @@ final class StickyNoteSpeechRecognizer: @unchecked Sendable {
     }
 
     func cancel() {
-        stateLock.lock()
-        sessionID = UUID()
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        recognitionRequest = nil
-        tearDownEngine_locked()
-        _isRunning = false
-        stateLock.unlock()
+        withState {
+            sessionID = UUID()
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            recognitionRequest = nil
+            tearDownEngine_locked()
+            _isRunning = false
+        }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func cleanup(expectedSession: UUID) {
-        stateLock.lock()
-        guard sessionID == expectedSession else {
-            stateLock.unlock()
-            return
+        let deactivate = withState { () -> Bool in
+            guard sessionID == expectedSession else { return false }
+            guard _isRunning || recognitionRequest != nil || isTapInstalled || audioEngine != nil else {
+                return false
+            }
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            recognitionRequest?.endAudio()
+            recognitionRequest = nil
+            tearDownEngine_locked()
+            _isRunning = false
+            return true
         }
-        guard _isRunning || recognitionRequest != nil || isTapInstalled || audioEngine != nil else {
-            stateLock.unlock()
-            return
+        if deactivate {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        recognitionRequest?.endAudio()
-        recognitionRequest = nil
-        tearDownEngine_locked()
-        _isRunning = false
-        stateLock.unlock()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }
