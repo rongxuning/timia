@@ -11,6 +11,7 @@
     "guide": "Guide",
     "newTask": "New task",
     "openStickyNote": "Open sticky notes",
+    "llmKeys": "Model keys",
     "logOut": "Log out",
     "userFallback": "User",
     "badgeAria": "{label}, {count, plural, one {# alert} other {# alerts}}"
@@ -38,7 +39,8 @@
     "edit": "Edit",
     "period": "Period",
     "mySchedule": "My schedule",
-    "workoutDetail": "Workout"
+    "workoutDetail": "Workout",
+    "llm-keys": "Model keys"
   },
   "locale": {
     "zh": "中文",
@@ -143,5 +145,62 @@
     "previewAria": "Preview {name}",
     "closePreview": "Close preview",
     "uploading": "Uploading…"
+  },
+  "llmKeys": {
+    "title": "Model keys",
+    "intro": "Keys are tried from lowest priority to highest. The first enabled key that is not cooling down is the primary key; the rest are standbys. Auth failures, empty balance, and timeouts switch to the next key and cool the failed one down.",
+    "add": "Add key",
+    "createTitle": "New key",
+    "editTitle": "Edit key",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "loading": "Loading…",
+    "empty": "No keys yet. After you add one, natural-language parsing uses these keys in order.",
+    "envFallback": "No keys are stored yet, so parsing still uses the server environment key ({model}, {baseUrl}). After you add and enable a key here, the environment variable is no longer used.",
+    "allDisabled": "Every saved key is disabled. Disabled keys do not fall back to the environment variable, so parsing reports that it is not configured.",
+    "makePrimary": "Make primary",
+    "probe": "Test",
+    "working": "Working…",
+    "edit": "Edit",
+    "enable": "Enable",
+    "disable": "Disable",
+    "delete": "Delete",
+    "deleteConfirm": "Delete “{name}”? Parsing will stop using this key.",
+    "lastUsed": "Last used",
+    "cooldown": "Cooling until",
+    "fields": {
+      "name": "Name",
+      "baseUrl": "Endpoint",
+      "apiKey": "API key",
+      "apiKeyKeep": "Leave blank to keep the current key",
+      "model": "Model",
+      "priority": "Priority",
+      "timeout": "Timeout (seconds)",
+      "timeoutDefault": "Default 30s",
+      "enabled": "Enabled"
+    },
+    "roles": {
+      "primary": "Primary",
+      "standby": "Standby",
+      "disabled": "Disabled"
+    },
+    "status": {
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "unknown": "Not tested"
+    },
+    "errors": {
+      "generic": "Could not save. Try again.",
+      "required": "Name, endpoint, and model are required",
+      "priority": "Priority must be a number",
+      "timeout": "Timeout must be between 1 and 120 seconds",
+      "api_key": "API key must be at least 8 characters",
+      "name_taken": "That name is already used",
+      "invalid_base_url": "Endpoint must be an http or https URL",
+      "name_invalid": "Name is invalid",
+      "not_found": "Key not found",
+      "admin_required": "System admin required"
+    }
   }
 }

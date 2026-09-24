@@ -10,7 +10,12 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
+from collections.abc import Callable
+
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.services.llm_api_keys import LlmKeyCandidate
 from app.schemas.views.schedule import (
     NaturalLanguageParseOut,
     NaturalLanguageParseRequest,
@@ -121,9 +126,10 @@ def build_minimax_request(
     payload: NaturalLanguageParseRequest,
     *,
     selected_date: date | None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     return {
-        "model": settings.minimax_model,
+        "model": model or settings.minimax_model,
         "messages": [
             {"role": "system", "content": _system_prompt(payload, selected_date=selected_date)},
             {"role": "user", "content": payload.text.strip()},
@@ -168,72 +174,104 @@ def parse_provider_response(response: dict[str, Any]) -> NaturalLanguageParseOut
     return parsed
 
 
-def parse_natural_language_task(
-    payload: NaturalLanguageParseRequest,
-) -> NaturalLanguageParseOut:
-    """Backwards-compatible entry point — passes ``selected_date`` through.
+def post_chat(candidate: LlmKeyCandidate, body: dict[str, Any]) -> dict[str, Any]:
+    url = f"{candidate.base_url.rstrip('/')}/chat/completions"
+    with httpx.Client(timeout=candidate.timeout_seconds) as client:
+        response = client.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {candidate.api_key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        )
+        response.raise_for_status()
+        return response.json()
 
-    The schedule view sends ``payload.selected_date`` so the model uses it as
-    the implicit date when the text is ambiguous. Pass it explicitly so any
-    future change to ``NaturalLanguageParseRequest.selected_date``'s
-    nullability does not silently break the schedule call.
-    """
-    if not settings.minimax_api_key:
+
+def probe_llm_key(candidate: LlmKeyCandidate) -> dict[str, Any]:
+    """Tiny completion used by the settings page to see whether one key answers."""
+    return post_chat(
+        candidate,
+        {
+            "model": candidate.model,
+            "messages": [{"role": "user", "content": "ping"}],
+            "max_completion_tokens": 16,
+            "temperature": 0,
+        },
+    )
+
+
+def run_chat_with_failover(
+    candidates: list[LlmKeyCandidate],
+    *,
+    request_for: Callable[[LlmKeyCandidate], dict[str, Any]],
+    poster: Callable[[LlmKeyCandidate, dict[str, Any]], dict[str, Any]],
+    on_success: Callable[[LlmKeyCandidate], None],
+    on_failure: Callable[[LlmKeyCandidate, Exception], None],
+) -> tuple[NaturalLanguageParseOut, str]:
+    if not candidates:
         raise NaturalLanguageConfigurationError("自然语言解析服务尚未配置")
 
-    url = f"{settings.minimax_base_url.rstrip('/')}/chat/completions"
-    try:
-        with httpx.Client(timeout=settings.minimax_timeout_seconds) as client:
-            response = client.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {settings.minimax_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=build_minimax_request(payload, selected_date=payload.selected_date),
-            )
-            response.raise_for_status()
-            body = response.json()
-    except (httpx.HTTPError, ValueError) as error:
-        raise NaturalLanguageProviderError("自然语言解析服务暂时不可用，请稍后重试") from error
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            raw = poster(candidate, request_for(candidate))
+        except (httpx.HTTPError, ValueError) as error:
+            on_failure(candidate, error)
+            last_error = error
+            continue
+        try:
+            parsed = parse_provider_response(raw)
+        except NaturalLanguageProviderError:
+            on_success(candidate)
+            raise
+        on_success(candidate)
+        return parsed, candidate.model
 
-    return parse_provider_response(body)
+    raise NaturalLanguageProviderError("自然语言解析服务暂时不可用，请稍后重试") from last_error
+
+
+def _parse(
+    db: Session,
+    payload: NaturalLanguageParseRequest,
+    *,
+    selected_date: date | None,
+) -> tuple[NaturalLanguageParseOut, str]:
+    from app.services.llm_api_keys import list_call_candidates, record_failure, record_success
+
+    return run_chat_with_failover(
+        list_call_candidates(db),
+        request_for=lambda key: build_minimax_request(
+            payload, selected_date=selected_date, model=key.model
+        ),
+        poster=post_chat,
+        on_success=record_success,
+        on_failure=record_failure,
+    )
+
+
+def parse_natural_language_task(
+    db: Session,
+    payload: NaturalLanguageParseRequest,
+) -> NaturalLanguageParseOut:
+    """Schedule entry point. Uses the page's selected date when the text has none."""
+    parsed, _provider = _parse(db, payload, selected_date=payload.selected_date)
+    return parsed
 
 
 def parse_natural_language_task_without_date(
+    db: Session,
     text: str,
     *,
     timezone: str,
     reference_time: datetime,
-) -> NaturalLanguageParseOut:
-    """Variant for sticky notes — no ``selected_date`` context.
-
-    The model is told to infer a date from the text itself; if it cannot, it
-    should leave ``start_at``/``end_at`` null and note the ambiguity.
-    """
-    if not settings.minimax_api_key:
-        raise NaturalLanguageConfigurationError("自然语言解析服务尚未配置")
-
+) -> tuple[NaturalLanguageParseOut, str]:
+    """Sticky-note entry point. The model infers a date, or leaves it empty."""
     payload = NaturalLanguageParseRequest(
         text=text,
         timezone=timezone,
         reference_time=reference_time,
         selected_date=reference_time.date(),  # temporary; only used to satisfy schema
     )
-    url = f"{settings.minimax_base_url.rstrip('/')}/chat/completions"
-    try:
-        with httpx.Client(timeout=settings.minimax_timeout_seconds) as client:
-            response = client.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {settings.minimax_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=build_minimax_request(payload, selected_date=None),
-            )
-            response.raise_for_status()
-            body = response.json()
-    except (httpx.HTTPError, ValueError) as error:
-        raise NaturalLanguageProviderError("自然语言解析服务暂时不可用，请稍后重试") from error
-
-    return parse_provider_response(body)
+    return _parse(db, payload, selected_date=None)

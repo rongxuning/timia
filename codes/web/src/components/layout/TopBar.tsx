@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { logoutAndClear } from "@/lib/auth";
+import { isSystemAdmin } from "@/lib/system-role";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 
@@ -18,6 +19,7 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
   const me = useCurrentMe();
   const t = useTranslations("nav");
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
+  const isAdmin = isSystemAdmin(me?.system_role);
 
   return (
     <header className="z-50 flex h-[34px] shrink-0 items-center border-b border-gray-200 bg-white/80 px-3 backdrop-blur-md">
@@ -46,6 +48,16 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
               className="absolute right-0 mt-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
             >
               <LocaleSwitcher variant="menu" onSelected={() => onUserMenuOpenChange(false)} />
+              {isAdmin ? (
+                <Link
+                  href="/settings/llm-keys"
+                  role="menuitem"
+                  className="block px-3 py-2 text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
+                  onClick={() => onUserMenuOpenChange(false)}
+                >
+                  {t("llmKeys")}
+                </Link>
+              ) : null}
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"

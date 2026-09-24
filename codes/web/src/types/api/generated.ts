@@ -729,6 +729,76 @@ export interface paths {
         patch: operations["update_item_workspaces__workspace_id__projects__project_id__items__item_id__patch"];
         trace?: never;
     };
+    "/llm-api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Llm Api Keys */
+        get: operations["list_llm_api_keys_llm_api_keys_get"];
+        put?: never;
+        /** Create Llm Api Key */
+        post: operations["create_llm_api_key_llm_api_keys_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/llm-api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Llm Api Key */
+        delete: operations["delete_llm_api_key_llm_api_keys__key_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Llm Api Key */
+        patch: operations["update_llm_api_key_llm_api_keys__key_id__patch"];
+        trace?: never;
+    };
+    "/llm-api-keys/{key_id}/make-primary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make Llm Api Key Primary */
+        post: operations["make_llm_api_key_primary_llm_api_keys__key_id__make_primary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/llm-api-keys/{key_id}/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe Llm Api Key */
+        post: operations["probe_llm_api_key_llm_api_keys__key_id__probe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/geo/places": {
         parameters: {
             query?: never;
@@ -3479,6 +3549,110 @@ export interface components {
             target_project_id?: string | null;
             /** Repeat */
             repeat?: ("none" | "daily" | "weekly" | "monthly") | null;
+        };
+        /** LlmApiKeyCreate */
+        LlmApiKeyCreate: {
+            /** Name */
+            name: string;
+            /** Base Url */
+            base_url: string;
+            /** Api Key */
+            api_key: string;
+            /**
+             * Model
+             * @default MiniMax-M2.7
+             */
+            model: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Priority
+             * @default 100
+             */
+            priority: number;
+            /** Timeout Seconds */
+            timeout_seconds?: number | null;
+        };
+        /** LlmApiKeyListOut */
+        LlmApiKeyListOut: {
+            /** Keys */
+            keys: components["schemas"]["LlmApiKeyOut"][];
+            /** Using Env Fallback */
+            using_env_fallback: boolean;
+            /** Env Configured */
+            env_configured: boolean;
+            /** Env Base Url */
+            env_base_url?: string | null;
+            /** Env Model */
+            env_model?: string | null;
+        };
+        /** LlmApiKeyOut */
+        LlmApiKeyOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Base Url */
+            base_url: string;
+            /** Api Key Hint */
+            api_key_hint: string;
+            /** Model */
+            model: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Priority */
+            priority: number;
+            /** Timeout Seconds */
+            timeout_seconds: number | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "primary" | "standby" | "disabled";
+            /** Cooldown Until */
+            cooldown_until: string | null;
+            /** Last Status */
+            last_status: string | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Last Used At */
+            last_used_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** LlmApiKeyProbeOut */
+        LlmApiKeyProbeOut: {
+            /** Ok */
+            ok: boolean;
+            key: components["schemas"]["LlmApiKeyOut"];
+        };
+        /** LlmApiKeyUpdate */
+        LlmApiKeyUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Base Url */
+            base_url?: string | null;
+            /** Api Key */
+            api_key?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Priority */
+            priority?: number | null;
+            /** Timeout Seconds */
+            timeout_seconds?: number | null;
         };
         /** MeResponse */
         MeResponse: {
@@ -7561,6 +7735,206 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_llm_api_keys_llm_api_keys_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmApiKeyListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_llm_api_key_llm_api_keys_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmApiKeyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmApiKeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_llm_api_key_llm_api_keys__key_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_llm_api_key_llm_api_keys__key_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LlmApiKeyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmApiKeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_llm_api_key_primary_llm_api_keys__key_id__make_primary_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmApiKeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    probe_llm_api_key_llm_api_keys__key_id__probe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmApiKeyProbeOut"];
                 };
             };
             /** @description Validation Error */

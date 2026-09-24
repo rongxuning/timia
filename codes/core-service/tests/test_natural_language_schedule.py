@@ -19,7 +19,8 @@ def _request() -> NaturalLanguageParseRequest:
 
 
 def test_build_minimax_request_uses_chat_completions():
-    body = build_minimax_request(_request())
+    payload = _request()
+    body = build_minimax_request(payload, selected_date=payload.selected_date)
     assert body["messages"][1]["content"] == "明天下午3点开产品会议，持续1小时"
     assert body["model"] == "MiniMax-M2.7"
     assert body["reasoning_split"] is True

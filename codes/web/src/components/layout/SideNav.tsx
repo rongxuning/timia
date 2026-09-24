@@ -88,6 +88,13 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
             active={pathname.startsWith("/documents/guide")}
             hidden={!isAdmin}
           />
+          <NavItem
+            href="/settings/llm-keys"
+            icon="key"
+            label={t("llmKeys")}
+            active={pathname.startsWith("/settings/llm-keys")}
+            hidden={!isAdmin}
+          />
         </nav>
       </div>
 

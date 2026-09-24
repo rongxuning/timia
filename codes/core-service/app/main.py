@@ -5,6 +5,7 @@ from app.routes.agent_tokens import router as agent_tokens_router
 from app.routes.auth import router as auth_router
 from app.routes.comments import router as comments_router
 from app.routes.items import router as items_router
+from app.routes.llm_api_keys import router as llm_api_keys_router
 from app.routes.members import router as members_router
 from app.routes.mobile_auth import router as mobile_auth_router
 from app.routes.plans import apply_run_router as plan_apply_runs_router
@@ -53,6 +54,7 @@ app.include_router(members_router)
 app.include_router(users_router)
 app.include_router(projects_router)
 app.include_router(items_router)
+app.include_router(llm_api_keys_router)
 app.include_router(geo_router)
 app.include_router(plans_router)
 app.include_router(plan_subscriptions_router)

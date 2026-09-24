@@ -13,7 +13,7 @@ export function isSystemAdmin(systemRole: string | undefined): boolean {
 }
 
 /** 仅系统管理员可访问的路由前缀 */
-const ADMIN_ONLY_PREFIXES = ["/member", "/documents"];
+const ADMIN_ONLY_PREFIXES = ["/member", "/documents", "/settings"];
 
 export function isAdminOnlyPath(pathname: string): boolean {
   return ADMIN_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
