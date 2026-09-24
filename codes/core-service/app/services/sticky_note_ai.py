@@ -67,11 +67,13 @@ def run_sticky_note_parse(
     db.flush()
 
     try:
-        result = parse_natural_language_task_without_date(
+        result, provider = parse_natural_language_task_without_date(
+            db,
             text=text,
             timezone=sticky_note.timezone or "Asia/Shanghai",
             reference_time=reference_time,
         )
+        parse.parse_provider = provider[:40]
     except NaturalLanguageConfigurationError as err:
         parse.parse_status = PARSE_STATUS_FAILED
         parse.error_code = "ai_unavailable"

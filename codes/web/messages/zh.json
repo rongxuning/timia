@@ -11,6 +11,7 @@
     "guide": "使用指南",
     "newTask": "新建任务",
     "openStickyNote": "打开便利贴",
+    "llmKeys": "模型配置",
     "logOut": "退出登录",
     "userFallback": "用户",
     "badgeAria": "{label}，{count} 条提醒"
@@ -38,7 +39,8 @@
     "edit": "编辑",
     "period": "周期详情",
     "mySchedule": "我的日程",
-    "workoutDetail": "训练详情"
+    "workoutDetail": "训练详情",
+    "llm-keys": "模型配置"
   },
   "locale": {
     "zh": "中文",
@@ -143,5 +145,61 @@
     "previewAria": "预览 {name}",
     "closePreview": "关闭预览",
     "uploading": "正在上传…"
+  },
+  "llmKeys": {
+    "title": "模型配置",
+    "intro": "按优先级从小到大选择可用 key。第一把启用且未冷却的 key 是主 key，其余是从 key。鉴权失败、余额不足或超时时会换下一把，并让失败的 key 冷却一段时间。",
+    "add": "添加 key",
+    "createTitle": "新建 key",
+    "editTitle": "编辑 key",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "取消",
+    "loading": "加载中…",
+    "empty": "还没有 key。添加后，自然语言解析会按这里的顺序选择可用 key。",
+    "allDisabled": "已有配置但都停用了，自然语言解析会提示尚未配置。",
+    "makePrimary": "设为主 key",
+    "probe": "测试",
+    "working": "处理中…",
+    "edit": "编辑",
+    "enable": "启用",
+    "disable": "停用",
+    "delete": "删除",
+    "deleteConfirm": "删除「{name}」？删除后运行时不再使用这把 key。",
+    "lastUsed": "最近使用",
+    "cooldown": "冷却至",
+    "fields": {
+      "name": "名称",
+      "baseUrl": "接口地址",
+      "apiKey": "API Key",
+      "apiKeyKeep": "留空则不修改",
+      "model": "模型",
+      "priority": "优先级",
+      "timeout": "超时（秒）",
+      "timeoutDefault": "默认 30 秒",
+      "enabled": "启用"
+    },
+    "roles": {
+      "primary": "主 key",
+      "standby": "从 key",
+      "disabled": "已停用"
+    },
+    "status": {
+      "available": "可用",
+      "unavailable": "不可用",
+      "unknown": "未检测"
+    },
+    "errors": {
+      "generic": "保存失败，请稍后重试",
+      "required": "请填写名称、地址和模型",
+      "priority": "优先级需要是数字",
+      "timeout": "超时需要在 1 到 120 秒之间",
+      "api_key": "API Key 至少 8 位",
+      "name_taken": "名称已存在",
+      "invalid_base_url": "接口地址需要是 http 或 https",
+      "name_invalid": "名称无效",
+      "not_found": "未找到这把 key",
+      "admin_required": "需要系统管理员"
+    }
   }
 }

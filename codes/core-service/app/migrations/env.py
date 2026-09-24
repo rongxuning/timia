@@ -23,6 +23,7 @@ from app.models import (  # noqa: F401
     AuthChallenge,
     AuthIdentity,
     Item,
+    LlmApiKey,
     MobileDevice,
     MobileSession,
     PlanApplyRun,

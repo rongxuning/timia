@@ -153,10 +153,11 @@ def schedule_map_view(
 @router.post("/natural-language/parse", response_model=NaturalLanguageParseOut)
 def parse_schedule_natural_language(
     payload: NaturalLanguageParseRequest,
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     try:
-        return parse_natural_language_task(payload)
+        return parse_natural_language_task(db, payload)
     except NaturalLanguageConfigurationError as error:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

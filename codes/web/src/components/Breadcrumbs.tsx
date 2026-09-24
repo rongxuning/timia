@@ -230,6 +230,7 @@ function BreadcrumbsInner({
       item: t("items"),
       activity: t("activity"),
       settings: t("settings"),
+      "llm-keys": t("llm-keys"),
       members: t("members"),
       documents: t("documents"),
       code: t("code"),

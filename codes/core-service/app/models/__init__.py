@@ -17,6 +17,7 @@ from app.models.health import (
     HealthWorkoutSession,
 )
 from app.models.item import Item
+from app.models.llm_api_key import LlmApiKey
 from app.models.mobile_auth import AuthChallenge, AuthIdentity, MobileDevice, MobileSession
 from app.models.plan import (
     PlanApplyRun,
@@ -59,6 +60,7 @@ __all__ = [
     "HealthWorkoutRoute",
     "HealthWorkoutSession",
     "Item",
+    "LlmApiKey",
     "AuthChallenge",
     "AuthIdentity",
     "MobileDevice",
