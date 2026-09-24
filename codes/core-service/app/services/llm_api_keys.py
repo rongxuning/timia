@@ -2,7 +2,7 @@
 
 Runtime selection prefers enabled keys that are not cooling down, lowest
 priority first. The first of those is the primary key; the rest are standbys.
-When the table is empty, the process falls back to ``MINIMAX_API_KEY``.
+Keys come only from this table.
 """
 
 from __future__ import annotations
@@ -90,19 +90,6 @@ def public_provider_error(status_code: int | None, body: str, api_key: str) -> s
     return (prefix + text)[:300]
 
 
-def env_candidate() -> LlmKeyCandidate | None:
-    if not settings.minimax_api_key:
-        return None
-    return LlmKeyCandidate(
-        id=None,
-        name="env",
-        base_url=settings.minimax_base_url.rstrip("/"),
-        api_key=settings.minimax_api_key,
-        model=settings.minimax_model,
-        timeout_seconds=settings.minimax_timeout_seconds,
-    )
-
-
 def to_candidate(row: LlmApiKey) -> LlmKeyCandidate:
     return LlmKeyCandidate(
         id=row.id,
@@ -114,35 +101,21 @@ def to_candidate(row: LlmApiKey) -> LlmKeyCandidate:
     )
 
 
-def select_call_order(
-    rows: list[LlmApiKey],
-    *,
-    now: datetime,
-    env: LlmKeyCandidate | None,
-) -> list[LlmKeyCandidate]:
-    """Enabled keys, ready ones first. Cooling keys are used only if none are ready.
-
-    A non-empty table disables the env fallback, including when every row is disabled.
-    """
-    if rows:
-        enabled = [row for row in rows if row.enabled]
-        ready = [
-            row
-            for row in enabled
-            if row.cooldown_until is None or row.cooldown_until <= now
-        ]
-        cooling = [row for row in enabled if row not in ready]
-        chosen = ready if ready else cooling
-        chosen.sort(key=lambda row: (row.priority, row.created_at, str(row.id)))
-        return [to_candidate(row) for row in chosen]
-    if env is not None and env.api_key:
-        return [env]
-    return []
+def select_call_order(rows: list[LlmApiKey], *, now: datetime) -> list[LlmKeyCandidate]:
+    """Enabled keys, ready ones first. Cooling keys are used only if none are ready."""
+    enabled = [row for row in rows if row.enabled]
+    ready = [
+        row for row in enabled if row.cooldown_until is None or row.cooldown_until <= now
+    ]
+    cooling = [row for row in enabled if row not in ready]
+    chosen = ready if ready else cooling
+    chosen.sort(key=lambda row: (row.priority, row.created_at, str(row.id)))
+    return [to_candidate(row) for row in chosen]
 
 
 def list_call_candidates(db: Session) -> list[LlmKeyCandidate]:
     rows = list(db.scalars(select(LlmApiKey)).all())
-    return select_call_order(rows, now=utcnow(), env=env_candidate())
+    return select_call_order(rows, now=utcnow())
 
 
 def _primary_id(rows: list[LlmApiKey]) -> uuid.UUID | None:
@@ -192,16 +165,7 @@ def _ordered_rows(db: Session) -> list[LlmApiKey]:
 def list_keys(db: Session) -> LlmApiKeyListOut:
     rows = _ordered_rows(db)
     primary = _primary_id(rows)
-    env = env_candidate()
-    enabled = any(row.enabled for row in rows)
-    using_env = not rows and env is not None
-    return LlmApiKeyListOut(
-        keys=[to_out(row, primary) for row in rows],
-        using_env_fallback=using_env,
-        env_configured=env is not None,
-        env_base_url=env.base_url if env is not None and (using_env or not enabled) else None,
-        env_model=env.model if env is not None and (using_env or not enabled) else None,
-    )
+    return LlmApiKeyListOut(keys=[to_out(row, primary) for row in rows])
 
 
 def _commit_name(db: Session) -> None:

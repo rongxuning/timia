@@ -29,11 +29,9 @@ class Settings(BaseSettings):
     enable_dev_db_tables: bool = False
     # Comma-separated browser origins allowed by CORS (e.g. https://app.example.com).
     cors_origins: str = "http://127.0.0.1:3000,http://localhost:3000"
-    # Used only when llm_api_keys has no rows. Enabled rows replace this key.
-    # The mobile and web clients must never receive this key.
-    minimax_api_key: str | None = None
+    # Default model label and timeout. API keys, endpoints, and models are
+    # stored per row in llm_api_keys and edited by system admins.
     minimax_model: str = "MiniMax-M2.7"
-    minimax_base_url: str = "https://api.minimaxi.com/v1"
     minimax_timeout_seconds: float = 30.0
     photon_base_url: str = "https://photon.komoot.io"
     photon_user_agent: str = "Timia/core-service"

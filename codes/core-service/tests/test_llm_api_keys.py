@@ -125,7 +125,7 @@ def test_ready_keys_skip_cooling_standbys_and_disabled_rows():
         _row(name="primary", priority=10, created_at=now),
         _row(name="off", priority=0, enabled=False),
     ]
-    ordered = select_call_order(rows, now=now, env=None)
+    ordered = select_call_order(rows, now=now)
     assert [item.name for item in ordered] == ["primary", "later"]
 
 
@@ -135,15 +135,14 @@ def test_cooling_keys_are_used_when_nothing_else_is_ready():
         _row(name="late", priority=5, cooldown_until=now + timedelta(minutes=1)),
         _row(name="soon", priority=1, cooldown_until=now + timedelta(minutes=1)),
     ]
-    ordered = select_call_order(rows, now=now, env=None)
+    ordered = select_call_order(rows, now=now)
     assert [item.name for item in ordered] == ["soon", "late"]
 
 
-def test_env_fallback_only_when_the_table_is_empty():
-    env = _candidate("env")
-    assert select_call_order([], now=datetime.now(timezone.utc), env=env)[0].name == "env"
-    disabled = [_row(name="off", enabled=False)]
-    assert select_call_order(disabled, now=datetime.now(timezone.utc), env=env) == []
+def test_no_keys_outside_the_table():
+    now = datetime.now(timezone.utc)
+    assert select_call_order([], now=now) == []
+    assert select_call_order([_row(name="off", enabled=False)], now=now) == []
 
 
 def test_failover_uses_the_next_key_after_an_http_error():

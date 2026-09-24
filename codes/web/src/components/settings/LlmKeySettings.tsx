@@ -214,11 +214,6 @@ export function LlmKeySettings() {
           </button>
         </div>
 
-        {page?.using_env_fallback ? (
-          <div className="rounded-xl border border-border-subtle bg-indigo-50 px-lg py-md text-small text-text-secondary">
-            {t("envFallback", { model: page.env_model ?? "", baseUrl: page.env_base_url ?? "" })}
-          </div>
-        ) : null}
         {page && page.keys.length > 0 && !page.keys.some((key) => key.enabled) ? (
           <div className="rounded-xl border border-border-subtle bg-surface px-lg py-md text-small text-text-secondary">
             {t("allDisabled")}

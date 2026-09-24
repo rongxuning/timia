@@ -44,10 +44,6 @@ class LlmApiKeyOut(BaseModel):
 
 class LlmApiKeyListOut(BaseModel):
     keys: list[LlmApiKeyOut]
-    using_env_fallback: bool
-    env_configured: bool
-    env_base_url: str | None = None
-    env_model: str | None = None
 
 
 class LlmApiKeyProbeOut(BaseModel):

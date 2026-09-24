@@ -14620,43 +14620,11 @@
             },
             "type": "array",
             "title": "Keys"
-          },
-          "using_env_fallback": {
-            "type": "boolean",
-            "title": "Using Env Fallback"
-          },
-          "env_configured": {
-            "type": "boolean",
-            "title": "Env Configured"
-          },
-          "env_base_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Env Base Url"
-          },
-          "env_model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Env Model"
           }
         },
         "type": "object",
         "required": [
-          "keys",
-          "using_env_fallback",
-          "env_configured"
+          "keys"
         ],
         "title": "LlmApiKeyListOut"
       },

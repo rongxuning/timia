@@ -1946,10 +1946,6 @@ export const API_CATALOG: ApiCatalogEntry[] = [
     requestJson: { headers: authBearer, query: null, jsonBody: null },
     responseJson: {
       keys: "LlmApiKeyOut[] — api_key_hint only, never the raw key",
-      using_env_fallback: "boolean",
-      env_configured: "boolean",
-      env_base_url: "string | null",
-      env_model: "string | null",
     },
   },
   {

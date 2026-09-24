@@ -20,10 +20,6 @@ export type LlmApiKey = {
 
 export type LlmApiKeyList = {
   keys: LlmApiKey[];
-  using_env_fallback: boolean;
-  env_configured: boolean;
-  env_base_url: string | null;
-  env_model: string | null;
 };
 
 export type LlmApiKeyWrite = {

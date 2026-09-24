@@ -924,7 +924,7 @@ POST `/sticky-notes` 时带上 `location` 字段，结构与 web 相同。
 4. nginx 不需要改（API 走 `/core-service/`，新路由在同一个前缀下）
 
 ### 9.3 配置
-- **MiniMax 配置已就绪**（`minimax_api_key` / `minimax_model` / `minimax_base_url`），无需新增环境变量。
+- MiniMax key 由系统管理员在 Web「模型配置」页维护，不写入环境变量。
 - 便利贴侧 AI 解析共用 `parse_natural_language_task`，流量在原有 MiniMax 配额内消化。
 
 ### 9.4 监控

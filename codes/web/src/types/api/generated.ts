@@ -3580,14 +3580,6 @@ export interface components {
         LlmApiKeyListOut: {
             /** Keys */
             keys: components["schemas"]["LlmApiKeyOut"][];
-            /** Using Env Fallback */
-            using_env_fallback: boolean;
-            /** Env Configured */
-            env_configured: boolean;
-            /** Env Base Url */
-            env_base_url?: string | null;
-            /** Env Model */
-            env_model?: string | null;
         };
         /** LlmApiKeyOut */
         LlmApiKeyOut: {
