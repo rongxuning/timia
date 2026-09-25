@@ -1,6 +1,26 @@
 @config "../tailwind.config.js";
 @import "../node_modules/tailwindcss/index.css";
 
+/*
+  Tailwind v4 resolves max-w-* as --max-width → --spacing → --container.
+  Design spacing tokens reuse xs/sm/…/2xl names (e.g. --spacing-2xl: 24px),
+  which would otherwise make max-w-2xl compile to 24px. Pin reading widths
+  on --max-width-* so they win over spacing.
+*/
+@theme {
+  --max-width-xs: 20rem;
+  --max-width-sm: 24rem;
+  --max-width-md: 28rem;
+  --max-width-lg: 32rem;
+  --max-width-xl: 36rem;
+  --max-width-2xl: 42rem;
+  --max-width-3xl: 48rem;
+  --max-width-4xl: 56rem;
+  --max-width-5xl: 64rem;
+  --max-width-6xl: 72rem;
+  --max-width-7xl: 80rem;
+}
+
 html,
 body {
   height: 100%;

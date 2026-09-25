@@ -83,6 +83,9 @@ module.exports = {
         gutter: "24px",
         md: "12px",
       },
+      // Do not put reading widths in extend.maxWidth: in Tailwind v4 that maps
+      // to --container-*, and max-w-* prefers --spacing-* over --container-*.
+      // Reading widths are pinned via --max-width-* in app/globals.css @theme.
       fontFamily: {
         "section-heading": ["var(--font-epilogue)"],
         body: ["var(--font-be-vietnam)", "ui-sans-serif", "system-ui"],
