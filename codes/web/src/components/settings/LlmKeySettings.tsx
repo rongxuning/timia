@@ -12,6 +12,7 @@ import {
   updateLlmApiKey,
 } from "@/lib/api/llm-keys";
 import { getToken } from "@/lib/auth";
+import { llmProbeHintKey } from "@/lib/llmProbeError";
 import type { LlmApiKey, LlmApiKeyList, LlmKeyRole } from "@/types/api/llm-keys";
 
 type Draft = {
@@ -33,6 +34,13 @@ const EMPTY_DRAFT: Draft = {
   priority: "0",
   timeout_seconds: "",
 };
+
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-border-subtle bg-surface-bright px-3 py-1.5 text-small outline-none focus:border-primary focus:ring-4 focus:ring-primary/10";
+
+/** Fixed shell so view / edit / create cards never resize the grid. */
+const CARD_SHELL =
+  "flex h-[440px] min-h-[440px] max-h-[440px] flex-col overflow-hidden rounded-xl";
 
 function errorText(t: ReturnType<typeof useTranslations<"llmKeys">>, error: unknown): string {
   const message = (error as { message?: string })?.message ?? "";
@@ -68,6 +76,122 @@ function roleClass(role: LlmKeyRole): string {
   if (role === "primary") return "bg-indigo-50 text-indigo-700";
   if (role === "standby") return "bg-surface-container-lowest text-text-secondary";
   return "bg-zinc-100 text-neutral-muted";
+}
+
+type DraftCardProps = {
+  draft: Draft;
+  editing: boolean;
+  saving: boolean;
+  formError: string | null;
+  onChange: (next: Draft) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  t: ReturnType<typeof useTranslations<"llmKeys">>;
+};
+
+function DraftCard({ draft, editing, saving, formError, onChange, onSave, onCancel, t }: DraftCardProps) {
+  return (
+    <form
+      className={`${CARD_SHELL} border border-primary/30 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)]`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave();
+      }}
+    >
+      <div className="flex-1 space-y-2 p-4">
+        <h2 className="font-subhead text-base font-bold text-text-primary">
+          {editing ? t("editTitle") : t("createTitle")}
+        </h2>
+        <label className="block text-caption font-medium text-on-surface-variant">
+          {t("fields.name")}
+          <input
+            value={draft.name}
+            onChange={(event) => onChange({ ...draft, name: event.target.value })}
+            className={fieldClass}
+            required
+            autoFocus
+          />
+        </label>
+        <label className="block text-caption font-medium text-on-surface-variant">
+          {t("fields.baseUrl")}
+          <input
+            value={draft.base_url}
+            onChange={(event) => onChange({ ...draft, base_url: event.target.value })}
+            className={fieldClass}
+            required
+          />
+        </label>
+        <label className="block text-caption font-medium text-on-surface-variant">
+          {t("fields.apiKey")}
+          <input
+            type="password"
+            autoComplete="off"
+            value={draft.api_key}
+            placeholder={editing ? t("fields.apiKeyKeep") : ""}
+            onChange={(event) => onChange({ ...draft, api_key: event.target.value })}
+            className={fieldClass}
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-caption font-medium text-on-surface-variant">
+            {t("fields.model")}
+            <input
+              value={draft.model}
+              onChange={(event) => onChange({ ...draft, model: event.target.value })}
+              className={fieldClass}
+              required
+            />
+          </label>
+          <label className="block text-caption font-medium text-on-surface-variant">
+            {t("fields.priority")}
+            <input
+              type="number"
+              value={draft.priority}
+              onChange={(event) => onChange({ ...draft, priority: event.target.value })}
+              className={fieldClass}
+            />
+          </label>
+          <label className="block text-caption font-medium text-on-surface-variant">
+            {t("fields.timeout")}
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={draft.timeout_seconds}
+              placeholder={t("fields.timeoutDefault")}
+              onChange={(event) => onChange({ ...draft, timeout_seconds: event.target.value })}
+              className={fieldClass}
+            />
+          </label>
+          <label className="flex items-end gap-2 pb-1.5 text-caption text-text-secondary">
+            <input
+              type="checkbox"
+              checked={draft.enabled}
+              onChange={(event) => onChange({ ...draft, enabled: event.target.checked })}
+            />
+            {t("fields.enabled")}
+          </label>
+        </div>
+        {formError ? <p className="text-caption text-error">{formError}</p> : null}
+      </div>
+      <div className="flex shrink-0 gap-2 border-t border-border-subtle px-4 py-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-xl bg-primary px-3 py-1.5 text-caption font-medium text-on-primary hover:bg-primary-hover disabled:opacity-50"
+        >
+          {saving ? t("saving") : t("save")}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl border border-border-subtle bg-white px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest"
+        >
+          {t("cancel")}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 export function LlmKeySettings() {
@@ -127,6 +251,12 @@ export function LlmKeySettings() {
     });
   }
 
+  function closeDraft() {
+    setDraft(null);
+    setEditingId(null);
+    setFormError(null);
+  }
+
   async function saveDraft() {
     if (!token || !draft) return;
     const priority = Number(draft.priority);
@@ -172,8 +302,7 @@ export function LlmKeySettings() {
       } else {
         await createLlmApiKey(token, { ...body, api_key: draft.api_key.trim() });
       }
-      setDraft(null);
-      setEditingId(null);
+      closeDraft();
       await reload();
     } catch (err: unknown) {
       setFormError(errorText(t, err));
@@ -196,22 +325,14 @@ export function LlmKeySettings() {
   }
 
   const keys = page?.keys ?? [];
+  const creating = Boolean(draft && !editingId);
 
   return (
     <main className="px-container-padding py-lg">
       <div className="mx-auto flex max-w-container-max flex-col gap-lg">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-subhead text-subhead text-text-primary">{t("title")}</h1>
-            <p className="mt-1 max-w-2xl text-small text-text-secondary">{t("intro")}</p>
-          </div>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-xl bg-primary px-4 py-2 text-small font-medium text-on-primary transition-colors hover:bg-primary-hover"
-          >
-            {t("add")}
-          </button>
+        <div className="flex flex-col gap-3">
+          <h1 className="font-subhead text-subhead text-text-primary">{t("title")}</h1>
+          <p className="w-full max-w-2xl text-small leading-relaxed text-text-secondary">{t("intro")}</p>
         </div>
 
         {page && page.keys.length > 0 && !page.keys.some((key) => key.enabled) ? (
@@ -226,238 +347,187 @@ export function LlmKeySettings() {
           </div>
         ) : null}
 
-        {draft ? (
-          <form
-            className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveDraft();
-            }}
-          >
-            <h2 className="font-section-heading text-section-heading text-text-primary">
-              {editingId ? t("editTitle") : t("createTitle")}
-            </h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="block text-small font-medium text-on-surface-variant">
-                {t("fields.name")}
-                <input
-                  value={draft.name}
-                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  required
-                />
-              </label>
-              <label className="block text-small font-medium text-on-surface-variant">
-                {t("fields.model")}
-                <input
-                  value={draft.model}
-                  onChange={(event) => setDraft({ ...draft, model: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  required
-                />
-              </label>
-              <label className="block text-small font-medium text-on-surface-variant md:col-span-2">
-                {t("fields.baseUrl")}
-                <input
-                  value={draft.base_url}
-                  onChange={(event) => setDraft({ ...draft, base_url: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  required
-                />
-              </label>
-              <label className="block text-small font-medium text-on-surface-variant md:col-span-2">
-                {t("fields.apiKey")}
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={draft.api_key}
-                  placeholder={editingId ? t("fields.apiKeyKeep") : ""}
-                  onChange={(event) => setDraft({ ...draft, api_key: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                />
-              </label>
-              <label className="block text-small font-medium text-on-surface-variant">
-                {t("fields.priority")}
-                <input
-                  type="number"
-                  value={draft.priority}
-                  onChange={(event) => setDraft({ ...draft, priority: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                />
-              </label>
-              <label className="block text-small font-medium text-on-surface-variant">
-                {t("fields.timeout")}
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={draft.timeout_seconds}
-                  placeholder={t("fields.timeoutDefault")}
-                  onChange={(event) => setDraft({ ...draft, timeout_seconds: event.target.value })}
-                  className="mt-1 w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                />
-              </label>
-            </div>
-            <label className="mt-4 flex items-center gap-2 text-small text-text-secondary">
-              <input
-                type="checkbox"
-                checked={draft.enabled}
-                onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
-              />
-              {t("fields.enabled")}
-            </label>
-            {formError ? <p className="mt-3 text-small text-error">{formError}</p> : null}
-            <div className="mt-4 flex gap-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-xl bg-primary px-4 py-2 text-small font-medium text-on-primary hover:bg-primary-hover disabled:opacity-50"
-              >
-                {saving ? t("saving") : t("save")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(null);
-                  setEditingId(null);
-                }}
-                className="rounded-xl border border-border-subtle bg-white px-4 py-2 text-small text-text-secondary hover:bg-surface-container-lowest"
-              >
-                {t("cancel")}
-              </button>
-            </div>
-          </form>
-        ) : null}
-
         {loading ? <p className="text-small text-text-secondary">{t("loading")}</p> : null}
-        {!loading && keys.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border-subtle bg-surface px-lg py-xl text-small text-text-secondary">
-            {t("empty")}
-          </div>
-        ) : null}
 
-        <div className="flex flex-col gap-3">
-          {keys.map((key) => (
-            <article key={key.id} className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-section-heading text-section-heading text-text-primary">{key.name}</h2>
-                    <span className={`rounded-full px-2 py-0.5 text-caption ${roleClass(key.role)}`}>
-                      {t(`roles.${key.role}`)}
-                    </span>
-                    <span className="text-caption text-neutral-muted">
-                      {key.last_status === "available"
-                        ? t("status.available")
-                        : key.last_status === "unavailable"
-                          ? t("status.unavailable")
-                          : t("status.unknown")}
-                    </span>
+        {!loading ? (
+          <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
+            {keys.map((key) =>
+              draft && editingId === key.id ? (
+                <DraftCard
+                  key={key.id}
+                  draft={draft}
+                  editing
+                  saving={saving}
+                  formError={formError}
+                  onChange={setDraft}
+                  onSave={() => void saveDraft()}
+                  onCancel={closeDraft}
+                  t={t}
+                />
+              ) : (
+                <article
+                  key={key.id}
+                  className={`${CARD_SHELL} border border-border-subtle bg-white transition-shadow duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}
+                >
+                  <div className="flex-1 p-4">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="truncate font-subhead text-lg font-bold text-text-primary" title={key.name}>
+                          {key.name}
+                        </h2>
+                        <span className={`rounded-full px-2 py-0.5 text-caption ${roleClass(key.role)}`}>
+                          {t(`roles.${key.role}`)}
+                        </span>
+                        <span className="text-caption text-neutral-muted">
+                          {key.last_status === "available"
+                            ? t("status.available")
+                            : key.last_status === "unavailable"
+                              ? t("status.unavailable")
+                              : t("status.unknown")}
+                        </span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 break-all font-code text-caption text-text-secondary">
+                        {key.base_url}
+                      </p>
+                    </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-2 text-caption text-text-secondary">
+                      <div className="min-w-0">
+                        <dt className="text-neutral-muted">{t("fields.model")}</dt>
+                        <dd className="truncate" title={key.model}>
+                          {key.model}
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-neutral-muted">{t("fields.apiKey")}</dt>
+                        <dd className="truncate font-code">{key.api_key_hint}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-muted">{t("fields.priority")}</dt>
+                        <dd>{key.priority}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-muted">{t("fields.timeout")}</dt>
+                        <dd>
+                          {key.timeout_seconds == null ? t("fields.timeoutDefault") : `${key.timeout_seconds}s`}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-muted">{t("lastUsed")}</dt>
+                        <dd>{formatWhen(key.last_used_at, locale)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-muted">{t("cooldown")}</dt>
+                        <dd>{formatWhen(key.cooldown_until, locale)}</dd>
+                      </div>
+                    </dl>
+                    {key.last_error ? (
+                      <div className="mt-3 space-y-1 text-caption text-error">
+                        <p className="break-all font-code">{key.last_error}</p>
+                        <p>{t(`probeHints.${llmProbeHintKey(key.last_error)}`)}</p>
+                      </div>
+                    ) : null}
+                    {pendingDeleteId === key.id ? (
+                      <div className="mt-4 rounded-xl border border-error-container bg-error-container/10 p-3">
+                        <p className="text-small text-text-primary">{t("deleteConfirm", { name: key.name })}</p>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            disabled={busyId === key.id}
+                            onClick={() =>
+                              void runRow(key.id, async () => {
+                                await deleteLlmApiKey(token ?? "", key.id);
+                                setPendingDeleteId(null);
+                              })
+                            }
+                            className="rounded-xl bg-red-600 px-3 py-1.5 text-caption text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {t("delete")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteId(null)}
+                            className="rounded-xl border border-border-subtle bg-white px-3 py-1.5 text-caption text-text-secondary"
+                          >
+                            {t("cancel")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="mt-1 break-all font-code text-caption text-text-secondary">{key.base_url}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {key.role !== "primary" ? (
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t border-border-subtle px-4 py-3">
+                    {key.role !== "primary" ? (
+                      <button
+                        type="button"
+                        disabled={busyId === key.id}
+                        onClick={() => void runRow(key.id, () => makeLlmApiKeyPrimary(token ?? "", key.id))}
+                        className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest disabled:opacity-50"
+                      >
+                        {t("makePrimary")}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       disabled={busyId === key.id}
-                      onClick={() => void runRow(key.id, () => makeLlmApiKeyPrimary(token ?? "", key.id))}
+                      onClick={() => void runRow(key.id, () => probeLlmApiKey(token ?? "", key.id))}
                       className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest disabled:opacity-50"
                     >
-                      {t("makePrimary")}
+                      {busyId === key.id ? t("working") : t("probe")}
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={busyId === key.id}
-                    onClick={() => void runRow(key.id, () => probeLlmApiKey(token ?? "", key.id))}
-                    className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest disabled:opacity-50"
-                  >
-                    {busyId === key.id ? t("working") : t("probe")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openEdit(key)}
-                    className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest"
-                  >
-                    {t("edit")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void runRow(key.id, () => updateLlmApiKey(token ?? "", key.id, { enabled: !key.enabled }))
-                    }
-                    className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest disabled:opacity-50"
-                    disabled={busyId === key.id}
-                  >
-                    {key.enabled ? t("disable") : t("enable")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDeleteId(key.id)}
-                    className="rounded-xl bg-red-600 px-3 py-1.5 text-caption text-white hover:bg-red-700"
-                  >
-                    {t("delete")}
-                  </button>
-                </div>
-              </div>
-              <dl className="mt-4 grid gap-2 text-caption text-text-secondary sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <dt className="text-neutral-muted">{t("fields.model")}</dt>
-                  <dd>{key.model}</dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-muted">{t("fields.apiKey")}</dt>
-                  <dd className="font-code">{key.api_key_hint}</dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-muted">{t("fields.priority")}</dt>
-                  <dd>{key.priority}</dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-muted">{t("fields.timeout")}</dt>
-                  <dd>{key.timeout_seconds == null ? t("fields.timeoutDefault") : `${key.timeout_seconds}s`}</dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-muted">{t("lastUsed")}</dt>
-                  <dd>{formatWhen(key.last_used_at, locale)}</dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-muted">{t("cooldown")}</dt>
-                  <dd>{formatWhen(key.cooldown_until, locale)}</dd>
-                </div>
-              </dl>
-              {key.last_error ? <p className="mt-3 text-caption text-error">{key.last_error}</p> : null}
-              {pendingDeleteId === key.id ? (
-                <div className="mt-4 rounded-xl border border-error-container bg-error-container/10 p-3">
-                  <p className="text-small text-text-primary">{t("deleteConfirm", { name: key.name })}</p>
-                  <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      disabled={busyId === key.id}
+                      onClick={() => openEdit(key)}
+                      className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest"
+                    >
+                      {t("edit")}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() =>
-                        void runRow(key.id, async () => {
-                          await deleteLlmApiKey(token ?? "", key.id);
-                          setPendingDeleteId(null);
-                        })
+                        void runRow(key.id, () => updateLlmApiKey(token ?? "", key.id, { enabled: !key.enabled }))
                       }
-                      className="rounded-xl bg-red-600 px-3 py-1.5 text-caption text-white hover:bg-red-700 disabled:opacity-50"
+                      className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-secondary hover:bg-surface-container-lowest disabled:opacity-50"
+                      disabled={busyId === key.id}
+                    >
+                      {key.enabled ? t("disable") : t("enable")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteId(key.id)}
+                      className="rounded-xl bg-red-600 px-3 py-1.5 text-caption text-white hover:bg-red-700"
                     >
                       {t("delete")}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingDeleteId(null)}
-                      className="rounded-xl border border-border-subtle bg-white px-3 py-1.5 text-caption text-text-secondary"
-                    >
-                      {t("cancel")}
-                    </button>
                   </div>
+                </article>
+              ),
+            )}
+
+            {creating && draft ? (
+              <DraftCard
+                draft={draft}
+                editing={false}
+                saving={saving}
+                formError={formError}
+                onChange={setDraft}
+                onSave={() => void saveDraft()}
+                onCancel={closeDraft}
+                t={t}
+              />
+            ) : (
+              <button
+                type="button"
+                className={`${CARD_SHELL} group cursor-pointer items-center justify-center border-2 border-dashed border-gray-200 bg-white p-4 text-center transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15`}
+                onClick={openCreate}
+              >
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
+                  <span className="material-symbols-outlined text-[26px]">add</span>
                 </div>
-              ) : null}
-            </article>
-          ))}
-        </div>
+                <h3 className="font-subhead text-base font-bold text-black">{t("createTitle")}</h3>
+                <p className="mt-1 max-w-[220px] text-caption text-black">{t("createHint")}</p>
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
     </main>
   );
