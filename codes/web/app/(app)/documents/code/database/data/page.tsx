@@ -158,8 +158,8 @@ export default function DatabaseTableDataPage() {
           <div className="space-y-xs">
             <h1 className="font-section-heading text-section-heading text-text-primary">数据库表数据</h1>
             <p className="text-body text-text-secondary">
-              各表当前数据预览（每表最多 200 行，按创建时间倒序）。密码 / refresh-token / 设备公钥 / challenge nonce
-              已掩码。按业务域分组展示，与结构图域划分一致。
+              各表当前数据预览（每表最多 200 行，按创建时间倒序）。密码、refresh-token、设备公钥、challenge
+              nonce、PAT token_hash、LLM api_key 已掩码。按业务域分组展示，与结构图域划分一致。
             </p>
           </div>
           <div className="flex flex-wrap gap-sm">

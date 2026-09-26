@@ -151,6 +151,44 @@ make mcp-server-http
 | `complete_item` | `schedule:write` | Mark item done |
 | `parse_natural_language` | `schedule:write` | Parse NL text into a draft (no persist) |
 
+Default PATs include the P0 scopes above. Notes, plans, and health are omitted until the token is created with those scopes.
+
+## P1 tools (`TIMIA_TOOL_PROFILE=p1`)
+
+P1 is P0 plus sticky notes and plans. `p1` and `full` also expose read-only resources (`timia://me`, `timia://schedule/today`, `timia://workspace/{id}`, `timia://item/{workspace}/{project}/{item}`) and prompts (`daily_briefing`, `triage_overdue`, `nl_to_schedule`, `sticky_to_item`). Prompts only return instructions.
+
+| Tool | Scope | Description |
+|------|-------|-------------|
+| `list_sticky_notes` | `notes:read` | List sticky notes |
+| `create_sticky_note` | `notes:write` | Create a sticky note |
+| `ai_parse_sticky_note` | `notes:write` | Parse a note into a draft (no item yet) |
+| `convert_sticky_note` | `notes:write` | Create a real item; requires `workspace_id` and `project_id` |
+| `search_plans` | `plans:read` | Search plan templates |
+| `get_plan` | `plans:read` | Plan detail and slots |
+| `subscribe_plan` | `plans:write` | Subscribe and may create real tasks; requires workspace and project |
+| `import_plan_period` | `plans:write` | Import the current period as real tasks |
+| `list_plan_notifications` | `plans:read` | Plan notifications |
+
+Example PAT that can call P1:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/auth/agent-tokens \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"cursor-p1","scopes":["profile:read","schedule:read","schedule:write","workspace:read","workspace:write","admin:tokens","notes:read","notes:write","plans:read","plans:write"]}'
+```
+
+## Full profile (`TIMIA_TOOL_PROFILE=full`)
+
+Full is P1 plus read-only health views. Sync, deletion, and `/dev/*` are not exposed. Add `health:read` to the PAT.
+
+| Tool | Scope | Description |
+|------|-------|-------------|
+| `get_health_summary` | `health:read` | Current metrics, scores, insight, five recent workouts |
+| `list_workouts` | `health:read` | Workout list |
+| `get_workout` | `health:read` | Workout summary; route is a point count, not the full track |
+| `get_health_metric` | `health:read` | One health card |
+
 ## Troubleshooting
 
 ### HTTP 401 / `unauthorized`

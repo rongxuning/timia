@@ -16,20 +16,26 @@ from app.core.config import settings
 from app.db.deps import get_db
 from app.models import (
     ActivityLog,
+    AgentToken,
+    AgentToolCall,
     AuthChallenge,
     AuthIdentity,
     Comment,
     HealthInsightDaily,
     HealthMetricsDaily,
+    HealthMetricsDirty,
     HealthMetricsLayout,
     HealthProfile,
     HealthSampleQuantity,
     HealthSampleSleep,
     HealthSampleStandHour,
     HealthSeriesHeartbeat,
+    HealthSyncRun,
+    HealthSyncState,
     HealthWorkoutRoute,
     HealthWorkoutSession,
     Item,
+    LlmApiKey,
     MobileDevice,
     MobileSession,
     PlanApplyRun,
@@ -93,6 +99,10 @@ def _orm_row_dict(model_cls: type, row: Any) -> dict[str, Any]:
             out[key] = "***"
         elif model_cls is AuthChallenge and key == "nonce_hash":
             out[key] = "***"
+        elif model_cls is AgentToken and key == "token_hash":
+            out[key] = "***"
+        elif model_cls is LlmApiKey and key == "api_key":
+            out[key] = "***"
         else:
             out[key] = _serialize_value(val)
     return out
@@ -106,6 +116,9 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("web_sessions", WebSession),
     ("mobile_devices", MobileDevice),
     ("mobile_sessions", MobileSession),
+    ("agent_tokens", AgentToken),
+    ("agent_tool_calls", AgentToolCall),
+    ("llm_api_keys", LlmApiKey),
     # 工作空间 / 项目
     ("workspaces", Workspace),
     ("workspace_members", WorkspaceMember),
@@ -139,8 +152,11 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("health_workout_route", HealthWorkoutRoute),
     ("health_metrics_daily", HealthMetricsDaily),
     ("health_metrics_layout", HealthMetricsLayout),
+    ("health_metrics_dirty", HealthMetricsDirty),
     ("health_profiles", HealthProfile),
     ("health_insight_daily", HealthInsightDaily),
+    ("health_sync_run", HealthSyncRun),
+    ("health_sync_state", HealthSyncState),
 ]
 
 _ROW_LIMIT = 200

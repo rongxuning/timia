@@ -11,7 +11,7 @@ export default function DatabaseDiagramPage() {
           <div className="space-y-xs">
             <h1 className="font-section-heading text-section-heading text-text-primary">数据库结构</h1>
             <p className="text-body text-text-secondary">
-              顶部为全局表关系总览，下方按业务领域展开字段级 ER 图（迁移 `0001` → `0031`）。跨域外键在总览图中以关系线标注。
+              顶部为全局表关系总览，下方按业务领域展开字段级 ER 图（迁移 `0001` → `0036`）。跨域外键在总览图中以关系线标注。
             </p>
           </div>
           <a
@@ -53,7 +53,12 @@ export default function DatabaseDiagramPage() {
             </li>
             <li>
               健康域表均只挂 <code>users.id</code>（<code>owner_user_id</code>），不进工作空间；训练路线用{" "}
-              <code>workout_hk_uuid</code> 逻辑关联会话，同步游标在 <code>health_sync_state</code>。
+              <code>workout_hk_uuid</code> 逻辑关联会话，同步游标在 <code>health_sync_state</code>，待汇总日期在{" "}
+              <code>health_metrics_dirty</code>。
+            </li>
+            <li>
+              <code>agent_tokens</code> 属于用户；<code>agent_tool_calls</code> 记录该令牌的工具调用。
+              <code>llm_api_keys</code> 是服务端密钥，不挂用户外键。
             </li>
           </ul>
           <Link
