@@ -17,6 +17,7 @@ import { ScheduleCalendarMonth } from "./ScheduleCalendarMonth";
 import { ScheduleCalendarWeek, ScheduleCalendarWeekHeader } from "./ScheduleCalendarWeek";
 import { ScheduleCalendarYear } from "./ScheduleCalendarYear";
 import type { CalendarDropTarget } from "./ScheduleCalendar.types";
+import { schedulePaperClass, type ScheduleAppearance } from "./scheduleAppearance";
 
 export type ScheduleCalendarProps = {
   calendarMode: CalendarViewMode;
@@ -39,6 +40,7 @@ export type ScheduleCalendarProps = {
   onDragOverDateKeyChange?: (key: string | null) => void;
   onDragOverHourChange?: (hour: number | null) => void;
   onDropDateTime?: (taskId: string, target: CalendarDropTarget) => void;
+  appearance?: ScheduleAppearance;
 };
 
 export function ScheduleCalendar({
@@ -61,6 +63,7 @@ export function ScheduleCalendar({
   onDragOverDateKeyChange,
   onDragOverHourChange,
   onDropDateTime,
+  appearance = "plain",
 }: ScheduleCalendarProps) {
   function openDayView(dateKey: string) {
     onCalendarAnchorChange(parseDateAnchor(dateKey));
@@ -88,15 +91,32 @@ export function ScheduleCalendar({
   const calendarPending =
     !calendar || calendar.view !== calendarMode || calendar.anchor !== formatDateAnchor(calendarAnchor);
 
+  const controlClass =
+    appearance === "stage"
+      ? "flex h-10 items-center justify-center border-2 border-black transition-colors hover:bg-surface-container-lowest active:scale-95"
+      : "flex h-10 items-center justify-center border border-border-subtle transition-colors hover:bg-surface-container-lowest";
+
   return (
-    <section className="mb-lg rounded-xl border border-border-subtle bg-white">
-      <div className="sticky top-0 z-30 shrink-0 bg-white shadow-sm">
+    <section className={`mb-lg rounded-xl ${schedulePaperClass(appearance)}`}>
+      <div className={`sticky top-0 z-30 shrink-0 bg-white ${appearance === "stage" ? "" : "shadow-sm"}`}>
         <div className="flex flex-col gap-3 p-lg sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-lg font-bold text-text-primary">
+          <div
+            className={
+              appearance === "stage"
+                ? "font-display text-xl font-semibold tracking-tight text-on-surface"
+                : "text-lg font-bold text-text-primary"
+            }
+          >
             {calendarTitle(calendarAnchor, calendarMode)}
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <div className="inline-flex rounded-xl border border-border-subtle bg-surface-container-lowest/50 p-0.5">
+            <div
+              className={`inline-flex rounded-xl p-0.5 ${
+                appearance === "stage"
+                  ? "border-2 border-black bg-white"
+                  : "border border-border-subtle bg-surface-container-lowest/50"
+              }`}
+            >
               {CALENDAR_VIEW_MODES.map((m) => (
                 <button
                   key={m.key}
@@ -116,7 +136,7 @@ export function ScheduleCalendar({
             </div>
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-subtle transition-colors hover:bg-surface-container-lowest"
+              className={`${controlClass} w-10 rounded-xl`}
               onClick={() => onCalendarAnchorChange(shiftCalendarAnchor(calendarAnchor, calendarMode, -1))}
               title={calendarNavStepLabel(calendarMode).split(" / ")[0]}
             >
@@ -124,7 +144,7 @@ export function ScheduleCalendar({
             </button>
             <button
               type="button"
-              className="flex h-10 items-center justify-center rounded-xl border border-border-subtle px-3 text-sm transition-colors hover:bg-surface-container-lowest"
+              className={`${controlClass} rounded-xl px-3 text-sm`}
               onClick={() => onCalendarAnchorChange(startOfDay(new Date()))}
               title={calendarTodayLabel(calendarMode)}
             >
@@ -132,7 +152,7 @@ export function ScheduleCalendar({
             </button>
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-subtle transition-colors hover:bg-surface-container-lowest"
+              className={`${controlClass} w-10 rounded-xl`}
               onClick={() => onCalendarAnchorChange(shiftCalendarAnchor(calendarAnchor, calendarMode, 1))}
               title={calendarNavStepLabel(calendarMode).split(" / ")[1]}
             >
@@ -142,12 +162,12 @@ export function ScheduleCalendar({
         </div>
 
         {displayedMode === "month" ? (
-          <div className="grid grid-cols-7 border-t border-border-subtle bg-violet-50/80">
+          <div className="grid grid-cols-7 border-t border-border-subtle bg-white">
             {["日", "一", "二", "三", "四", "五", "六"].map((d, di) => (
               <div
                 key={d}
                 className={[
-                  "border-r border-b border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted",
+                  "border-r border-b border-border-subtle px-2 py-1 text-center text-[11px] font-semibold leading-4 tracking-wide text-neutral-muted",
                   di === 0 ? "border-l border-border-subtle" : "",
                   "last:border-r-0",
                 ].join(" ")}
