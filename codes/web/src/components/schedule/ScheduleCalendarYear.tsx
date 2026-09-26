@@ -13,10 +13,10 @@ const WEEKDAY_SHORT = ["日", "一", "二", "三", "四", "五", "六"] as const
 
 function heatClass(taskCount: number): string {
   if (taskCount <= 0) return "bg-surface-container-low/40 text-neutral-muted";
-  if (taskCount === 1) return "bg-primary/15 text-text-primary";
-  if (taskCount <= 3) return "bg-primary/30 text-text-primary";
-  if (taskCount <= 6) return "bg-primary/50 text-on-surface";
-  return "bg-primary text-on-primary";
+  if (taskCount === 1) return "bg-violet-100 text-text-primary";
+  if (taskCount <= 3) return "bg-violet-200 text-text-primary";
+  if (taskCount <= 6) return "bg-violet-300 text-text-primary";
+  return "bg-violet-500 text-white";
 }
 
 function monthGrid(year: number, month: number, days: CalendarMonthSummaryView["days"]) {
@@ -72,7 +72,7 @@ export function ScheduleCalendarYear({ year, months, onDayClick }: Props) {
                       className={[
                         "aspect-square rounded-sm text-[10px] leading-none transition-colors",
                         heatClass(cell.taskCount),
-                        isToday ? "ring-1 ring-primary ring-inset" : "hover:ring-1 hover:ring-primary/40",
+                        isToday ? "ring-1 ring-violet-600 ring-inset" : "hover:ring-1 hover:ring-primary/40",
                       ].join(" ")}
                       onClick={() => onDayClick(cell.key)}
                     >

@@ -3,8 +3,6 @@
 import { useMemo, useRef, useState, type DragEvent } from "react";
 import type { ScheduleTaskItem } from "@/types/api/views/schedule";
 import { CalendarTaskCard } from "./CalendarTaskCard";
-import { ScheduleRibbon } from "./ScheduleRibbon";
-import { schedulePaperClass, type ScheduleAppearance } from "./scheduleAppearance";
 import { filterTasksByTitle } from "./undatedTasks";
 import {
   CALENDAR_TASK_CARD_HEIGHT_PX,
@@ -21,7 +19,6 @@ export type UndatedTaskListProps = {
   canAcceptDrop?: boolean;
   onDropTaskId?: (taskId: string) => void;
   showProjectContext?: boolean;
-  appearance?: ScheduleAppearance;
 };
 
 export function UndatedTaskList({
@@ -32,7 +29,6 @@ export function UndatedTaskList({
   canAcceptDrop = false,
   onDropTaskId,
   showProjectContext = true,
-  appearance = "plain",
 }: UndatedTaskListProps) {
   const [titleQuery, setTitleQuery] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
@@ -85,9 +81,8 @@ export function UndatedTaskList({
   return (
     <section
       className={[
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl transition-colors",
-        schedulePaperClass(appearance),
-        isDragOver && canAcceptDrop ? "border-primary ring-2 ring-primary/20" : "",
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-white transition-colors",
+        isDragOver && canAcceptDrop ? "border-primary ring-2 ring-primary/20" : "border-border-subtle",
       ].join(" ")}
       onDragOver={handlePanelDragOver}
       onDragLeave={handlePanelDragLeave}
@@ -95,11 +90,7 @@ export function UndatedTaskList({
     >
       <div className="shrink-0 border-b border-border-subtle p-lg">
         <div className="flex items-center justify-between gap-2">
-          {appearance === "stage" ? (
-            <ScheduleRibbon label="未确认启动时间" />
-          ) : (
-            <div className="text-sm font-semibold text-primary">未确认启动时间</div>
-          )}
+          <div className="text-sm font-semibold text-primary">未确认启动时间</div>
           {onAddTask ? (
             <button
               type="button"

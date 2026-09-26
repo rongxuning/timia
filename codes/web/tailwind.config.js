@@ -58,7 +58,6 @@ module.exports = {
         "surface-dim": "#dbd8e4",
         "border-subtle": "#E8E8EC",
         error: "#EF4444",
-        stage: "#020C41",
       },
       borderRadius: {
         DEFAULT: "0.125rem",

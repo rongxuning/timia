@@ -8,11 +8,9 @@ alwaysApply: false
 
 ## 风格小结
 
-对照底稿：`docs/design-references/2026-09-26-web-style-references.md`。登录页是暖纸插画加 4px 墨线窗口，截图只借鉴卡片与分区结构。本文件的 token 仍是实现依据，直到后续改动真正落地。
-
 - **气质**：浅色、偏 Material 3 语义的协作工具界面；白底卡片 + 淡紫主色（`primary` / `indigo` 系），干净、信息密度中等。
 - **技术栈**：Next.js + Tailwind v4（`globals.css` 中 `@config` 指向 `tailwind.config.js`）。优先使用 **主题色名**（`primary`、`surface`、`border-subtle` 等），与 **语义字号**（`text-body`、`text-small`、`font-subhead` 等）；`gray` / `zinc` / `indigo` 仅在与现有壳层一致或缺 token 时使用。
-- **品牌区**：顶栏 Logo + `font-display`「Timia」。登录页用 `public/login/background_2k.png` 全屏铺底，窗口为 `border-4 border-black` 的白纸。注册页仍是 `dot-grid` + 轻渐变，和登录窗口不是同一套。
+- **品牌区**：顶栏 Logo + `font-display`「Timia」；登录等营销区可用 `dot-grid` + 轻渐变底。
 
 ## 字体与排版
 
