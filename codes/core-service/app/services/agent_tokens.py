@@ -75,6 +75,22 @@ def required_scope_for_request(method: str, path: str) -> str | None:
         "/items" in p or p == "/views/schedule/natural-language/parse"
     ):
         return "schedule:write"
+    if p.startswith("/sticky-notes"):
+        if m == "GET":
+            return "notes:read"
+        if m in {"POST", "PATCH"}:
+            return "notes:write"
+    if m == "GET" and (
+        p.startswith("/views/plans") or p.startswith("/views/plan-notifications")
+    ):
+        return "plans:read"
+    if m == "POST" and (
+        (p.startswith("/plan-templates/") and p.endswith("/subscribe"))
+        or (p.startswith("/plan-subscriptions/") and p.endswith("/import-current-period"))
+    ):
+        return "plans:write"
+    if m == "GET" and p.startswith("/views/me/health"):
+        return "health:read"
     return "__deny__"
 
 

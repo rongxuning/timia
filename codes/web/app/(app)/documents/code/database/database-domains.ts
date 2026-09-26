@@ -105,6 +105,11 @@ export const SUMMARY_ER_DIAGRAM = `erDiagram
     datetime last_health_synced_at
     datetime last_workout_synced_at
   }
+  AGENT_TOKENS {
+    uuid id PK
+    uuid user_id FK
+    string token_prefix
+  }
   USERS ||--o{ WORKSPACES : creates
   USERS ||--o{ WORKSPACE_MEMBERS : joins
   USERS ||--o{ PROJECT_MEMBERS : joins
@@ -130,7 +135,8 @@ export const SUMMARY_ER_DIAGRAM = `erDiagram
   USERS ||--o| HEALTH_PROFILES : profile
   USERS ||--o{ HEALTH_METRICS_DAILY : daily
   USERS ||--o{ HEALTH_WORKOUT_SESSION : workouts
-  USERS ||--o| HEALTH_SYNC_STATE : sync_cursor`;
+  USERS ||--o| HEALTH_SYNC_STATE : sync_cursor
+  USERS ||--o{ AGENT_TOKENS : issues`;
 
 export const DATABASE_DOMAINS: DatabaseDomain[] = [
   {
@@ -205,6 +211,52 @@ export const DATABASE_DOMAINS: DatabaseDomain[] = [
       MOBILE_DEVICES ||--o{ MOBILE_SESSIONS : hosts
       USERS ||--o{ AUTH_CHALLENGES : triggers
       MOBILE_DEVICES ||--o{ AUTH_CHALLENGES : scoped_to`,
+  },
+  {
+    id: "agent",
+    title: "代理令牌与模型密钥",
+    description: "用户 PAT、工具调用审计，以及服务端 LLM 密钥（明文密钥不出现在数据预览中）。",
+    borderClass: "border-violet-300",
+    labelClass: "bg-violet-100 text-violet-800",
+    tables: ["agent_tokens", "agent_tool_calls", "llm_api_keys"],
+    diagram: `erDiagram
+      AGENT_TOKENS {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string token_prefix
+        string token_hash "UNIQUE"
+        jsonb scopes
+        datetime expires_at
+        datetime revoked_at
+        datetime last_used_at
+      }
+      AGENT_TOOL_CALLS {
+        uuid id PK
+        uuid user_id FK
+        uuid token_id FK
+        string tool_name
+        bool ok
+        string error_detail
+        int latency_ms
+        jsonb request_meta
+        datetime created_at
+      }
+      LLM_API_KEYS {
+        uuid id PK
+        string name "UNIQUE"
+        string base_url
+        text api_key
+        string model
+        bool enabled
+        int priority
+        float timeout_seconds
+        datetime cooldown_until
+        string last_status
+        string last_error
+        datetime last_used_at
+      }
+      AGENT_TOKENS ||--o{ AGENT_TOOL_CALLS : audits`,
   },
   {
     id: "workspace",
@@ -473,6 +525,7 @@ export const DATABASE_DOMAINS: DatabaseDomain[] = [
       "health_metrics_layout",
       "health_sync_run",
       "health_sync_state",
+      "health_metrics_dirty",
     ],
     diagram: `erDiagram
       HEALTH_PROFILES {
@@ -573,6 +626,14 @@ export const DATABASE_DOMAINS: DatabaseDomain[] = [
         uuid owner_user_id FK
         datetime last_health_synced_at
         datetime last_workout_synced_at
+        uuid last_health_run_id FK
+        uuid last_workout_run_id FK
+      }
+      HEALTH_METRICS_DIRTY {
+        uuid id PK
+        uuid owner_user_id FK
+        date local_date
+        string timezone
       }
       HEALTH_WORKOUT_SESSION ||--o| HEALTH_WORKOUT_ROUTE : by_hk_uuid
       HEALTH_SYNC_STATE }o--o| HEALTH_SYNC_RUN : last_run`,

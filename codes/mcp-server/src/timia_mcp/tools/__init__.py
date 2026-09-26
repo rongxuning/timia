@@ -7,6 +7,12 @@ from timia_mcp.config import Settings
 from timia_mcp.http_client import TimiaHttpClient
 from timia_mcp.profiles import is_tool_enabled
 from timia_mcp.tools.comments import add_comment_impl, list_comments_impl
+from timia_mcp.tools.health import (
+    get_health_metric_impl,
+    get_health_summary_impl,
+    get_workout_impl,
+    list_workouts_impl,
+)
 from timia_mcp.tools.items import (
     complete_item_impl,
     create_item_impl,
@@ -15,7 +21,22 @@ from timia_mcp.tools.items import (
     parse_natural_language_impl,
     update_item_impl,
 )
+from timia_mcp.tools.notes import (
+    ai_parse_sticky_note_impl,
+    convert_sticky_note_impl,
+    create_sticky_note_impl,
+    list_sticky_notes_impl,
+)
+from timia_mcp.tools.plans import (
+    get_plan_impl,
+    import_plan_period_impl,
+    list_plan_notifications_impl,
+    search_plans_impl,
+    subscribe_plan_impl,
+)
 from timia_mcp.tools.profile import whoami_impl
+from timia_mcp.tools.prompts import register_prompts
+from timia_mcp.tools.resources import register_resources
 from timia_mcp.tools.schedule import (
     get_schedule_dashboard_impl,
     get_schedule_impl,
@@ -430,3 +451,236 @@ def register_all(mcp: _MCPApp, ctx: ToolContext) -> None:
                 item_id=item_id,
                 body=body,
             )
+
+    if is_tool_enabled(settings.tool_profile, "list_sticky_notes"):
+
+        @mcp.tool(
+            name="list_sticky_notes",
+            description="List the user's sticky notes (id, title, content, recorded_at).",
+        )
+        async def list_sticky_notes(
+            limit: int = 20,
+            cursor: str | None = None,
+            include_archived: bool = False,
+        ) -> str:
+            return await run(
+                "list_sticky_notes",
+                list_sticky_notes_impl,
+                limit=limit,
+                cursor=cursor,
+                include_archived=include_archived,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "create_sticky_note"):
+
+        @mcp.tool(
+            name="create_sticky_note",
+            description="Create a sticky note for the user (requires notes:write).",
+        )
+        async def create_sticky_note(
+            content: str,
+            title: str | None = None,
+            timezone: str | None = None,
+            auto_parse: bool = False,
+        ) -> str:
+            return await run(
+                "create_sticky_note",
+                create_sticky_note_impl,
+                content=content,
+                title=title,
+                timezone=timezone or settings.default_timezone,
+                auto_parse=auto_parse,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "ai_parse_sticky_note"):
+
+        @mcp.tool(
+            name="ai_parse_sticky_note",
+            description=(
+                "Parse a sticky note into a task draft (requires notes:write). "
+                "Does not create a schedule item."
+            ),
+        )
+        async def ai_parse_sticky_note(note_id: str) -> str:
+            return await run(
+                "ai_parse_sticky_note", ai_parse_sticky_note_impl, note_id=note_id
+            )
+
+    if is_tool_enabled(settings.tool_profile, "convert_sticky_note"):
+
+        @mcp.tool(
+            name="convert_sticky_note",
+            description=(
+                "Create a real schedule item from a sticky-note parse. "
+                "Requires notes:write plus workspace_id and project_id. "
+                "Pass item_id only when linking an existing item."
+            ),
+        )
+        async def convert_sticky_note(
+            note_id: str,
+            parse_id: str,
+            workspace_id: str,
+            project_id: str,
+            item_id: str | None = None,
+        ) -> str:
+            return await run(
+                "convert_sticky_note",
+                convert_sticky_note_impl,
+                note_id=note_id,
+                parse_id=parse_id,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                item_id=item_id,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "search_plans"):
+
+        @mcp.tool(
+            name="search_plans",
+            description="Search plan templates (id, title, usage_kind, period_kind, tags).",
+        )
+        async def search_plans(
+            q: str | None = None,
+            tab: str = "discover",
+            limit: int = 20,
+            offset: int = 0,
+        ) -> str:
+            return await run(
+                "search_plans",
+                search_plans_impl,
+                q=q,
+                tab=tab,
+                limit=limit,
+                offset=offset,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "get_plan"):
+
+        @mcp.tool(
+            name="get_plan",
+            description="Return a plan template with trimmed slots and the user's subscription.",
+        )
+        async def get_plan(plan_id: str) -> str:
+            return await run("get_plan", get_plan_impl, plan_id=plan_id)
+
+    if is_tool_enabled(settings.tool_profile, "subscribe_plan"):
+
+        @mcp.tool(
+            name="subscribe_plan",
+            description=(
+                "Subscribe to a plan template and create real tasks for the current period "
+                "when the server imports it. Requires plans:write, workspace_id, and project_id."
+            ),
+        )
+        async def subscribe_plan(
+            plan_id: str,
+            workspace_id: str,
+            project_id: str,
+            timezone: str | None = None,
+        ) -> str:
+            return await run(
+                "subscribe_plan",
+                subscribe_plan_impl,
+                plan_id=plan_id,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                timezone=timezone or settings.default_timezone,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "import_plan_period"):
+
+        @mcp.tool(
+            name="import_plan_period",
+            description=(
+                "Import the current plan period into the subscribed project, creating real "
+                "tasks. Requires plans:write. Optional slot_ids limits which slots are created."
+            ),
+        )
+        async def import_plan_period(
+            subscription_id: str,
+            slot_ids: list[str] | None = None,
+        ) -> str:
+            return await run(
+                "import_plan_period",
+                import_plan_period_impl,
+                subscription_id=subscription_id,
+                slot_ids=slot_ids,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "list_plan_notifications"):
+
+        @mcp.tool(
+            name="list_plan_notifications",
+            description="List plan notifications and the unread count.",
+        )
+        async def list_plan_notifications(limit: int = 20, offset: int = 0) -> str:
+            return await run(
+                "list_plan_notifications",
+                list_plan_notifications_impl,
+                limit=limit,
+                offset=offset,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "get_health_summary"):
+
+        @mcp.tool(
+            name="get_health_summary",
+            description=(
+                "Read-only health summary (timezone, current metrics, scores, insight, "
+                "up to five recent workouts). Does not sync or delete health data."
+            ),
+        )
+        async def get_health_summary(
+            selected_date: str | None = None,
+            range_days: int | None = None,
+        ) -> str:
+            return await run(
+                "get_health_summary",
+                get_health_summary_impl,
+                selected_date=selected_date,
+                range_days=range_days,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "list_workouts"):
+
+        @mcp.tool(
+            name="list_workouts",
+            description="List recent workouts (read-only). Optional end date (YYYY-MM-DD) and days.",
+        )
+        async def list_workouts(end: str | None = None, days: int | None = None) -> str:
+            return await run("list_workouts", list_workouts_impl, end=end, days=days)
+
+    if is_tool_enabled(settings.tool_profile, "get_workout"):
+
+        @mcp.tool(
+            name="get_workout",
+            description=(
+                "Read one workout summary, capped splits, and route point count. "
+                "Does not return the full GPS track."
+            ),
+        )
+        async def get_workout(workout_id: str) -> str:
+            return await run("get_workout", get_workout_impl, workout_id=workout_id)
+
+    if is_tool_enabled(settings.tool_profile, "get_health_metric"):
+
+        @mcp.tool(
+            name="get_health_metric",
+            description="Read one health card (metric, stats, capped hourly buckets).",
+        )
+        async def get_health_metric(
+            metric: str,
+            selected_date: str | None = None,
+            range_days: int | None = None,
+        ) -> str:
+            return await run(
+                "get_health_metric",
+                get_health_metric_impl,
+                metric=metric,
+                selected_date=selected_date,
+                range_days=range_days,
+            )
+
+    if settings.tool_profile in {"p1", "full"}:
+        register_resources(mcp, ctx)
+        register_prompts(mcp, ctx)

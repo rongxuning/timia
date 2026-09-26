@@ -22,8 +22,23 @@ P0_TOOLS: set[str] = {
     "add_comment",
 }
 
-P1_TOOLS: set[str] = P0_TOOLS
-FULL_TOOLS: set[str] = P0_TOOLS
+P1_TOOLS: set[str] = P0_TOOLS | {
+    "list_sticky_notes",
+    "create_sticky_note",
+    "ai_parse_sticky_note",
+    "convert_sticky_note",
+    "search_plans",
+    "get_plan",
+    "subscribe_plan",
+    "import_plan_period",
+    "list_plan_notifications",
+}
+FULL_TOOLS: set[str] = P1_TOOLS | {
+    "get_health_summary",
+    "list_workouts",
+    "get_workout",
+    "get_health_metric",
+}
 
 _PROFILE_TOOLS: dict[str, set[str]] = {
     "p0": P0_TOOLS,
