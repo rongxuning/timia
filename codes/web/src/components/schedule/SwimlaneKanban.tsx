@@ -10,6 +10,8 @@ import {
   taskCalendarColors,
   taskLabelStripeColor,
 } from "./taskUtils";
+import { ScheduleRibbon } from "./ScheduleRibbon";
+import { schedulePaperClass, type ScheduleAppearance } from "./scheduleAppearance";
 
 export type SwimlaneKanbanProps = {
   byStatus: Record<StatusKey, ScheduleTaskItem[]>;
@@ -28,6 +30,7 @@ export type SwimlaneKanbanProps = {
   showProjectContext?: boolean;
   hideHeader?: boolean;
   violetStatusHeader?: boolean;
+  appearance?: ScheduleAppearance;
 };
 
 export function SwimlaneKanban({
@@ -44,18 +47,24 @@ export function SwimlaneKanban({
   showProjectContext = true,
   hideHeader = false,
   violetStatusHeader = false,
+  appearance = "plain",
 }: SwimlaneKanbanProps) {
+  const stage = appearance === "stage";
   return (
-    <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
-      {!hideHeader && (
+    <section className={`mb-lg overflow-hidden rounded-xl ${schedulePaperClass(appearance)}`}>
+      {stage ? (
+        <div className="px-lg pb-1 pt-3">
+          <ScheduleRibbon label="泳道" />
+        </div>
+      ) : !hideHeader ? (
         <div className="border-b border-border-subtle p-lg">
           <div className="text-sm font-semibold text-primary">泳道图</div>
         </div>
-      )}
+      ) : null}
 
       <div
         className={`grid grid-cols-1 border-b border-border-subtle md:grid-cols-2 xl:grid-cols-4 ${
-          violetStatusHeader ? "bg-violet-50/80" : "bg-zinc-50/50"
+          stage ? "bg-white" : violetStatusHeader ? "bg-violet-50/80" : "bg-zinc-50/50"
         }`}
       >
         {STATUSES.map((s) => (
@@ -65,7 +74,7 @@ export function SwimlaneKanban({
           >
             <div className="flex min-w-0 items-center gap-2">
               <div className={`h-2 w-2 shrink-0 rounded-full ${s.dotClass}`} />
-              <span className="truncate text-overline">{s.label}</span>
+              <span className="truncate text-overline tracking-wide">{s.label}</span>
               <span className="shrink-0 text-caption text-neutral-muted">({byStatus[s.key].length})</span>
             </div>
             {onCreateInColumn ? (
@@ -123,7 +132,11 @@ export function SwimlaneKanban({
                     onDragItemIdChange(null);
                     onDragOverStatusChange(null);
                   }}
-                  className="block w-full cursor-pointer rounded-xl border border-border-subtle bg-white p-lg text-left transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  className={`block w-full cursor-pointer rounded-xl border bg-white p-lg text-left transition-all ${
+                    stage
+                      ? "border-black/15 shadow-none hover:bg-surface-container-lowest active:scale-[0.99]"
+                      : "border-border-subtle hover:-translate-y-0.5 hover:shadow-lg"
+                  }`}
                   style={{
                     borderLeftColor: taskLabelStripeColor(it.color, taskCalendarColors(it.priority).border),
                     borderLeftWidth: 4,
