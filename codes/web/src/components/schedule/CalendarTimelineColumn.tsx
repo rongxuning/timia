@@ -181,7 +181,7 @@ export function CalendarTimelineColumn({
             className={[
               "absolute left-0 right-0 border-b border-border-subtle/50 transition-colors",
               isGridSlot && onDateBlankClick
-                ? "z-0 text-left hover:bg-violet-50/50 focus-visible:z-[2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                ? "z-0 text-left hover:bg-primary/5 focus-visible:z-[2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                 : "pointer-events-none",
               isHovered ? "bg-primary/15" : "",
             ].join(" ")}
