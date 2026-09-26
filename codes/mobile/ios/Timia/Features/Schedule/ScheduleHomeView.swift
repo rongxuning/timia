@@ -83,7 +83,7 @@ struct ScheduleHomeView: View {
     @State private var selectedTask: ScheduleTask?
     @State private var createSelection: ScheduleCreateSelection?
     @State private var isParsing = false
-    @State private var parseResponse: NaturalLanguageParseResponse?
+    @State private var voiceParsedTask: VoiceParsedTask?
     @State private var isRangePickerExpanded = false
     @AppStorage("schedule.idleCollapseEnabled") private var idleCollapseEnabled = true
     @StateObject private var mapPlaceTitle = ScheduleMapPlaceTitle()
@@ -247,10 +247,10 @@ struct ScheduleHomeView: View {
                 }
             }
         }
-        .sheet(item: $parseResponse) { response in
+        .sheet(item: $voiceParsedTask) { task in
             NavigationStack {
-                TaskEditorView(mode: .naturalLanguage(response)) {
-                    parseResponse = nil
+                TaskEditorView(mode: .naturalLanguage(task.response, spokenText: task.spokenText)) {
+                    voiceParsedTask = nil
                     Task { await loadVisibleContent(force: true) }
                 }
             }
@@ -1336,7 +1336,7 @@ struct ScheduleHomeView: View {
         isParsing = true
         defer { isParsing = false }
         do {
-            parseResponse = try await session.api.request(
+            let response = try await session.api.request(
                 "/views/schedule/natural-language/parse",
                 method: "POST",
                 body: NaturalLanguageParsePayload(
@@ -1347,6 +1347,7 @@ struct ScheduleHomeView: View {
                 ),
                 response: NaturalLanguageParseResponse.self
             )
+            voiceParsedTask = VoiceParsedTask(response: response, spokenText: value)
         } catch {
             showTip(error.localizedDescription)
         }
@@ -1360,6 +1361,12 @@ struct ScheduleHomeView: View {
             withAnimation(.easeIn(duration: 0.2)) { errorTip = nil }
         }
     }
+}
+
+private struct VoiceParsedTask: Identifiable, Equatable {
+    let response: NaturalLanguageParseResponse
+    let spokenText: String
+    var id: String { "\(response.id)|\(spokenText)" }
 }
 
 private struct ScheduleCreateSelection: Identifiable {

@@ -15,10 +15,17 @@ from collections.abc import Callable
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.services.llm_api_keys import LlmKeyCandidate
+from app.models.user import User
 from app.schemas.views.schedule import (
     NaturalLanguageParseOut,
     NaturalLanguageParseRequest,
+)
+from app.services.llm_api_keys import LlmKeyCandidate
+from app.services.natural_language_catalog import load_workspace_catalog
+from app.services.natural_language_placement import (
+    WorkspaceCatalog,
+    apply_catalog_and_description,
+    format_catalog_prompt,
 )
 
 
@@ -87,6 +94,7 @@ def _system_prompt(
     payload: NaturalLanguageParseRequest,
     *,
     selected_date: date | None = None,
+    catalog: list[WorkspaceCatalog] | None = None,
 ) -> str:
     selected_line = (
         f"日程页当前选中日期：{selected_date.isoformat()}"
@@ -105,6 +113,8 @@ def _system_prompt(
 用户时区：{payload.timezone}
 {selected_line}
 
+{format_catalog_prompt(catalog or [])}
+
 规则：
 1. 相对日期和时间必须基于参考时间与用户时区解析，并输出带时区的 ISO 8601。
 {rule_no_date}
@@ -112,12 +122,19 @@ def _system_prompt(
 4. 只有日期、没有时间时设为全天：start_at 为当天 00:00，end_at 为次日 00:00。
 5. 没有状态时 status=todo；没有优先级时 priority=1。
 6. 优先级映射：低=1，中=2，高=3，紧急=4。
-7. 不要编造空间、项目、负责人或参与人名称；用户未提及时返回 null 或空数组。
+7. workspace_name 和 project_name 只能从上面的空间与项目列表中选择，名称必须与列表完全一致。
+   用户提到空间或项目（例如「某某空间」「放到某某项目」「空间是…」「项目叫…」）时必须填写；
+   只提到项目、且该项目只属于一个空间时，同时填写那个空间。
+   用户没提到时返回 null，不要猜列表第一项，也不要编造列表外的名称。
+   负责人与参与人同样不要编造；未提到时 assignee_name 为 null，participant_names 为空数组。
 8. “每天、每周、每月”等重复表达写入 recurrence_text，并将 recurrence_text 加入
    missing_fields，提醒当前版本不能自动创建重复任务。
-9. 标题必须简洁，移除已经拆入日期、时间、地点的附加描述。
-10. 对无法确定的信息写入 ambiguities；不要自行猜测。
-11. 只输出符合下方 JSON Schema 的 JSON 对象，不要输出解释、Markdown 或代码围栏：
+9. 标题必须简洁，只保留要做的事，不要把日期、时间、地点、空间、项目堆进标题。
+10. body 是任务描述。用简短中文写下之后执行需要的关键信息：具体要做什么、背景、材料、注意事项，
+    以及用户提到的时间、地点和相关的人。不要把空间名和项目名重复写进描述。
+    除标题外没有额外信息时 body 为 null。
+11. 对无法确定的信息写入 ambiguities；不要自行猜测。
+12. 只输出符合下方 JSON Schema 的 JSON 对象，不要输出解释、Markdown 或代码围栏：
 {json.dumps(_TASK_DRAFT_SCHEMA, ensure_ascii=False)}
 """.strip()
 
@@ -127,11 +144,15 @@ def build_minimax_request(
     *,
     selected_date: date | None,
     model: str | None = None,
+    catalog: list[WorkspaceCatalog] | None = None,
 ) -> dict[str, Any]:
     return {
         "model": model or settings.minimax_model,
         "messages": [
-            {"role": "system", "content": _system_prompt(payload, selected_date=selected_date)},
+            {
+                "role": "system",
+                "content": _system_prompt(payload, selected_date=selected_date, catalog=catalog),
+            },
             {"role": "user", "content": payload.text.strip()},
         ],
         "temperature": 1.0,
@@ -237,26 +258,36 @@ def _parse(
     payload: NaturalLanguageParseRequest,
     *,
     selected_date: date | None,
+    user: User | None,
 ) -> tuple[NaturalLanguageParseOut, str]:
     from app.services.llm_api_keys import list_call_candidates, record_failure, record_success
 
-    return run_chat_with_failover(
+    catalog = load_workspace_catalog(db, user) if user is not None else []
+    parsed, provider = run_chat_with_failover(
         list_call_candidates(db),
         request_for=lambda key: build_minimax_request(
-            payload, selected_date=selected_date, model=key.model
+            payload, selected_date=selected_date, model=key.model, catalog=catalog
         ),
         poster=post_chat,
         on_success=record_success,
         on_failure=record_failure,
     )
+    parsed = apply_catalog_and_description(
+        parsed,
+        text=payload.text,
+        catalog=catalog,
+        timezone_name=payload.timezone,
+    )
+    return parsed, provider
 
 
 def parse_natural_language_task(
     db: Session,
     payload: NaturalLanguageParseRequest,
+    user: User,
 ) -> NaturalLanguageParseOut:
     """Schedule entry point. Uses the page's selected date when the text has none."""
-    parsed, _provider = _parse(db, payload, selected_date=payload.selected_date)
+    parsed, _provider = _parse(db, payload, selected_date=payload.selected_date, user=user)
     return parsed
 
 
@@ -266,6 +297,7 @@ def parse_natural_language_task_without_date(
     *,
     timezone: str,
     reference_time: datetime,
+    user: User | None = None,
 ) -> tuple[NaturalLanguageParseOut, str]:
     """Sticky-note entry point. The model infers a date, or leaves it empty."""
     payload = NaturalLanguageParseRequest(
@@ -274,4 +306,4 @@ def parse_natural_language_task_without_date(
         reference_time=reference_time,
         selected_date=reference_time.date(),  # temporary; only used to satisfy schema
     )
-    return _parse(db, payload, selected_date=None)
+    return _parse(db, payload, selected_date=None, user=user)
