@@ -425,3 +425,117 @@ final class APIModelsTests: XCTestCase {
         XCTAssertEqual(value.location, "会议室 A")
     }
 }
+
+final class NaturalLanguagePlacementTests: XCTestCase {
+    private let workspaces = [
+        NamedOption(id: "ws-rd", name: "产品研发"),
+        NamedOption(id: "ws-brand", name: "产品"),
+        NamedOption(id: "ws-life", name: "生活")
+    ]
+
+    private let lifeProjects = [
+        NamedOption(id: "pj-shop", name: "买菜"),
+        NamedOption(id: "pj-life-ios", name: "iOS")
+    ]
+
+    private let rdProjects = [
+        NamedOption(id: "pj-ios", name: "iOS"),
+        NamedOption(id: "pj-android", name: "Android")
+    ]
+
+    func testSpokenSpaceAndProjectResolveToCatalogNames() {
+        let spoken = "明天下午三点在产品研发空间的 iOS 项目里，和张三开会讨论登录改版"
+        let workspace = matchNamedOption(
+            candidate: nil,
+            spokenText: spoken,
+            options: workspaces,
+            markers: ["工作空间", "空间"]
+        )
+        let project = matchNamedOption(
+            candidate: nil,
+            spokenText: spoken,
+            options: rdProjects,
+            markers: ["项目"]
+        )
+        XCTAssertEqual(workspace?.id, "ws-rd")
+        XCTAssertEqual(project?.id, "pj-ios")
+    }
+
+    func testNearMissPrefersTheCloserCatalogName() {
+        let workspace = matchNamedOption(
+            candidate: "产品研法",
+            spokenText: "开会",
+            options: workspaces,
+            markers: ["工作空间", "空间"]
+        )
+        let project = matchNamedOption(
+            candidate: "ios",
+            spokenText: "开会",
+            options: rdProjects,
+            markers: ["项目"]
+        )
+        XCTAssertEqual(workspace?.id, "ws-rd")
+        XCTAssertEqual(project?.id, "pj-ios")
+    }
+
+    func testSuffixAndNearMissSnapToCatalogName() {
+        let workspace = matchNamedOption(
+            candidate: "产品研法空间",
+            spokenText: "放到产品研发空间",
+            options: workspaces,
+            markers: ["工作空间", "空间"]
+        )
+        let project = matchNamedOption(
+            candidate: "ios项目",
+            spokenText: "放到产品研发空间",
+            options: rdProjects,
+            markers: ["项目"]
+        )
+        XCTAssertEqual(workspace?.id, "ws-rd")
+        XCTAssertEqual(project?.id, "pj-ios")
+    }
+
+    func testLongerWorkspaceWinsWhenOneNameContainsAnother() {
+        let workspace = matchNamedOption(
+            candidate: nil,
+            spokenText: "在产品研发空间开会",
+            options: workspaces,
+            markers: ["工作空间", "空间"]
+        )
+        XCTAssertEqual(workspace?.id, "ws-rd")
+    }
+
+    func testAmbiguousWorkspacesAreNotGuessed() {
+        let options = [
+            NamedOption(id: "life", name: "生活"),
+            NamedOption(id: "work", name: "工作")
+        ]
+        let workspace = matchNamedOption(
+            candidate: nil,
+            spokenText: "生活空间或者工作空间都可以",
+            options: options,
+            markers: ["工作空间", "空间"]
+        )
+        XCTAssertNil(workspace)
+    }
+
+    func testProjectOutsideTheWorkspaceIsNotSelected() {
+        let project = matchNamedOption(
+            candidate: "Android",
+            spokenText: "生活空间",
+            options: lifeProjects,
+            markers: ["项目"]
+        )
+        XCTAssertNil(project)
+    }
+
+    func testSpokenTextWinsOverAConflictingModelGuess() {
+        let workspace = matchNamedOption(
+            candidate: "生活",
+            spokenText: "放到产品研发空间",
+            options: workspaces,
+            markers: ["工作空间", "空间"]
+        )
+        XCTAssertEqual(workspace?.id, "ws-rd")
+    }
+}

@@ -35,7 +35,7 @@ struct TaskEditorView: View {
         case createOn(Date)
         case createAt(Date)
         case createIn(workspaceId: String, projectId: String)
-        case naturalLanguage(NaturalLanguageParseResponse)
+        case naturalLanguage(NaturalLanguageParseResponse, spokenText: String)
         case fromStickyNote(parse: StickyNoteAIParse, workspaceId: String, projectId: String)
         case edit(ScheduleTask)
     }
@@ -70,6 +70,10 @@ struct TaskEditorView: View {
     @State private var isDeleting = false
     @State private var isShowingDeleteConfirmation = false
     @State private var isPrepared = false
+    /// Workspace chosen from the voice draft. A later reload must not drop it.
+    @State private var parsedWorkspaceId: String?
+    /// Project chosen from the voice draft. A later reload must not drop it.
+    @State private var lockedParsedProjectId: String?
     @State private var creatorDisplayName = ""
     @State private var isCreatingWorkspace = false
     @State private var isCreatingProject = false
@@ -86,8 +90,13 @@ struct TaskEditorView: View {
     }
 
     private var naturalLanguageResponse: NaturalLanguageParseResponse? {
-        if case let .naturalLanguage(response) = mode { return response }
+        if case let .naturalLanguage(response, _) = mode { return response }
         return nil
+    }
+
+    private var spokenText: String {
+        if case let .naturalLanguage(_, spokenText) = mode { return spokenText }
+        return ""
     }
 
     private var stickyNoteParse: StickyNoteAIParse? {
@@ -108,7 +117,11 @@ struct TaskEditorView: View {
             .onChange(of: workspaceId) { oldValue, newValue in
                 guard oldValue != newValue else { return }
                 focusedField = nil
-                if isPrepared {
+                guard isPrepared else { return }
+                let keepParsedSelection = lockedParsedProjectId != nil && newValue == parsedWorkspaceId
+                if !keepParsedSelection {
+                    lockedParsedProjectId = nil
+                    parsedWorkspaceId = nil
                     projectId = ""
                     memberOptions = []
                     assigneeUserId = ""
@@ -128,11 +141,14 @@ struct TaskEditorView: View {
             .onChange(of: projectId) { oldValue, newValue in
                 guard oldValue != newValue else { return }
                 focusedField = nil
-                if isPrepared {
-                    memberOptions = []
-                    assigneeUserId = ""
-                    participantUserIds = []
+                guard isPrepared else { return }
+                if lockedParsedProjectId != nil, newValue == lockedParsedProjectId {
+                    return
                 }
+                lockedParsedProjectId = nil
+                memberOptions = []
+                assigneeUserId = ""
+                participantUserIds = []
                 Task { await loadMemberOptions() }
             }
 
@@ -148,11 +164,11 @@ struct TaskEditorView: View {
             }
 
             HStack(alignment: .top, spacing: 10) {
-                Text("正文")
+                Text("描述")
                     .fixedSize()
                     .frame(width: 40, alignment: .leading)
                     .padding(.top, 11)
-                TextField("请输入正文", text: $bodyText, axis: .vertical)
+                TextField("请输入描述", text: $bodyText, axis: .vertical)
                     .lineLimit(2...8)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
@@ -427,6 +443,17 @@ struct TaskEditorView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 8, trailing: 0))
             }
+
+            if !spokenText.isEmpty {
+                Section("语音识别") {
+                    Text(spokenText)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+                .accessibilityIdentifier("voice-transcript")
+            }
         }
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(navigationTitle)
@@ -537,19 +564,22 @@ struct TaskEditorView: View {
             projectId = fixedProjectId
             await loadWorkspaces()
             await loadProjects()
-        case let .naturalLanguage(response):
-            await prepareNaturalLanguage(response)
+        case let .naturalLanguage(response, spokenText):
+            await prepareNaturalLanguage(response, spokenText: spokenText)
         case let .fromStickyNote(parse, wsId, pjId):
             workspaceId = wsId
             projectId = pjId
             if let draft = parse.draft {
-                await prepareNaturalLanguage(NaturalLanguageParseResponse(
-                    draft: draft,
-                    confidence: parse.confidence ?? 0.8,
-                    assumptions: parse.assumptions,
-                    missingFields: parse.missingFields,
-                    ambiguities: parse.ambiguities
-                ))
+                await prepareNaturalLanguage(
+                    NaturalLanguageParseResponse(
+                        draft: draft,
+                        confidence: parse.confidence ?? 0.8,
+                        assumptions: parse.assumptions,
+                        missingFields: parse.missingFields,
+                        ambiguities: parse.ambiguities
+                    ),
+                    spokenText: ""
+                )
             }
             await loadWorkspaces()
             await loadProjects()
@@ -577,7 +607,10 @@ struct TaskEditorView: View {
         repeatKind = "none"
     }
 
-    private func prepareNaturalLanguage(_ response: NaturalLanguageParseResponse) async {
+    private func prepareNaturalLanguage(
+        _ response: NaturalLanguageParseResponse,
+        spokenText: String
+    ) async {
         let draft = response.draft
         title = draft.title
         bodyText = draft.body ?? ""
@@ -603,24 +636,41 @@ struct TaskEditorView: View {
 
         await loadWorkspaces()
 
-        if let workspaceName = draft.workspaceName,
-           let matchedWorkspace = workspaces.first(where: { namesMatch($0.name, workspaceName) }),
-           workspaceId != matchedWorkspace.id {
-            projectId = ""
-            memberOptions = []
-            assigneeUserId = ""
-            participantUserIds = []
-            workspaceId = matchedWorkspace.id
-            await loadProjects()
+        let workspaceOptions = workspaces.map { NamedOption(id: $0.id, name: $0.name) }
+        if let matchedWorkspace = matchNamedOption(
+            candidate: draft.workspaceName,
+            spokenText: spokenText,
+            options: workspaceOptions,
+            markers: ["工作空间", "空间"]
+        ) {
+            parsedWorkspaceId = matchedWorkspace.id
+            if workspaceId != matchedWorkspace.id {
+                projectId = ""
+                memberOptions = []
+                assigneeUserId = ""
+                participantUserIds = []
+                workspaceId = matchedWorkspace.id
+            }
         }
 
-        if let projectName = draft.projectName,
-           let matchedProject = projects.first(where: { namesMatch($0.name, projectName) }),
-           projectId != matchedProject.id {
-            memberOptions = []
-            assigneeUserId = ""
-            participantUserIds = []
-            projectId = matchedProject.id
+        await loadProjects()
+
+        let projectOptions = projects
+            .filter { !$0.archived }
+            .map { NamedOption(id: $0.id, name: $0.name) }
+        if let matchedProject = matchNamedOption(
+            candidate: draft.projectName,
+            spokenText: spokenText,
+            options: projectOptions,
+            markers: ["项目"]
+        ) {
+            lockedParsedProjectId = matchedProject.id
+            if projectId != matchedProject.id {
+                memberOptions = []
+                assigneeUserId = ""
+                participantUserIds = []
+                projectId = matchedProject.id
+            }
             await loadMemberOptions()
         }
 
@@ -715,6 +765,13 @@ struct TaskEditorView: View {
             )
             if let id, projects.contains(where: { $0.id == id }) {
                 projectId = id
+                if id != lockedParsedProjectId {
+                    lockedParsedProjectId = nil
+                    parsedWorkspaceId = nil
+                }
+            } else if let lockedParsedProjectId,
+                      projects.contains(where: { $0.id == lockedParsedProjectId }) {
+                projectId = lockedParsedProjectId
             } else if !projects.contains(where: { $0.id == projectId }) {
                 projectId = projects.first?.id ?? ""
             }
@@ -1311,4 +1368,235 @@ private extension Color {
         let values = components.count == 2 ? [components[0], components[0], components[0]] : Array(components.prefix(3))
         return String(format: "#%02X%02X%02X", Int(values[0] * 255), Int(values[1] * 255), Int(values[2] * 255))
     }
+}
+
+
+struct NamedOption: Equatable, Identifiable, Sendable {
+    var id: String
+    var name: String
+}
+
+private let placementSuffixes = ["工作空间", "空间", "项目"]
+private let placementSeparators = CharacterSet(charactersIn: " \t\n\r_-—·.。,，、/／")
+private let leadingParticles: Set<Character> = ["在", "到", "给", "把", "和", "的", "去", "从"]
+private let trailingParticles: Set<Character> = ["里", "中", "的", "吧", "啊", "呀", "呢", "吗"]
+
+/// Pick the workspace or project the user named. Spoken text wins over a conflicting model guess.
+func matchNamedOption(
+    candidate: String?,
+    spokenText: String,
+    options: [NamedOption],
+    markers: [String]
+) -> NamedOption? {
+    guard !options.isEmpty else { return nil }
+    let snapped = snapCandidate(candidate, options: options)
+    let spoken = pickFromSpokenText(spokenText, options: options, markers: markers)
+    if let spoken, let snapped, normalizeLabel(spoken.name) != normalizeLabel(snapped.name) {
+        return spoken
+    }
+    return spoken ?? snapped
+}
+
+func normalizeLabel(_ value: String) -> String {
+    var text = compactPlacement(value)
+    for suffix in placementSuffixes where text.hasSuffix(suffix) && text.count > suffix.count {
+        text.removeLast(suffix.count)
+        break
+    }
+    return text
+}
+
+private func pickFromSpokenText(
+    _ text: String,
+    options: [NamedOption],
+    markers: [String]
+) -> NamedOption? {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+    let mentions = options.filter { mentioned($0.name, in: trimmed) }
+    if let chosen = preferLongest(mentions) {
+        return chosen
+    }
+    let spanHits = hintSpans(in: trimmed, markers: markers).compactMap { snapCandidate($0, options: options) }
+    return preferLongest(spanHits)
+}
+
+private func snapCandidate(_ candidate: String?, options: [NamedOption]) -> NamedOption? {
+    guard let candidate, !candidate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        return nil
+    }
+    let exact = options.filter { normalizeLabel($0.name) == normalizeLabel(candidate) }
+    if let chosen = preferLongest(exact) {
+        return chosen
+    }
+    let normCandidate = normalizeLabel(candidate)
+    guard normCandidate.count >= 2 else { return nil }
+    let contained = options.filter { option in
+        let normName = normalizeLabel(option.name)
+        guard !normName.isEmpty else { return false }
+        if normCandidate.contains(normName) {
+            return Double(normName.count) / Double(normCandidate.count) >= 0.67
+        }
+        if normName.contains(normCandidate) {
+            return Double(normCandidate.count) / Double(normName.count) >= 0.67
+        }
+        return false
+    }
+    if let chosen = preferLongest(contained) {
+        return chosen
+    }
+    let scored = options.map { option in
+        (placementSimilarity(normCandidate, normalizeLabel(option.name)), option)
+    }.sorted { $0.0 > $1.0 }
+    guard let best = scored.first, best.0 >= 0.72 else { return nil }
+    if scored.count > 1, best.0 - scored[1].0 < 0.08,
+       normalizeLabel(best.1.name) != normalizeLabel(scored[1].1.name) {
+        return nil
+    }
+    return best.1
+}
+
+private func mentioned(_ name: String, in text: String) -> Bool {
+    let label = normalizeLabel(name)
+    guard label.count >= 2 else { return false }
+    let compact = compactPlacement(text)
+    if label.allSatisfy(\.isASCII) {
+        return asciiBounded(label, in: compact)
+    }
+    return compact.contains(label)
+}
+
+private func asciiBounded(_ label: String, in text: String) -> Bool {
+    var search = text.startIndex
+    while let range = text.range(of: label, range: search..<text.endIndex) {
+        let beforeOk = range.lowerBound == text.startIndex || !isAsciiName(text[text.index(before: range.lowerBound)])
+        let afterOk = range.upperBound == text.endIndex || !isAsciiName(text[range.upperBound])
+        if beforeOk && afterOk {
+            return true
+        }
+        search = range.upperBound
+    }
+    return false
+}
+
+private func isAsciiName(_ character: Character) -> Bool {
+    character.isASCII && (character.isLetter || character.isNumber)
+}
+
+private func hintSpans(in text: String, markers: [String]) -> [String] {
+    var spans: [String] = []
+    for marker in markers.sorted(by: { $0.count > $1.count }) {
+        var search = text.startIndex
+        while let range = text.range(of: marker, range: search..<text.endIndex) {
+            let prefixStart = text.index(range.lowerBound, offsetBy: -16, limitedBy: text.startIndex) ?? text.startIndex
+            if let name = trailingName(in: String(text[prefixStart..<range.lowerBound])) {
+                spans.append(trimSpan(name))
+            }
+            let suffixEnd = text.index(range.upperBound, offsetBy: 18, limitedBy: text.endIndex) ?? text.endIndex
+            if let name = leadingHintName(in: String(text[range.upperBound..<suffixEnd])) {
+                spans.append(trimSpan(name))
+            }
+            search = range.upperBound
+        }
+    }
+    return spans.filter { !$0.isEmpty }
+}
+
+private func trailingName(in prefix: String) -> String? {
+    let chars = Array(prefix)
+    var end = chars.count
+    while end > 0, !isPlacementNameChar(chars[end - 1]) {
+        end -= 1
+    }
+    var start = end
+    while start > 0, end - start < 16, isPlacementNameChar(chars[start - 1]) {
+        start -= 1
+    }
+    guard end - start >= 2 else { return nil }
+    return String(chars[start..<end])
+}
+
+private func leadingHintName(in suffix: String) -> String? {
+    var chars = Array(suffix)
+    if let first = chars.first, "是叫为：:的".contains(first) {
+        chars.removeFirst()
+    }
+    var count = 0
+    while count < chars.count, count < 16, isPlacementNameChar(chars[count]) {
+        count += 1
+    }
+    guard count >= 2 else { return nil }
+    return String(chars.prefix(count))
+}
+
+private func trimSpan(_ span: String) -> String {
+    var chars = Array(span)
+    while let first = chars.first, leadingParticles.contains(first) {
+        chars.removeFirst()
+    }
+    while let last = chars.last, trailingParticles.contains(last) {
+        chars.removeLast()
+    }
+    return String(chars)
+}
+
+private func isPlacementNameChar(_ character: Character) -> Bool {
+    if character.isASCII {
+        return character.isLetter || character.isNumber
+    }
+    guard let scalar = character.unicodeScalars.first, character.unicodeScalars.count == 1 else {
+        return false
+    }
+    return (0x4E00...0x9FFF).contains(scalar.value)
+}
+
+private func preferLongest(_ options: [NamedOption]) -> NamedOption? {
+    var seen = Set<String>()
+    var distinct: [NamedOption] = []
+    for option in options {
+        let key = normalizeLabel(option.name)
+        guard !key.isEmpty, seen.insert(key).inserted else { continue }
+        distinct.append(option)
+    }
+    guard !distinct.isEmpty else { return nil }
+    let ranked = distinct.sorted { normalizeLabel($0.name).count > normalizeLabel($1.name).count }
+    let bestCount = normalizeLabel(ranked[0].name).count
+    let top = ranked.filter { normalizeLabel($0.name).count == bestCount }
+    return top.count == 1 ? top[0] : nil
+}
+
+private func compactPlacement(_ value: String) -> String {
+    value
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased()
+        .components(separatedBy: placementSeparators)
+        .joined()
+}
+
+private func placementSimilarity(_ left: String, _ right: String) -> Double {
+    if left == right { return left.isEmpty ? 0 : 1 }
+    let distance = levenshtein(Array(left), Array(right))
+    let longest = max(left.count, right.count)
+    guard longest > 0 else { return 0 }
+    return 1 - Double(distance) / Double(longest)
+}
+
+private func levenshtein(_ left: [Character], _ right: [Character]) -> Int {
+    if left.isEmpty { return right.count }
+    if right.isEmpty { return left.count }
+    var previous = Array(0...right.count)
+    var current = Array(repeating: 0, count: right.count + 1)
+    for (i, leftChar) in left.enumerated() {
+        current[0] = i + 1
+        for (j, rightChar) in right.enumerated() {
+            let cost = leftChar == rightChar ? 0 : 1
+            current[j + 1] = min(
+                current[j] + 1,
+                previous[j + 1] + 1,
+                previous[j] + cost
+            )
+        }
+        previous = current
+    }
+    return previous[right.count]
 }

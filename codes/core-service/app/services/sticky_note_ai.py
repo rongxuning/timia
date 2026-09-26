@@ -19,6 +19,7 @@ from app.models.sticky_note import (
     StickyNote,
     StickyNoteAIParse,
 )
+from app.models.user import User
 from app.schemas.sticky_note import StickyNoteAIParseOut
 from app.services.natural_language_schedule import (
     NaturalLanguageConfigurationError,
@@ -72,6 +73,7 @@ def run_sticky_note_parse(
             text=text,
             timezone=sticky_note.timezone or "Asia/Shanghai",
             reference_time=reference_time,
+            user=db.get(User, sticky_note.owner_user_id),
         )
         parse.parse_provider = provider[:40]
     except NaturalLanguageConfigurationError as err:
