@@ -50,6 +50,53 @@ final class TodoDayCoverageTests: XCTestCase {
         XCTAssertFalse(taskCoversLocalDay(task, on: date(2026, 8, 18), calendar: calendar))
     }
 
+    func testDateStripMarkedDayKeysIncludesOnlyDaysWithTasks() {
+        let months = [
+            CalendarMonthSummary(
+                month: 9,
+                taskCount: 2,
+                todoCount: 1,
+                doneCount: 1,
+                days: [
+                    CalendarHeatDay(key: "2026-09-29", taskCount: 0),
+                    CalendarHeatDay(key: "2026-09-30", taskCount: 2),
+                    CalendarHeatDay(key: "2026-10-01", taskCount: 1)
+                ]
+            )
+        ]
+
+        XCTAssertEqual(
+            dateStripMarkedDayKeys(from: months),
+            Set(["2026-09-30", "2026-10-01"])
+        )
+    }
+
+    func testDateStripMarkedDayKeysIsEmptyWhenNoTasks() {
+        let months = [
+            CalendarMonthSummary(
+                month: 9,
+                taskCount: 0,
+                todoCount: 0,
+                doneCount: 0,
+                days: [
+                    CalendarHeatDay(key: "2026-09-30", taskCount: 0)
+                ]
+            )
+        ]
+
+        XCTAssertTrue(dateStripMarkedDayKeys(from: months).isEmpty)
+    }
+
+    func testTodoDateStripYearsPrefetchIncludesStripAndSelectedYears() {
+        let stripStart = date(2025, 12, 28)
+        let selected = date(2026, 1, 2)
+
+        XCTAssertEqual(
+            todoDateStripYearsToPrefetch(around: stripStart, selectedDate: selected, calendar: calendar),
+            [2025, 2026]
+        )
+    }
+
     func testExcludesTaskWithoutStartOrEnd() {
         let task = task(id: "untimed", startAt: nil, endAt: nil)
 
