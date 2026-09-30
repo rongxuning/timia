@@ -27,6 +27,28 @@ func filterTodoColumnsCoveringLocalDay(
     })
 }
 
+/// Day keys (`YYYY-MM-DD`) that should show a task marker on the Todo date strip.
+func dateStripMarkedDayKeys(from months: [CalendarMonthSummary]) -> Set<String> {
+    Set(
+        months
+            .flatMap(\.days)
+            .compactMap { day in day.taskCount > 0 ? day.key : nil }
+    )
+}
+
+/// Calendar years whose heatmaps should be loaded for the visible Todo date strip.
+func todoDateStripYearsToPrefetch(
+    around stripStart: Date,
+    selectedDate: Date,
+    calendar: Calendar = .current
+) -> [Int] {
+    let visibleDays = dateStripDays(starting: stripStart, calendar: calendar)
+    let yearSet = Set(
+        ([selectedDate] + visibleDays).map { calendar.component(.year, from: $0) }
+    )
+    return yearSet.sorted()
+}
+
 struct TodoDaySectionPaging: Equatable {
     let showsLoadMore: Bool
     let remainingCount: Int

@@ -100,7 +100,8 @@ struct ScheduleHomeView: View {
                         selectedDate: selectedDate,
                         onSelect: selectDate,
                         visibleStart: dateStripStart,
-                        onVisibleStartChange: { dateStripStart = $0 }
+                        onVisibleStartChange: { dateStripStart = $0 },
+                        markedDayKeys: todoDateStripMarkedDayKeys
                     )
                         .padding(.horizontal, 12)
                         .padding(.bottom, 4)
@@ -207,6 +208,10 @@ struct ScheduleHomeView: View {
             guard contentMode == .todo else { return }
             Task { await loadTodo(force: true) }
         }
+        .onChange(of: dateStripStart) { _, _ in
+            guard contentMode == .todo else { return }
+            Task { await loadTodoDateStripMarks() }
+        }
         .onChange(of: contentMode) { _, newValue in
             if voiceDock.isActive {
                 voiceDock.cancel()
@@ -217,7 +222,9 @@ struct ScheduleHomeView: View {
             Task {
                 switch newValue {
                 case .todo:
-                    await loadTodo()
+                    async let todo: Void = loadTodo()
+                    async let marks: Void = loadTodoDateStripMarks()
+                    _ = await (todo, marks)
                 case .calendar:
                     await loadCalendar()
                 case .map:
@@ -411,6 +418,11 @@ struct ScheduleHomeView: View {
             result[year] = months
         }
         return result
+    }
+
+    /// Days with at least one task — drives the Todo date-strip lavender markers.
+    private var todoDateStripMarkedDayKeys: Set<String> {
+        dateStripMarkedDayKeys(from: cachedYearMonths.values.flatMap { $0 })
     }
 
     private var cachedMonthWeeks: [String: [CalendarWeek]] {
@@ -759,7 +771,9 @@ struct ScheduleHomeView: View {
     private func loadVisibleContent(force: Bool = false) async {
         switch contentMode {
         case .todo:
-            await loadTodo(force: force)
+            async let todo: Void = loadTodo(force: force)
+            async let marks: Void = loadTodoDateStripMarks(force: force)
+            _ = await (todo, marks)
         case .calendar:
             await loadCalendar(force: force)
         case .map:
@@ -769,6 +783,29 @@ struct ScheduleHomeView: View {
             mapPlaceTitle.refresh(force: force)
         case .stickyNote:
             break
+        }
+    }
+
+    /// Prefetch year heatmaps so the Todo date strip can mark days that have tasks.
+    private func loadTodoDateStripMarks(force: Bool = false) async {
+        let years = todoDateStripYearsToPrefetch(around: dateStripStart, selectedDate: selectedDate)
+        await withTaskGroup(of: Void.self) { group in
+            for year in years {
+                let anchor = Calendar.current.date(from: DateComponents(year: year, month: 1, day: 1)) ?? selectedDate
+                let key = calendarCacheKey(for: anchor, range: .year)
+                if !force, calendarCache[key] != nil { continue }
+                guard force || !loadingCalendarKeys.contains(key) else { continue }
+                loadingCalendarKeys.insert(key)
+                group.addTask { @MainActor in
+                    defer { loadingCalendarKeys.remove(key) }
+                    do {
+                        let response = try await requestCalendar(for: anchor, range: .year)
+                        calendarCache[key] = response
+                    } catch {
+                        // Markers are decorative; keep the strip usable if year heat fails.
+                    }
+                }
+            }
         }
     }
 
@@ -1872,6 +1909,7 @@ private struct DateStrip: View {
     let onSelect: (Date) -> Void
     var visibleStart: Date? = nil
     var onVisibleStartChange: ((Date) -> Void)? = nil
+    var markedDayKeys: Set<String> = []
 
     var body: some View {
         if let visibleStart, let onVisibleStartChange {
@@ -1879,10 +1917,16 @@ private struct DateStrip: View {
                 selectedDate: selectedDate,
                 visibleStart: visibleStart,
                 onSelect: onSelect,
-                onVisibleStartChange: onVisibleStartChange
+                onVisibleStartChange: onVisibleStartChange,
+                markedDayKeys: markedDayKeys
             )
         } else {
-            DateStripRow(days: weekDaysContaining(selectedDate), selectedDate: selectedDate, onSelect: onSelect)
+            DateStripRow(
+                days: weekDaysContaining(selectedDate),
+                selectedDate: selectedDate,
+                onSelect: onSelect,
+                markedDayKeys: markedDayKeys
+            )
         }
     }
 }
@@ -1892,6 +1936,7 @@ private struct SlidingDateStrip: View {
     let visibleStart: Date
     let onSelect: (Date) -> Void
     let onVisibleStartChange: (Date) -> Void
+    var markedDayKeys: Set<String> = []
 
     private let radius = 180
 
@@ -1904,12 +1949,14 @@ private struct SlidingDateStrip: View {
         selectedDate: Date,
         visibleStart: Date,
         onSelect: @escaping (Date) -> Void,
-        onVisibleStartChange: @escaping (Date) -> Void
+        onVisibleStartChange: @escaping (Date) -> Void,
+        markedDayKeys: Set<String> = []
     ) {
         self.selectedDate = selectedDate
         self.visibleStart = visibleStart
         self.onSelect = onSelect
         self.onVisibleStartChange = onVisibleStartChange
+        self.markedDayKeys = markedDayKeys
         let start = Calendar.current.startOfDay(for: visibleStart)
         _origin = State(initialValue: start)
         _settledStart = State(initialValue: start)
@@ -1925,9 +1972,14 @@ private struct SlidingDateStrip: View {
                 LazyHStack(spacing: 7) {
                     ForEach(dateStripDayKeys(origin: origin, radius: radius), id: \.self) { key in
                         let date = dateFromDayKey(key) ?? origin
-                        DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
+                        DateStripDayCell(
+                            date: date,
+                            selectedDate: selectedDate,
+                            onSelect: onSelect,
+                            hasTasks: markedDayKeys.contains(key)
+                        )
                             .containerRelativeFrame(.horizontal, count: 7, span: 1, spacing: 7)
-                            .frame(height: 50)
+                            .frame(height: 54)
                             .id(key)
                     }
                 }
@@ -1935,7 +1987,7 @@ private struct SlidingDateStrip: View {
             }
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: visibleStartBinding, anchor: .leading)
-            .frame(height: 50)
+            .frame(height: 54)
             .accessibilityIdentifier("week-date-strip")
             .onChange(of: visibleStart) { oldStart, newStart in
                 let start = Calendar.current.startOfDay(for: newStart)
@@ -1992,13 +2044,19 @@ private struct DateStripRow: View {
     let days: [Date]
     let selectedDate: Date
     let onSelect: (Date) -> Void
+    var markedDayKeys: Set<String> = []
 
     var body: some View {
         HStack(spacing: 7) {
             ForEach(days, id: \.self) { date in
-                DateStripDayCell(date: date, selectedDate: selectedDate, onSelect: onSelect)
+                DateStripDayCell(
+                    date: date,
+                    selectedDate: selectedDate,
+                    onSelect: onSelect,
+                    hasTasks: markedDayKeys.contains(ScheduleFormat.dayKey(date))
+                )
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
+                    .frame(height: 54)
             }
         }
     }
@@ -2008,6 +2066,7 @@ private struct DateStripDayCell: View {
     let date: Date
     let selectedDate: Date
     let onSelect: (Date) -> Void
+    var hasTasks: Bool = false
 
     var body: some View {
         let selected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
@@ -2020,14 +2079,33 @@ private struct DateStripDayCell: View {
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(selected ? .white : .primary)
             }
+            .padding(.top, 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(selected ? Color.primary.opacity(0.78) : TimiaTheme.field, in: RoundedRectangle(cornerRadius: 14))
+            .background {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(selected ? Color.primary.opacity(0.78) : TimiaTheme.field)
+                if hasTasks {
+                    VStack(spacing: 0) {
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 14,
+                            bottomLeadingRadius: 0,
+                            bottomTrailingRadius: 0,
+                            topTrailingRadius: 14,
+                            style: .continuous
+                        )
+                        .fill(TimiaTheme.primary.opacity(0.28))
+                        .frame(height: 9)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(
             selected ? "calendar-selected-date" : "calendar-date-\(ScheduleFormat.dayKey(date))"
         )
         .accessibilityValue(ScheduleFormat.dayKey(date))
+        .accessibilityHint(hasTasks ? "有任务" : "")
     }
 }
 
