@@ -46,9 +46,9 @@ export function ScheduleCalendarDayHeader({
           <span className="text-[11px] font-medium leading-4 text-text-primary">{dayOfMonth}</span>
         </div>
       </div>
-      <div className="flex bg-violet-50/80">
+      <div className="flex bg-white">
         <div className="w-14 shrink-0 border-r border-border-subtle" aria-hidden />
-        <div className="min-w-0 flex-1 px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted">
+        <div className="min-w-0 flex-1 px-2 py-1 text-center text-[11px] font-semibold leading-4 tracking-wide text-neutral-muted">
           {weekdayLabel(day.key)}
         </div>
       </div>

@@ -78,7 +78,7 @@ export function ScheduleCalendarMonth({
                       "min-h-7 border-r border-b border-border-subtle px-1.5 py-1",
                       di === 0 ? "border-l border-border-subtle" : "",
                       in_month ? "bg-surface" : "bg-surface-container-low/60 text-neutral-muted",
-                      isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "",
+                      isToday ? "bg-primary/15 ring-1 ring-primary ring-inset z-[1]" : "",
                       "last:border-r-0",
                       onDateHeaderClick ? "cursor-pointer hover:bg-primary/5 transition-colors" : "",
                       isDragOver ? "bg-primary/15" : "",

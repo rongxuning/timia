@@ -83,7 +83,7 @@ export function ScheduleCalendarWeekHeader({
                 key={key}
                 className={[
                   "min-h-7 border-r border-border-subtle px-1.5 py-1",
-                  isToday ? "bg-violet-200 ring-1 ring-violet-400 ring-inset z-[1]" : "bg-surface",
+                  isToday ? "bg-primary/15 ring-1 ring-primary ring-inset z-[1]" : "bg-surface",
                   "last:border-r-0",
                   onDateHeaderClick ? "cursor-pointer hover:bg-primary/5 transition-colors" : "",
                   isDragOver ? "bg-primary/15" : "",
@@ -103,13 +103,13 @@ export function ScheduleCalendarWeekHeader({
           })}
         </div>
       </div>
-      <div className="flex bg-violet-50/80">
+      <div className="flex bg-white">
         <div className="w-14 shrink-0 border-r border-border-subtle" aria-hidden />
         <div className="grid min-w-0 flex-1 grid-cols-7">
           {week.days.map(({ key }) => (
             <div
               key={key}
-              className="border-r border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted last:border-r-0"
+              className="border-r border-border-subtle px-2 py-1 text-center text-[11px] font-semibold leading-4 tracking-wide text-neutral-muted last:border-r-0"
             >
               {weekdayLabel(key)}
             </div>

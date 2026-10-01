@@ -178,7 +178,7 @@ export default function MySchedulePage() {
 
   return (
     <PageMain
-      className="!px-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[&>div]:flex lg:[&>div]:min-h-0 lg:[&>div]:flex-1 lg:[&>div]:flex-col"
+      className="min-h-full bg-stage !px-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[&>div]:flex lg:[&>div]:min-h-0 lg:[&>div]:flex-1 lg:[&>div]:flex-col"
       fullWidth
     >
       <div className="grid items-start gap-lg lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
@@ -187,7 +187,7 @@ export default function MySchedulePage() {
           className="flex min-h-0 flex-col gap-2 lg:h-full lg:overflow-hidden"
         >
           <div
-            className="inline-flex shrink-0 self-start rounded-xl border border-border-subtle bg-white p-0.5"
+            className="inline-flex shrink-0 self-start rounded-xl border-2 border-black bg-white p-0.5"
             role="group"
             aria-label={t("boardModeAria")}
           >
@@ -225,6 +225,7 @@ export default function MySchedulePage() {
               onDragItemIdChange={handleUndatedDragItemIdChange}
               canAcceptDrop={draggingItem != null && canClearScheduleByDrop(draggingItem)}
               onDropTaskId={handleDropOnUndated}
+              appearance="stage"
             />
           </div>
         </aside>
@@ -244,6 +245,7 @@ export default function MySchedulePage() {
               drawerOpen={
                 taskDrawerOpen && !!taskDrawerWorkspaceId && !!taskDrawerProjectId && !!taskDrawerItemId
               }
+              appearance="stage"
             />
           ) : (
             <ScheduleBoard
@@ -262,6 +264,7 @@ export default function MySchedulePage() {
               onTasksMutated={() => setScheduleRefreshNonce((n) => n + 1)}
               calendarFirst
               simplifiedSectionHeaders
+              appearance="stage"
             />
           )}
         </div>

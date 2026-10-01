@@ -11,6 +11,8 @@ import {
   taskCalendarColors,
   taskLabelStripeColor,
 } from "./taskUtils";
+import { ScheduleRibbon } from "./ScheduleRibbon";
+import { schedulePaperClass, type ScheduleAppearance } from "./scheduleAppearance";
 
 const QUADRANTS = [
   { p: "1" as const, title: priorityLabel("1"), colorClass: "bg-blue-50 border-blue-100", dotClass: "bg-blue-500" },
@@ -37,6 +39,7 @@ export type PriorityQuadrantsProps = {
   /** 任务卡片状态勾选右侧展示负责人头像 */
   showAssigneeAvatar?: boolean;
   hideHeader?: boolean;
+  appearance?: ScheduleAppearance;
 };
 
 function taskTooltip(it: ScheduleTaskItem, cdText: string | null, showProjectContext: boolean) {
@@ -64,17 +67,24 @@ export function PriorityQuadrants({
   showProjectContext = true,
   showAssigneeAvatar = false,
   hideHeader = false,
+  appearance = "plain",
 }: PriorityQuadrantsProps) {
+  const stage = appearance === "stage";
   return (
-    <section className="bg-white rounded-xl border border-border-subtle overflow-hidden mb-lg">
-      {!hideHeader && (
+    <section className={`mb-lg overflow-hidden rounded-xl ${schedulePaperClass(appearance)}`}>
+      {stage ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-lg pb-1 pt-3">
+          <ScheduleRibbon label="优先级" />
+          <span className="text-caption text-neutral-muted">仅展示待办与进行中的任务</span>
+        </div>
+      ) : !hideHeader ? (
         <div className="p-lg flex items-center justify-between gap-lg">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <div className="text-sm font-semibold text-primary">优先级象限</div>
             <span className="text-caption text-neutral-muted">仅展示待办与进行中的任务</span>
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className={hideHeader ? "p-lg" : "p-lg pt-0"}>
         <div className="grid grid-cols-1 gap-lg md:grid-cols-2">
@@ -84,7 +94,7 @@ export function PriorityQuadrants({
               <div
                 key={q.p}
                 className={[
-                  `rounded-xl border ${q.colorClass} p-lg`,
+                  `rounded-xl border p-lg ${stage ? "border-black/15 bg-white" : q.colorClass}`,
                   dragOverPriority === q.p ? "ring-2 ring-primary/25 ring-inset" : "",
                   onCreateInPriority ? "cursor-pointer" : "",
                 ].join(" ")}
@@ -113,14 +123,23 @@ export function PriorityQuadrants({
                     <span className={`w-2.5 h-2.5 rounded-full ${q.dotClass}`} />
                     <div className="font-medium text-text-primary truncate">{q.title}</div>
                   </div>
-                  <div className="text-caption text-neutral-muted">{list.length} 个任务</div>
+                  {stage ? (
+                    <div className="text-right">
+                      <div className="font-display text-lg font-semibold tabular-nums leading-none text-on-surface">
+                        {list.length}
+                      </div>
+                      <div className="text-overline text-neutral-muted">任务</div>
+                    </div>
+                  ) : (
+                    <div className="text-caption text-neutral-muted">{list.length} 个任务</div>
+                  )}
                 </div>
                 <div className="mt-3 space-y-1.5">
                   {list.length === 0 ? (
                     onCreateInPriority ? (
                       <button
                         type="button"
-                        className="w-full rounded-lg py-3 text-left text-[12px] text-neutral-muted transition-colors hover:bg-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        className={`w-full rounded-lg py-3 text-left text-[12px] text-neutral-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${stage ? "hover:bg-surface-container-lowest" : "hover:bg-white/50"}`}
                         onClick={() => onCreateInPriority(q.p)}
                       >
                         暂无任务，点击添加。
@@ -152,7 +171,7 @@ export function PriorityQuadrants({
                             onDragItemIdChange(null);
                             onDragOverPriorityChange(null);
                           }}
-                          className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary transition-colors"
+                          className={`w-full rounded-lg border border-border-subtle px-2 py-1.5 text-left text-[12px] text-text-primary transition-colors ${stage ? "bg-surface-container-lowest hover:bg-white" : "bg-white/70 hover:bg-white"}`}
                           style={{
                             borderLeftColor: taskLabelStripeColor(
                               it.color,
