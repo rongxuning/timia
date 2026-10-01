@@ -789,22 +789,17 @@ struct ScheduleHomeView: View {
     /// Prefetch year heatmaps so the Todo date strip can mark days that have tasks.
     private func loadTodoDateStripMarks(force: Bool = false) async {
         let years = todoDateStripYearsToPrefetch(around: dateStripStart, selectedDate: selectedDate)
-        await withTaskGroup(of: Void.self) { group in
-            for year in years {
-                let anchor = Calendar.current.date(from: DateComponents(year: year, month: 1, day: 1)) ?? selectedDate
-                let key = calendarCacheKey(for: anchor, range: .year)
-                if !force, calendarCache[key] != nil { continue }
-                guard force || !loadingCalendarKeys.contains(key) else { continue }
-                loadingCalendarKeys.insert(key)
-                group.addTask { @MainActor in
-                    defer { loadingCalendarKeys.remove(key) }
-                    do {
-                        let response = try await requestCalendar(for: anchor, range: .year)
-                        calendarCache[key] = response
-                    } catch {
-                        // Markers are decorative; keep the strip usable if year heat fails.
-                    }
-                }
+        for year in years {
+            let anchor = Calendar.current.date(from: DateComponents(year: year, month: 1, day: 1)) ?? selectedDate
+            let key = calendarCacheKey(for: anchor, range: .year)
+            if !force, calendarCache[key] != nil { continue }
+            guard force || !loadingCalendarKeys.contains(key) else { continue }
+            loadingCalendarKeys.insert(key)
+            defer { loadingCalendarKeys.remove(key) }
+            do {
+                calendarCache[key] = try await requestCalendar(for: anchor, range: .year)
+            } catch {
+                // Markers are decorative; keep the strip usable if year heat fails.
             }
         }
     }
@@ -857,22 +852,13 @@ struct ScheduleHomeView: View {
             .filter { $0 != 0 }
             .map { adjacentDate(from: date, direction: $0, range: range) }
 
-        await withTaskGroup(of: (String, ScheduleCalendar?).self) { group in
-            for candidate in adjacentDates {
-                let key = calendarCacheKey(for: candidate, range: range)
-                guard calendarCache[key] == nil, !loadingCalendarKeys.contains(key) else { continue }
-                loadingCalendarKeys.insert(key)
-                group.addTask {
-                    let response = try? await requestCalendar(for: candidate, range: range)
-                    return (key, response)
-                }
-            }
-
-            for await (key, response) in group {
-                loadingCalendarKeys.remove(key)
-                if let response {
-                    calendarCache[key] = response
-                }
+        for candidate in adjacentDates {
+            let key = calendarCacheKey(for: candidate, range: range)
+            guard calendarCache[key] == nil, !loadingCalendarKeys.contains(key) else { continue }
+            loadingCalendarKeys.insert(key)
+            defer { loadingCalendarKeys.remove(key) }
+            if let response = try? await requestCalendar(for: candidate, range: range) {
+                calendarCache[key] = response
             }
         }
         trimCalendarCache(keeping: date, range: range)
