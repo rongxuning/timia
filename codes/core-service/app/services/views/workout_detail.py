@@ -20,6 +20,7 @@ from app.models.health import (
     METRIC_STEP_COUNT,
     HealthMetricsDaily,
     HealthSampleQuantity,
+    HealthSeriesHeartbeat,
     HealthWorkoutRoute,
     HealthWorkoutSession,
 )
@@ -45,6 +46,9 @@ from app.services.workout_metrics import (
     TRAINING_LOAD_FORMULA,
     TRIMP_FORMULA,
     banister_trimp,
+    cadence_from_speed_stride,
+    cadence_intervals_from_steps,
+    clip_offset_duration,
     downsample_series,
     estimate_power_w,
     haversine_m,
@@ -52,6 +56,7 @@ from app.services.workout_metrics import (
     km_splits,
     km_splits_from_speed,
     mean_grade,
+    normalize_route_clock,
     pace_zones,
     resolve_hr_max,
     running_index,
@@ -70,11 +75,11 @@ WINDOW_METRIC_TYPES = (
 )
 REST_LOOKBACK_DAYS = 14
 SERIES_MAX_POINTS = 600
+# Hourly step buckets start on the hour, often a few minutes before the workout.
+SAMPLE_LOOKBACK = timedelta(hours=2)
 
 
-def build_workout_detail(
-    db: Session, user: User, workout_id: uuid.UUID
-) -> HealthWorkoutDetailOut:
+def build_workout_detail(db: Session, user: User, workout_id: uuid.UUID) -> HealthWorkoutDetailOut:
     session = db.scalar(
         select(HealthWorkoutSession).where(
             HealthWorkoutSession.id == workout_id,
@@ -91,9 +96,11 @@ def build_workout_detail(
     mass_kg = _recent_body_mass_kg(db, user.id)
 
     by_type = _group_window_samples(db, user.id, session.start_at, session.end_at)
-    route_points = _load_route_points(db, user.id, session.hk_uuid)
+    route_points = normalize_route_clock(_load_route_points(db, user.id, session.hk_uuid))
 
     hr_pairs = _offset_values(by_type.get(METRIC_HEART_RATE, []))
+    if not hr_pairs:
+        hr_pairs = _hr_from_heartbeats(db, user.id, session.start_at, session.end_at)
     speed_pairs = _offset_values(by_type.get(METRIC_RUNNING_SPEED, []))
     stride_pairs = _offset_values(by_type.get(METRIC_RUNNING_STRIDE, []))
     power_pairs = _offset_values(by_type.get(METRIC_RUNNING_POWER, []))
@@ -102,7 +109,12 @@ def build_workout_detail(
     step_intervals = by_type.get(METRIC_STEP_COUNT, [])
 
     pace_pairs = _pace_from_speed(speed_pairs) or _pace_from_route(route_points)
-    cadence_pairs = _cadence_from_steps(step_intervals)
+    cadence_intervals = cadence_intervals_from_steps(step_intervals)
+    if cadence_intervals:
+        # Chart points stay on the workout clock; splits use the full interval.
+        cadence_pairs = [(max(start, 0.0), spm) for start, _end, spm in cadence_intervals]
+    else:
+        cadence_pairs = cadence_from_speed_stride(speed_pairs, stride_pairs)
     altitude_pairs = _altitude_from_route(route_points)
 
     avg_hr = session.avg_hr_bpm if session.avg_hr_bpm is not None else _mean_of(hr_pairs)
@@ -215,6 +227,7 @@ def build_workout_detail(
             session_duration_seconds=session.duration_seconds,
             session_avg_hr_bpm=avg_hr,
             session_avg_cadence_spm=avg_cadence,
+            cadence_intervals=cadence_intervals or None,
         ),
         heart_rate=_series_window(hr_pairs),
         heart_rate_zones=hr_zone_rows or None,
@@ -274,7 +287,10 @@ def _group_window_samples(
     start_at: datetime,
     end_at: datetime,
 ) -> dict[str, list[tuple[float, float, float]]]:
-    """Group in-window samples as (offset_seconds, value, duration_seconds)."""
+    """Group samples overlapping the workout as (offset_seconds, value, duration_seconds).
+
+    Hourly buckets often start just before the session; keep the in-workout overlap.
+    """
     start = _aware(start_at)
     end = _aware(end_at)
     rows = list(
@@ -284,8 +300,9 @@ def _group_window_samples(
                 HealthSampleQuantity.owner_user_id == owner_id,
                 HealthSampleQuantity.deleted_at.is_(None),
                 HealthSampleQuantity.metric_type.in_(WINDOW_METRIC_TYPES),
-                HealthSampleQuantity.start_at >= start,
+                HealthSampleQuantity.start_at >= start - SAMPLE_LOOKBACK,
                 HealthSampleQuantity.start_at <= end,
+                HealthSampleQuantity.end_at >= start,
             )
             .order_by(HealthSampleQuantity.start_at)
         )
@@ -295,7 +312,18 @@ def _group_window_samples(
         row_start = _aware(row.start_at)
         offset = (row_start - start).total_seconds()
         duration = (_aware(row.end_at) - row_start).total_seconds()
-        grouped.setdefault(row.metric_type, []).append((offset, float(row.value), duration))
+        if row.metric_type == METRIC_STEP_COUNT:
+            # Keep the original bucket so steps/min is not inflated by clipping.
+            if duration > 0 and offset + duration < 0:
+                continue
+            if duration <= 0 and offset < 0:
+                continue
+            grouped.setdefault(row.metric_type, []).append((offset, float(row.value), duration))
+            continue
+        clipped = clip_offset_duration(offset, duration)
+        if clipped is None:
+            continue
+        grouped.setdefault(row.metric_type, []).append((clipped[0], float(row.value), clipped[1]))
     return grouped
 
 
@@ -305,7 +333,9 @@ def _offset_values(
     return [(offset, value) for offset, value, _duration in rows]
 
 
-def _load_route_points(db: Session, owner_id: uuid.UUID, hk_uuid: uuid.UUID) -> list[dict[str, Any]]:
+def _load_route_points(
+    db: Session, owner_id: uuid.UUID, hk_uuid: uuid.UUID
+) -> list[dict[str, Any]]:
     row = db.scalar(
         select(HealthWorkoutRoute).where(
             HealthWorkoutRoute.owner_user_id == owner_id,
@@ -339,26 +369,50 @@ def _pace_from_route(points: list[dict[str, Any]]) -> list[tuple[float, float]]:
     return out
 
 
-def _cadence_from_steps(
-    intervals: list[tuple[float, float, float]],
+def _hr_from_heartbeats(
+    db: Session,
+    owner_id: uuid.UUID,
+    start_at: datetime,
+    end_at: datetime,
 ) -> list[tuple[float, float]]:
-    """Convert step_count intervals to SPM: steps / (duration_seconds / 60).
-
-    Instantaneous samples (start==end) use the gap to the next (or previous) point.
-    """
-    out: list[tuple[float, float]] = []
-    n = len(intervals)
-    for i, (offset, steps, duration) in enumerate(intervals):
-        dt = duration
-        if dt <= 0:
-            if i + 1 < n:
-                dt = intervals[i + 1][0] - offset
-            elif i > 0:
-                dt = offset - intervals[i - 1][0]
-        if dt <= 0:
-            continue
-        out.append((offset, steps / (dt / 60.0)))
-    return out
+    """Derive bpm from beat-to-beat intervals when discrete heart-rate samples are absent."""
+    start = _aware(start_at)
+    end = _aware(end_at)
+    duration = (end - start).total_seconds()
+    rows = list(
+        db.scalars(
+            select(HealthSeriesHeartbeat).where(
+                HealthSeriesHeartbeat.owner_user_id == owner_id,
+                HealthSeriesHeartbeat.deleted_at.is_(None),
+                HealthSeriesHeartbeat.start_at <= end,
+                HealthSeriesHeartbeat.end_at >= start,
+            )
+        )
+    )
+    points: list[tuple[float, float]] = []
+    for row in rows:
+        origin = (_aware(row.start_at) - start).total_seconds()
+        previous: float | None = None
+        for item in row.intervals or []:
+            if not isinstance(item, dict):
+                continue
+            try:
+                stamp = float(item["t"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            gap = bool(item.get("gap"))
+            if previous is not None and not gap:
+                delta = stamp - previous
+                if 0.3 <= delta <= 2.0:
+                    offset = origin + stamp
+                    if 0 <= offset <= duration + 1:
+                        points.append((offset, 60.0 / delta))
+            previous = stamp
+    if len(points) > 8000:
+        step = max(1, len(points) // 8000)
+        points = points[::step]
+    points.sort(key=lambda item: item[0])
+    return points
 
 
 def _altitude_from_route(points: list[dict[str, Any]]) -> list[tuple[float, float]]:
@@ -482,6 +536,7 @@ def _splits_out(
     session_duration_seconds: int | None = None,
     session_avg_hr_bpm: float | None = None,
     session_avg_cadence_spm: float | None = None,
+    cadence_intervals: list[tuple[float, float, float]] | None = None,
 ) -> list[HealthSplitOut] | None:
     # Prefer watch running_speed (calibrated distance) over GPS haversine zig-zag.
     # Fall back when speed samples exist but cannot form a distance curve (e.g. empty).
@@ -492,6 +547,7 @@ def _splits_out(
             hr_pairs,
             cadence_pairs,
             target_distance_m=session_distance_m,
+            cadence_intervals=cadence_intervals,
         )
     if not rows and points:
         rows = km_splits(
@@ -499,6 +555,7 @@ def _splits_out(
             hr_pairs,
             cadence_pairs,
             target_distance_m=session_distance_m,
+            cadence_intervals=cadence_intervals,
         )
     if not rows:
         return None

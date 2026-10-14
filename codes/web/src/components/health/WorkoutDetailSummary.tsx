@@ -282,7 +282,11 @@ export function WorkoutDetailSummary({
           ))}
         </div>
       ) : null}
-      <WorkoutSplitsTable splits={workout.splits} />
+      <WorkoutSplitsTable
+        splits={workout.splits}
+        heartRate={workout.heart_rate?.points}
+        cadence={workout.series?.cadence?.points}
+      />
       <WorkoutSeriesChart
         title="配速"
         series={workout.series?.pace}

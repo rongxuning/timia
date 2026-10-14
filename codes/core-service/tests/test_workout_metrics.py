@@ -5,6 +5,9 @@ from app.services.workout_metrics import (
     TRIMP_FORMULA,
     _pace_from_vdot_frac,
     banister_trimp,
+    cadence_from_speed_stride,
+    cadence_intervals_from_steps,
+    clip_offset_duration,
     downsample_series,
     estimate_power_w,
     haversine_m,
@@ -252,6 +255,79 @@ def test_km_splits_scale_to_target_distance():
     assert abs(sum(row["distance_m"] for row in scaled) - 5000) < 1
     assert len(scaled) == 5
     assert abs(scaled[0]["distance_m"] - 1000) < 1
+
+
+def test_km_splits_absolute_route_clock_matches_relative_hr():
+    base = 1_700_000_000.0
+    points = [
+        {"t": base + float(i), "lat": i / 111_320, "lng": 0.0, "alt": None}
+        for i in range(0, 2001, 10)
+    ]
+    hr = [(float(i), 151.0) for i in range(0, 2000, 10)]
+    splits = km_splits(points, hr_points=hr, cadence_points=[])
+    assert splits[0]["avg_hr_bpm"] is not None
+    assert abs(splits[0]["avg_hr_bpm"] - 151) < 1
+    assert splits[1]["avg_hr_bpm"] is not None
+    assert abs(splits[1]["avg_hr_bpm"] - 151) < 1
+
+
+def test_km_splits_from_speed_aligns_shifted_clock_to_hr():
+    base = 1_700_000_000.0
+    speed = 10.0 / 3.0
+    samples = [(base + i * 30.0, speed, 30.0) for i in range(25)]
+    hr = [(i * 30.0, 142.0) for i in range(25)]
+    splits = km_splits_from_speed(samples, hr, [])
+    assert splits[0]["avg_hr_bpm"] is not None
+    assert abs(splits[0]["avg_hr_bpm"] - 142) < 1
+    assert splits[1]["avg_hr_bpm"] is not None
+
+
+def test_km_splits_cadence_interval_covers_each_lap():
+    points = [
+        {"t": float(i), "lat": i / 111_320, "lng": 0.0, "alt": None} for i in range(0, 2001, 10)
+    ]
+    splits = km_splits(
+        points,
+        hr_points=[],
+        cadence_points=[],
+        cadence_intervals=[(0.0, 2000.0, 96.0)],
+    )
+    assert abs(splits[0]["avg_cadence_spm"] - 96) < 0.1
+    assert abs(splits[1]["avg_cadence_spm"] - 96) < 0.1
+
+
+def test_km_splits_prestart_cadence_interval_keeps_rate():
+    points = [
+        {"t": float(i), "lat": i / 111_320, "lng": 0.0, "alt": None} for i in range(0, 1501, 10)
+    ]
+    splits = km_splits(
+        points,
+        hr_points=[],
+        cadence_points=[],
+        cadence_intervals=[(-1800.0, 1800.0, 97.0)],
+    )
+    assert abs(splits[0]["avg_cadence_spm"] - 97) < 0.1
+
+
+def test_cadence_intervals_skip_day_buckets_and_keep_workout_hours():
+    day = cadence_intervals_from_steps([(0.0, 8000.0, 86400.0)])
+    assert day == []
+    hour = cadence_intervals_from_steps([(0.0, 5820.0, 3600.0)])
+    assert len(hour) == 1
+    assert abs(hour[0][2] - 97) < 0.1
+    clipped = clip_offset_duration(-30.0, 3600.0)
+    assert clipped is not None
+    assert clipped[0] == 0
+    assert abs(clipped[1] - 3570) < 0.01
+    assert clip_offset_duration(-10.0, 0.0) is None
+
+
+def test_cadence_from_speed_and_stride():
+    speed = [(0.0, 2.0), (10.0, 2.0)]
+    stride = [(0.0, 0.8), (10.0, 0.8)]
+    points = cadence_from_speed_stride(speed, stride)
+    assert len(points) == 2
+    assert abs(points[0][1] - 150) < 0.1
 
 
 def test_formula_constants():

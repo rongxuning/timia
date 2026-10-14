@@ -312,7 +312,7 @@ export function WorkoutRouteMap({ route, paceZones }: WorkoutRouteMapProps) {
   return (
     <div
       ref={containerRef}
-      className="relative h-64 w-full overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm"
+      className="relative h-96 w-full overflow-hidden rounded-xl border border-border-subtle bg-white shadow-sm"
       aria-label="训练路线地图"
     />
   );
