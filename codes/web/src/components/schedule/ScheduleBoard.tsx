@@ -16,7 +16,6 @@ import { SwimlaneKanban } from "./SwimlaneKanban";
 import type { CalendarDropTarget } from "./ScheduleCalendar.types";
 import { computeRescheduledRange } from "./taskUtils";
 import { dayKeyLocal } from "./taskUtils";
-import type { ScheduleAppearance } from "./scheduleAppearance";
 
 export type ScheduleBoardProps = {
   token: string;
@@ -40,8 +39,6 @@ export type ScheduleBoardProps = {
   onTasksMutated?: () => void;
   /** 日历内拖起的任务（用于待添加区域接收 drop） */
   onDraggingItemChange?: (item: ScheduleTaskItem | null) => void;
-  /** stage：深色台面上的墨线白纸，仅「我的日程」使用 */
-  appearance?: ScheduleAppearance;
 };
 
 function findTaskItem(
@@ -93,7 +90,6 @@ export function ScheduleBoard({
   extraDragItemId = null,
   onTasksMutated,
   onDraggingItemChange,
-  appearance = "plain",
 }: ScheduleBoardProps) {
   const {
     calendarMode,
@@ -324,17 +320,7 @@ export function ScheduleBoard({
   }
 
   if (loading && !calendar) {
-    return (
-      <div
-        className={
-          appearance === "stage"
-            ? "py-xl text-center text-small text-white/80"
-            : "py-xl text-center text-small text-text-secondary"
-        }
-      >
-        加载中…
-      </div>
-    );
+    return <div className="text-small text-text-secondary py-xl text-center">加载中…</div>;
   }
 
   const priorityView = (
@@ -354,7 +340,6 @@ export function ScheduleBoard({
         showProjectContext={showProjectContext}
         showAssigneeAvatar={showAssigneeAvatar}
         hideHeader={simplifiedSectionHeaders}
-        appearance={appearance}
     />
   );
 
@@ -379,7 +364,6 @@ export function ScheduleBoard({
         onDragOverHourChange={setDragOverHour}
         onDropDateTime={handleCalendarDrop}
         reschedulingItemId={reschedulingItemId}
-        appearance={appearance}
     />
   );
 
@@ -430,7 +414,6 @@ export function ScheduleBoard({
         showProjectContext={showProjectContext}
         hideHeader={simplifiedSectionHeaders}
         violetStatusHeader={simplifiedSectionHeaders}
-        appearance={appearance}
       />
     </>
   );

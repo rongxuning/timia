@@ -23,7 +23,6 @@ type ScheduleMapViewProps = {
   refreshNonce?: number;
   onItemClick: (item: ScheduleMapItem) => void;
   drawerOpen?: boolean;
-  appearance?: "plain" | "stage";
 };
 
 const STATUS_LABEL_KEY = {
@@ -38,7 +37,6 @@ export function ScheduleMapView({
   refreshNonce = 0,
   onItemClick,
   drawerOpen = false,
-  appearance = "plain",
 }: ScheduleMapViewProps) {
   const t = useTranslations("scheduleMap");
   const [filters, setFilters] = useState<ScheduleMapFilters>(() => defaultScheduleMapFilters());
@@ -144,11 +142,7 @@ export function ScheduleMapView({
         : t("placeCount", { count: view.items.length });
 
   return (
-    <section
-      className={`flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-xl bg-white lg:min-h-0 ${
-        appearance === "stage" ? "border-2 border-black" : "border border-border-subtle"
-      }`}
-    >
+    <section className="flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-xl border border-border-subtle bg-white lg:min-h-0">
       <div className="relative shrink-0 space-y-2 border-b border-border-subtle px-lg py-3">
         {view != null && placeCountLabel ? (
           <span
@@ -171,9 +165,7 @@ export function ScheduleMapView({
                 className={[
                   "h-8 rounded-full border px-3 text-small transition-colors",
                   selected
-                    ? appearance === "stage"
-                      ? "border-primary bg-primary text-on-primary"
-                      : "border-primary bg-primary/10 text-primary"
+                    ? "border-primary bg-primary/10 text-primary"
                     : "border-border-subtle bg-white text-text-secondary hover:bg-surface-container-lowest",
                 ].join(" ")}
                 onClick={() =>
