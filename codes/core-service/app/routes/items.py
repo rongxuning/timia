@@ -167,6 +167,7 @@ def create_item(
             start_at=payload.start_at,
             end_at=payload.end_at,
             repeat=repeat,
+            week_starts_on=user.week_starts_on,
         ):
             occ = _new_item_from_template(
                 workspace_id=workspace_id,
@@ -377,6 +378,7 @@ def update_item(
             start_at=i.start_at,
             end_at=i.end_at,
             repeat=payload.repeat,
+            week_starts_on=user.week_starts_on,
         ):
             occ = _new_item_from_template(
                 workspace_id=i.workspace_id,

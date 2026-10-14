@@ -147,7 +147,7 @@ def _workspace_and_project(client: TestClient, token: str) -> tuple[str, str]:
 def _slot(i: int = 0, **overrides) -> dict:
     data = {
         "rel_month": None,
-        "rel_day": 0,
+        "rel_day": 7,
         "start_minute": i,
         "end_minute": i + 1,
         "all_day": False,
@@ -166,7 +166,12 @@ def _slot(i: int = 0, **overrides) -> dict:
 def _subscription_template_with_slot(client: TestClient, token: str) -> str:
     created = client.post(
         "/plan-templates",
-        json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+        json={
+            **_TEMPLATE,
+            "usage_kind": "subscription_mode",
+            "visibility": "public",
+            "week_starts_on": 7,
+        },
         headers=_headers(token),
     )
     assert created.status_code == 201, created.text
@@ -185,7 +190,12 @@ def _subscription_template_with_named_slots(
 ) -> tuple[str, list[str]]:
     created = client.post(
         "/plan-templates",
-        json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+        json={
+            **_TEMPLATE,
+            "usage_kind": "subscription_mode",
+            "visibility": "public",
+            "week_starts_on": 7,
+        },
         headers=_headers(token),
     )
     assert created.status_code == 201, created.text
@@ -368,7 +378,7 @@ def test_put_slots_rejects_invalid_slot():
         template_id = created.json()["id"]
         r = client.put(
             f"/plan-templates/{template_id}/slots",
-            json=[_slot(rel_day=7, start_minute=0, end_minute=60)],
+            json=[_slot(rel_day=0, start_minute=0, end_minute=60)],
             headers=_headers(token),
         )
         assert r.status_code == 400
@@ -477,7 +487,12 @@ def test_put_slots_notifies_active_subscribers():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+            json={
+            **_TEMPLATE,
+            "usage_kind": "subscription_mode",
+            "visibility": "public",
+            "week_starts_on": 7,
+        },
             headers=_headers(owner_token),
         )
         assert created.status_code == 201, created.text
@@ -548,7 +563,12 @@ def test_delete_ends_open_segments_and_cancels_pending_runs():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+            json={
+            **_TEMPLATE,
+            "usage_kind": "subscription_mode",
+            "visibility": "public",
+            "week_starts_on": 7,
+        },
             headers=_headers(owner_token),
         )
         assert created.status_code == 201, created.text
@@ -625,7 +645,12 @@ def test_close_template_subscriptions_ends_segment_and_cancels_pending_run():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+            json={
+            **_TEMPLATE,
+            "usage_kind": "subscription_mode",
+            "visibility": "public",
+            "week_starts_on": 7,
+        },
             headers=_headers(owner_token),
         )
         assert created.status_code == 201, created.text
@@ -704,7 +729,12 @@ def test_apply_subscription_template_rejected():
     try:
         created = client.post(
             "/plan-templates",
-            json={**_TEMPLATE, "usage_kind": "subscription_mode", "visibility": "public"},
+            json={
+            **_TEMPLATE,
+            "usage_kind": "subscription_mode",
+            "visibility": "public",
+            "week_starts_on": 7,
+        },
             headers=_headers(token),
         )
         assert created.status_code == 201, created.text
@@ -753,7 +783,7 @@ def test_apply_week_creates_items_on_chosen_week():
         body = r.json()
         assert body["status"] == "applied"
         assert body["item_count"] >= 1
-        assert body["period_start"] == "2026-08-16"
+        assert body["period_start"] == "2026-08-10"
 
         db = next(get_db())
         try:
@@ -786,7 +816,7 @@ def test_apply_week_creates_items_on_chosen_week():
             assert logs[0].entity_type == "plan_apply_run"
             assert logs[0].meta["template_id"] == template_id
             assert logs[0].meta["item_count"] >= 1
-            assert logs[0].meta["period_start"] == "2026-08-16"
+            assert logs[0].meta["period_start"] == "2026-08-10"
         finally:
             db.close()
 
@@ -888,7 +918,7 @@ def test_apply_all_invalid_slots_is_empty_template():
         _cleanup_emails([email])
 
 
-def test_apply_week_coerces_wednesday_to_sunday():
+def test_apply_week_coerces_wednesday_to_monday():
     client = TestClient(app)
     email, token = _register_and_login(client)
     try:
@@ -912,13 +942,13 @@ def test_apply_week_coerces_wednesday_to_sunday():
             headers=_headers(token),
         )
         assert r.status_code == 201, r.text
-        assert r.json()["period_start"] == "2026-08-16"
+        assert r.json()["period_start"] == "2026-08-17"
         again = client.post(
             f"/plan-templates/{template_id}/apply",
             json={
                 "workspace_id": workspace_id,
                 "project_id": project_id,
-                "period_start": "2026-08-16",
+                "period_start": "2026-08-17",
             },
             headers=_headers(token),
         )
@@ -978,7 +1008,7 @@ def test_subscribe_imports_current_week():
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
         now = datetime.now(ZoneInfo("Asia/Shanghai"))
-        expected_start = current_period_start("week", now, "Asia/Shanghai").isoformat()
+        expected_start = current_period_start("week", now, "Asia/Shanghai", week_starts_on=7).isoformat()
         r = client.post(
             f"/plan-templates/{template_id}/subscribe",
             json={
@@ -1388,7 +1418,7 @@ def test_imported_lists_apply_count_and_items():
         assert r.status_code == 200
         row = next(x for x in r.json()["items"] if x["id"] == week_plan_mode_id)
         assert row["my_import_count"] == 1
-        assert row["runs"][0]["period_start"] == "2026-08-16"
+        assert row["runs"][0]["period_start"] == "2026-08-10"
         assert len(row["runs"][0]["items"]) >= 1
     finally:
         _cleanup_emails([email])
@@ -1953,7 +1983,7 @@ def test_import_current_period_when_not_yet_applied():
     try:
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         _run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
@@ -1985,7 +2015,7 @@ def test_import_current_period_after_skip():
     try:
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
@@ -2016,7 +2046,7 @@ def test_import_current_period_confirms_existing_pending():
     try:
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
@@ -2055,7 +2085,7 @@ def test_import_current_period_selected_slots_only():
             ],
         )
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         _run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
@@ -2098,7 +2128,7 @@ def test_import_current_period_empty_selection():
     try:
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         _run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
@@ -2123,7 +2153,7 @@ def test_import_current_period_invalid_slot_ids():
     try:
         template_id = _subscription_template_with_slot(client, token)
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         _run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,
@@ -2155,7 +2185,7 @@ def test_import_current_period_confirms_pending_with_selected_slots():
             ],
         )
         workspace_id, project_id = _workspace_and_project(client, token)
-        current = current_period_start("week", utcnow(), "Asia/Shanghai")
+        current = current_period_start("week", utcnow(), "Asia/Shanghai", week_starts_on=7)
         run_id, subscription_id = _insert_pending_run(
             email=email,
             template_id=template_id,

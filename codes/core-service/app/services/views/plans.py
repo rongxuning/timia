@@ -42,7 +42,8 @@ from app.schemas.views.plans import (
     PlanSubscribedSegmentOut,
 )
 from app.services.plan_api import build_slot_out
-from app.services.plan_time import current_period_start
+from app.services.plan_time import current_period_start, period_overlaps_any
+from app.services.week_calendar import DEFAULT_WEEK_START
 
 LIST_TABS = frozenset({"discover", "created", "imported", "subscribed"})
 SUBSCRIBED_RUN_STATUSES = frozenset({"applied", "expired", "skipped"})
@@ -458,6 +459,7 @@ def get_plan_detail(db: Session, user: User, plan_id: uuid.UUID) -> PlanDetailOu
         **card.model_dump(),
         description=template.description,
         creator_intro=template.creator_intro,
+        week_starts_on=template.week_starts_on,
         slots=slots,
         my_import_count=my_import_count,
         my_subscription=my_subscription,
@@ -707,13 +709,22 @@ def list_subscribed_plans(
         current_period_imported = False
         template_period = template.period_kind
         try:
-            current_start = current_period_start(template_period, utcnow(), sub.timezone)
+            current_start = current_period_start(
+                template_period,
+                utcnow(),
+                sub.timezone,
+                template.week_starts_on or DEFAULT_WEEK_START,
+            )
         except ValueError:
             current_start = None
         if current_start is not None:
-            current_period_imported = any(
-                run.period_start == current_start and run.status == "applied" for run in runs
-                if run.subscription_id == sub.id
+            applied_starts = {
+                run.period_start
+                for run in runs
+                if run.subscription_id == sub.id and run.status == "applied"
+            }
+            current_period_imported = current_start in applied_starts or period_overlaps_any(
+                template_period, current_start, applied_starts
             )
         items.append(
             PlanSubscribedRowOut(

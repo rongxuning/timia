@@ -13,6 +13,7 @@ class PlanTemplateCreate(BaseModel):
     period_kind: str
     visibility: str
     tags: list[str] = Field(default_factory=list)
+    week_starts_on: int | None = None
 
 
 class PlanTemplateUpdate(BaseModel):
@@ -21,6 +22,7 @@ class PlanTemplateUpdate(BaseModel):
     creator_intro: str | None = None
     visibility: str | None = None
     tags: list[str] | None = None
+    week_starts_on: int | None = None
 
 
 class PlanSlotPut(BaseModel):
@@ -66,6 +68,7 @@ class PlanTemplateOut(BaseModel):
     use_count: int
     version: int
     created_by_user_id: str
+    week_starts_on: int | None = None
 
 
 class PlanApplyRequest(BaseModel):

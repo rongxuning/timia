@@ -13,6 +13,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.item import ItemOut, ItemUpdate, UserBrief
 from app.services.permissions import require_project_content_access, user_can_access_project_content
+from app.services.week_calendar import DEFAULT_WEEK_START, weekday_number
 
 
 def resolve_item_completed_at(
@@ -118,12 +119,13 @@ def materialize_repeat_occurrences(
     start_at: datetime,
     end_at: datetime | None,
     repeat: str,
+    week_starts_on: int = DEFAULT_WEEK_START,
 ) -> list[tuple[datetime, datetime | None]]:
     """Generate (start_at, end_at) pairs for occurrence copies, excluding the primary.
 
-    Calendar semantics (Mon-Sun week, Jan-Dec year, China convention):
+    Calendar semantics follow the actor's week start (1=Monday, 6=Saturday, 7=Sunday):
     - "none" or no start_at: empty list
-    - "daily": remaining days in the same Mon-Sun week, excluding the start date
+    - "daily": remaining days in the same week, excluding the start date
     - "weekly": remaining same-weekday dates in the same calendar month
     - "monthly": remaining same-day occurrences within the same calendar year;
       if the target day does not exist in a month, roll forward to the last day
@@ -144,8 +146,8 @@ def materialize_repeat_occurrences(
 
     next_dates: list[date] = []
     if repeat == "daily":
-        # base_date.weekday(): 0=Mon, 6=Sun. Remaining days = 6 - weekday.
-        for offset in range(1, 6 - base_date.weekday() + 1):
+        offset_in_week = (weekday_number(base_date) - week_starts_on) % 7
+        for offset in range(1, 6 - offset_in_week + 1):
             next_dates.append(base_date + timedelta(days=offset))
     elif repeat == "weekly":
         year, month = base_date.year, base_date.month

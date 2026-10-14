@@ -85,6 +85,7 @@ export default function EditPlanPage() {
         creator_intro: data.creator_intro,
         visibility: data.visibility,
         tags: data.tags,
+        ...(data.week_starts_on != null ? { week_starts_on: data.week_starts_on } : {}),
       });
       await putPlanSlots(token, planId, data.slots);
       router.push(`/plans/${planId}`);
@@ -133,6 +134,7 @@ export default function EditPlanPage() {
             initial={{
               usage_kind: plan.usage_kind,
               period_kind: plan.period_kind,
+              week_starts_on: plan.week_starts_on,
               title: plan.title,
               description: plan.description,
               creator_intro: plan.creator_intro,

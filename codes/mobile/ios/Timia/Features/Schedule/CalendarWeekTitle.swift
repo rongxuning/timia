@@ -1,13 +1,68 @@
 import CoreGraphics
 import Foundation
 
-func weekDaysContaining(_ date: Date, calendar: Calendar = .current) -> [Date] {
+enum WeekStartDay {
+    static let monday = 1
+    static let saturday = 6
+    static let sunday = 7
+
+    static func normalized(_ value: Int?) -> Int {
+        switch value {
+        case saturday, sunday, monday:
+            return value ?? monday
+        default:
+            return monday
+        }
+    }
+
+    /// Apple `Calendar.firstWeekday`: 1 = Sunday … 7 = Saturday.
+    static func appleFirstWeekday(_ startsOn: Int) -> Int {
+        switch normalized(startsOn) {
+        case monday: return 2
+        case saturday: return 7
+        default: return 1
+        }
+    }
+}
+
+enum TimiaWeekCalendar {
+    nonisolated(unsafe) static var startsOn: Int = WeekStartDay.monday
+
+    static func adopt(_ startsOn: Int) {
+        self.startsOn = WeekStartDay.normalized(startsOn)
+    }
+
+    static func calendar(timeZone: TimeZone = .current) -> Calendar {
+        timiaCalendar(weekStartsOn: startsOn, timeZone: timeZone)
+    }
+}
+
+func timiaCalendar(weekStartsOn: Int, timeZone: TimeZone = .current) -> Calendar {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = Locale(identifier: "en_US_POSIX")
+    calendar.timeZone = timeZone
+    calendar.firstWeekday = WeekStartDay.appleFirstWeekday(weekStartsOn)
+    return calendar
+}
+
+func weekdayHeaderLabels(weekStartsOn: Int = TimiaWeekCalendar.startsOn) -> [String] {
+    let labels = ["一", "二", "三", "四", "五", "六", "日"]
+    let startIndex = WeekStartDay.normalized(weekStartsOn) - 1
+    return (0..<7).map { labels[(startIndex + $0) % 7] }
+}
+
+func leadingWeekdayBlanks(for date: Date, calendar: Calendar) -> Int {
     let weekday = calendar.component(.weekday, from: date)
+    return (weekday - calendar.firstWeekday + 7) % 7
+}
+
+func weekDaysContaining(_ date: Date, calendar: Calendar = TimiaWeekCalendar.calendar()) -> [Date] {
+    let day = calendar.startOfDay(for: date)
     let start = calendar.date(
         byAdding: .day,
-        value: -(weekday - 1),
-        to: calendar.startOfDay(for: date)
-    ) ?? date
+        value: -leadingWeekdayBlanks(for: day, calendar: calendar),
+        to: day
+    ) ?? day
     return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
 }
 

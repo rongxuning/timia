@@ -1,5 +1,7 @@
 "use client";
 
+import { useAccountWeekStart } from "@/lib/use-account-week-start";
+import { weekdayHeaderLabels } from "@/lib/weekStart";
 import type { ScheduleCalendarView, ScheduleTaskItem } from "@/types/api/views/schedule";
 import {
   CALENDAR_VIEW_MODES,
@@ -65,6 +67,9 @@ export function ScheduleCalendar({
   onDropDateTime,
   appearance = "plain",
 }: ScheduleCalendarProps) {
+  const weekStartsOn = useAccountWeekStart();
+  const weekdayHeaders = weekdayHeaderLabels(weekStartsOn);
+
   function openDayView(dateKey: string) {
     onCalendarAnchorChange(parseDateAnchor(dateKey));
     onCalendarModeChange("day");
@@ -107,7 +112,7 @@ export function ScheduleCalendar({
                 : "text-lg font-bold text-text-primary"
             }
           >
-            {calendarTitle(calendarAnchor, calendarMode)}
+            {calendarTitle(calendarAnchor, calendarMode, weekStartsOn)}
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <div
@@ -163,9 +168,9 @@ export function ScheduleCalendar({
 
         {displayedMode === "month" ? (
           <div className="grid grid-cols-7 border-t border-border-subtle bg-white">
-            {["日", "一", "二", "三", "四", "五", "六"].map((d, di) => (
+            {weekdayHeaders.map((d, di) => (
               <div
-                key={d}
+                key={`${d}-${di}`}
                 className={[
                   "border-r border-b border-border-subtle px-2 py-1 text-center text-[11px] font-semibold leading-4 tracking-wide text-neutral-muted",
                   di === 0 ? "border-l border-border-subtle" : "",
@@ -223,6 +228,7 @@ export function ScheduleCalendar({
           <ScheduleCalendarYear
             year={calendar?.year ?? calendarAnchor.getFullYear()}
             months={calendar?.months ?? []}
+            weekStartsOn={weekStartsOn}
             onDayClick={openDayView}
           />
         ) : null}

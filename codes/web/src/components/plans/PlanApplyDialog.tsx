@@ -5,12 +5,13 @@ import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { applyPlan } from "@/lib/api/plans";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
+import { DEFAULT_WEEK_START, weekdayName, weekEndNumber } from "@/lib/weekStart";
 import {
   formatDateAnchor,
   formatPeriodRange,
   parsePeriodStartAnchor,
   periodStartAnchor,
-  sundayWeekStart,
+  weekStartOf,
 } from "./planPeriod";
 import { PlanTargetPickers } from "./PlanTargetPickers";
 
@@ -23,6 +24,7 @@ type Props = {
   templateId: string;
   periodKind: string;
   slotCount: number;
+  weekStartsOn?: number;
   onClose: () => void;
   onSuccess?: () => void;
 };
@@ -33,13 +35,16 @@ export function PlanApplyDialog({
   templateId,
   periodKind,
   slotCount,
+  weekStartsOn = DEFAULT_WEEK_START,
   onClose,
   onSuccess,
 }: Props) {
   const titleId = useId();
   const [workspaceId, setWorkspaceId] = useState("");
   const [projectId, setProjectId] = useState("");
-  const [periodStart, setPeriodStart] = useState(() => periodStartAnchor(periodKind, new Date()));
+  const [periodStart, setPeriodStart] = useState(() =>
+    periodStartAnchor(periodKind, new Date(), weekStartsOn),
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -49,10 +54,10 @@ export function PlanApplyDialog({
     if (!open) return;
     setWorkspaceId("");
     setProjectId("");
-    setPeriodStart(periodStartAnchor(periodKind, new Date()));
+    setPeriodStart(periodStartAnchor(periodKind, new Date(), weekStartsOn));
     setError(null);
     setSubmitting(false);
-  }, [open, periodKind]);
+  }, [open, periodKind, weekStartsOn]);
 
   const periodDate = parsePeriodStartAnchor(periodStart);
   const range = formatPeriodRange(periodKind, periodDate);
@@ -60,7 +65,7 @@ export function PlanApplyDialog({
   function onPeriodInput(raw: string) {
     if (!raw) return;
     if (periodKind === "week") {
-      setPeriodStart(formatDateAnchor(sundayWeekStart(parsePeriodStartAnchor(raw))));
+      setPeriodStart(formatDateAnchor(weekStartOf(parsePeriodStartAnchor(raw), weekStartsOn)));
       return;
     }
     if (periodKind === "month") {
@@ -166,7 +171,7 @@ export function PlanApplyDialog({
               )}
               {periodKind === "week" ? (
                 <span className="block text-caption text-neutral-muted">
-                  选择该周任意一天，将按周日到周六导入
+                  选择该周任意一天，将按{weekdayName(weekStartsOn)}到{weekdayName(weekEndNumber(weekStartsOn))}导入
                 </span>
               ) : null}
             </label>

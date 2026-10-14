@@ -411,6 +411,22 @@ final class CalendarWeekTitleTests: XCTestCase {
         )
     }
 
+    func testMondayAccountWeekStartsOnMonday() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        let days = weekDaysContaining(date(2026, 10, 14), calendar: monday)
+        XCTAssertEqual(dayKey(days.first, calendar: monday), "2026-10-12")
+        XCTAssertEqual(dayKey(days.last, calendar: monday), "2026-10-18")
+    }
+
+    func testSaturdayAccountWeekStartsOnSaturday() {
+        var saturday = calendar
+        saturday.firstWeekday = 7
+        let days = weekDaysContaining(date(2026, 10, 14), calendar: saturday)
+        XCTAssertEqual(dayKey(days.first, calendar: saturday), "2026-10-10")
+        XCTAssertEqual(dayKey(days.last, calendar: saturday), "2026-10-16")
+    }
+
     private func weekDays(containing date: Date) -> [Date] {
         weekDaysContaining(date, calendar: calendar)
     }
@@ -419,9 +435,9 @@ final class CalendarWeekTitleTests: XCTestCase {
         calendar.date(from: DateComponents(year: year, month: month, day: day))!
     }
 
-    private func dayKey(_ date: Date?) -> String {
+    private func dayKey(_ date: Date?, calendar: Calendar? = nil) -> String {
         guard let date else { return "" }
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        let components = (calendar ?? self.calendar).dateComponents([.year, .month, .day], from: date)
         return String(
             format: "%04d-%02d-%02d",
             components.year ?? 0,

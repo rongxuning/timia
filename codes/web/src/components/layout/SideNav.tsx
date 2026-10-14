@@ -122,6 +122,14 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
               className="absolute bottom-0 left-full z-50 ml-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
             >
               <LocaleSwitcher variant="menu" onSelected={() => onUserMenuOpenChange(false)} />
+              <Link
+                href="/my/account"
+                role="menuitem"
+                className="block px-3 py-2 text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
+                onClick={() => onUserMenuOpenChange(false)}
+              >
+                {t("account")}
+              </Link>
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"

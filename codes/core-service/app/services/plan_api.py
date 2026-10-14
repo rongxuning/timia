@@ -33,6 +33,7 @@ from app.schemas.plan import (
     PlanTemplateUpdate,
 )
 from app.services.plan_time import SLOT_LIMITS
+from app.services.week_calendar import WEEK_START_DAYS
 
 PLAN_MODE = "plan_mode"
 SUBSCRIPTION_MODE = "subscription_mode"
@@ -114,6 +115,7 @@ def build_template_out(db: Session, template: PlanTemplate) -> PlanTemplateOut:
         use_count=template.use_count,
         version=template.version,
         created_by_user_id=str(template.created_by_user_id),
+        week_starts_on=template.week_starts_on,
     )
 
 
@@ -141,7 +143,7 @@ def validate_slot(period_kind: str, slot: PlanSlotPut) -> None:
     if period_kind == "day":
         ok = rel_month is None and rel_day == 0
     elif period_kind == "week":
-        ok = rel_month is None and 0 <= rel_day <= 6
+        ok = rel_month is None and 1 <= rel_day <= 7
     elif period_kind == "month":
         ok = rel_month is None and 1 <= rel_day <= 31
     elif period_kind == "year":
@@ -186,6 +188,23 @@ def notify_active_subscribers(db: Session, template: PlanTemplate) -> None:
         )
 
 
+def _require_week_start_value(value: int | None) -> int:
+    if value not in WEEK_START_DAYS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_week_start")
+    return value
+
+
+def _week_start_for_create(payload: PlanTemplateCreate) -> int | None:
+    weekly_subscription = (
+        payload.usage_kind == SUBSCRIPTION_MODE and payload.period_kind == "week"
+    )
+    if weekly_subscription:
+        return _require_week_start_value(payload.week_starts_on)
+    if payload.week_starts_on is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_week_start")
+    return None
+
+
 def create_plan_template(db: Session, user: User, payload: PlanTemplateCreate) -> PlanTemplate:
     if payload.usage_kind not in USAGE_KINDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_usage_kind")
@@ -204,6 +223,7 @@ def create_plan_template(db: Session, user: User, payload: PlanTemplateCreate) -
         visibility=payload.visibility,
         use_count=0,
         version=1,
+        week_starts_on=_week_start_for_create(payload),
     )
     db.add(template)
     db.flush()
@@ -238,6 +258,18 @@ def update_plan_template(
         template.visibility = payload.visibility
     if "tags" in fields and payload.tags is not None:
         set_template_tags(db, template, normalize_tags(payload.tags))
+    if "week_starts_on" in fields:
+        weekly_subscription = (
+            template.usage_kind == SUBSCRIPTION_MODE and template.period_kind == "week"
+        )
+        if not weekly_subscription:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_week_start"
+            )
+        value = _require_week_start_value(payload.week_starts_on)
+        if value != template.week_starts_on:
+            template.week_starts_on = value
+            bump = True
     if bump:
         template.version += 1
         notify_active_subscribers(db, template)

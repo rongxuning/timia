@@ -22,6 +22,11 @@ from app.schemas.views.schedule import (
     ScheduleTaskItemOut,
     ScheduleUndatedViewOut,
 )
+from app.services.week_calendar import (
+    DEFAULT_WEEK_START,
+    week_start as start_of_week,
+    weekday_number,
+)
 
 STATUS_KEYS = ("todo", "doing", "done", "archived")
 PRIORITY_KEYS = ("1", "2", "3", "4")
@@ -54,11 +59,6 @@ def _in_calendar_timezone(value: datetime, calendar_timezone: ZoneInfo) -> datet
 
 def _whole_days_between_inclusive(a: date, b: date) -> int:
     return (a - b).days
-
-
-def _sunday_week_start(d: date) -> date:
-    """Week starts on Sunday (align with JS Date.getDay())."""
-    return d - timedelta(days=(d.weekday() + 1) % 7)
 
 
 def normalize_priority(p: str | None) -> str:
@@ -246,11 +246,12 @@ def _build_month_weeks(
     year: int,
     month: int,
     calendar_timezone: ZoneInfo,
+    week_starts_on: int = DEFAULT_WEEK_START,
 ) -> list[CalendarWeekOut]:
     first = date(year, month, 1)
-    grid_start = _sunday_week_start(first)
+    grid_start = start_of_week(first, week_starts_on)
     last = date(year, month, calendar.monthrange(year, month)[1])
-    grid_end = _sunday_week_start(last) + timedelta(days=6)
+    grid_end = start_of_week(last, week_starts_on) + timedelta(days=6)
     week_count = ((grid_end - grid_start).days // 7) + 1
     weeks: list[CalendarWeekOut] = []
     for w in range(week_count):
@@ -357,8 +358,7 @@ def _build_day_detail(
 ) -> CalendarDayDetailOut:
     day_items = [it for it in items if _item_covers_day(it, day, calendar_timezone)]
     day_items.sort(key=lambda x: _calendar_display_sort_key(x, calendar_timezone))
-    weekday = (day.weekday() + 1) % 7
-    return CalendarDayDetailOut(key=_day_key(day), weekday=weekday, items=day_items)
+    return CalendarDayDetailOut(key=_day_key(day), weekday=weekday_number(day), items=day_items)
 
 
 def _build_year_months(
@@ -407,6 +407,7 @@ def build_calendar_view(
     view: CalendarViewKind = "month",
     anchor: date,
     timezone_name: str = DEFAULT_CALENDAR_TIMEZONE,
+    week_starts_on: int = DEFAULT_WEEK_START,
 ) -> ScheduleCalendarViewOut:
     calendar_timezone = resolve_calendar_timezone(timezone_name)
     anchor_key = _day_key(anchor)
@@ -434,18 +435,20 @@ def build_calendar_view(
         )
 
     if view == "week":
-        week_start = _sunday_week_start(anchor)
+        week_anchor = start_of_week(anchor, week_starts_on)
         return ScheduleCalendarViewOut(
             view="week",
             anchor=anchor_key,
             month=f"{anchor.year:04d}-{_pad2(anchor.month)}",
             year=None,
-            weeks=[_build_week_out(items, week_start, calendar_timezone)],
+            weeks=[_build_week_out(items, week_anchor, calendar_timezone)],
             months=[],
             day=None,
         )
 
-    weeks = _build_month_weeks(items, anchor.year, anchor.month, calendar_timezone)
+    weeks = _build_month_weeks(
+        items, anchor.year, anchor.month, calendar_timezone, week_starts_on
+    )
     return ScheduleCalendarViewOut(
         view="month",
         anchor=anchor_key,

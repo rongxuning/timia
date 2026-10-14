@@ -3,6 +3,15 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
 import type { PlanSlotOut, PlanSlotPut } from "@/lib/api/plans";
+import {
+  DEFAULT_WEEK_START,
+  MONDAY,
+  SATURDAY,
+  SUNDAY,
+  normalizeWeekStart,
+  weekdayName,
+  weekEndNumber,
+} from "@/lib/weekStart";
 import { PLAN_PERIOD_LABEL, PLAN_USAGE_LABEL, PLAN_VISIBILITY_LABEL } from "./planLabels";
 import { PlanSlotEditor } from "./PlanSlotEditor";
 import {
@@ -120,6 +129,7 @@ export type PlanEditorSubmitData = {
   creator_intro: string | null;
   usage_kind: PlanUsageKind;
   period_kind: PlanPeriodKind;
+  week_starts_on?: number;
   visibility: PlanVisibility;
   tags: string[];
   slots: PlanSlotPut[];
@@ -132,9 +142,12 @@ export type PlanEditorFormProps = {
   error?: string | null;
   /** When set (including empty), seeds slots instead of `initial.slots` (e.g. create-time draft). */
   initialSlotPuts?: PlanSlotPut[] | null;
+  /** Prefill for a new weekly subscription. Edit mode uses `initial.week_starts_on`. */
+  accountWeekStartsOn?: number;
   initial?: {
     usage_kind: string;
     period_kind: string;
+    week_starts_on?: number | null;
     title: string;
     description?: string | null;
     creator_intro?: string | null;
@@ -151,6 +164,7 @@ export function PlanEditorForm({
   submitting = false,
   error,
   initialSlotPuts = null,
+  accountWeekStartsOn = DEFAULT_WEEK_START,
   initial,
   onSubmit,
 }: PlanEditorFormProps) {
@@ -160,6 +174,9 @@ export function PlanEditorForm({
   );
   const [periodKind, setPeriodKind] = useState<PlanPeriodKind | "">(
     initial && isPlanPeriodKind(initial.period_kind) ? initial.period_kind : "",
+  );
+  const [weekStartsOn, setWeekStartsOn] = useState<1 | 6 | 7>(() =>
+    normalizeWeekStart(initial?.week_starts_on ?? accountWeekStartsOn),
   );
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -238,12 +255,14 @@ export function PlanEditorForm({
       setLocalError("请填写标题");
       return;
     }
+    const weeklySubscription = usageKind === "subscription_mode" && periodKind === "week";
     await onSubmit({
       title: trimmedTitle,
       description: description.trim() ? description.trim() : null,
       creator_intro: creatorIntro.trim() ? creatorIntro.trim() : null,
       usage_kind: usageKind,
       period_kind: periodKind,
+      week_starts_on: weeklySubscription ? weekStartsOn : undefined,
       visibility,
       tags,
       slots: draftsToPuts(slots),
@@ -295,6 +314,28 @@ export function PlanEditorForm({
           ))}
         </div>
       </div>
+
+      {usageKind === "subscription_mode" && periodKind === "week" ? (
+        <div className="space-y-1.5">
+          <FieldHeader label="一周起始" />
+          <div className="flex flex-wrap gap-1.5">
+            {([MONDAY, SATURDAY, SUNDAY] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                disabled={submitting}
+                className={`${CHOICE_BASE} ${weekStartsOn === value ? CHOICE_ON : CHOICE_OFF}`}
+                onClick={() => setWeekStartsOn(value)}
+              >
+                {weekdayName(value)}
+              </button>
+            ))}
+          </div>
+          <p className="text-caption text-neutral-muted">
+            本周期从{weekdayName(weekStartsOn)}到{weekdayName(weekEndNumber(weekStartsOn))}。订阅者的日程仍按各自账号设置分周。
+          </p>
+        </div>
+      ) : null}
 
       {kindsReady ? (
         <>

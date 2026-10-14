@@ -19,7 +19,7 @@ description: Use when modeling or changing Timia entities (workspace, project, i
 | `version` | 乐观锁；PATCH 必须带当前值，冲突 `409 version_conflict` |
 | `color` | `#RRGGBB`，默认 `#FFFFFF` |
 
-不要用模型注释里的 `low/medium/high`（已过时）。无日期 Item 只能 `todo`（`undated_requires_todo`）。日历**周从周日开始**。
+不要用模型注释里的 `low/medium/high`（已过时）。无日期 Item 只能 `todo`（`undated_requires_todo`）。日历周起始存在 `users.week_starts_on`（`1` 周一 / `6` 周六 / `7` 周日，默认周一）；星期编号一律 `1`=周一 … `7`=周日。
 
 ## 成员
 

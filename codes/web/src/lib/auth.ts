@@ -21,6 +21,8 @@ export type CachedMe = {
   email: string;
   display_name: string;
   system_role: string;
+  /** Missing on sessions cached before the field existed. Treat as Monday. */
+  week_starts_on?: number;
 };
 
 export function getCachedMe(): CachedMe | null {

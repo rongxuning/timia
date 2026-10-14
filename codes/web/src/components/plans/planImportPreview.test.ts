@@ -4,7 +4,6 @@ import {
   buildImportWeekDays,
   compareImportTasks,
   formatImportTaskClockRange,
-  IMPORT_WEEKDAY_LABELS,
   isImportTaskSelected,
   selectedImportSlotIds,
   toggleUnselectedSlotId,
@@ -27,12 +26,12 @@ function task(
 }
 
 describe("buildImportWeekDays", () => {
-  it("builds Sunday-to-Saturday rows from period start", () => {
+  it("keeps the given period start as the first day", () => {
     const days = buildImportWeekDays("2026-09-13", []);
     assert.equal(days.length, 7);
     assert.deepEqual(
       days.map((day) => day.weekdayLabel),
-      [...IMPORT_WEEKDAY_LABELS],
+      ["周日", "周一", "周二", "周三", "周四", "周五", "周六"],
     );
     assert.deepEqual(
       days.map((day) => day.key),
@@ -50,10 +49,12 @@ describe("buildImportWeekDays", () => {
     assert.equal(days[6].monthDayLabel, "9/19");
   });
 
-  it("normalizes a mid-week period start back to Sunday", () => {
+  it("does not snap a mid-week period start back to Sunday", () => {
     const days = buildImportWeekDays("2026-09-16", []);
-    assert.equal(days[0].key, "2026-09-13");
-    assert.equal(days[6].key, "2026-09-19");
+    assert.equal(days[0].key, "2026-09-16");
+    assert.equal(days[0].weekdayLabel, "周三");
+    assert.equal(days[6].key, "2026-09-22");
+    assert.equal(days[6].weekdayLabel, "周二");
   });
 
   it("groups tasks by local date and sorts from midnight", () => {

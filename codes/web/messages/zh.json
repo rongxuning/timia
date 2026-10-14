@@ -12,6 +12,7 @@
     "newTask": "新建任务",
     "openStickyNote": "打开便利贴",
     "llmKeys": "模型配置",
+    "account": "账号",
     "logOut": "退出登录",
     "userFallback": "用户",
     "badgeAria": "{label}，{count} 条提醒"
@@ -31,6 +32,7 @@
     "database": "数据库结构",
     "api": "后端 API",
     "my": "我的",
+    "account": "账号",
     "schedule": "日程",
     "analytics": "数据分析",
     "health": "健康",
@@ -214,5 +216,15 @@
       "not_found": "未找到这把 key",
       "admin_required": "需要系统管理员"
     }
+  },
+  "account": {
+    "title": "账号",
+    "weekStart": "一周从哪天开始",
+    "weekStartHint": "日程、项目日历、健康日历和计划模式的导入周都按这个设置。周订阅模板使用创建者选择的起始日。",
+    "monday": "周一",
+    "saturday": "周六",
+    "sunday": "周日",
+    "saved": "已保存",
+    "saveFailed": "保存失败"
   }
 }

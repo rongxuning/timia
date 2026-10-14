@@ -1,4 +1,5 @@
 import { pad2 } from "./taskUtils";
+import { DEFAULT_WEEK_START, weekStartDate, weekdayNumber, weekdayShort } from "@/lib/weekStart";
 
 export type CalendarViewMode = "day" | "week" | "month" | "year";
 
@@ -9,7 +10,6 @@ export const CALENDAR_VIEW_MODES: Array<{ key: CalendarViewMode; label: string }
   { key: "year", label: "年" },
 ];
 
-const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
 const lunarDateFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
   month: "short",
   day: "numeric",
@@ -33,7 +33,7 @@ export function parseDateAnchor(key: string): Date {
 }
 
 export function weekdayLabel(dateKey: string): string {
-  return `星期${WEEKDAY_LABELS[parseDateAnchor(dateKey).getDay()]}`;
+  return `星期${weekdayShort(weekdayNumber(parseDateAnchor(dateKey)))}`;
 }
 
 function lunarDayName(day: number) {
@@ -52,9 +52,14 @@ export function lunarDateLabel(dateKey: string): string {
   return Number.isFinite(day) && day > 0 ? `${month}${lunarDayName(day)}` : month;
 }
 
-export function sundayWeekStart(d: Date): Date {
+export function weekStartOf(d: Date, startsOn: number = DEFAULT_WEEK_START): Date {
   const base = startOfDay(d);
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate() - base.getDay());
+  return weekStartDate(base, startsOn);
+}
+
+/** @deprecated Use weekStartOf. Kept so older imports keep compiling during the week-start change. */
+export function sundayWeekStart(d: Date): Date {
+  return weekStartOf(d, 7);
 }
 
 export function shiftCalendarAnchor(anchor: Date, mode: CalendarViewMode, delta: -1 | 1): Date {
@@ -78,7 +83,11 @@ function formatMonthDay(d: Date, withYear: boolean) {
   return withYear ? `${d.getFullYear()}年${md}` : md;
 }
 
-export function calendarTitle(anchor: Date, mode: CalendarViewMode): string {
+export function calendarTitle(
+  anchor: Date,
+  mode: CalendarViewMode,
+  weekStartsOn: number = DEFAULT_WEEK_START,
+): string {
   const base = startOfDay(anchor);
   if (mode === "year") {
     return `${base.getFullYear()}年`;
@@ -87,9 +96,9 @@ export function calendarTitle(anchor: Date, mode: CalendarViewMode): string {
     return `${base.getFullYear()}年${base.getMonth() + 1}月`;
   }
   if (mode === "day") {
-    return `${formatMonthDay(base, true)} 周${WEEKDAY_LABELS[base.getDay()]}`;
+    return `${formatMonthDay(base, true)} 周${weekdayShort(weekdayNumber(base))}`;
   }
-  const weekStart = sundayWeekStart(base);
+  const weekStart = weekStartOf(base, weekStartsOn);
   const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
   const crossYear = weekStart.getFullYear() !== weekEnd.getFullYear();
   return `${formatMonthDay(weekStart, crossYear)} – ${formatMonthDay(weekEnd, crossYear)}`;

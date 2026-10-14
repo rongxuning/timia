@@ -12,6 +12,7 @@
     "newTask": "New task",
     "openStickyNote": "Open sticky notes",
     "llmKeys": "Model keys",
+    "account": "Account",
     "logOut": "Log out",
     "userFallback": "User",
     "badgeAria": "{label}, {count, plural, one {# alert} other {# alerts}}"
@@ -31,6 +32,7 @@
     "database": "Database",
     "api": "API",
     "my": "My",
+    "account": "Account",
     "schedule": "Schedule",
     "analytics": "Analytics",
     "health": "Health",
@@ -214,5 +216,15 @@
       "not_found": "Key not found",
       "admin_required": "System admin required"
     }
+  },
+  "account": {
+    "title": "Account",
+    "weekStart": "Week starts on",
+    "weekStartHint": "Schedule, project calendars, the health calendar, and plan-mode import weeks follow this setting. Weekly subscription templates use the start chosen by their creator.",
+    "monday": "Monday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+    "saved": "Saved",
+    "saveFailed": "Could not save"
   }
 }

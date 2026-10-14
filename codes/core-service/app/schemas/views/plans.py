@@ -46,6 +46,7 @@ class PlanPendingRunOut(BaseModel):
 class PlanDetailOut(PlanCardOut):
     description: str | None
     creator_intro: str | None
+    week_starts_on: int | None = None
     slots: list[PlanSlotOut] = Field(default_factory=list)
     my_import_count: int
     my_subscription: PlanMySubscriptionOut | None = None

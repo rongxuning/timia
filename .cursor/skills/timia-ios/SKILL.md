@@ -35,5 +35,5 @@ Debug API：`Config/Debug.xcconfig`（本地 Docker nginx `http://127.0.0.1:8080
 - **不要**把 HealthKit `/health/sync/*` 暴露给 MCP
 - Widget 与 App 共享的 Live Activity 类型放在 `Core/ScreenNotification/`，并列入 `project.yml` 两边 sources
 - 主 Tab 是日程；工作空间/账户是 `navigationDestination`，不是额外 Tab
-- 日历周从周日开始；规划（Plans）不在 iOS 范围
+- 日历周起始用账号 `weekStartsOn`（`TimiaWeekCalendar`，默认周一）。几何计算传入 `firstWeekday` 已设好的公历，不要读设备 `Calendar.current.firstWeekday`。规划（Plans）不在 iOS 范围
 - 健康同步只走 `Core/Health` + `/health/sync/*`，Web 图表读的是 views 汇总

@@ -6,6 +6,7 @@ export type MeWithSystemRole = {
   email: string;
   display_name: string;
   system_role: string;
+  week_starts_on?: number;
 };
 
 export function isSystemAdmin(systemRole: string | undefined): boolean {

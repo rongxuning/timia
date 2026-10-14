@@ -1,15 +1,15 @@
 "use client";
 
 import type { CalendarMonthSummaryView } from "@/types/api/views/schedule";
+import { DEFAULT_WEEK_START, leadingWeekdayBlanks, weekdayHeaderLabels } from "@/lib/weekStart";
 import { dayKeyLocal, pad2 } from "./taskUtils";
 
 type Props = {
   year: number;
   months: CalendarMonthSummaryView[];
+  weekStartsOn?: number;
   onDayClick: (dateKey: string) => void;
 };
-
-const WEEKDAY_SHORT = ["日", "一", "二", "三", "四", "五", "六"] as const;
 
 function heatClass(taskCount: number): string {
   if (taskCount <= 0) return "bg-surface-container-low/40 text-neutral-muted";
@@ -19,10 +19,15 @@ function heatClass(taskCount: number): string {
   return "bg-primary text-on-primary";
 }
 
-function monthGrid(year: number, month: number, days: CalendarMonthSummaryView["days"]) {
+function monthGrid(
+  year: number,
+  month: number,
+  days: CalendarMonthSummaryView["days"],
+  weekStartsOn: number,
+) {
   const countByKey = new Map(days.map((d) => [d.key, d.task_count]));
   const first = new Date(year, month - 1, 1);
-  const startPad = first.getDay();
+  const startPad = leadingWeekdayBlanks(first, weekStartsOn);
   const daysInMonth = new Date(year, month, 0).getDate();
   const cells: Array<{ key: string; day: number; taskCount: number } | null> = [];
 
@@ -35,16 +40,22 @@ function monthGrid(year: number, month: number, days: CalendarMonthSummaryView["
   return cells;
 }
 
-export function ScheduleCalendarYear({ year, months, onDayClick }: Props) {
+export function ScheduleCalendarYear({
+  year,
+  months,
+  weekStartsOn = DEFAULT_WEEK_START,
+  onDayClick,
+}: Props) {
   const todayKey = dayKeyLocal(new Date());
   const byMonth = new Map(months.map((m) => [m.month, m]));
+  const weekdayHeaders = weekdayHeaderLabels(weekStartsOn);
 
   return (
     <div className="border-t border-border-subtle p-lg">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
           const summary = byMonth.get(month);
-          const cells = monthGrid(year, month, summary?.days ?? []);
+          const cells = monthGrid(year, month, summary?.days ?? [], weekStartsOn);
           return (
             <div key={month} className="min-w-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
@@ -52,8 +63,8 @@ export function ScheduleCalendarYear({ year, months, onDayClick }: Props) {
                 <div className="text-[11px] text-neutral-muted">{summary?.task_count ?? 0} 项</div>
               </div>
               <div className="mb-1 grid grid-cols-7 gap-0.5">
-                {WEEKDAY_SHORT.map((d) => (
-                  <div key={d} className="text-center text-[9px] leading-4 text-neutral-muted">
+                {weekdayHeaders.map((d, index) => (
+                  <div key={`${d}-${index}`} className="text-center text-[9px] leading-4 text-neutral-muted">
                     {d}
                   </div>
                 ))}

@@ -8,9 +8,12 @@ import { planApiMessage } from "@/components/plans/planLabels";
 import { savePlanSlotDraft } from "@/components/plans/planSlots";
 import { createPlanTemplate, putPlanSlots } from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
+import { useCurrentMe } from "@/lib/use-current-me";
+import { normalizeWeekStart } from "@/lib/weekStart";
 
 export default function NewPlanPage() {
   const router = useRouter();
+  const me = useCurrentMe();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +36,7 @@ export default function NewPlanPage() {
         creator_intro: data.creator_intro,
         usage_kind: data.usage_kind,
         period_kind: data.period_kind,
+        ...(data.week_starts_on != null ? { week_starts_on: data.week_starts_on } : {}),
         visibility: data.visibility,
         tags: data.tags,
       });
@@ -64,6 +68,7 @@ export default function NewPlanPage() {
       <PlanEditorForm
         mode="create"
         cancelHref="/plans"
+        accountWeekStartsOn={normalizeWeekStart(me?.week_starts_on)}
         submitting={submitting}
         error={error}
         onSubmit={handleSubmit}

@@ -19,6 +19,7 @@ from app.models.plan import (
 )
 from app.services.plan_time import upcoming_period_start
 from app.services.plan_api import SUBSCRIPTION_MODE
+from app.services.week_calendar import DEFAULT_WEEK_START
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,15 @@ def _create_pending_for_segment(
         db.scalars(select(PlanApplyRun).where(PlanApplyRun.subscription_id == sub.id)).all()
     )
     existing = {run.period_start for run in runs if run.status in _OCCUPIED_STATUSES}
-    period_start = upcoming_period_start(template.period_kind, now, sub.timezone, existing)
+    applied = {run.period_start for run in runs if run.status == "applied"}
+    period_start = upcoming_period_start(
+        template.period_kind,
+        now,
+        sub.timezone,
+        existing,
+        week_starts_on=template.week_starts_on or DEFAULT_WEEK_START,
+        applied_period_starts=applied,
+    )
     if period_start is None:
         return 0, 0
     expired_ids = _expire_older_pending_runs(runs, period_start)

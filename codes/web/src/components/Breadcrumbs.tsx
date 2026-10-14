@@ -238,6 +238,7 @@ function BreadcrumbsInner({
       database: t("database"),
       api: t("api"),
       my: t("my"),
+      account: t("account"),
       schedule: t("schedule"),
       analytics: t("analytics"),
       health: t("health"),

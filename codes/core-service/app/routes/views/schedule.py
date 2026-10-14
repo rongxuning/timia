@@ -113,6 +113,7 @@ def schedule_calendar_view(
             view=view,
             anchor=anchor_date,
             timezone_name=timezone_name,
+            week_starts_on=user.week_starts_on,
         )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
