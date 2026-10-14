@@ -83,7 +83,7 @@ def test_saturday_2000_creates_pending_for_next_sunday():
         body = _subscribe(client, token, template_id, workspace_id, project_id)
         current_sunday = date.fromisoformat(body["apply_run"]["period_start"])
         now = _saturday_2000(current_sunday)
-        assert current_period_start("week", now, SH) == current_sunday
+        assert current_period_start("week", now, SH, week_starts_on=7) == current_sunday
         next_sunday = current_sunday + timedelta(days=7)
 
         result = _run_job(now)
@@ -311,7 +311,7 @@ def test_monday_after_missed_saturday_creates_pending_for_current_week():
             current_sunday + timedelta(days=7), time(10, 0), tzinfo=ZoneInfo(SH)
         )
         next_sunday = current_sunday + timedelta(days=7)
-        assert current_period_start("week", monday, SH) == next_sunday
+        assert current_period_start("week", monday, SH, week_starts_on=7) == next_sunday
 
         result = _run_job(monday)
 

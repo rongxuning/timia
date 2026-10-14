@@ -631,11 +631,14 @@ final class TimiaUITests: XCTestCase {
     }
 
     private func weekStart(of date: Date) -> Date {
-        let calendar = Calendar.current
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        calendar.firstWeekday = 2
         let weekday = calendar.component(.weekday, from: date)
+        let delta = (weekday - calendar.firstWeekday + 7) % 7
         return calendar.date(
             byAdding: .day,
-            value: -(weekday - 1),
+            value: -delta,
             to: calendar.startOfDay(for: date)
         ) ?? date
     }

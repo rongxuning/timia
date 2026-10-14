@@ -93,6 +93,63 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Me",
+        "operationId": "update_me_auth_me_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/auth/agent-tokens": {
@@ -14885,6 +14942,10 @@
           "system_role": {
             "type": "string",
             "title": "System Role"
+          },
+          "week_starts_on": {
+            "type": "integer",
+            "title": "Week Starts On"
           }
         },
         "type": "object",
@@ -14892,9 +14953,27 @@
           "id",
           "email",
           "display_name",
-          "system_role"
+          "system_role",
+          "week_starts_on"
         ],
         "title": "MeResponse"
+      },
+      "MeUpdate": {
+        "properties": {
+          "week_starts_on": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week Starts On"
+          }
+        },
+        "type": "object",
+        "title": "MeUpdate"
       },
       "MemberAdd": {
         "properties": {
@@ -16470,6 +16549,17 @@
             ],
             "title": "Creator Intro"
           },
+          "week_starts_on": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week Starts On"
+          },
           "slots": {
             "items": {
               "$ref": "#/components/schemas/PlanSlotOut"
@@ -17391,6 +17481,17 @@
             },
             "type": "array",
             "title": "Tags"
+          },
+          "week_starts_on": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week Starts On"
           }
         },
         "type": "object",
@@ -17464,6 +17565,17 @@
           "created_by_user_id": {
             "type": "string",
             "title": "Created By User Id"
+          },
+          "week_starts_on": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week Starts On"
           }
         },
         "type": "object",
@@ -17541,6 +17653,17 @@
               }
             ],
             "title": "Tags"
+          },
+          "week_starts_on": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week Starts On"
           }
         },
         "type": "object",

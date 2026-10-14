@@ -12,4 +12,8 @@ class MeResponse(BaseModel):
     email: EmailStr
     display_name: str
     system_role: str
+    week_starts_on: int
 
+
+class MeUpdate(BaseModel):
+    week_starts_on: int | None = None

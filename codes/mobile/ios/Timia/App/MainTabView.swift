@@ -17,6 +17,7 @@ struct MainTabView: View {
     @State private var showAccount = false
 
     var body: some View {
+        let _ = TimiaWeekCalendar.adopt(user.weekStartsOn)
         NavigationStack {
             ScheduleHomeView(
                 user: user,

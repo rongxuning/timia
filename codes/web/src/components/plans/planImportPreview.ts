@@ -1,5 +1,12 @@
-export const IMPORT_WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
 /** 弹窗可见区域至少容纳的每日任务数，超出后横向滚动 */
+
+const WEEKDAY_NAMES = ["", "周一", "周二", "周三", "周四", "周五", "周六", "周日"] as const;
+
+/** 1=Monday … 7=Sunday. Same numbering as `src/lib/weekStart.ts`. */
+function weekdayNumber(d: Date): number {
+  const js = d.getDay();
+  return js === 0 ? 7 : js;
+}
 export const IMPORT_VISIBLE_TASK_SLOTS = 5;
 
 export type ImportPreviewTask = {
@@ -35,11 +42,6 @@ function formatDayKey(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-function sundayOf(d: Date): Date {
-  const base = startOfLocalDay(d);
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate() - base.getDay());
-}
-
 export function formatImportTaskClockRange(
   startAt: string,
   endAt: string,
@@ -65,7 +67,7 @@ export function buildImportWeekDays(
   periodStart: string,
   tasks: ImportPreviewTask[],
 ): ImportWeekDay[] {
-  const weekStart = sundayOf(parsePeriodDate(periodStart));
+  const weekStart = startOfLocalDay(parsePeriodDate(periodStart));
   const days: ImportWeekDay[] = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(
       weekStart.getFullYear(),
@@ -74,7 +76,7 @@ export function buildImportWeekDays(
     );
     return {
       key: formatDayKey(date),
-      weekdayLabel: IMPORT_WEEKDAY_LABELS[index],
+      weekdayLabel: WEEKDAY_NAMES[weekdayNumber(date)] ?? "",
       monthDayLabel: `${date.getMonth() + 1}/${date.getDate()}`,
       tasks: [],
     };
@@ -84,8 +86,8 @@ export function buildImportWeekDays(
     const start = new Date(task.start_at);
     if (Number.isNaN(start.getTime())) continue;
     const key = formatDayKey(start);
-    const day = days.find((item) => item.key === key) ?? days[start.getDay()];
-    day.tasks.push(task);
+    const day = days.find((item) => item.key === key);
+    if (day) day.tasks.push(task);
   }
 
   for (const day of days) {

@@ -9,6 +9,7 @@ import {
   calendarTaskSurfaceStyle,
   taskCalendarColors,
 } from "@/components/schedule/taskUtils";
+import { weekdayShort } from "@/lib/weekStart";
 import {
   formatSlotRange,
   pad2,
@@ -16,8 +17,6 @@ import {
   type PlanPeriodKind,
   type PlanSlotDraft,
 } from "./planSlots";
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"] as const;
 
 export type PlanCalendarEmptyClick = {
   rel_month: number | null;
@@ -220,20 +219,20 @@ function DayWeekCalendar({
   onEmptyClick,
   onSlotClick,
 }: PlanRelativeCalendarProps) {
-  const days = periodKind === "week" ? 7 : 1;
+  const columns = periodKind === "week" ? [1, 2, 3, 4, 5, 6, 7] : [0];
   const emptyHint = readOnly ? "暂无时段" : "点击空白处添加时段";
 
   return (
     <div className="overflow-hidden rounded-xl border border-border-subtle bg-surface">
       <div className="flex border-b border-border-subtle">
         <div className="w-14 shrink-0 border-r border-border-subtle bg-surface" aria-hidden />
-        <div className={`min-w-0 flex-1 ${days === 7 ? "grid grid-cols-7" : ""}`}>
-          {Array.from({ length: days }, (_, relDay) => (
+        <div className={`min-w-0 flex-1 ${columns.length === 7 ? "grid grid-cols-7" : ""}`}>
+          {columns.map((relDay) => (
             <div
               key={relDay}
               className="min-h-7 px-1.5 py-1 text-center text-[11px] font-medium text-text-primary"
             >
-              {days === 7 ? WEEKDAYS[relDay] : "当天"}
+              {periodKind === "week" ? weekdayShort(relDay) : "当天"}
             </div>
           ))}
         </div>
@@ -242,8 +241,8 @@ function DayWeekCalendar({
         <div className="flex w-14 shrink-0 items-start justify-end border-r border-border-subtle bg-surface-container-lowest/60 px-1 pt-2 text-[10px] text-neutral-muted">
           全天
         </div>
-        <div className={`min-w-0 flex-1 ${days === 7 ? "grid grid-cols-7" : ""}`}>
-          {Array.from({ length: days }, (_, relDay) => {
+        <div className={`min-w-0 flex-1 ${columns.length === 7 ? "grid grid-cols-7" : ""}`}>
+          {columns.map((relDay) => {
             const allDay = slotsForCell(slots, periodKind, relDay).filter((slot) => slot.all_day);
             return (
               <div
@@ -264,8 +263,8 @@ function DayWeekCalendar({
       <div>
         <div className="flex bg-surface pt-2">
           <HourLabels />
-          <div className={`min-w-0 flex-1 ${days === 7 ? "grid grid-cols-7" : ""}`}>
-            {Array.from({ length: days }, (_, relDay) => {
+          <div className={`min-w-0 flex-1 ${columns.length === 7 ? "grid grid-cols-7" : ""}`}>
+            {columns.map((relDay) => {
               const timed = slotsForCell(slots, periodKind, relDay).filter((slot) => !slot.all_day);
               return (
                 <div

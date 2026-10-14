@@ -4,7 +4,11 @@ from calendar import monthrange
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-SLOT_LIMITS = {"day": 20, "week": 50, "month": 80, "year": 100}
+from app.services.week_calendar import (
+    DEFAULT_WEEK_START,
+    week_slot_offset,
+    week_start,
+)
 
 
 def resolve_timezone(timezone_name: str) -> ZoneInfo:
@@ -14,16 +18,20 @@ def resolve_timezone(timezone_name: str) -> ZoneInfo:
         raise ValueError("invalid timezone") from error
 
 
-def sunday_week_start(d: date) -> date:
-    return d - timedelta(days=(d.weekday() + 1) % 7)
+SLOT_LIMITS = {"day": 20, "week": 50, "month": 80, "year": 100}
 
 
-def current_period_start(period_kind: str, now: datetime, timezone_name: str) -> date:
+def current_period_start(
+    period_kind: str,
+    now: datetime,
+    timezone_name: str,
+    week_starts_on: int = DEFAULT_WEEK_START,
+) -> date:
     local = now.astimezone(resolve_timezone(timezone_name)).date()
     if period_kind == "day":
         return local
     if period_kind == "week":
-        return sunday_week_start(local)
+        return week_start(local, week_starts_on)
     if period_kind == "month":
         return date(local.year, local.month, 1)
     if period_kind == "year":
@@ -60,14 +68,15 @@ def resolve_slot_bounds(
     end_minute: int,
     all_day: bool,
     timezone_name: str,
+    week_starts_on: int = DEFAULT_WEEK_START,
 ) -> tuple[datetime, datetime] | None:
     tz = resolve_timezone(timezone_name)
     if period_kind == "day":
         day = period_start
     elif period_kind == "week":
-        if rel_day < 0 or rel_day > 6:
+        if rel_day < 1 or rel_day > 7:
             return None
-        day = period_start + timedelta(days=rel_day)
+        day = period_start + timedelta(days=week_slot_offset(rel_day, week_starts_on))
     elif period_kind == "month":
         last = monthrange(period_start.year, period_start.month)[1]
         if rel_day < 1 or rel_day > last:
@@ -116,20 +125,44 @@ def pending_should_expire(
     return local > period_end_date(period_kind, period_start)
 
 
+def period_ranges_overlap(period_kind: str, left: date, right: date) -> bool:
+    left_end = period_end_date(period_kind, left)
+    right_end = period_end_date(period_kind, right)
+    return left <= right_end and right <= left_end
+
+
+def period_overlaps_any(period_kind: str, candidate: date, existing: set[date]) -> bool:
+    return any(period_ranges_overlap(period_kind, candidate, start) for start in existing)
+
+
 def upcoming_period_start(
     period_kind: str,
     now: datetime,
     timezone_name: str,
     existing_period_starts: set[date],
+    *,
+    week_starts_on: int = DEFAULT_WEEK_START,
+    applied_period_starts: set[date] | None = None,
 ) -> date | None:
-    """Latest period whose reminder has opened and is not occupied; else None."""
-    current = current_period_start(period_kind, now, timezone_name)
+    """Latest period whose reminder has opened and is not occupied; else None.
+
+    ``applied_period_starts`` blocks a candidate whose date range overlaps an
+    already applied window, even when the anchors differ.
+    """
+    applied = existing_period_starts if applied_period_starts is None else applied_period_starts
+    current = current_period_start(period_kind, now, timezone_name, week_starts_on=week_starts_on)
+
+    def blocked(candidate: date) -> bool:
+        if candidate in existing_period_starts:
+            return True
+        return period_overlaps_any(period_kind, candidate, applied)
+
     candidate = current
     nxt = next_period_start(period_kind, candidate)
     while reminder_has_started(nxt, now, timezone_name):
         candidate = nxt
         nxt = next_period_start(period_kind, candidate)
-    while candidate in existing_period_starts:
+    while blocked(candidate):
         nxt = next_period_start(period_kind, candidate)
         if not reminder_has_started(nxt, now, timezone_name):
             return None

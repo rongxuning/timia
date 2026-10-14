@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import { useAccountWeekStart } from "@/lib/use-account-week-start";
+import { leadingWeekdayBlanks, weekdayHeaderLabels } from "@/lib/weekStart";
 import type { HealthCalendarDay } from "@/types/api/views/health";
-
-const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
 function parseMonth(month: string): { year: number; month: number } {
   const [year, monthNum] = month.split("-").map(Number);
@@ -18,12 +18,6 @@ function shiftMonth(month: string, delta: number): string {
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
-}
-
-/** Monday-first weekday, 0-6 */
-function mondayIndex(year: number, month: number, day: number): number {
-  const js = new Date(year, month - 1, day).getDay();
-  return (js + 6) % 7;
 }
 
 function NestedRings({
@@ -72,9 +66,11 @@ export function HealthMiniCalendar({
   onMonthChange,
   onSelectDate,
 }: HealthMiniCalendarProps) {
+  const weekStartsOn = useAccountWeekStart();
+  const weekdayHeaders = weekdayHeaderLabels(weekStartsOn);
   const { year, month: monthNum } = parseMonth(month);
   const byDate = useMemo(() => new Map(days.map((item) => [item.local_date, item])), [days]);
-  const leading = mondayIndex(year, monthNum, 1);
+  const leading = leadingWeekdayBlanks(new Date(year, monthNum - 1, 1), weekStartsOn);
   const total = daysInMonth(year, monthNum);
   const cells: Array<{ date: string; day: number } | null> = [];
   for (let i = 0; i < leading; i += 1) cells.push(null);
@@ -110,8 +106,8 @@ export function HealthMiniCalendar({
         </button>
       </div>
       <div className="mt-md grid grid-cols-7 gap-y-1 text-center">
-        {WEEKDAYS.map((label) => (
-          <div key={label} className="text-overline text-zinc-400">
+        {weekdayHeaders.map((label, index) => (
+          <div key={`${label}-${index}`} className="text-overline text-zinc-400">
             {label}
           </div>
         ))}

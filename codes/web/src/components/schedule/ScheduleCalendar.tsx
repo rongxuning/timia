@@ -1,5 +1,7 @@
 "use client";
 
+import { useAccountWeekStart } from "@/lib/use-account-week-start";
+import { weekdayHeaderLabels } from "@/lib/weekStart";
 import type { ScheduleCalendarView, ScheduleTaskItem } from "@/types/api/views/schedule";
 import {
   CALENDAR_VIEW_MODES,
@@ -62,6 +64,9 @@ export function ScheduleCalendar({
   onDragOverHourChange,
   onDropDateTime,
 }: ScheduleCalendarProps) {
+  const weekStartsOn = useAccountWeekStart();
+  const weekdayHeaders = weekdayHeaderLabels(weekStartsOn);
+
   function openDayView(dateKey: string) {
     onCalendarAnchorChange(parseDateAnchor(dateKey));
     onCalendarModeChange("day");
@@ -93,7 +98,7 @@ export function ScheduleCalendar({
       <div className="sticky top-0 z-30 shrink-0 bg-white shadow-sm">
         <div className="flex flex-col gap-3 p-lg sm:flex-row sm:items-center sm:justify-between">
           <div className="text-lg font-bold text-text-primary">
-            {calendarTitle(calendarAnchor, calendarMode)}
+            {calendarTitle(calendarAnchor, calendarMode, weekStartsOn)}
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <div className="inline-flex rounded-xl border border-border-subtle bg-surface-container-lowest/50 p-0.5">
@@ -143,9 +148,9 @@ export function ScheduleCalendar({
 
         {displayedMode === "month" ? (
           <div className="grid grid-cols-7 border-t border-border-subtle bg-violet-50/80">
-            {["日", "一", "二", "三", "四", "五", "六"].map((d, di) => (
+            {weekdayHeaders.map((d, di) => (
               <div
-                key={d}
+                key={`${d}-${di}`}
                 className={[
                   "border-r border-b border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted",
                   di === 0 ? "border-l border-border-subtle" : "",
@@ -203,6 +208,7 @@ export function ScheduleCalendar({
           <ScheduleCalendarYear
             year={calendar?.year ?? calendarAnchor.getFullYear()}
             months={calendar?.months ?? []}
+            weekStartsOn={weekStartsOn}
             onDayClick={openDayView}
           />
         ) : null}

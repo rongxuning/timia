@@ -35,7 +35,10 @@ export type AppShellProps = {
 let inflightMeFetch: Promise<void> | null = null;
 
 function refreshMeIfNeeded() {
-  if (getMeClientSnapshot()) return Promise.resolve();
+  const cached = getMeClientSnapshot();
+  if (cached?.week_starts_on === 1 || cached?.week_starts_on === 6 || cached?.week_starts_on === 7) {
+    return Promise.resolve();
+  }
   if (inflightMeFetch) return inflightMeFetch;
 
   const t = getAccessToken();

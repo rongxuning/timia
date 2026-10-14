@@ -32,22 +32,54 @@ from app.services.plan_api import PLAN_MODE, SUBSCRIPTION_MODE, require_plan_vis
 from app.services.plan_time import (
     current_period_start,
     period_end_date,
+    period_overlaps_any,
     resolve_slot_bounds,
     resolve_timezone,
-    sunday_week_start,
+)
+from app.services.week_calendar import (
+    DEFAULT_WEEK_START,
+    WEEK_START_DAYS,
+    week_start,
+    weekday_number,
 )
 
 DEFAULT_APPLY_TIMEZONE = "Asia/Shanghai"
 
 
-def canonical_period_start(period_kind: str, period_start: date) -> date:
+def canonical_period_start(
+    period_kind: str, period_start: date, week_starts_on: int = DEFAULT_WEEK_START
+) -> date:
     if period_kind == "week":
-        return sunday_week_start(period_start)
+        return week_start(period_start, week_starts_on)
     if period_kind == "month":
         return date(period_start.year, period_start.month, 1)
     if period_kind == "year":
         return date(period_start.year, 1, 1)
     return period_start
+
+
+def template_week_start(template: PlanTemplate, user: User | None = None) -> int:
+    if template.period_kind != "week":
+        return DEFAULT_WEEK_START
+    if template.usage_kind == SUBSCRIPTION_MODE:
+        if template.week_starts_on not in WEEK_START_DAYS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_week_start"
+            )
+        return template.week_starts_on
+    if user is not None and user.week_starts_on in WEEK_START_DAYS:
+        return user.week_starts_on
+    return DEFAULT_WEEK_START
+
+
+def run_week_start(run: PlanApplyRun) -> int:
+    """Week anchor stored on the run is the weekday the window was opened with."""
+    if run.period_kind != "week":
+        return DEFAULT_WEEK_START
+    number = weekday_number(run.period_start)
+    if number in WEEK_START_DAYS:
+        return number
+    return DEFAULT_WEEK_START
 
 
 def _require_timezone(timezone_name: str) -> None:
@@ -136,6 +168,7 @@ def materialize_run(
                 end_minute=slot.end_minute,
                 all_day=slot.all_day,
                 timezone_name=timezone_name,
+                week_starts_on=run_week_start(run),
             )
         except ValueError as error:
             if str(error) == "invalid timezone":
@@ -205,7 +238,9 @@ def apply_plan_mode(
     template = require_plan_visible(db, db.get(PlanTemplate, template_id), user)
     if template.usage_kind != PLAN_MODE:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="wrong_usage_kind")
-    period_start = canonical_period_start(template.period_kind, period_start)
+    period_start = canonical_period_start(
+        template.period_kind, period_start, template_week_start(template, user)
+    )
     existing = db.scalar(
         select(PlanApplyRun).where(
             PlanApplyRun.actor_user_id == user.id,
@@ -327,13 +362,18 @@ def subscribe_plan(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_subscribed")
 
     clock = now if now is not None else datetime.now(dt_timezone.utc)
-    period_start = current_period_start(template.period_kind, clock, timezone)
+    starts_on = template_week_start(template, user)
+    period_start = current_period_start(template.period_kind, clock, timezone, starts_on)
+    applied_starts = (
+        _applied_period_starts(db, subscription.id) if subscription is not None else set()
+    )
     existing = (
         _applied_run_for_period(db, subscription.id, period_start)
         if subscription is not None
         else None
     )
-    imported = existing is None
+    overlaps_applied = period_overlaps_any(template.period_kind, period_start, applied_starts)
+    imported = existing is None and not overlaps_applied
     run = existing
     try:
         if subscription is None:
@@ -487,6 +527,17 @@ def _pending_run_for_period(
     )
 
 
+def _applied_period_starts(db: Session, subscription_id: uuid.UUID) -> set[date]:
+    return set(
+        db.scalars(
+            select(PlanApplyRun.period_start).where(
+                PlanApplyRun.subscription_id == subscription_id,
+                PlanApplyRun.status == "applied",
+            )
+        ).all()
+    )
+
+
 def _current_period_context(
     db: Session,
     user: User,
@@ -496,7 +547,12 @@ def _current_period_context(
     subscription, segment, template = _require_own_open_subscription(db, user, subscription_id)
     _require_timezone(subscription.timezone)
     clock = now if now is not None else datetime.now(dt_timezone.utc)
-    period_start = current_period_start(template.period_kind, clock, subscription.timezone)
+    period_start = current_period_start(
+        template.period_kind,
+        clock,
+        subscription.timezone,
+        template_week_start(template),
+    )
     return subscription, segment, template, period_start
 
 
@@ -528,6 +584,7 @@ def preview_current_period(
             end_minute=slot.end_minute,
             all_day=slot.all_day,
             timezone_name=subscription.timezone,
+            week_starts_on=template_week_start(template),
         )
         if bounds is None:
             continue
@@ -545,7 +602,14 @@ def preview_current_period(
     return PlanCurrentPeriodPreviewOut(
         period_start=period_start,
         period_end=period_end_date(template.period_kind, period_start),
-        already_imported=_applied_run_for_period(db, subscription.id, period_start) is not None,
+        already_imported=(
+            _applied_run_for_period(db, subscription.id, period_start) is not None
+            or period_overlaps_any(
+                template.period_kind,
+                period_start,
+                _applied_period_starts(db, subscription.id),
+            )
+        ),
         workspace_id=str(subscription.workspace_id),
         workspace_name=workspace.name if workspace else "",
         project_id=str(subscription.project_id),
@@ -565,7 +629,11 @@ def import_current_period(
         db, user, subscription_id, now
     )
     require_project_content_access(db, subscription.workspace_id, subscription.project_id, user)
-    if _applied_run_for_period(db, subscription.id, period_start) is not None:
+    if _applied_run_for_period(
+        db, subscription.id, period_start
+    ) is not None or period_overlaps_any(
+        template.period_kind, period_start, _applied_period_starts(db, subscription.id)
+    ):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="already_imported")
     pending = _pending_run_for_period(db, subscription.id, period_start)
     if pending is not None:

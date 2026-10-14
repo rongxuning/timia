@@ -16,7 +16,8 @@ from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.schedule import ScheduleTaskItemOut
 from app.services.item_api import build_item_out
 from app.services.permissions import WORKSPACE_OWNER, require_project_content_access
-from app.services.views.schedule_layout import _item_covers_day, _sunday_week_start
+from app.services.views.schedule_layout import _item_covers_day
+from app.services.week_calendar import DEFAULT_WEEK_START, week_start as start_of_week
 
 
 INVOLVEMENT_ASSIGNEE = "assignee"
@@ -179,11 +180,12 @@ def _count_quick_view(
     *,
     today: date | None = None,
     now: datetime | None = None,
+    week_starts_on: int = DEFAULT_WEEK_START,
 ) -> dict:
     today = today or date.today()
     now = now or datetime.now(timezone.utc)
-    week_start = _sunday_week_start(today)
-    week_end = week_start + timedelta(days=6)
+    week_anchor = start_of_week(today, week_starts_on)
+    week_end = week_anchor + timedelta(days=6)
 
     today_todo = 0
     overdue = 0
@@ -205,7 +207,7 @@ def _count_quick_view(
             overdue += 1
         else:
             deadline_date = deadline.date()
-            if week_start <= deadline_date <= week_end:
+            if week_anchor <= deadline_date <= week_end:
                 due_this_week += 1
 
     return {
@@ -223,7 +225,7 @@ def build_my_schedule_dashboard(db: Session, user: User, items: list[ScheduleTas
         project_keys.add(f"{it.workspace_id}:{it.project_id}")
 
     base = _count_dashboard(items)
-    quick = _count_quick_view(items)
+    quick = _count_quick_view(items, week_starts_on=user.week_starts_on)
     return {
         **base,
         **quick,

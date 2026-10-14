@@ -11,7 +11,7 @@ Cursor 里 MCP 服务器名是 **`timia-mcp`**（不是 `timia-prod` / `timia`�
 
 1. `whoami` — 确认 PAT 用户
 2. `list_workspaces` → `list_projects` — 后面写操作都要 `workspace_id` + `project_id`
-3. 日程默认 `get_schedule(view="week")`；今日用 `view="day"`。时区默认 `Asia/Shanghai`。**周从周日开始**。
+3. 日程默认 `get_schedule(view="week")`；今日用 `view="day"`。时区默认 `Asia/Shanghai`。周界用当前登录用户的 `week_starts_on`（默认周一）。
 
 ## Writes
 

@@ -180,7 +180,7 @@ def test_build_calendar_week_single_week():
     assert view.view == "week"
     assert len(view.weeks) == 1
     assert len(view.weeks[0].days) == 7
-    assert view.weeks[0].days[0].key == "2026-06-07"
+    assert view.weeks[0].days[0].key == "2026-06-08"
 
 
 def test_build_calendar_day_includes_spanning_task():
@@ -235,7 +235,7 @@ def test_build_calendar_groups_utc_instant_by_requested_timezone():
     assert local_day.day is not None
     assert [row.id for row in local_day.day.items] == ["timezone-boundary"]
     assert len(week.weeks[0].segments) == 1
-    assert week.weeks[0].segments[0].col_start == 2
+    assert week.weeks[0].segments[0].col_start == 1
 
 
 def test_build_calendar_treats_end_at_exact_midnight_as_exclusive():
@@ -279,7 +279,7 @@ def test_build_calendar_includes_both_local_days_when_task_crosses_midnight():
     )
 
     assert len(week.weeks[0].segments) == 1
-    assert week.weeks[0].segments[0].col_start == 2
+    assert week.weeks[0].segments[0].col_start == 1
     assert week.weeks[0].segments[0].col_span == 2
 
 

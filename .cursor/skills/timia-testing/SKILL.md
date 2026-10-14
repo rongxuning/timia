@@ -22,4 +22,4 @@ description: Use when adding or running Timia tests, pytest, i18n key checks, iO
 - web：没有全站 Jest/RTL 套件；新逻辑优先抽纯函数（如 `planImportPreview.ts`）再测。**不要**为了测去引入 TanStack Query
 - iOS：几何、同步队列、模型解码放 `TimiaTests`；UI 流程放 `TimiaUITests`
 
-改日历周起始、时区、规划相对日：至少覆盖「周三 → 当周周日」。改乐观锁：参考 `test_version_conflict.py`。
+改日历周起始、时区、规划相对日：覆盖周一、周六、周日三种锚点（例如周三 2026-10-14 → 周一 10-12 / 周六 10-10 / 周日 10-11）。改乐观锁：参考 `test_version_conflict.py`。

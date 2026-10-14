@@ -80,6 +80,17 @@ final class AppSession: ObservableObject {
         )
     }
 
+    func updateWeekStartsOn(_ weekStartsOn: Int) async throws {
+        let me = try await api.request(
+            "/auth/me",
+            method: "PATCH",
+            body: WeekStartUpdate(weekStartsOn: weekStartsOn),
+            response: CurrentUser.self
+        )
+        TimiaWeekCalendar.adopt(me.weekStartsOn)
+        state = .signedIn(me)
+    }
+
     func signOut() {
         state = .signedOut
         Task { @MainActor in

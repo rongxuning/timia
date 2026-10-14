@@ -22,6 +22,7 @@ import { slotOutToDraft } from "@/components/plans/planSlots";
 import { cancelPlanSubscription, fetchPlanDetail, type PlanDetailOut } from "@/lib/api/plans";
 import { getToken } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
+import { normalizeWeekStart, weekdayName } from "@/lib/weekStart";
 
 export default function PlanDetailPage() {
   const router = useRouter();
@@ -144,6 +145,14 @@ export default function PlanDetailPage() {
                   <span>{planLabel(PLAN_USAGE_LABEL, plan.usage_kind)}</span>
                   <span aria-hidden>·</span>
                   <span>{planLabel(PLAN_PERIOD_LABEL, plan.period_kind)}</span>
+                  {plan.usage_kind === "subscription_mode" &&
+                  plan.period_kind === "week" &&
+                  plan.week_starts_on ? (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>本模板一周从{weekdayName(plan.week_starts_on)}开始</span>
+                    </>
+                  ) : null}
                   <span aria-hidden>·</span>
                   <span>{planLabel(PLAN_VISIBILITY_LABEL, plan.visibility)}</span>
                   <span aria-hidden>·</span>
@@ -195,6 +204,7 @@ export default function PlanDetailPage() {
                   templateId={plan.id}
                   periodKind={plan.period_kind}
                   slotCount={plan.slots?.length ?? 0}
+                  weekStartsOn={normalizeWeekStart(me?.week_starts_on)}
                   onClose={() => setApplyOpen(false)}
                   onSuccess={() => loadPlan(true)}
                 />
@@ -204,6 +214,7 @@ export default function PlanDetailPage() {
                   templateId={plan.id}
                   periodKind={plan.period_kind}
                   slotCount={plan.slots?.length ?? 0}
+                  weekStartsOn={plan.week_starts_on ?? undefined}
                   onClose={() => setSubscribeOpen(false)}
                   onSuccess={() => loadPlan(true)}
                 />

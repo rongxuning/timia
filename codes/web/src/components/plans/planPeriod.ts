@@ -2,8 +2,9 @@ import {
   formatDateAnchor,
   parseDateAnchor,
   startOfDay,
-  sundayWeekStart,
+  weekStartOf,
 } from "@/components/schedule/calendarNav";
+import { DEFAULT_WEEK_START } from "@/lib/weekStart";
 
 export const DEFAULT_PLAN_TIMEZONE = "Asia/Shanghai";
 
@@ -27,16 +28,25 @@ export function localDateInTimezone(now: Date, timeZone: string): Date {
   return startOfDay(now);
 }
 
-export function periodStartForKind(periodKind: string, day: Date): Date {
+export function periodStartForKind(
+  periodKind: string,
+  day: Date,
+  weekStartsOn: number = DEFAULT_WEEK_START,
+): Date {
   const base = startOfDay(day);
-  if (periodKind === "week") return sundayWeekStart(base);
+  if (periodKind === "week") return weekStartOf(base, weekStartsOn);
   if (periodKind === "month") return new Date(base.getFullYear(), base.getMonth(), 1);
   if (periodKind === "year") return new Date(base.getFullYear(), 0, 1);
   return base;
 }
 
-export function currentPeriodStart(periodKind: string, now: Date, timeZone: string): Date {
-  return periodStartForKind(periodKind, localDateInTimezone(now, timeZone));
+export function currentPeriodStart(
+  periodKind: string,
+  now: Date,
+  timeZone: string,
+  weekStartsOn: number = DEFAULT_WEEK_START,
+): Date {
+  return periodStartForKind(periodKind, localDateInTimezone(now, timeZone), weekStartsOn);
 }
 
 export function periodEndDate(periodKind: string, periodStart: Date): Date {
@@ -74,12 +84,16 @@ export function formatPeriodRange(periodKind: string, periodStart: Date): string
   return formatZhDate(start, true);
 }
 
-export function periodStartAnchor(periodKind: string, day: Date): string {
-  return formatDateAnchor(periodStartForKind(periodKind, day));
+export function periodStartAnchor(
+  periodKind: string,
+  day: Date,
+  weekStartsOn: number = DEFAULT_WEEK_START,
+): string {
+  return formatDateAnchor(periodStartForKind(periodKind, day, weekStartsOn));
 }
 
 export function parsePeriodStartAnchor(value: string): Date {
   return parseDateAnchor(value);
 }
 
-export { formatDateAnchor, sundayWeekStart };
+export { formatDateAnchor, weekStartOf };

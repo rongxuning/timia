@@ -28,7 +28,7 @@ func yearMonthGridCells(
     year: Int,
     month: Int,
     taskCountByDayKey: [String: Int] = [:],
-    calendar: Calendar = .current
+    calendar: Calendar = TimiaWeekCalendar.calendar()
 ) -> [YearMonthGridCell] {
     let total = YearMonthGrid.cellCount
     guard let first = calendar.date(from: DateComponents(year: year, month: month, day: 1)),
@@ -36,8 +36,7 @@ func yearMonthGridCells(
         return (0..<total).map { YearMonthGridCell(index: $0, dayNumber: nil, taskCount: 0) }
     }
 
-    // Match the existing year heatmap: Sunday-start columns (weekday 1 = Sunday).
-    let leadingBlanks = calendar.component(.weekday, from: first) - 1
+    let leadingBlanks = leadingWeekdayBlanks(for: first, calendar: calendar)
 
     return (0..<total).map { index in
         let dayNumber = index - leadingBlanks + 1

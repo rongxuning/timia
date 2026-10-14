@@ -5,42 +5,56 @@ from app.services.plan_time import (
     current_period_start,
     in_reminder_window,
     pending_should_expire,
+    period_overlaps_any,
     reminder_has_started,
     resolve_slot_bounds,
-    sunday_week_start,
     upcoming_period_start,
 )
+from app.services.week_calendar import MONDAY, SATURDAY, SUNDAY
 
 SH = "Asia/Shanghai"
 
 
-def test_sunday_week_start_from_wednesday():
-    # 2026-08-19 is Wednesday; week starts 2026-08-16 (Sunday)
-    assert sunday_week_start(date(2026, 8, 19)) == date(2026, 8, 16)
-
-
-def test_current_period_start_week_and_month():
+def test_current_period_start_week_defaults_to_monday():
     now = datetime(2026, 8, 19, 15, 0, tzinfo=ZoneInfo(SH))
     assert current_period_start("day", now, SH) == date(2026, 8, 19)
-    assert current_period_start("week", now, SH) == date(2026, 8, 16)
+    assert current_period_start("week", now, SH) == date(2026, 8, 17)
+    assert current_period_start("week", now, SH, week_starts_on=SUNDAY) == date(2026, 8, 16)
+    assert current_period_start("week", now, SH, week_starts_on=SATURDAY) == date(2026, 8, 15)
     assert current_period_start("month", now, SH) == date(2026, 8, 1)
     assert current_period_start("year", now, SH) == date(2026, 1, 1)
 
 
-def test_week_slot_maps_monday_morning():
-    # rel_day 1 = Monday of week starting Sunday 2026-08-16 → 2026-08-17 09:00-10:00 CST
+def test_week_slot_maps_monday_morning_from_monday_anchor():
     start, end = resolve_slot_bounds(
         period_kind="week",
-        period_start=date(2026, 8, 16),
+        period_start=date(2026, 8, 17),
         rel_month=None,
-        rel_day=1,
+        rel_day=MONDAY,
         start_minute=9 * 60,
         end_minute=10 * 60,
         all_day=False,
         timezone_name=SH,
+        week_starts_on=MONDAY,
     )
     assert start.isoformat() == "2026-08-17T09:00:00+08:00"
     assert end.isoformat() == "2026-08-17T10:00:00+08:00"
+
+
+def test_week_slot_sunday_stays_sunday_when_anchor_is_sunday():
+    start, end = resolve_slot_bounds(
+        period_kind="week",
+        period_start=date(2026, 8, 16),
+        rel_month=None,
+        rel_day=SUNDAY,
+        start_minute=9 * 60,
+        end_minute=10 * 60,
+        all_day=False,
+        timezone_name=SH,
+        week_starts_on=SUNDAY,
+    )
+    assert start.isoformat() == "2026-08-16T09:00:00+08:00"
+    assert end.isoformat() == "2026-08-16T10:00:00+08:00"
 
 
 def test_month_slot_skips_february_31():
@@ -86,18 +100,47 @@ def test_pending_expires_after_period_end():
 
 def test_upcoming_skips_period_starts_that_already_have_runs():
     midweek = datetime(2026, 8, 19, 15, 0, tzinfo=ZoneInfo(SH))
-    assert upcoming_period_start("week", midweek, SH, {date(2026, 8, 16)}) is None
+    assert (
+        upcoming_period_start(
+            "week", midweek, SH, {date(2026, 8, 16)}, week_starts_on=SUNDAY
+        )
+        is None
+    )
 
     opening = datetime(2026, 8, 22, 20, 0, tzinfo=ZoneInfo(SH))
-    assert upcoming_period_start("week", opening, SH, {date(2026, 8, 16)}) == date(2026, 8, 23)
+    assert upcoming_period_start(
+        "week", opening, SH, {date(2026, 8, 16)}, week_starts_on=SUNDAY
+    ) == date(2026, 8, 23)
 
     monday = datetime(2026, 8, 24, 10, 0, tzinfo=ZoneInfo(SH))
-    assert upcoming_period_start("week", monday, SH, {date(2026, 8, 16)}) == date(2026, 8, 23)
+    assert upcoming_period_start(
+        "week", monday, SH, {date(2026, 8, 16)}, week_starts_on=SUNDAY
+    ) == date(2026, 8, 23)
 
     next_opening = datetime(2026, 8, 29, 20, 0, tzinfo=ZoneInfo(SH))
-    assert upcoming_period_start("week", next_opening, SH, {date(2026, 8, 16)}) == date(
-        2026, 8, 30
-    )
     assert upcoming_period_start(
-        "week", next_opening, SH, {date(2026, 8, 16), date(2026, 8, 23)}
+        "week", next_opening, SH, {date(2026, 8, 16)}, week_starts_on=SUNDAY
     ) == date(2026, 8, 30)
+    assert upcoming_period_start(
+        "week",
+        next_opening,
+        SH,
+        {date(2026, 8, 16), date(2026, 8, 23)},
+        week_starts_on=SUNDAY,
+    ) == date(2026, 8, 30)
+
+
+def test_upcoming_skips_monday_week_that_overlaps_applied_sunday_week():
+    wednesday = datetime(2026, 8, 19, 15, 0, tzinfo=ZoneInfo(SH))
+    assert period_overlaps_any("week", date(2026, 8, 17), {date(2026, 8, 16)})
+    assert (
+        upcoming_period_start(
+            "week",
+            wednesday,
+            SH,
+            set(),
+            week_starts_on=MONDAY,
+            applied_period_starts={date(2026, 8, 16)},
+        )
+        is None
+    )

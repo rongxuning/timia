@@ -200,6 +200,10 @@ struct ScheduleHomeView: View {
         .background(TimiaTheme.surface.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .task { await loadVisibleContent() }
+        .onChange(of: user.weekStartsOn) { _, _ in
+            TimiaWeekCalendar.adopt(user.weekStartsOn)
+            dateStripStart = weekDaysContaining(selectedDate).first ?? selectedDate
+        }
         .onChange(of: range) { _, _ in
             calendarData = cachedCalendar(for: selectedDate, range: range)
             Task { await loadCalendar() }
@@ -3375,8 +3379,8 @@ private struct MonthScheduleView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                ForEach(["日", "一", "二", "三", "四", "五", "六"], id: \.self) {
-                    Text($0).font(.caption.weight(.medium)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                ForEach(Array(weekdayHeaderLabels().enumerated()), id: \.offset) { _, label in
+                    Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
             }
             .padding(.horizontal, 8)
@@ -3426,7 +3430,7 @@ private struct MonthScheduleView: View {
     private func monthSection(_ month: Date) -> some View {
         let key = ScheduleFormat.monthKey(month)
         let entries = monthEntries(for: month)
-        let leadingBlanks = Calendar.current.component(.weekday, from: month) - 1
+        let leadingBlanks = leadingWeekdayBlanks(for: month, calendar: TimiaWeekCalendar.calendar())
 
         return VStack(alignment: .leading, spacing: 10) {
             Text(ScheduleFormat.monthTitle(month))
@@ -3799,7 +3803,12 @@ private struct YearMonthCard: View {
             (summary?.days ?? []).map { ($0.key, $0.taskCount) },
             uniquingKeysWith: { _, latest in latest }
         )
-        return yearMonthGridCells(year: year, month: month, taskCountByDayKey: counts)
+        return yearMonthGridCells(
+            year: year,
+            month: month,
+            taskCountByDayKey: counts,
+            calendar: TimiaWeekCalendar.calendar()
+        )
     }
 
     private var isCurrentMonth: Bool {
@@ -4512,17 +4521,16 @@ private enum ScheduleFormat {
         return values[Calendar.current.component(.weekday, from: date) - 1]
     }
 
-    static func week(containing date: Date) -> [Date] {
-        weekDaysContaining(date)
+    static func week(containing date: Date, calendar: Calendar = TimiaWeekCalendar.calendar()) -> [Date] {
+        weekDaysContaining(date, calendar: calendar)
     }
 
     static func weekKey(_ date: Date) -> String {
         dayKey(week(containing: date).first ?? date)
     }
 
-    static func weekLabel(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let weekStart = week(containing: date).first ?? calendar.startOfDay(for: date)
+    static func weekLabel(_ date: Date, calendar: Calendar = TimiaWeekCalendar.calendar()) -> String {
+        let weekStart = week(containing: date, calendar: calendar).first ?? calendar.startOfDay(for: date)
         var weekYear = calendar.component(.year, from: weekStart)
         var firstWeekStart = firstFullWeekStart(in: weekYear, calendar: calendar)
 
@@ -4537,9 +4545,9 @@ private enum ScheduleFormat {
 
     private static func firstFullWeekStart(in year: Int, calendar: Calendar) -> Date {
         let januaryFirst = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) ?? Date()
-        let weekday = calendar.component(.weekday, from: januaryFirst)
-        let daysUntilSunday = (8 - weekday) % 7
-        return calendar.date(byAdding: .day, value: daysUntilSunday, to: januaryFirst) ?? januaryFirst
+        let delta = leadingWeekdayBlanks(for: januaryFirst, calendar: calendar)
+        let daysUntilStart = delta == 0 ? 0 : 7 - delta
+        return calendar.date(byAdding: .day, value: daysUntilStart, to: januaryFirst) ?? januaryFirst
     }
 
     static func parseISO(_ value: String?) -> Date? {

@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -22,6 +23,12 @@ from app.models._mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 class PlanTemplate(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "plan_templates"
+    __table_args__ = (
+        CheckConstraint(
+            "week_starts_on IS NULL OR week_starts_on IN (1, 6, 7)",
+            name="ck_plan_templates_week_starts_on",
+        ),
+    )
 
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -38,6 +45,8 @@ class PlanTemplate(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default="1"
     )
+    # Week subscription templates only. 1=Monday, 6=Saturday, 7=Sunday.
+    week_starts_on: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class PlanSlot(Base, UUIDPrimaryKeyMixin, TimestampMixin):

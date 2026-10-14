@@ -35,7 +35,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Me */
+        patch: operations["update_me_auth_me_patch"];
         trace?: never;
     };
     "/auth/agent-tokens": {
@@ -3659,6 +3660,13 @@ export interface components {
             display_name: string;
             /** System Role */
             system_role: string;
+            /** Week Starts On */
+            week_starts_on: number;
+        };
+        /** MeUpdate */
+        MeUpdate: {
+            /** Week Starts On */
+            week_starts_on?: number | null;
         };
         /**
          * MemberAdd
@@ -4312,6 +4320,8 @@ export interface components {
             description: string | null;
             /** Creator Intro */
             creator_intro: string | null;
+            /** Week Starts On */
+            week_starts_on?: number | null;
             /** Slots */
             slots?: components["schemas"]["PlanSlotOut"][];
             /** My Import Count */
@@ -4642,6 +4652,8 @@ export interface components {
             visibility: string;
             /** Tags */
             tags?: string[];
+            /** Week Starts On */
+            week_starts_on?: number | null;
         };
         /** PlanTemplateOut */
         PlanTemplateOut: {
@@ -4667,6 +4679,8 @@ export interface components {
             version: number;
             /** Created By User Id */
             created_by_user_id: string;
+            /** Week Starts On */
+            week_starts_on?: number | null;
         };
         /** PlanTemplateUpdate */
         PlanTemplateUpdate: {
@@ -4680,6 +4694,8 @@ export interface components {
             visibility?: string | null;
             /** Tags */
             tags?: string[] | null;
+            /** Week Starts On */
+            week_starts_on?: number | null;
         };
         /** ProjectBrief */
         ProjectBrief: {
@@ -5972,6 +5988,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_me_auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

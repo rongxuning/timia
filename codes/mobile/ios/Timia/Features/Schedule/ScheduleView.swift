@@ -861,8 +861,8 @@ private struct MonthCalendarView: View {
             ScrollView(.vertical) {
                 VStack(spacing: 3) {
                     LazyVGrid(columns: columns, spacing: 3) {
-                        ForEach(["日", "一", "二", "三", "四", "五", "六"], id: \.self) {
-                            Text($0)
+                        ForEach(Array(weekdayHeaderLabels().enumerated()), id: \.offset) { _, label in
+                            Text(label)
                                 .font(.system(.caption, design: .rounded, weight: .semibold))
                                 .foregroundStyle(ScheduleStyle.mutedInk)
                                 .frame(maxWidth: .infinity)

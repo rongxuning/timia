@@ -61,6 +61,21 @@ final class YearMonthGridTests: XCTestCase {
         XCTAssertEqual(cells.first(where: { $0.dayNumber == 2 })?.taskCount, 0)
     }
 
+    func testMondayStartPutsSundayFebruaryFirstInTheLastColumn() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        let cells = yearMonthGridCells(year: 2026, month: 2, calendar: monday)
+        XCTAssertEqual(cells.prefix(6).allSatisfy { !$0.inMonth }, true)
+        XCTAssertEqual(cells[6].dayNumber, 1)
+    }
+
+    func testSaturdayStartPutsAugustFirstInTheFirstColumn() {
+        var saturday = calendar
+        saturday.firstWeekday = 7
+        let cells = yearMonthGridCells(year: 2026, month: 8, calendar: saturday)
+        XCTAssertEqual(cells[0].dayNumber, 1)
+    }
+
     func testHeatmapAspectRatioIsSharedByEveryMonthCard() {
         let ratio = YearMonthGrid.heatmapAspectRatio()
         XCTAssertGreaterThan(ratio, 1)

@@ -72,8 +72,14 @@ struct CurrentUser: Codable, Equatable, Sendable {
     let email: String
     let displayName: String
     let systemRole: String
+    /// 1 = Monday, 6 = Saturday, 7 = Sunday.
+    var weekStartsOn: Int = 1
 
     var isSystemAdmin: Bool { systemRole == "admin" || systemRole == "system_admin" }
+}
+
+struct WeekStartUpdate: Encodable, Sendable {
+    let weekStartsOn: Int
 }
 
 struct LoginRequest: Encodable, Sendable {

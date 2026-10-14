@@ -10,7 +10,7 @@ description: Use when changing Timia calendar day/week/month/year views, overdue
 ## 日历约定
 
 - 时区默认 **`Asia/Shanghai`**（query `timezone`）
-- **一周从周日开始**到周六（不要用 ISO 周一起）
+- 账号 `users.week_starts_on`：`1` 周一、`6` 周六、`7` 周日，默认周一。日程、项目日历、「本周到期」和 `repeat=daily` 的本周剩余天数都用**查看者**的设置。星期身份是 `1`–`7`（周一到周日），不是 JS 的 `0`=周日。不要用设备区域的 `firstWeekday`。
 - `view`: `day` \| `week` \| `month` \| `year`
 - `scope`: `me`（我参与的）或 `project`（必须带 `workspace_id`+`project_id`）
 - `me` 的 `involvement`: `assignee` \| `participant` \| `any`

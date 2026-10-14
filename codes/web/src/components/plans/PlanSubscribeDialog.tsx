@@ -5,6 +5,7 @@ import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { subscribePlan } from "@/lib/api/plans";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
+import { DEFAULT_WEEK_START } from "@/lib/weekStart";
 import {
   currentPeriodStart,
   DEFAULT_PLAN_TIMEZONE,
@@ -21,6 +22,8 @@ type Props = {
   templateId: string;
   periodKind: string;
   slotCount: number;
+  /** Weekly subscription templates pass the template's week start. */
+  weekStartsOn?: number;
   onClose: () => void;
   onSuccess?: () => void;
 };
@@ -31,6 +34,7 @@ export function PlanSubscribeDialog({
   templateId,
   periodKind,
   slotCount,
+  weekStartsOn = DEFAULT_WEEK_START,
   onClose,
   onSuccess,
 }: Props) {
@@ -53,7 +57,7 @@ export function PlanSubscribeDialog({
   }, [open]);
 
   const tz = timezone.trim() || DEFAULT_PLAN_TIMEZONE;
-  const currentStart = currentPeriodStart(periodKind, new Date(), tz);
+  const currentStart = currentPeriodStart(periodKind, new Date(), tz, weekStartsOn);
   const range = formatPeriodRange(periodKind, currentStart);
 
   async function onSubmit(event: FormEvent) {
