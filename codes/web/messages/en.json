@@ -225,6 +225,9 @@
     "saturday": "Saturday",
     "sunday": "Sunday",
     "saved": "Saved",
-    "saveFailed": "Could not save"
+    "saveFailed": "Could not save",
+    "language": "Language",
+    "logOut": "Log out",
+    "loggingOut": "Logging out…"
   }
 }

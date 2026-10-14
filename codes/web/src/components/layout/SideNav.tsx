@@ -1,27 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
-import { LocaleSwitcher } from "./LocaleSwitcher";
 import { NavItem } from "./NavItem";
 
-export type SideNavProps = {
-  userMenuOpen: boolean;
-  onUserMenuOpenChange: (open: boolean) => void;
-};
-
-export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
+export function SideNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const me = useCurrentMe();
   const t = useTranslations("nav");
   const isAdmin = isSystemAdmin(me?.system_role);
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
-  const displayName = me?.display_name?.trim() || t("userFallback");
   return (
     <aside className="relative z-40 hidden h-full w-16 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
       <div className="px-2">
@@ -98,53 +89,28 @@ export function SideNav({ userMenuOpen, onUserMenuOpenChange }: SideNavProps) {
         </nav>
       </div>
 
-      <div
-        id="timia-user-menu-side"
-        className="shrink-0 border-t border-gray-200 px-2 py-3"
-      >
-        <div className="relative">
-          <button
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={userMenuOpen}
-            title={displayName}
-            onClick={() => onUserMenuOpenChange(!userMenuOpen)}
-            className="flex w-full items-center justify-center rounded-md px-2 py-2 text-gray-600 transition-colors hover:bg-gray-100"
+      <div className="shrink-0 border-t border-gray-200 px-2 py-3">
+        <Link
+          href="/my/account"
+          aria-label={t("account")}
+          aria-current={pathname.startsWith("/my/account") ? "page" : undefined}
+          className={[
+            "group relative flex w-full items-center justify-center rounded-md px-2 py-2 transition-colors",
+            pathname.startsWith("/my/account")
+              ? "bg-indigo-50 text-indigo-700"
+              : "text-gray-600 hover:bg-gray-100",
+          ].join(" ")}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-900">
+            {userInitial}
+          </span>
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-900">
-              {userInitial}
-            </span>
-          </button>
-
-          {userMenuOpen && (
-            <div
-              role="menu"
-              className="absolute bottom-0 left-full z-50 ml-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
-            >
-              <LocaleSwitcher variant="menu" onSelected={() => onUserMenuOpenChange(false)} />
-              <Link
-                href="/my/account"
-                role="menuitem"
-                className="block px-3 py-2 text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
-                onClick={() => onUserMenuOpenChange(false)}
-              >
-                {t("account")}
-              </Link>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
-                role="menuitem"
-                onClick={async () => {
-                  onUserMenuOpenChange(false);
-                  await logoutAndClear();
-                  router.push("/login");
-                }}
-              >
-                {t("logOut")}
-              </button>
-            </div>
-          )}
-        </div>
+            {t("account")}
+          </span>
+        </Link>
       </div>
     </aside>
   );
