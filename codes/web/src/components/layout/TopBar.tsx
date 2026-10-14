@@ -1,23 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { logoutAndClear } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
-import { LocaleSwitcher } from "./LocaleSwitcher";
 
-export type TopBarProps = {
-  userMenuOpen: boolean;
-  onUserMenuOpenChange: (open: boolean) => void;
-};
-
-export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
-  const router = useRouter();
+export function TopBar() {
+  const pathname = usePathname();
   const me = useCurrentMe();
   const t = useTranslations("nav");
   const userInitial = (me?.display_name?.trim().slice(0, 1) ?? "?").toUpperCase();
+  const onAccount = pathname.startsWith("/my/account");
 
   return (
     <header className="z-50 flex h-[34px] shrink-0 items-center border-b border-gray-200 bg-white/80 px-3 backdrop-blur-md">
@@ -29,46 +23,19 @@ export function TopBar({ userMenuOpen, onUserMenuOpenChange }: TopBarProps) {
           <Breadcrumbs className="hidden min-w-0 sm:block" />
         </div>
 
-        <div id="timia-user-menu-top" className="relative md:hidden">
-          <button
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={userMenuOpen}
-            onClick={() => onUserMenuOpenChange(!userMenuOpen)}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-xs font-semibold text-gray-900 transition-colors hover:bg-gray-50"
-          >
-            {userInitial}
-          </button>
-
-          {userMenuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 mt-2 w-40 rounded-xl border border-border-subtle bg-surface py-2 shadow-sm"
-            >
-              <LocaleSwitcher variant="menu" onSelected={() => onUserMenuOpenChange(false)} />
-              <Link
-                href="/my/account"
-                role="menuitem"
-                className="block px-3 py-2 text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
-                onClick={() => onUserMenuOpenChange(false)}
-              >
-                {t("account")}
-              </Link>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-small text-text-secondary transition-colors hover:bg-surface-container-lowest"
-                role="menuitem"
-                onClick={async () => {
-                  onUserMenuOpenChange(false);
-                  await logoutAndClear();
-                  router.push("/login");
-                }}
-              >
-                {t("logOut")}
-              </button>
-            </div>
-          )}
-        </div>
+        <Link
+          href="/my/account"
+          aria-label={t("account")}
+          aria-current={onAccount ? "page" : undefined}
+          className={[
+            "flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold text-gray-900 transition-colors md:hidden",
+            onAccount
+              ? "border-indigo-200 bg-indigo-50"
+              : "border-gray-200 bg-white hover:bg-gray-50",
+          ].join(" ")}
+        >
+          {userInitial}
+        </Link>
       </div>
     </header>
   );

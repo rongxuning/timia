@@ -225,6 +225,9 @@
     "saturday": "周六",
     "sunday": "周日",
     "saved": "已保存",
-    "saveFailed": "保存失败"
+    "saveFailed": "保存失败",
+    "language": "界面语言",
+    "logOut": "退出登录",
+    "loggingOut": "退出中…"
   }
 }

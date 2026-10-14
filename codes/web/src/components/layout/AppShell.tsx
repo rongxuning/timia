@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { apiFetch, bootstrapSession, type ApiError } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { convertStickyNoteToTask } from "@/lib/api/sticky-notes";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   getMeClientSnapshot,
   publishMe,
@@ -15,7 +14,6 @@ import {
   loginRedirectReasonWhenUnauthenticated,
 } from "@/lib/auth";
 import { useCurrentMe } from "@/lib/use-current-me";
-import { isUserMenuEventInside } from "@/i18n/userMenuDismiss";
 import { isAdminOnlyPath, isSystemAdmin, type MeWithSystemRole } from "@/lib/system-role";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
@@ -202,7 +200,6 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const me = useCurrentMe();
   const { openTaskEdit } = useTaskCreateDrawer();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [pendingConvertNoteId, setPendingConvertNoteId] = useState<string | null>(null);
   const pendingConvertNoteIdRef = useRef<string | null>(null);
@@ -217,11 +214,6 @@ export function AppShell({ children }: AppShellProps) {
   const openTaskEditRef = useRef(openTaskEdit);
   openTaskEditRef.current = openTaskEdit;
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
-
-  useEscapeDismiss({
-    open: userMenuOpen,
-    onDismiss: () => setUserMenuOpen(false),
-  });
 
   useLayoutEffect(() => {
     const scrollContainer = contentScrollRef.current;
@@ -323,24 +315,12 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [me, isAdmin, pathname, router]);
 
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    function onClick(e: MouseEvent) {
-      const sideMenu = document.getElementById("timia-user-menu-side");
-      const topMenu = document.getElementById("timia-user-menu-top");
-      if (isUserMenuEventInside(e.target, [sideMenu, topMenu])) return;
-      setUserMenuOpen(false);
-    }
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
-  }, [userMenuOpen]);
-
   return (
     <TaskCreateDrawerProvider>
       <div className="flex h-screen min-h-0">
-        <SideNav userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
+        <SideNav />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <TopBar userMenuOpen={userMenuOpen} onUserMenuOpenChange={setUserMenuOpen} />
+          <TopBar />
           <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto">
             {authReady ? children : null}
           </div>
