@@ -300,15 +300,228 @@ def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return 2 * EARTH_RADIUS_M * math.asin(min(1.0, math.sqrt(a)))
 
 
+# Route `t` above this is a unix clock, not seconds from workout start.
+_ROUTE_ABSOLUTE_T = 100_000.0
+# Hold the last heart-rate sample only briefly; longer gaps are missing data.
+_MAX_SAMPLE_HOLD_S = 180.0
+_LAST_SAMPLE_HOLD_S = 5.0
+# Step buckets longer than a workout (daily totals) are not lap cadence.
+_CADENCE_MAX_INTERVAL_S = 6 * 3600.0
+_CADENCE_SPM_MIN = 20.0
+_CADENCE_SPM_MAX = 300.0
+
+
+def normalize_route_clock(points: list[dict]) -> list[dict]:
+    """Shift unix-scale route timestamps to seconds from the first point."""
+    if not points:
+        return points
+    origin = min(float(point["t"]) for point in points)
+    if origin < _ROUTE_ABSOLUTE_T:
+        return points
+    shifted: list[dict] = []
+    for point in points:
+        copied = dict(point)
+        copied["t"] = float(point["t"]) - origin
+        shifted.append(copied)
+    return shifted
+
+
+def clip_offset_duration(offset: float, duration: float) -> tuple[float, float] | None:
+    """Clip a sample that starts before the workout so the overlap stays inside it."""
+    if offset < 0:
+        duration += offset
+        offset = 0.0
+    if duration <= 0:
+        return None
+    return offset, duration
+
+
+def cadence_intervals_from_steps(
+    intervals: list[tuple[float, float, float]],
+) -> list[tuple[float, float, float]]:
+    """Step-count intervals → (start_offset, end_offset, steps/min).
+
+    Instantaneous samples use the gap to the next (or previous) point.
+    Day-long buckets and implausible rates are dropped.
+    """
+    out: list[tuple[float, float, float]] = []
+    count = len(intervals)
+    for index, (offset, steps, duration) in enumerate(intervals):
+        dt = duration
+        if dt <= 0:
+            if index + 1 < count:
+                dt = intervals[index + 1][0] - offset
+            elif index > 0:
+                dt = offset - intervals[index - 1][0]
+        if dt <= 0 or dt > _CADENCE_MAX_INTERVAL_S or steps < 0:
+            continue
+        spm = steps / (dt / 60.0)
+        if spm < _CADENCE_SPM_MIN or spm > _CADENCE_SPM_MAX:
+            continue
+        out.append((offset, offset + dt, spm))
+    return out
+
+
+def cadence_from_speed_stride(
+    speed: list[tuple[float, float]],
+    stride: list[tuple[float, float]],
+) -> list[tuple[float, float]]:
+    """steps/min ≈ speed (m/s) / stride (m) × 60, using the nearest stride sample."""
+    if not speed or not stride:
+        return []
+    stride_sorted = sorted(stride, key=lambda item: item[0])
+    out: list[tuple[float, float]] = []
+    index = 0
+    last = len(stride_sorted) - 1
+    for stamp, meters_per_sec in speed:
+        if meters_per_sec <= 0.3:
+            continue
+        while index < last and stride_sorted[index + 1][0] <= stamp:
+            index += 1
+        stride_t, stride_m = stride_sorted[index]
+        if abs(stride_t - stamp) > 8 or stride_m <= 0.2:
+            continue
+        spm = meters_per_sec / stride_m * 60.0
+        if _CADENCE_SPM_MIN <= spm <= _CADENCE_SPM_MAX:
+            out.append((stamp, spm))
+    return out
+
+
 def _avg_in_window(
     points: list[tuple[float, float]],
     t0: float,
     t1: float,
 ) -> float | None:
-    vals = [v for t, v in points if t0 <= t < t1]
-    if not vals:
+    """Time-weighted mean. Each sample holds until the next one, capped."""
+    if t1 <= t0 or not points:
         return None
-    return sum(vals) / len(vals)
+    ordered = sorted(points, key=lambda item: item[0])
+    total = 0.0
+    weight = 0.0
+    last = len(ordered) - 1
+    for index, (start, value) in enumerate(ordered):
+        if index < last:
+            end = min(ordered[index + 1][0], start + _MAX_SAMPLE_HOLD_S)
+        else:
+            end = start + _LAST_SAMPLE_HOLD_S
+        if end <= start:
+            end = start + 1e-3
+        lo = max(start, t0)
+        hi = min(end, t1)
+        if hi <= lo:
+            continue
+        span = hi - lo
+        total += value * span
+        weight += span
+    if weight <= 0:
+        return None
+    return total / weight
+
+
+def _avg_intervals_in_window(
+    intervals: list[tuple[float, float, float]],
+    t0: float,
+    t1: float,
+) -> float | None:
+    if t1 <= t0 or not intervals:
+        return None
+    total = 0.0
+    weight = 0.0
+    for start, end, value in intervals:
+        lo = max(start, t0)
+        hi = min(end, t1)
+        if hi <= lo:
+            continue
+        span = hi - lo
+        total += value * span
+        weight += span
+    if weight <= 0:
+        return None
+    return total / weight
+
+
+def _align_times_to_metrics(
+    times: list[float],
+    series_list: list[list[tuple[float, float]]],
+) -> list[float]:
+    """Shift a distance curve onto sample offsets when the clocks don't overlap.
+
+    Lap durations stay the same. Used when route or speed times are absolute
+    and heart-rate / cadence offsets are seconds from the workout start.
+    """
+    if len(times) < 2:
+        return times
+    stamps = [stamp for series in series_list for stamp, _value in series]
+    if not stamps:
+        return times
+    c0, c1 = times[0], times[-1]
+    lo, hi = (c0, c1) if c0 <= c1 else (c1, c0)
+    m0, m1 = min(stamps), max(stamps)
+    if m1 >= lo and m0 <= hi:
+        return times
+    span_c = abs(c1 - c0)
+    span_m = m1 - m0
+    if span_c <= 0 or span_m <= 0:
+        return times
+    ratio = span_c / span_m
+    if ratio < 0.5 or ratio > 2.0:
+        return times
+    shift = m0 - times[0]
+    return [stamp + shift for stamp in times]
+
+
+def _fill_empty_split_metrics(
+    splits: list[dict],
+    hr_points: list[tuple[float, float]],
+    cadence_points: list[tuple[float, float]],
+    cadence_intervals: list[tuple[float, float, float]] | None,
+) -> None:
+    """If every lap missed samples, retry on a 0-based elapsed clock."""
+
+    def covers(stamps: list[float]) -> bool:
+        if len(stamps) < 2:
+            return False
+        span = max(stamps) - min(stamps)
+        elapsed = sum(float(row["duration_seconds"]) for row in splits)
+        if span <= 0 or elapsed <= 0:
+            return False
+        ratio = elapsed / span
+        return 0.5 <= ratio <= 2.0
+
+    def fill(key: str, avg) -> None:
+        if any(row[key] is not None for row in splits):
+            return
+        cursor = 0.0
+        for row in splits:
+            t0 = cursor
+            t1 = cursor + float(row["duration_seconds"])
+            cursor = t1
+            row[key] = avg(t0, t1)
+
+    hr_stamps = [stamp for stamp, _value in hr_points]
+    if covers(hr_stamps):
+        origin = min(hr_stamps)
+        shifted = [(stamp - origin, value) for stamp, value in hr_points]
+        fill("avg_hr_bpm", lambda t0, t1: _avg_in_window(shifted, t0, t1))
+
+    if cadence_intervals:
+        cad_stamps = [start for start, _end, _value in cadence_intervals]
+        cad_stamps.extend(end for _start, end, _value in cadence_intervals)
+        if covers(cad_stamps):
+            origin = min(cad_stamps)
+            shifted_iv = [
+                (start - origin, end - origin, value) for start, end, value in cadence_intervals
+            ]
+            fill(
+                "avg_cadence_spm",
+                lambda t0, t1: _avg_intervals_in_window(shifted_iv, t0, t1),
+            )
+        return
+    cad_stamps = [stamp for stamp, _value in cadence_points]
+    if covers(cad_stamps):
+        origin = min(cad_stamps)
+        shifted_pts = [(stamp - origin, value) for stamp, value in cadence_points]
+        fill("avg_cadence_spm", lambda t0, t1: _avg_in_window(shifted_pts, t0, t1))
 
 
 def _splits_from_curve(
@@ -318,6 +531,7 @@ def _splits_from_curve(
     cadence_points: list[tuple[float, float]],
     *,
     target_distance_m: float | None = None,
+    cadence_intervals: list[tuple[float, float, float]] | None = None,
 ) -> list[dict]:
     """Cut kilometre laps from a (time, cumulative-metres) curve."""
     if len(times) < 2 or len(times) != len(cum_d):
@@ -334,6 +548,11 @@ def _splits_from_curve(
         scale = target_distance_m / total
         cum_d = [d * scale for d in cum_d]
         total = cum_d[-1]
+
+    align_series = [hr_points, cadence_points]
+    if cadence_intervals:
+        align_series.append([(start, value) for start, _end, value in cadence_intervals])
+    times = _align_times_to_metrics(times, align_series)
 
     def time_at_distance(target: float) -> float:
         if target <= 0:
@@ -359,6 +578,10 @@ def _splits_from_curve(
         dist = d1 - d0
         duration = t1 - t0
         pace = (duration * 1000.0 / dist) if dist > 0 else None
+        if cadence_intervals:
+            cadence = _avg_intervals_in_window(cadence_intervals, t0, t1)
+        else:
+            cadence = _avg_in_window(cadence_points, t0, t1)
         splits.append(
             {
                 "lap": lap_i + 1,
@@ -366,9 +589,10 @@ def _splits_from_curve(
                 "distance_m": dist,
                 "pace_sec_per_km": pace,
                 "avg_hr_bpm": _avg_in_window(hr_points, t0, t1),
-                "avg_cadence_spm": _avg_in_window(cadence_points, t0, t1),
+                "avg_cadence_spm": cadence,
             }
         )
+    _fill_empty_split_metrics(splits, hr_points, cadence_points, cadence_intervals)
     return splits
 
 
@@ -378,11 +602,13 @@ def km_splits(
     cadence_points: list[tuple[float, float]],
     *,
     target_distance_m: float | None = None,
+    cadence_intervals: list[tuple[float, float, float]] | None = None,
 ) -> list[dict]:
     """Accumulate haversine distance and cut at every 1000 m; keep partial final lap."""
     if len(points) < 2:
         return []
 
+    points = normalize_route_clock(points)
     times = [float(p["t"]) for p in points]
     cum_d = [0.0]
     for i in range(1, len(points)):
@@ -399,6 +625,7 @@ def km_splits(
         hr_points,
         cadence_points,
         target_distance_m=target_distance_m,
+        cadence_intervals=cadence_intervals,
     )
 
 
@@ -408,6 +635,7 @@ def km_splits_from_speed(
     cadence_points: list[tuple[float, float]],
     *,
     target_distance_m: float | None = None,
+    cadence_intervals: list[tuple[float, float, float]] | None = None,
 ) -> list[dict]:
     """Integrate running_speed (m/s × duration) and cut kilometres; keep last partial lap.
 
@@ -444,6 +672,7 @@ def km_splits_from_speed(
         hr_points,
         cadence_points,
         target_distance_m=target_distance_m,
+        cadence_intervals=cadence_intervals,
     )
 
 

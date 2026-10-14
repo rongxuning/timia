@@ -1,10 +1,16 @@
 "use client";
 
 import { resolveAvgPaceSecPerKm } from "@/components/health/workoutPace";
+import {
+  withSplitSeriesMetrics,
+  type OffsetPoint,
+} from "@/components/health/workoutSplits";
 import type { HealthWorkoutDetail } from "@/types/api/views/health";
 
 type WorkoutSplitsTableProps = {
   splits: HealthWorkoutDetail["splits"];
+  heartRate?: OffsetPoint[] | null;
+  cadence?: OffsetPoint[] | null;
 };
 
 function formatLapTime(seconds: number, isTotal: boolean): string {
@@ -33,8 +39,9 @@ function dashInt(value: number | null | undefined): string {
   return String(Math.round(value));
 }
 
-export function WorkoutSplitsTable({ splits }: WorkoutSplitsTableProps) {
-  if (!splits || splits.length === 0) return null;
+export function WorkoutSplitsTable({ splits, heartRate, cadence }: WorkoutSplitsTableProps) {
+  const rows = withSplitSeriesMetrics(splits, heartRate, cadence);
+  if (!rows || rows.length === 0) return null;
 
   return (
     <section>
@@ -52,7 +59,7 @@ export function WorkoutSplitsTable({ splits }: WorkoutSplitsTableProps) {
             </tr>
           </thead>
           <tbody>
-            {splits.map((split, index) => {
+            {rows.map((split, index) => {
               const pace = resolveAvgPaceSecPerKm({
                 avg_pace_sec_per_km: split.pace_sec_per_km,
                 distance_m: split.distance_m,
