@@ -130,7 +130,8 @@ struct HealthKitStore {
             let key = spec.metric
             do {
                 let result = try await anchoredQuery(type: spec.type, anchor: loaded[key], predicate: nil)
-                samples.append(contentsOf: mapQuantitySamples(result.added, spec: spec))
+                let expanded = await expandQuantitySamples(result.added, spec: spec)
+                samples.append(contentsOf: expanded.rows)
                 deletions.append(contentsOf: mapDeleted(result.deleted, typeKey: key))
                 newAnchors[key] = result.newAnchor
             } catch {
@@ -279,15 +280,31 @@ struct HealthKitStore {
         return [AnchorKey.workout: result.newAnchor]
     }
 
+    /// Cumulative types are often stored as quantity series. Discrete types such as
+    /// heart rate are not; a date-range series query returns nothing for them.
+    private static let cumulativeMetrics: Set<String> = [
+        "step_count",
+        "distance_walking_running",
+        "distance_cycling",
+        "flights_climbed",
+        "exercise_time",
+        "stand_time",
+        "basal_energy",
+        "active_energy",
+    ]
+
     private func fetchQuantities(from start: Date, to end: Date) async -> [HealthQuantitySamplePayload] {
         let perSpec: [[HealthQuantitySamplePayload]] = await withTaskGroup(of: [HealthQuantitySamplePayload].self) { group in
             for spec in Self.quantitySpecs {
                 group.addTask { [self] in
-                    // Series query completes with 0 rows (not an error) for discrete types
-                    // like steps and energy. Only falling back on throw would skip them.
-                    let series = (try? await self.queryQuantitySeries(spec, from: start, to: end)) ?? []
-                    if !series.isEmpty { return series }
-                    return (try? await self.queryQuantitySamples(spec, from: start, to: end)) ?? []
+                    if Self.cumulativeMetrics.contains(spec.metric) {
+                        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+                        let series = (try? await self.queryQuantitySeries(spec, predicate: predicate)) ?? []
+                        if !series.isEmpty { return series }
+                    }
+                    // Heart rate during a workout is often one condensed sample (count > 1).
+                    // The curve is the series inside that sample, not the sample's own quantity.
+                    return (try? await self.queryQuantitySamples(spec, from: start, to: end))?.rows ?? []
                 }
             }
             var results: [[HealthQuantitySamplePayload]] = []
@@ -304,12 +321,35 @@ struct HealthKitStore {
         return collected
     }
 
+    /// Re-read heart-rate detail, expanding condensed workout samples.
+    /// Safe to upsert again: each series point keeps a derived `hk_uuid`.
+    func exportHeartRateDetail(from start: Date, to end: Date) async -> (samples: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
+        guard HKHealthStore.isHealthDataAvailable() else { return ([], 1) }
+        guard let spec = Self.quantitySpecs.first(where: { $0.metric == "heart_rate" }) else { return ([], 1) }
+        guard start < end else { return ([], 0) }
+        let calendar = Calendar.current
+        var cursor = start
+        var rows: [HealthQuantitySamplePayload] = []
+        var unexpanded = 0
+        while cursor < end {
+            let dayStart = calendar.startOfDay(for: cursor)
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? end
+            let sliceEnd = min(nextDay, end)
+            if let batch = try? await queryQuantitySamples(spec, from: cursor, to: sliceEnd) {
+                rows.append(contentsOf: batch.rows)
+                unexpanded += batch.unexpandedSeries
+            } else {
+                unexpanded += 1
+            }
+            cursor = sliceEnd
+        }
+        return (rows, unexpanded)
+    }
+
     private func queryQuantitySeries(
         _ spec: QuantitySpec,
-        from start: Date,
-        to end: Date
+        predicate: NSPredicate?
     ) async throws -> [HealthQuantitySamplePayload] {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
         return try await withCheckedThrowingContinuation { continuation in
             let once = ResumeOnce()
             let rows = RowBox<HealthQuantitySamplePayload>()
@@ -345,21 +385,9 @@ struct HealthKitStore {
         _ spec: QuantitySpec,
         from start: Date,
         to end: Date
-    ) async throws -> [HealthQuantitySamplePayload] {
+    ) async throws -> (rows: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
         let samples = try await sampleQuery(spec.type, from: start, to: end)
-        return samples.compactMap { sample in
-            guard let quantitySample = sample as? HKQuantitySample else { return nil }
-            return HealthQuantitySamplePayload(
-                hkUuid: quantitySample.uuid.uuidString.lowercased(),
-                metricType: spec.metric,
-                startAt: Self.isoString(quantitySample.startDate),
-                endAt: Self.isoString(quantitySample.endDate),
-                value: spec.normalized(quantitySample.quantity.doubleValue(for: spec.unit)),
-                unit: spec.unitName,
-                sourceBundleId: quantitySample.sourceRevision.source.bundleIdentifier,
-                sourceName: quantitySample.sourceRevision.source.name
-            )
-        }
+        return await expandQuantitySamples(samples, spec: spec)
     }
 
     private func fetchSleep(from start: Date, to end: Date) async -> [HealthSleepSamplePayload] {
@@ -701,20 +729,44 @@ struct HealthKitStore {
         }
     }
 
-    private func mapQuantitySamples(_ samples: [HKSample], spec: QuantitySpec) -> [HealthQuantitySamplePayload] {
-        samples.compactMap { sample in
-            guard let quantitySample = sample as? HKQuantitySample else { return nil }
-            return HealthQuantitySamplePayload(
-                hkUuid: quantitySample.uuid.uuidString.lowercased(),
-                metricType: spec.metric,
-                startAt: Self.isoString(quantitySample.startDate),
-                endAt: Self.isoString(quantitySample.endDate),
-                value: spec.normalized(quantitySample.quantity.doubleValue(for: spec.unit)),
-                unit: spec.unitName,
-                sourceBundleId: quantitySample.sourceRevision.source.bundleIdentifier,
-                sourceName: quantitySample.sourceRevision.source.name
-            )
+    /// Condensed workout samples (`count > 1`) hold the heart-rate curve inside a series.
+    /// A date-range series query does not open them; the predicate must be that sample's UUID.
+    private func expandQuantitySamples(
+        _ samples: [HKSample],
+        spec: QuantitySpec
+    ) async -> (rows: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
+        var rows: [HealthQuantitySamplePayload] = []
+        var unexpanded = 0
+        for sample in samples {
+            guard let quantitySample = sample as? HKQuantitySample else { continue }
+            if quantitySample.count > 1 {
+                let predicate = HKQuery.predicateForObject(with: quantitySample.uuid)
+                let detail = (try? await queryQuantitySeries(spec, predicate: predicate)) ?? []
+                if !detail.isEmpty {
+                    rows.append(contentsOf: detail)
+                    continue
+                }
+                unexpanded += 1
+            }
+            rows.append(mapSingleQuantity(quantitySample, spec: spec))
         }
+        return (rows, unexpanded)
+    }
+
+    private func mapSingleQuantity(
+        _ quantitySample: HKQuantitySample,
+        spec: QuantitySpec
+    ) -> HealthQuantitySamplePayload {
+        HealthQuantitySamplePayload(
+            hkUuid: quantitySample.uuid.uuidString.lowercased(),
+            metricType: spec.metric,
+            startAt: Self.isoString(quantitySample.startDate),
+            endAt: Self.isoString(quantitySample.endDate),
+            value: spec.normalized(quantitySample.quantity.doubleValue(for: spec.unit)),
+            unit: spec.unitName,
+            sourceBundleId: quantitySample.sourceRevision.source.bundleIdentifier,
+            sourceName: quantitySample.sourceRevision.source.name
+        )
     }
 
     private func mapSleepSamples(_ samples: [HKSample]) -> [HealthSleepSamplePayload] {
