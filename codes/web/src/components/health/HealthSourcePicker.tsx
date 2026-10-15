@@ -32,10 +32,7 @@ export function HealthSourcePicker({ value, onChange, embedded = false }: Health
           <p className="min-w-0 text-caption text-neutral-muted">设备与平台</p>
         </div>
       )}
-      {embedded && (
-        <p className="text-caption text-neutral-muted">数据源</p>
-      )}
-      <div className={embedded ? "mt-1.5 flex flex-wrap gap-sm" : "mt-sm flex flex-wrap gap-sm"}>
+      <div className={embedded ? "flex flex-wrap gap-sm" : "mt-sm flex flex-wrap gap-sm"}>
         {visible.map((item) => {
           const active = value === item.id;
           return (

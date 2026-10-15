@@ -39,11 +39,7 @@ export function HealthDataManage({ token, onCleared, embedded = false }: HealthD
       {!embedded && (
         <div className="flex items-baseline gap-sm">
           <h2 className="shrink-0 font-headline text-small text-text-primary">数据管理</h2>
-          <p className="min-w-0 text-caption text-neutral-muted">清除服务端健康样本后可重新同步</p>
         </div>
-      )}
-      {embedded && (
-        <p className="text-caption text-neutral-muted">清除服务端健康样本后可重新同步</p>
       )}
 
       {!confirming ? (
@@ -54,12 +50,12 @@ export function HealthDataManage({ token, onCleared, embedded = false }: HealthD
             setMessage(null);
             setError(null);
           }}
-          className={`${embedded ? "mt-1.5" : "mt-sm"} rounded-lg border border-error/40 px-3 py-1.5 text-caption font-medium text-error hover:bg-error-container/10`}
+          className={`rounded-lg border border-error/40 px-3 py-1.5 text-caption font-medium text-error hover:bg-error-container/10 ${embedded ? "" : "mt-sm"}`}
         >
           清除全部健康数据
         </button>
       ) : (
-        <div className={`${embedded ? "mt-1.5" : "mt-sm"} space-y-sm`}>
+        <div className={`space-y-sm ${embedded ? "" : "mt-sm"}`}>
           <p className="text-caption text-text-secondary">
             将删除样本、训练、日汇总与同步水位，保留身高等档案。此操作不可撤销。
           </p>
