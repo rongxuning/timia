@@ -202,14 +202,11 @@ struct HealthSyncService {
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
-        let backfill = await allQuantityBackfill(end: end)
-        let export = Self.mergingSamples(backfill.samples, into: anchored)
+        onProgress(0.1, "补读近 \(Self.firstLookbackDays) 天健康数据")
+        _ = try await enqueueAllQuantityBackfill(end: end)
 
         onProgress(0.15, "写入队列")
-        let enqueued = try await enqueueExportByLocalDate(export)
-        if backfill.markDone {
-            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
-        }
+        let enqueued = try await enqueueExportByLocalDate(anchored)
         // Advance anchors only after durable enqueue so a crash mid-drain still uploads.
         await anchorStore.saveAll(newAnchors)
 
@@ -421,12 +418,7 @@ struct HealthSyncService {
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
-        let backfill = await allQuantityBackfill(end: end)
-        let export = Self.mergingSamples(backfill.samples, into: anchored)
-        _ = try await enqueueExportByLocalDate(export)
-        if backfill.markDone {
-            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
-        }
+        _ = try await enqueueExportByLocalDate(anchored)
         await anchorStore.saveAll(newAnchors)
 
         let drain = HealthSyncDrain(api: api, queue: queue)
@@ -486,34 +478,43 @@ struct HealthSyncService {
         return uploaded
     }
 
-    /// Re-read every quantity for the lookback once. Earlier builds kept series
-    /// intervals and dropped other samples from the same day, and only backfilled
-    /// workout curves.
-    private func allQuantityBackfill(end: Date) async -> (samples: [HealthQuantitySamplePayload], markDone: Bool) {
-        guard !UserDefaults.standard.bool(forKey: Self.allQuantityBackfillKey) else {
-            return ([], false)
-        }
+    /// Re-read every quantity for the lookback once, one day at a time.
+    /// Holding 90 days of heart-rate and step samples in one array froze the main
+    /// actor and was killed for memory. Background sync does not call this.
+    private func enqueueAllQuantityBackfill(end: Date) async throws -> Bool {
+        guard !UserDefaults.standard.bool(forKey: Self.allQuantityBackfillKey) else { return false }
         let start = Calendar.current.date(byAdding: .day, value: -Self.firstLookbackDays, to: end) ?? end
-        let detail = await store.exportWorkoutDetailQuantities(
-            from: start,
-            to: end,
-            metrics: HealthKitStore.allQuantityMetrics
-        )
-        let markDone = detail.unexpandedSeries == 0
-        return (detail.samples, markDone)
-    }
-
-    private static func mergingSamples(
-        _ extra: [HealthQuantitySamplePayload],
-        into export: HealthKitExport
-    ) -> HealthKitExport {
-        guard !extra.isEmpty else { return export }
-        var merged = export
-        var seen = Set(merged.samples.map(\.hkUuid))
-        for sample in extra where seen.insert(sample.hkUuid).inserted {
-            merged.samples.append(sample)
+        let calendar = Calendar.current
+        var cursor = start
+        var unexpanded = 0
+        while cursor < end {
+            let dayStart = calendar.startOfDay(for: cursor)
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? end
+            let sliceEnd = min(nextDay, end)
+            let detail = await store.exportWorkoutDetailQuantities(
+                from: cursor,
+                to: sliceEnd,
+                metrics: HealthKitStore.allQuantityMetrics
+            )
+            unexpanded += detail.unexpandedSeries
+            if !detail.samples.isEmpty {
+                let dayExport = HealthKitExport(
+                    samples: detail.samples,
+                    sleep: [],
+                    standHours: [],
+                    workouts: [],
+                    routes: [],
+                    heartbeats: []
+                )
+                _ = try await enqueueExport(dayExport, localDate: Self.dayLabel(for: cursor))
+            }
+            cursor = sliceEnd
+            await Task.yield()
         }
-        return merged
+        if unexpanded == 0 {
+            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
+        }
+        return true
     }
 
     func persistCurrentAnchors(asOf date: Date = Date()) async throws {
