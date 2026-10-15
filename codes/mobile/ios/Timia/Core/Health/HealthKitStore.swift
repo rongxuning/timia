@@ -306,33 +306,23 @@ struct HealthKitStore {
         "running_ground_contact",
     ]
 
-    /// Discrete types that can also be stored as one condensed sample. Included in the
-    /// one-time backfill; daily totals (energy, distance, flights, stand) stay on the
-    /// cumulative series query.
-    static let seriesBackfillMetrics: [String] = workoutDetailMetrics + [
-        "resting_heart_rate",
-        "hrv_sdnn",
-        "oxygen_saturation",
-        "vo2_max",
-        "cardio_recovery",
-        "body_mass",
-    ]
+    /// Every quantity Timia stores. Sync reads these for the whole day, not only workouts.
+    static var allQuantityMetrics: [String] {
+        quantitySpecs.map(\.metric)
+    }
 
     private func fetchQuantities(from start: Date, to end: Date) async -> [HealthQuantitySamplePayload] {
         let perSpec: [[HealthQuantitySamplePayload]] = await withTaskGroup(of: [HealthQuantitySamplePayload].self) { group in
             for spec in Self.quantitySpecs {
                 group.addTask { [self] in
-                    let expanded = try? await self.queryQuantitySamples(spec, from: start, to: end)
-                    if Self.cumulativeMetrics.contains(spec.metric) {
-                        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
-                        let series = (try? await self.queryQuantitySeries(spec, predicate: predicate)) ?? []
-                        if !series.isEmpty {
-                            // Date-range series covers normal buckets. Also keep points
-                            // expanded from a condensed workout sample the date query missed.
-                            return Self.merging(series, extra: expanded?.seriesRows ?? [])
-                        }
-                    }
-                    return expanded?.rows ?? []
+                    // Every sample in the day, workout or not. Condensed samples are expanded.
+                    let expanded = (try? await self.queryQuantitySamples(spec, from: start, to: end))?.rows ?? []
+                    guard Self.cumulativeMetrics.contains(spec.metric) else { return expanded }
+                    let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+                    let series = (try? await self.queryQuantitySeries(spec, predicate: predicate)) ?? []
+                    // Series intervals use derived ids. Keep both so a non-empty series
+                    // query cannot drop ordinary samples from the rest of the day.
+                    return Self.merging(expanded, extra: series)
                 }
             }
             var results: [[HealthQuantitySamplePayload]] = []
