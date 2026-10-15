@@ -225,20 +225,20 @@ struct WorkoutSyncService {
                 )
                 upserted += chunkRoutes.count
             }
-            try await uploadHeartRateDetail(for: chunk)
+            try await uploadWorkoutDetail(for: chunk)
         }
         return upserted
     }
 
-    /// Workout statistics carry only the session average. The curve is heart_rate series points.
-    private func uploadHeartRateDetail(for workouts: [HealthWorkoutPayload]) async throws {
+    /// Session stats are averages only. Curves are the expanded quantity series.
+    private func uploadWorkoutDetail(for workouts: [HealthWorkoutPayload]) async throws {
         var samples: [HealthQuantitySamplePayload] = []
         for workout in workouts {
             guard let start = HealthSyncService.parseISO(workout.startAt),
                   let end = HealthSyncService.parseISO(workout.endAt),
                   start < end
             else { continue }
-            let detail = await store.exportHeartRateDetail(from: start, to: end)
+            let detail = await store.exportWorkoutDetailQuantities(from: start, to: end)
             samples.append(contentsOf: detail.samples)
         }
         var seen = Set<String>()
