@@ -1,5 +1,6 @@
 import HealthKit
 import SwiftUI
+import UIKit
 
 struct WorkoutSyncView: View {
     @EnvironmentObject private var session: AppSession
@@ -161,17 +162,21 @@ struct WorkoutSyncView: View {
         progress = 0.02
         progressText = onlyHkUuid == nil ? "正在同步训练…" : "正在上传这场训练…"
         syncError = nil
+        let backgroundTask = Self.beginBackgroundTask()
+        defer { Self.endBackgroundTask(backgroundTask) }
         do {
             await refreshStatus()
             let service = WorkoutSyncService(api: HealthSyncAPI(client: session.api))
+            let progress = HealthSyncProgress { fraction, label in
+                self.progress = max(0.02, fraction)
+                self.progressText = label
+            }
             try await service.syncFromWatermark(
                 lastSyncedAt,
                 source: .manual,
-                onlyHkUuid: onlyHkUuid
-            ) { fraction, label in
-                progress = max(0.02, fraction)
-                progressText = label
-            }
+                onlyHkUuid: onlyHkUuid,
+                onProgress: progress
+            )
             isSyncing = false
             lastErrorSummary = nil
             await refreshStatus()
@@ -186,4 +191,21 @@ struct WorkoutSyncView: View {
             await loadPending()
         }
     }
+
+    private static func beginBackgroundTask() -> UIBackgroundTaskIdentifier {
+        var taskID = UIBackgroundTaskIdentifier.invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: "workout-sync") {
+            if taskID != .invalid {
+                UIApplication.shared.endBackgroundTask(taskID)
+                taskID = .invalid
+            }
+        }
+        return taskID
+    }
+
+    private static func endBackgroundTask(_ taskID: UIBackgroundTaskIdentifier) {
+        guard taskID != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(taskID)
+    }
+}
 }
