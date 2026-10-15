@@ -225,8 +225,27 @@ struct WorkoutSyncService {
                 )
                 upserted += chunkRoutes.count
             }
+            try await uploadHeartRateDetail(for: chunk)
         }
         return upserted
+    }
+
+    /// Workout statistics carry only the session average. The curve is heart_rate series points.
+    private func uploadHeartRateDetail(for workouts: [HealthWorkoutPayload]) async throws {
+        var samples: [HealthQuantitySamplePayload] = []
+        for workout in workouts {
+            guard let start = HealthSyncService.parseISO(workout.startAt),
+                  let end = HealthSyncService.parseISO(workout.endAt),
+                  start < end
+            else { continue }
+            let detail = await store.exportHeartRateDetail(from: start, to: end)
+            samples.append(contentsOf: detail.samples)
+        }
+        var seen = Set<String>()
+        let unique = samples.filter { seen.insert($0.hkUuid).inserted }
+        for chunk in unique.chunked(into: 1000) where !chunk.isEmpty {
+            _ = try await api.syncSamples(HealthQuantitySyncPayload(timezone: timezone, samples: chunk))
+        }
     }
 
     func persistCurrentAnchors() async throws {
