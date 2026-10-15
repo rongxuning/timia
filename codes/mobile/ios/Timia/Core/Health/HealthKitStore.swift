@@ -293,18 +293,46 @@ struct HealthKitStore {
         "active_energy",
     ]
 
+    /// Curves on a workout. Step count is cumulative but also condensed during a run,
+    /// and cadence is derived from those steps. Stride, speed, power, bounce, and
+    /// ground contact are discrete series, same shape as heart rate.
+    static let workoutDetailMetrics: [String] = [
+        "heart_rate",
+        "step_count",
+        "running_speed",
+        "running_stride",
+        "running_power",
+        "running_vertical_oscillation",
+        "running_ground_contact",
+    ]
+
+    /// Discrete types that can also be stored as one condensed sample. Included in the
+    /// one-time backfill; daily totals (energy, distance, flights, stand) stay on the
+    /// cumulative series query.
+    static let seriesBackfillMetrics: [String] = workoutDetailMetrics + [
+        "resting_heart_rate",
+        "hrv_sdnn",
+        "oxygen_saturation",
+        "vo2_max",
+        "cardio_recovery",
+        "body_mass",
+    ]
+
     private func fetchQuantities(from start: Date, to end: Date) async -> [HealthQuantitySamplePayload] {
         let perSpec: [[HealthQuantitySamplePayload]] = await withTaskGroup(of: [HealthQuantitySamplePayload].self) { group in
             for spec in Self.quantitySpecs {
                 group.addTask { [self] in
+                    let expanded = try? await self.queryQuantitySamples(spec, from: start, to: end)
                     if Self.cumulativeMetrics.contains(spec.metric) {
                         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
                         let series = (try? await self.queryQuantitySeries(spec, predicate: predicate)) ?? []
-                        if !series.isEmpty { return series }
+                        if !series.isEmpty {
+                            // Date-range series covers normal buckets. Also keep points
+                            // expanded from a condensed workout sample the date query missed.
+                            return Self.merging(series, extra: expanded?.seriesRows ?? [])
+                        }
                     }
-                    // Heart rate during a workout is often one condensed sample (count > 1).
-                    // The curve is the series inside that sample, not the sample's own quantity.
-                    return (try? await self.queryQuantitySamples(spec, from: start, to: end))?.rows ?? []
+                    return expanded?.rows ?? []
                 }
             }
             var results: [[HealthQuantitySamplePayload]] = []
@@ -321,12 +349,17 @@ struct HealthKitStore {
         return collected
     }
 
-    /// Re-read heart-rate detail, expanding condensed workout samples.
+    /// Re-read workout curves, expanding condensed samples (`count > 1`).
     /// Safe to upsert again: each series point keeps a derived `hk_uuid`.
-    func exportHeartRateDetail(from start: Date, to end: Date) async -> (samples: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
+    func exportWorkoutDetailQuantities(
+        from start: Date,
+        to end: Date,
+        metrics: [String] = workoutDetailMetrics
+    ) async -> (samples: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
         guard HKHealthStore.isHealthDataAvailable() else { return ([], 1) }
-        guard let spec = Self.quantitySpecs.first(where: { $0.metric == "heart_rate" }) else { return ([], 1) }
         guard start < end else { return ([], 0) }
+        let specs = Self.quantitySpecs.filter { metrics.contains($0.metric) }
+        guard !specs.isEmpty else { return ([], 1) }
         let calendar = Calendar.current
         var cursor = start
         var rows: [HealthQuantitySamplePayload] = []
@@ -335,15 +368,30 @@ struct HealthKitStore {
             let dayStart = calendar.startOfDay(for: cursor)
             let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? end
             let sliceEnd = min(nextDay, end)
-            if let batch = try? await queryQuantitySamples(spec, from: cursor, to: sliceEnd) {
-                rows.append(contentsOf: batch.rows)
-                unexpanded += batch.unexpandedSeries
-            } else {
-                unexpanded += 1
+            for spec in specs {
+                if let batch = try? await queryQuantitySamples(spec, from: cursor, to: sliceEnd) {
+                    rows.append(contentsOf: batch.rows)
+                    unexpanded += batch.unexpandedSeries
+                } else {
+                    unexpanded += 1
+                }
             }
             cursor = sliceEnd
         }
         return (rows, unexpanded)
+    }
+
+    private static func merging(
+        _ base: [HealthQuantitySamplePayload],
+        extra: [HealthQuantitySamplePayload]
+    ) -> [HealthQuantitySamplePayload] {
+        guard !extra.isEmpty else { return base }
+        var merged = base
+        var seen = Set(base.map(\.hkUuid))
+        for row in extra where seen.insert(row.hkUuid).inserted {
+            merged.append(row)
+        }
+        return merged
     }
 
     private func queryQuantitySeries(
@@ -385,7 +433,7 @@ struct HealthKitStore {
         _ spec: QuantitySpec,
         from start: Date,
         to end: Date
-    ) async throws -> (rows: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
+    ) async throws -> (rows: [HealthQuantitySamplePayload], seriesRows: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
         let samples = try await sampleQuery(spec.type, from: start, to: end)
         return await expandQuantitySamples(samples, spec: spec)
     }
@@ -734,8 +782,9 @@ struct HealthKitStore {
     private func expandQuantitySamples(
         _ samples: [HKSample],
         spec: QuantitySpec
-    ) async -> (rows: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
+    ) async -> (rows: [HealthQuantitySamplePayload], seriesRows: [HealthQuantitySamplePayload], unexpandedSeries: Int) {
         var rows: [HealthQuantitySamplePayload] = []
+        var seriesRows: [HealthQuantitySamplePayload] = []
         var unexpanded = 0
         for sample in samples {
             guard let quantitySample = sample as? HKQuantitySample else { continue }
@@ -744,13 +793,14 @@ struct HealthKitStore {
                 let detail = (try? await queryQuantitySeries(spec, predicate: predicate)) ?? []
                 if !detail.isEmpty {
                     rows.append(contentsOf: detail)
+                    seriesRows.append(contentsOf: detail)
                     continue
                 }
                 unexpanded += 1
             }
             rows.append(mapSingleQuantity(quantitySample, spec: spec))
         }
-        return (rows, unexpanded)
+        return (rows, seriesRows, unexpanded)
     }
 
     private func mapSingleQuantity(
