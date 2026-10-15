@@ -25,7 +25,22 @@ enum HealthSyncSource: String, Sendable {
     case background
 }
 
-@MainActor
+/// UI progress hop. Sync work stays off the main thread; only the label update returns there.
+struct HealthSyncProgress: @unchecked Sendable {
+    private let body: @Sendable (Double, String) -> Void
+
+    @MainActor
+    init(_ body: @escaping @MainActor (Double, String) -> Void) {
+        self.body = { fraction, label in
+            Task { @MainActor in body(fraction, label) }
+        }
+    }
+
+    func callAsFunction(_ fraction: Double, _ label: String) {
+        body(fraction, label)
+    }
+}
+
 struct HealthSyncService {
     static let lastSyncedKey = "timia.health.lastHealthSyncedAt"
     static let pipeline = "health"
@@ -147,29 +162,32 @@ struct HealthSyncService {
     func syncFromWatermark(
         _ watermark: Date?,
         source: HealthSyncSource,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: HealthSyncProgress
     ) async throws {
+        let report: @Sendable (Double, String) -> Void = { fraction, label in
+            onProgress(fraction, label)
+        }
         if watermark == nil {
             var end = Date()
             let start = Self.startDate(lastSyncedAt: nil)
-            try await syncWindow(from: start, to: end, source: source, onProgress: onProgress)
+            try await syncWindow(from: start, to: end, source: source, onProgress: report)
             // Catch up samples that arrived while the long first sync was running.
             let tip = Date()
             if tip.timeIntervalSince(end) > 60 {
                 try await syncWindow(from: end, to: tip, source: source) { fraction, label in
-                    onProgress(0.95 + 0.04 * fraction, label)
+                    report(0.95 + 0.04 * fraction, label)
                 }
                 end = tip
             }
-            onProgress(0.99, "保存增量锚点")
+            report(0.99, "保存增量锚点")
             try await persistCurrentAnchors(asOf: tip)
-            onProgress(1, "同步完成")
+            report(1, "同步完成")
             return
         }
 
         if await Self.anchorsHealthy() {
             do {
-                try await syncAnchored(source: source, onProgress: onProgress)
+                try await syncAnchored(source: source, onProgress: report)
                 return
             } catch HealthKitStoreError.needsAnchorHeal(let keys) {
                 Self.log.warning(
@@ -185,31 +203,28 @@ struct HealthSyncService {
             value: -Self.backgroundLookbackDays,
             to: end
         ) ?? end.addingTimeInterval(-TimeInterval(Self.backgroundLookbackDays) * 24 * 3600)
-        onProgress(0.02, "锚点修复 · 近 \(Self.backgroundLookbackDays) 天")
-        try await syncWindow(from: start, to: end, source: source, onProgress: onProgress)
-        onProgress(0.99, "保存增量锚点")
+        report(0.02, "锚点修复 · 近 \(Self.backgroundLookbackDays) 天")
+        try await syncWindow(from: start, to: end, source: source, onProgress: report)
+        report(0.99, "保存增量锚点")
         try await persistCurrentAnchors(asOf: Date())
-        onProgress(1, "同步完成")
+        report(1, "同步完成")
     }
 
     /// Incremental path: anchored export → enqueue → drain; no fixed 2h overlap.
     func syncAnchored(
         source: HealthSyncSource,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
         let end = Date()
         onProgress(0.05, "读取增量变更")
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
-        let backfill = await allQuantityBackfill(end: end)
-        let export = Self.mergingSamples(backfill.samples, into: anchored)
+        onProgress(0.1, "补读近 \(Self.firstLookbackDays) 天健康数据")
+        _ = try await enqueueAllQuantityBackfill(end: end)
 
         onProgress(0.15, "写入队列")
-        let enqueued = try await enqueueExportByLocalDate(export)
-        if backfill.markDone {
-            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
-        }
+        let enqueued = try await enqueueExportByLocalDate(anchored)
         // Advance anchors only after durable enqueue so a crash mid-drain still uploads.
         await anchorStore.saveAll(newAnchors)
 
@@ -220,8 +235,9 @@ struct HealthSyncService {
             while true {
                 let remaining = try await queue.pendingCount()
                 if remaining == 0 { break }
+                let shown = upserted
                 let n = try await drain.drain(budget: .foreground) { step in
-                    onProgress(min(0.95, 0.2 + Double(upserted) * 0.05), step)
+                    onProgress(min(0.95, 0.2 + Double(shown) * 0.05), step)
                 }
                 upserted += n
                 if n == 0 {
@@ -230,7 +246,7 @@ struct HealthSyncService {
             }
         }
 
-        let dates = Array(exportLocalDates(export)).sorted()
+        let dates = Array(exportLocalDates(anchored)).sorted()
         for date in dates {
             await logFailedRowsLeftBehind(localDate: date, context: "syncAnchored")
         }
@@ -262,7 +278,7 @@ struct HealthSyncService {
         from start: Date,
         to end: Date = Date(),
         source: HealthSyncSource,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
         let slices = Self.daySlices(from: start, to: end)
         guard !slices.isEmpty else {
@@ -339,9 +355,11 @@ struct HealthSyncService {
                     while true {
                         let remaining = try await queue.pendingCount(localDate: label)
                         if remaining == 0 { break }
+                        let shown = dayUploaded
+                        let pending = remaining
                         let n = try await drain.drain(budget: .foreground) { step in
                             onProgress(
-                                base + span * (0.2 + 0.75 * min(1, Double(dayUploaded + 1) / Double(max(remaining, 1)))),
+                                base + span * (0.2 + 0.75 * min(1, Double(shown + 1) / Double(max(pending, 1)))),
                                 "\(dayIndex)/\(dayTotal) · \(label) · \(step)"
                             )
                         }
@@ -395,7 +413,7 @@ struct HealthSyncService {
     /// Background: anchored export → enqueue → budgeted drain. Heals with a 2-day window when anchors are unhealthy.
     func syncBackgroundBudgeted(
         budget: HealthSyncDrainBudget = .background,
-        onProgress: ((String) -> Void)? = nil
+        onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> Int {
         let end = Date()
 
@@ -415,24 +433,19 @@ struct HealthSyncService {
     private func syncBackgroundAnchored(
         budget: HealthSyncDrainBudget,
         end: Date,
-        onProgress: ((String) -> Void)?
+        onProgress: (@Sendable (String) -> Void)?
     ) async throws -> Int {
         onProgress?("后台增量导出")
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
-        let backfill = await allQuantityBackfill(end: end)
-        let export = Self.mergingSamples(backfill.samples, into: anchored)
-        _ = try await enqueueExportByLocalDate(export)
-        if backfill.markDone {
-            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
-        }
+        _ = try await enqueueExportByLocalDate(anchored)
         await anchorStore.saveAll(newAnchors)
 
         let drain = HealthSyncDrain(api: api, queue: queue)
         let uploaded = try await drain.drain(budget: budget, onProgress: onProgress)
 
-        let dates = Array(exportLocalDates(export)).sorted()
+        let dates = Array(exportLocalDates(anchored)).sorted()
         if dates.isEmpty {
             if try await queue.pendingCount() == 0 {
                 await checkpointTo(end, context: "syncBackgroundAnchored")
@@ -454,7 +467,7 @@ struct HealthSyncService {
     private func syncBackgroundHeal(
         budget: HealthSyncDrainBudget,
         end: Date,
-        onProgress: ((String) -> Void)?
+        onProgress: (@Sendable (String) -> Void)?
     ) async throws -> Int {
         let start = Calendar.current.date(
             byAdding: .day,
@@ -486,34 +499,43 @@ struct HealthSyncService {
         return uploaded
     }
 
-    /// Re-read every quantity for the lookback once. Earlier builds kept series
-    /// intervals and dropped other samples from the same day, and only backfilled
-    /// workout curves.
-    private func allQuantityBackfill(end: Date) async -> (samples: [HealthQuantitySamplePayload], markDone: Bool) {
-        guard !UserDefaults.standard.bool(forKey: Self.allQuantityBackfillKey) else {
-            return ([], false)
-        }
+    /// Re-read every quantity for the lookback once, one day at a time.
+    /// Holding 90 days of heart-rate and step samples in one array froze the main
+    /// actor and was killed for memory. Background sync does not call this.
+    private func enqueueAllQuantityBackfill(end: Date) async throws -> Bool {
+        guard !UserDefaults.standard.bool(forKey: Self.allQuantityBackfillKey) else { return false }
         let start = Calendar.current.date(byAdding: .day, value: -Self.firstLookbackDays, to: end) ?? end
-        let detail = await store.exportWorkoutDetailQuantities(
-            from: start,
-            to: end,
-            metrics: HealthKitStore.allQuantityMetrics
-        )
-        let markDone = detail.unexpandedSeries == 0
-        return (detail.samples, markDone)
-    }
-
-    private static func mergingSamples(
-        _ extra: [HealthQuantitySamplePayload],
-        into export: HealthKitExport
-    ) -> HealthKitExport {
-        guard !extra.isEmpty else { return export }
-        var merged = export
-        var seen = Set(merged.samples.map(\.hkUuid))
-        for sample in extra where seen.insert(sample.hkUuid).inserted {
-            merged.samples.append(sample)
+        let calendar = Calendar.current
+        var cursor = start
+        var unexpanded = 0
+        while cursor < end {
+            let dayStart = calendar.startOfDay(for: cursor)
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? end
+            let sliceEnd = min(nextDay, end)
+            let detail = await store.exportWorkoutDetailQuantities(
+                from: cursor,
+                to: sliceEnd,
+                metrics: HealthKitStore.allQuantityMetrics
+            )
+            unexpanded += detail.unexpandedSeries
+            if !detail.samples.isEmpty {
+                let dayExport = HealthKitExport(
+                    samples: detail.samples,
+                    sleep: [],
+                    standHours: [],
+                    workouts: [],
+                    routes: [],
+                    heartbeats: []
+                )
+                _ = try await enqueueExport(dayExport, localDate: Self.dayLabel(for: cursor))
+            }
+            cursor = sliceEnd
+            await Task.yield()
         }
-        return merged
+        if unexpanded == 0 {
+            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
+        }
+        return true
     }
 
     func persistCurrentAnchors(asOf date: Date = Date()) async throws {
@@ -552,7 +574,7 @@ struct HealthSyncService {
         source: HealthSyncSource,
         from start: Date,
         to end: Date,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
         let label = Self.dayLabel(for: start)
         onProgress(0.1, "写入队列")
@@ -562,8 +584,9 @@ struct HealthSyncService {
         while true {
             let remaining = try await queue.pendingCount(localDate: label)
             if remaining == 0 { break }
+            let shown = uploaded
             let n = try await drain.drain(budget: .foreground) { step in
-                onProgress(min(0.95, 0.2 + Double(uploaded) * 0.05), step)
+                onProgress(min(0.95, 0.2 + Double(shown) * 0.05), step)
             }
             uploaded += n
             if n == 0 {

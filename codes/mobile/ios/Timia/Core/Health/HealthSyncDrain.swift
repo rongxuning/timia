@@ -26,7 +26,8 @@ struct HealthSyncDrainBudget: Sendable, Equatable {
     var maxDuration: TimeInterval
 
     static let foreground = HealthSyncDrainBudget(maxBatches: .max, maxDuration: .infinity)
-    static let background = HealthSyncDrainBudget(maxBatches: 8, maxDuration: 20)
+    /// One HealthKit wake gets about half a minute. Upload as many queued batches as fit.
+    static let background = HealthSyncDrainBudget(maxBatches: 200, maxDuration: 25)
 }
 
 enum HealthSyncDrainError: Error, LocalizedError, Sendable {
@@ -47,7 +48,7 @@ enum HealthSyncDrainError: Error, LocalizedError, Sendable {
 }
 
 /// Shared upload scheduler for manual (aggressive) and background (budgeted) drains.
-@MainActor
+/// Not main-actor isolated: uploads and queue IO must not block the UI.
 struct HealthSyncDrain {
     var api: HealthSyncAPI
     var queue: HealthSyncQueue = .shared
@@ -72,7 +73,7 @@ struct HealthSyncDrain {
     /// Returns number of batches uploaded. Stops when budget hit or queue empty.
     func drain(
         budget: HealthSyncDrainBudget,
-        onProgress: ((String) -> Void)? = nil
+        onProgress: (@Sendable (String) -> Void)? = nil
     ) async throws -> Int {
         try await queue.resetUploadingToPending()
         try await queue.requeueFailed()

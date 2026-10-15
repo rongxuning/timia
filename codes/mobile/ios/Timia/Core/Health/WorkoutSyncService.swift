@@ -6,7 +6,6 @@ struct WorkoutPendingItem: Identifiable, Sendable {
     var id: String { workout.hkUuid }
 }
 
-@MainActor
 struct WorkoutSyncService {
     static let lastSyncedKey = "timia.workout.lastSyncedAt"
     static let pipeline = "workout"
@@ -65,15 +64,18 @@ struct WorkoutSyncService {
         source: HealthSyncSource,
         onlyHkUuid: String? = nil,
         skipGlobalCheckpoint: Bool = false,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: HealthSyncProgress
     ) async throws {
+        let report: @Sendable (Double, String) -> Void = { fraction, label in
+            onProgress(fraction, label)
+        }
         let anchorsHealthy = await Self.anchorsHealthy()
         if watermark == nil || onlyHkUuid != nil || !anchorsHealthy {
             try await syncWindow(
                 source: source,
                 onlyHkUuid: onlyHkUuid,
                 skipGlobalCheckpoint: skipGlobalCheckpoint || onlyHkUuid != nil,
-                onProgress: onProgress
+                onProgress: report
             )
             if watermark == nil {
                 try await persistCurrentAnchors()
@@ -82,12 +84,12 @@ struct WorkoutSyncService {
         }
 
         do {
-            try await syncAnchored(source: source, onProgress: onProgress)
+            try await syncAnchored(source: source, onProgress: report)
         } catch HealthKitStoreError.needsAnchorHeal {
             try await syncWindow(
                 source: source,
                 skipGlobalCheckpoint: skipGlobalCheckpoint,
-                onProgress: onProgress
+                onProgress: report
             )
             try await persistCurrentAnchors()
         }
@@ -105,7 +107,7 @@ struct WorkoutSyncService {
 
     private func syncAnchored(
         source: HealthSyncSource,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
         onProgress(0.1, "读取训练增量")
         let (export, newAnchors) = try await store.exportWorkoutAnchoredChanges()
@@ -142,7 +144,7 @@ struct WorkoutSyncService {
         source: HealthSyncSource,
         onlyHkUuid: String? = nil,
         skipGlobalCheckpoint: Bool = false,
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
         let end = Date()
         let start = Calendar.current.date(byAdding: .day, value: -Self.firstLookbackDays, to: end) ?? end
@@ -193,7 +195,7 @@ struct WorkoutSyncService {
         workouts: [HealthWorkoutPayload],
         routes: [HealthWorkoutRoutePayload],
         deletions: [HealthKitDeletedObject],
-        onProgress: @escaping (Double, String) -> Void
+        onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws -> Int {
         var upserted = 0
         let workoutDeletions = deletions.filter { $0.kind == "workout" }

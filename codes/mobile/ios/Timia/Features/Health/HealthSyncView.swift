@@ -272,10 +272,11 @@ struct HealthSyncView: View {
                 progressText = "锚点修复 · 近 \(HealthSyncService.backgroundLookbackDays) 天…"
             }
             let service = HealthSyncService(api: HealthSyncAPI(client: session.api))
-            try await service.syncFromWatermark(watermark, source: .manual) { fraction, label in
-                progress = max(0.02, fraction)
-                progressText = label
+            let progress = HealthSyncProgress { fraction, label in
+                self.progress = max(0.02, fraction)
+                self.progressText = label
             }
+            try await service.syncFromWatermark(watermark, source: .manual, onProgress: progress)
             progress = 1
             progressText = "同步完成"
             try? await Task.sleep(for: .milliseconds(350))
