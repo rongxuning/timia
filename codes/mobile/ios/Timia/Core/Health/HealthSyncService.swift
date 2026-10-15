@@ -32,8 +32,9 @@ struct HealthSyncService {
     /// Legacy fixed overlap for time-window incremental when anchors are unavailable.
     static let overlap: TimeInterval = 2 * 60 * 60
     static let firstLookbackDays = 90
-    /// One-shot re-read of condensed workout curves (heart rate, steps, stride, speed, power).
-    static let workoutDetailBackfillKey = "timia.health.workoutDetailBackfill.v1"
+    /// One-shot re-read of every quantity type for the lookback, including samples
+    /// outside workouts. A non-empty series query used to drop the rest of the day.
+    static let allQuantityBackfillKey = "timia.health.allQuantityBackfill.v1"
     static let uploadConcurrency = 4
     /// Heal / pre-anchor short lookback when anchors are missing or corrupt.
     static let backgroundLookbackDays = 2
@@ -94,7 +95,8 @@ struct HealthSyncService {
             await HealthKitAnchorStore.shared.remove(key: key)
         }
         try? await HealthSyncQueue.shared.clearAll()
-        UserDefaults.standard.removeObject(forKey: workoutDetailBackfillKey)
+        UserDefaults.standard.removeObject(forKey: allQuantityBackfillKey)
+        UserDefaults.standard.removeObject(forKey: "timia.health.workoutDetailBackfill.v1")
         UserDefaults.standard.removeObject(forKey: "timia.health.heartRateDetailBackfill.v1")
     }
 
@@ -200,13 +202,13 @@ struct HealthSyncService {
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
-        let backfill = await workoutDetailBackfill(end: end)
+        let backfill = await allQuantityBackfill(end: end)
         let export = Self.mergingSamples(backfill.samples, into: anchored)
 
         onProgress(0.15, "写入队列")
         let enqueued = try await enqueueExportByLocalDate(export)
         if backfill.markDone {
-            UserDefaults.standard.set(true, forKey: Self.workoutDetailBackfillKey)
+            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
         }
         // Advance anchors only after durable enqueue so a crash mid-drain still uploads.
         await anchorStore.saveAll(newAnchors)
@@ -419,11 +421,11 @@ struct HealthSyncService {
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
         HealthSyncTelemetry.logExport(exportMs: Int(Date().timeIntervalSince(exportStarted) * 1000))
-        let backfill = await workoutDetailBackfill(end: end)
+        let backfill = await allQuantityBackfill(end: end)
         let export = Self.mergingSamples(backfill.samples, into: anchored)
         _ = try await enqueueExportByLocalDate(export)
         if backfill.markDone {
-            UserDefaults.standard.set(true, forKey: Self.workoutDetailBackfillKey)
+            UserDefaults.standard.set(true, forKey: Self.allQuantityBackfillKey)
         }
         await anchorStore.saveAll(newAnchors)
 
@@ -484,18 +486,18 @@ struct HealthSyncService {
         return uploaded
     }
 
-    /// Older builds stored one condensed sample per workout curve and then moved the
-    /// anchor past it. Re-read heart rate, steps, stride, speed, and the other
-    /// running series once, and upsert the expanded points.
-    private func workoutDetailBackfill(end: Date) async -> (samples: [HealthQuantitySamplePayload], markDone: Bool) {
-        guard !UserDefaults.standard.bool(forKey: Self.workoutDetailBackfillKey) else {
+    /// Re-read every quantity for the lookback once. Earlier builds kept series
+    /// intervals and dropped other samples from the same day, and only backfilled
+    /// workout curves.
+    private func allQuantityBackfill(end: Date) async -> (samples: [HealthQuantitySamplePayload], markDone: Bool) {
+        guard !UserDefaults.standard.bool(forKey: Self.allQuantityBackfillKey) else {
             return ([], false)
         }
         let start = Calendar.current.date(byAdding: .day, value: -Self.firstLookbackDays, to: end) ?? end
         let detail = await store.exportWorkoutDetailQuantities(
             from: start,
             to: end,
-            metrics: HealthKitStore.seriesBackfillMetrics
+            metrics: HealthKitStore.allQuantityMetrics
         )
         let markDone = detail.unexpandedSeries == 0
         return (detail.samples, markDone)

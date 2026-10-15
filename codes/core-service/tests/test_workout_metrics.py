@@ -309,6 +309,18 @@ def test_km_splits_prestart_cadence_interval_keeps_rate():
     assert abs(splits[0]["avg_cadence_spm"] - 97) < 0.1
 
 
+def test_km_splits_average_instantaneous_heart_rate_points():
+    points = [
+        {"t": float(i), "lat": i / 111_320, "lng": 0.0, "alt": None} for i in range(0, 2001, 10)
+    ]
+    hr = [(float(i), 140.0 if i < 1000 else 160.0) for i in range(0, 2000, 5)]
+    splits = km_splits(points, hr_points=hr, cadence_points=[])
+    assert splits[0]["avg_hr_bpm"] is not None
+    assert abs(splits[0]["avg_hr_bpm"] - 140) < 1
+    assert splits[1]["avg_hr_bpm"] is not None
+    assert abs(splits[1]["avg_hr_bpm"] - 160) < 3
+
+
 def test_cadence_intervals_skip_day_buckets_and_keep_workout_hours():
     day = cadence_intervals_from_steps([(0.0, 8000.0, 86400.0)])
     assert day == []
@@ -320,6 +332,10 @@ def test_cadence_intervals_skip_day_buckets_and_keep_workout_hours():
     assert clipped[0] == 0
     assert abs(clipped[1] - 3570) < 0.01
     assert clip_offset_duration(-10.0, 0.0) is None
+    # Watch heart-rate samples are points (start == end) inside the workout.
+    assert clip_offset_duration(12.0, 0.0) == (12.0, 0.0)
+    assert clip_offset_duration(0.0, 0.0) == (0.0, 0.0)
+    assert clip_offset_duration(-5.0, 5.0) is None
 
 
 def test_cadence_from_speed_and_stride():
