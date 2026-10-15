@@ -327,12 +327,21 @@ def normalize_route_clock(points: list[dict]) -> list[dict]:
 
 
 def clip_offset_duration(offset: float, duration: float) -> tuple[float, float] | None:
-    """Clip a sample that starts before the workout so the overlap stays inside it."""
+    """Keep a sample that occurs during the workout.
+
+    Heart-rate points are instantaneous (duration <= 0) and must stay when their
+    timestamp is inside the session. Intervals that start early are clipped to
+    the overlap; no remaining overlap means the sample is outside.
+    """
+    if duration <= 0:
+        if offset < 0:
+            return None
+        return offset, 0.0
     if offset < 0:
         duration += offset
         offset = 0.0
-    if duration <= 0:
-        return None
+        if duration <= 0:
+            return None
     return offset, duration
 
 
