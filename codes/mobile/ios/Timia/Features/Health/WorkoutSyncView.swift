@@ -208,4 +208,3 @@ struct WorkoutSyncView: View {
         UIApplication.shared.endBackgroundTask(taskID)
     }
 }
-}

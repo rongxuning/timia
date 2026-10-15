@@ -263,12 +263,12 @@ struct HealthSyncService {
             source: source,
             start: end,
             end: end,
-            quantityCount: export.samples.count,
-            sleepCount: export.sleep.count,
-            standHourCount: export.standHours.count,
-            heartbeatCount: export.heartbeats.count,
-            workoutCount: export.workouts.count,
-            routeCount: export.routes.count,
+            quantityCount: anchored.samples.count,
+            sleepCount: anchored.sleep.count,
+            standHourCount: anchored.standHours.count,
+            heartbeatCount: anchored.heartbeats.count,
+            workoutCount: anchored.workouts.count,
+            routeCount: anchored.routes.count,
             upserted: upserted,
             dates: dates
         )
