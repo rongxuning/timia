@@ -10,7 +10,8 @@ settings:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: ""
+    # Team ID is not a secret; Automatic signing in CI needs it on every target.
+    DEVELOPMENT_TEAM: QTV9DUCAY7
 targets:
   Timia:
     type: application
@@ -31,6 +32,7 @@ targets:
         INFOPLIST_FILE: Timia/Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Timia/Resources/Timia.entitlements
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: QTV9DUCAY7
         TARGETED_DEVICE_FAMILY: "1,2"
         # AVAudioEngine raises ObjC NSExceptions; catch via ObjCExceptionCatcher.
         SWIFT_OBJC_BRIDGING_HEADER: Timia/Core/Speech/Timia-Bridging-Header.h
