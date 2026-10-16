@@ -307,6 +307,48 @@ final class CalendarWeekTitleTests: XCTestCase {
         ])
     }
 
+    func testTimelinePageWeekKeysFollowAccountWeekStartNotDeviceCalendar() {
+        // Account week starts Monday; device calendar below starts Sunday.
+        var monday = calendar
+        monday.firstWeekday = 2
+        var sundayDevice = calendar
+        sundayDevice.firstWeekday = 1
+
+        let wednesday = date(2026, 10, 14)
+        let mondayWeekStart = weekDaysContaining(wednesday, calendar: monday).first!
+        let keys = timelinePageWeekKeys(origin: mondayWeekStart, offsets: -1...1, calendar: monday)
+
+        XCTAssertEqual(keys, [
+            "2026-10-05",
+            "2026-10-12",
+            "2026-10-19",
+        ])
+        // Selected week key must be present — otherwise ScrollView paging jumps months.
+        XCTAssertTrue(keys.contains(calendarDayKey(mondayWeekStart, calendar: monday)))
+
+        let brokenKeys = timelinePageWeekKeys(
+            origin: mondayWeekStart,
+            offsets: -1...1,
+            calendar: sundayDevice
+        )
+        XCTAssertFalse(
+            brokenKeys.contains(calendarDayKey(mondayWeekStart, calendar: monday)),
+            "Device Sunday-first keys must not be used for Timia Monday week paging"
+        )
+    }
+
+    func testTimelinePageWeekKeysStayOnSevenDayNeighborsAcrossYearBoundary() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        let weekStart = date(2026, 12, 28) // Monday
+        let keys = timelinePageWeekKeys(origin: weekStart, offsets: 0...1, calendar: monday)
+
+        XCTAssertEqual(keys, [
+            "2026-12-28",
+            "2027-01-04",
+        ])
+    }
+
     func testDateStripDayStepsScalesWithTranslationAndDayWidth() {
         XCTAssertEqual(dateStripDaySteps(translationWidth: -44, dayWidth: 44), 1)
         XCTAssertEqual(dateStripDaySteps(translationWidth: -130, dayWidth: 44), 3)
