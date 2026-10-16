@@ -1,0 +1,85 @@
+# Phone path: GitHub mobile app → Actions → "iOS TestFlight" → Run workflow.
+# Does not run on push. Does not use notarytool (that is macOS Developer ID only).
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_upload:
+        description: "Archive the IPA only; do not upload to TestFlight"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: codes/mobile/ios
+    env:
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
+      SKIP_UPLOAD: ${{ inputs.skip_upload }}
+      APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+      APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          set -euo pipefail
+          if [[ ! -f Config/Debug.xcconfig ]]; then
+            cp Config/Debug.xcconfig.example Config/Debug.xcconfig
+          fi
+          xcodegen generate
+
+      - name: Check App Store Connect secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APP_STORE_CONNECT_API_KEY_KEY_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID APP_STORE_CONNECT_API_KEY_KEY; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub secret ${name}"
+              missing=1
+            fi
+          done
+          if [[ "${missing}" -ne 0 ]]; then
+            echo "Add the Team API Key secrets listed in codes/mobile/ios/README.md. Do not commit .p8 files."
+            exit 1
+          fi
+          echo "App Store Connect secrets are present (values not printed)."
+
+      - name: Install Fastlane gems
+        run: |
+          set -euo pipefail
+          if ! command -v bundle >/dev/null 2>&1; then
+            gem install bundler --no-document
+          fi
+          bundle config set --local path vendor/bundle
+          bundle install --jobs 4 --retry 3
+
+      - name: Build and upload to TestFlight
+        run: bundle exec fastlane ios beta
+
+      - name: Remove API key file
+        if: always()
+        run: |
+          if [[ -n "${RUNNER_TEMP:-}" ]]; then
+            rm -f "${RUNNER_TEMP}/AuthKey_"*.p8
+          fi

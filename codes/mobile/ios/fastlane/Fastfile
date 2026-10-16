@@ -1,0 +1,94 @@
+# frozen_string_literal: true
+
+require "base64"
+require "fileutils"
+require "shellwords"
+
+default_platform(:ios)
+
+# iOS TestFlight only. Do not call notarytool (macOS Developer ID notarization).
+platform :ios do
+  desc "Archive Release and upload to TestFlight"
+  lane :beta do
+    setup_ci if ENV["CI"]
+
+    api_key = connect_api_key
+    key_file = ensure_api_key_file
+    build_number = ENV["GITHUB_RUN_NUMBER"] || ENV["CI_BUILD_NUMBER"]
+
+    xcargs = ["-allowProvisioningUpdates"]
+    xcargs << "CURRENT_PROJECT_VERSION=#{build_number}" if env_filled?(build_number)
+    if env_filled?(key_file)
+      xcargs << "-authenticationKeyPath #{Shellwords.escape(key_file)}"
+      xcargs << "-authenticationKeyID #{ENV.fetch("APP_STORE_CONNECT_API_KEY_KEY_ID")}"
+      xcargs << "-authenticationKeyIssuerID #{ENV.fetch("APP_STORE_CONNECT_API_KEY_ISSUER_ID")}"
+    end
+    xcargs_str = xcargs.join(" ")
+
+    build_app(
+      project: "Timia.xcodeproj",
+      scheme: "Timia",
+      configuration: "Release",
+      destination: "generic/platform=iOS",
+      export_options: "ExportOptions.plist",
+      xcargs: xcargs_str,
+      export_xcargs: "-allowProvisioningUpdates",
+      output_directory: "build",
+      output_name: "Timia",
+      include_symbols: true,
+      skip_profile_detection: true
+    )
+
+    if ENV["SKIP_UPLOAD"] == "true"
+      UI.success("SKIP_UPLOAD=true — IPA is in build/, not uploaded.")
+      next
+    end
+
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: "online.timia.ios",
+      skip_waiting_for_build_processing: true,
+      uses_non_exempt_encryption: false,
+      distribute_external: false,
+      notify_external_testers: false
+    )
+  end
+
+  def env_filled?(value)
+    !value.nil? && !value.to_s.empty?
+  end
+
+  def connect_api_key
+    options = {
+      key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_KEY_ID"),
+      issuer_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
+      duration: 1200,
+      in_house: false
+    }
+    filepath = ENV["APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"]
+    if env_filled?(filepath)
+      options[:key_filepath] = filepath
+    else
+      options[:key_content] = ENV.fetch("APP_STORE_CONNECT_API_KEY_KEY")
+      options[:is_key_content_base64] = ENV["APP_STORE_CONNECT_API_KEY_IS_KEY_CONTENT_BASE64"] == "true"
+    end
+    app_store_connect_api_key(**options)
+  end
+
+  def ensure_api_key_file
+    existing = ENV["APP_STORE_CONNECT_API_KEY_KEY_FILEPATH"]
+    return existing if env_filled?(existing) && File.exist?(existing)
+
+    key_id = ENV["APP_STORE_CONNECT_API_KEY_KEY_ID"]
+    content = ENV["APP_STORE_CONNECT_API_KEY_KEY"]
+    return nil unless env_filled?(key_id) && env_filled?(content)
+
+    dir = ENV["RUNNER_TEMP"] || File.join(Dir.pwd, "build")
+    FileUtils.mkdir_p(dir)
+    path = File.join(dir, "AuthKey_#{key_id}.p8")
+    pem = ENV["APP_STORE_CONNECT_API_KEY_IS_KEY_CONTENT_BASE64"] == "true" ? Base64.decode64(content) : content
+    File.write(path, pem)
+    File.chmod(0o600, path)
+    path
+  end
+end

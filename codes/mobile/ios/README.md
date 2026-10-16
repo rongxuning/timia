@@ -105,6 +105,38 @@ Mac 的局域网 IP 可能在重新连接 Wi-Fi 后变化。如果真机突然�
 
 数据分析不进入 iOS 范围。
 
+## TestFlight（GitHub 手机触发 / Xcode Cloud）
+
+工程真源是 `project.yml`。CI 会先 `xcodegen generate`，**不要**手改 `.xcodeproj` 当真源。上传走 App Store Connect，**不要**用 `notarytool`（那是 macOS Developer ID 公证）。
+
+手机路径：GitHub App → Actions → **iOS TestFlight** → Run workflow（`workflow_dispatch`，跑在 `macos-26`）。**不会**在 push `main` 时自动上传。
+
+### GitHub Secrets（不要提交进 git，不要贴进 PR）
+
+在仓库 Settings → Secrets and variables → Actions 里添加 **Team** API Key（不要用 Individual Key）：
+
+| Secret | 内容 |
+|--------|------|
+| `APP_STORE_CONNECT_API_KEY_KEY_ID` | Key ID |
+| `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | Issuer ID |
+| `APP_STORE_CONNECT_API_KEY_KEY` | `.p8` 私钥全文（含 `BEGIN PRIVATE KEY` / `END`） |
+
+签名：`project.yml` 里 Automatic + 团队 ID `QTV9DUCAY7`（团队 ID 不是密钥），CI 用上述 Key 做 `xcodebuild -allowProvisioningUpdates`。不要把 `.p8` / `.p12` / `.mobileprovision` 放进仓库。
+
+Build 号：GitHub Actions 用 `GITHUB_RUN_NUMBER`，Xcode Cloud 用 `CI_BUILD_NUMBER`。营销版本仍在 `project.yml` 的 `MARKETING_VERSION`。主 App `Info.plist` 写了 `ITSAppUsesNonExemptEncryption = false`（仅 HTTPS 的常见填法）；Account Holder 若判定不同，改 plist 或在 App Store Connect 问卷里更正。
+
+本机（已装 Bundler、且环境变量或 `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH` 指向本机 `.p8`）：
+
+```bash
+cd codes/mobile/ios
+bundle install
+bundle exec fastlane ios beta
+```
+
+### Xcode Cloud
+
+`ci_scripts/ci_post_clone.sh` 会安装 XcodeGen 并 `xcodegen generate`。在 Xcode 里开通 Cloud workflow（工作目录 `codes/mobile/ios`），Archive 后加 TestFlight Internal Testing post-action。首次连 GitHub / 选 Team / App 记录要人在 Xcode 或 App Store Connect 点。
+
 ## 命令行验证
 
 ```bash
