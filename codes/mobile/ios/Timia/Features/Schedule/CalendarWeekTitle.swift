@@ -193,11 +193,12 @@ func timelinePageDayKeys(
 func timelinePageWeekKeys(
     origin: Date,
     offsets: ClosedRange<Int> = CalendarInfiniteWindow.weekOffsets,
-    calendar: Calendar = .current
+    calendar: Calendar = TimiaWeekCalendar.calendar()
 ) -> [String] {
+    // Account week calendar + exact 7-day steps so selectedWeekKey stays in pageKeys.
     let weekStart = dateStripStartForWeek(containing: origin, calendar: calendar)
     return offsets.map { offset in
-        let date = calendar.date(byAdding: .weekOfYear, value: offset, to: weekStart) ?? weekStart
+        let date = dateByAddingDays(offset * 7, to: weekStart, calendar: calendar)
         return calendarDayKey(date, calendar: calendar)
     }
 }

@@ -117,11 +117,36 @@ final class TimelineInteractionStateTests: XCTestCase {
     func testWeekAnchorRecentersOnlyWhenFarAway() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        calendar.firstWeekday = 2
         let anchor = Date(timeIntervalSince1970: 1_788_768_000) // 2026-09-06
-        let nearby = calendar.date(byAdding: .weekOfYear, value: 8, to: anchor) ?? anchor
-        let far = calendar.date(byAdding: .weekOfYear, value: 20, to: anchor) ?? anchor
+        let nearby = calendar.date(byAdding: .day, value: 8 * 7, to: anchor) ?? anchor
+        let far = calendar.date(byAdding: .day, value: 20 * 7, to: anchor) ?? anchor
 
         XCTAssertFalse(CalendarInfiniteWindow.shouldRecenterWeekAnchor(from: anchor, to: nearby, calendar: calendar))
         XCTAssertTrue(CalendarInfiniteWindow.shouldRecenterWeekAnchor(from: anchor, to: far, calendar: calendar))
+    }
+
+    func testWeekAnchorRecenterUsesDayDistanceAcrossYearBoundary() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        calendar.firstWeekday = 2
+        let lateDecember = calendar.date(from: DateComponents(year: 2026, month: 12, day: 28))!
+        let eightWeeksLater = calendar.date(byAdding: .day, value: 8 * 7, to: lateDecember)!
+        let twentyWeeksLater = calendar.date(byAdding: .day, value: 20 * 7, to: lateDecember)!
+
+        XCTAssertFalse(
+            CalendarInfiniteWindow.shouldRecenterWeekAnchor(
+                from: lateDecember,
+                to: eightWeeksLater,
+                calendar: calendar
+            )
+        )
+        XCTAssertTrue(
+            CalendarInfiniteWindow.shouldRecenterWeekAnchor(
+                from: lateDecember,
+                to: twentyWeeksLater,
+                calendar: calendar
+            )
+        )
     }
 }

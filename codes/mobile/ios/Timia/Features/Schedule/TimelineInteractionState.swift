@@ -18,10 +18,12 @@ enum CalendarInfiniteWindow {
     static func shouldRecenterWeekAnchor(
         from anchor: Date,
         to date: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = TimiaWeekCalendar.calendar()
     ) -> Bool {
-        let delta = calendar.dateComponents([.weekOfYear], from: anchor, to: date).weekOfYear ?? 0
-        return abs(delta) > weekRecenterThreshold
+        let start = calendar.startOfDay(for: anchor)
+        let end = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: start, to: end).day ?? 0
+        return abs(days) / 7 > weekRecenterThreshold
     }
 }
 

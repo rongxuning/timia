@@ -892,14 +892,16 @@ struct ScheduleHomeView: View {
     }
 
     private func adjacentDate(from date: Date, direction: Int, range: CalendarRange) -> Date {
-        let component: Calendar.Component
         switch range {
-        case .day: component = .day
-        case .week: component = .weekOfYear
-        case .month: component = .month
-        case .year: component = .year
+        case .day:
+            return Calendar.current.date(byAdding: .day, value: direction, to: date) ?? date
+        case .week:
+            return dateByAddingDays(direction * 7, to: date, calendar: TimiaWeekCalendar.calendar())
+        case .month:
+            return Calendar.current.date(byAdding: .month, value: direction, to: date) ?? date
+        case .year:
+            return Calendar.current.date(byAdding: .year, value: direction, to: date) ?? date
         }
-        return Calendar.current.date(byAdding: component, value: direction, to: date) ?? date
     }
 
     private func trimCalendarCache(keeping date: Date, range: CalendarRange) {
