@@ -1,5 +1,6 @@
 from app.models.activity import ActivityLog
 from app.models.agent_token import AgentToken, AgentToolCall
+from app.models.asset import AssetHolding, AssetProfile, AssetValuation
 from app.models.comment import Comment
 from app.models.health import (
     HealthInsightDaily,
@@ -45,6 +46,9 @@ __all__ = [
     "ActivityLog",
     "AgentToken",
     "AgentToolCall",
+    "AssetHolding",
+    "AssetProfile",
+    "AssetValuation",
     "Comment",
     "HealthInsightDaily",
     "HealthMetricsDaily",

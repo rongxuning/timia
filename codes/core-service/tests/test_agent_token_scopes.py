@@ -34,6 +34,9 @@ from app.services.agent_tokens import required_scope_for_request
         ("GET", "/views/me/health/workouts", "health:read"),
         ("GET", "/views/me/health/workouts/w1", "health:read"),
         ("GET", "/views/me/health/cards/steps", "health:read"),
+        ("GET", "/views/me/assets", "__deny__"),
+        ("POST", "/asset-holdings", "__deny__"),
+        ("PUT", "/asset-profile", "__deny__"),
     ],
 )
 def test_required_scope_for_request(method, path, expected):
@@ -44,5 +47,7 @@ def test_unknown_path_returns_sentinel():
     assert required_scope_for_request("GET", "/health/sync/samples") == "__deny__"
     assert required_scope_for_request("DELETE", "/health/data") == "__deny__"
     assert required_scope_for_request("GET", "/dev/db-tables") == "__deny__"
+    assert required_scope_for_request("GET", "/views/me/assets") == "__deny__"
+    assert required_scope_for_request("PATCH", "/asset-holdings/h1") == "__deny__"
     assert required_scope_for_request("DELETE", "/sticky-notes/n1") == "__deny__"
     assert required_scope_for_request("POST", "/plan-templates/t1/apply") == "__deny__"

@@ -4,6 +4,7 @@
     "schedule": "My schedule",
     "workspaces": "Workspaces",
     "health": "Health",
+    "assets": "Assets",
     "plans": "Plans",
     "analytics": "Analytics",
     "members": "Members",
@@ -36,6 +37,7 @@
     "schedule": "Schedule",
     "analytics": "Analytics",
     "health": "Health",
+    "assets": "Assets",
     "plans": "Plans",
     "new": "New",
     "edit": "Edit",
@@ -229,5 +231,172 @@
     "language": "Language",
     "logOut": "Log out",
     "loggingOut": "Logging out…"
+  },
+  "assets": {
+    "title": "Assets",
+    "subtitle": "A balance-sheet stocktake: net worth = assets − liabilities. Record a balance on a date, not every transaction.",
+    "add": "Add a line",
+    "loading": "Loading…",
+    "emptyTitle": "Start with the balance sheet",
+    "emptyBody": "Record what you own and what you owe separately. Money in a bank account is an asset; an unpaid card balance is a liability. A home and a car count in net worth, and they are not cash you can spend.",
+    "starterHint": "One line is enough to begin.",
+    "starters": {
+      "cash": "Cash or checking",
+      "investment": "Fund or shares",
+      "property": "Property",
+      "credit": "Credit card",
+      "mortgage": "Mortgage"
+    },
+    "summary": {
+      "netWorth": "Net worth",
+      "assets": "Assets",
+      "liabilities": "Liabilities",
+      "liquid": "Spendable net worth",
+      "netWorthHint": "Assets − liabilities",
+      "liquidHint": "Cash, investments, and receivables, minus high-interest debt, installments, and other payables",
+      "latest": "Latest book date {date}"
+    },
+    "metrics": {
+      "emergency": "Emergency fund",
+      "emergencyMonths": "{months} months",
+      "emergencyUnset": "Add monthly essentials to calculate",
+      "debtRatio": "Debt ratio",
+      "debtUnset": "No counted assets yet",
+      "review": "Needs review",
+      "reviewCount": "{count} older than 35 days",
+      "reviewClear": "All within 35 days"
+    },
+    "bands": {
+      "unset": "Not set",
+      "thin": "Under 1 month",
+      "building": "Under 3 months",
+      "adequate": "3 to 6 months",
+      "comfortable": "6 to 12 months",
+      "excess": "Over 12 months",
+      "none": "No debt",
+      "low": "Under 30%",
+      "moderate": "30% to 50%",
+      "high": "Over 50%"
+    },
+    "focus": {
+      "start": "One cash balance or one bank account is enough to start. Record debts you have, and leave the column empty if you have none.",
+      "high_interest": "There is high-interest short-term debt. It is not the same as a mortgage: nothing backs it, and it keeps taking from what you have left. Read that unpaid balance on its own.",
+      "emergency": "Cash does not yet cover 3 months of essential spending. Set that cash aside before placing the rest anywhere else.",
+      "set_essential": "Add one month of essential spending so the emergency fund can be read as a number of months. Essentials are the costs you cannot pause.",
+      "excess_cash": "Cash covers more than 12 months of essential spending. The amount above that range does not all need to sit in a checking account.",
+      "balanced": "Net worth, spendable money, and the emergency fund are separate figures. Next time, update the balances."
+    },
+    "allocation": {
+      "assets": "Asset mix",
+      "liabilities": "Liability mix"
+    },
+    "series": {
+      "title": "Net worth",
+      "caption": "Replays only the lines currently included in net worth.",
+      "aria": "Net worth from {start} to {end}"
+    },
+    "columns": {
+      "assets": "Assets",
+      "liabilities": "Liabilities",
+      "assetsEmpty": "No assets yet.",
+      "liabilitiesEmpty": "No liabilities. Leave this empty if you owe nothing."
+    },
+    "holding": {
+      "excluded": "Excluded from net worth",
+      "review": "Needs review",
+      "confirm": "Balance unchanged",
+      "edit": "Edit",
+      "asOf": "As of {date}"
+    },
+    "profile": {
+      "title": "This book",
+      "currency": "Book currency",
+      "currencyHint": "The whole book uses one currency. Convert a foreign balance at a price you accept, then record it.",
+      "currencyLocked": "The currency stays fixed once a line exists. Remove every line before changing it.",
+      "essential": "Monthly essentials",
+      "essentialHint": "Costs you cannot pause: housing, food, transport, insurance. Leave out spending you can stop.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved"
+    },
+    "principles": {
+      "title": "How to read this",
+      "item1": "Net worth is assets minus liabilities. Record what you own and what you owe separately. Do not net a card balance against a bank balance first.",
+      "item2": "A home and a car count in net worth, and they are not money you can spend. Spendable net worth is cash, investments, and receivables, minus high-interest debt, installments, and other payables.",
+      "item3": "The emergency fund is how many months of essential spending your cash covers. Essentials are costs you cannot pause. A common range is 3 to 6 months.",
+      "item4": "Keep high-interest short-term debt apart from the mortgage. The mortgage is backed by the home. A card balance is not.",
+      "item5": "This is a balance stocktake, not a transaction ledger. Recheck cash about monthly, investments quarterly, and a home or vehicle yearly at a price you could sell for. Balances older than 35 days are marked for review."
+    },
+    "kinds": {
+      "asset": "Asset",
+      "liability": "Liability"
+    },
+    "categories": {
+      "cash": "Cash and equivalents",
+      "investment": "Investments",
+      "property": "Property",
+      "durable": "Durables",
+      "receivable": "Receivables",
+      "other_asset": "Other assets",
+      "credit": "High-interest short-term",
+      "installment": "Installments",
+      "mortgage": "Mortgage",
+      "payable": "Other payables",
+      "other_liability": "Other liabilities"
+    },
+    "categoryHints": {
+      "cash": "Checking, money-market cash, and cash on hand. Counts toward the emergency fund.",
+      "investment": "Funds, shares, bonds. Counts as spendable net worth, not as emergency cash.",
+      "property": "A home or other property, at a price you accept, not the original purchase price.",
+      "durable": "A car or valuables, at a rough sale price, not the original price.",
+      "receivable": "Money someone definitely owes you.",
+      "other_asset": "Use this only when nothing else fits.",
+      "credit": "Unpaid card or consumer-loan principal. Do not mix it with a mortgage.",
+      "installment": "Remaining principal on a car loan or other installment.",
+      "mortgage": "Remaining mortgage principal. Include it with the property, or exclude both.",
+      "payable": "Money you owe people, or a payment that is already fixed.",
+      "other_liability": "Use this only when nothing else fits."
+    },
+    "form": {
+      "createTitle": "Add a line",
+      "editTitle": "Edit",
+      "name": "Name",
+      "kind": "Side",
+      "category": "Category",
+      "amount": "Amount",
+      "institution": "Institution",
+      "institutionOptional": "Optional",
+      "asOf": "Book date",
+      "include": "Include in net worth",
+      "includeHint": "Include a home and its mortgage together, or exclude both.",
+      "note": "Note",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "archive": "Remove from the book",
+      "archiveConfirm": "This line will leave net worth. Remove it?",
+      "archiving": "Removing…",
+      "amountInvalid": "Enter a valid amount"
+    },
+    "errors": {
+      "generic": "Could not save. Try again.",
+      "not_found": "That line is no longer on the book",
+      "version_conflict": "The book changed. It has been reloaded — try again.",
+      "category_kind_mismatch": "That category does not match the side",
+      "as_of_in_future": "The book date cannot be after tomorrow",
+      "as_of_too_old": "That book date is too early",
+      "currency_has_holdings": "The currency is fixed while lines exist",
+      "unsupported_currency": "That currency is not supported",
+      "name_required": "Enter a name"
+    },
+    "currencies": {
+      "CNY": "Chinese yuan CNY",
+      "USD": "US dollar USD",
+      "HKD": "Hong Kong dollar HKD",
+      "EUR": "Euro EUR",
+      "GBP": "British pound GBP",
+      "JPY": "Japanese yen JPY"
+    }
   }
 }

@@ -18,6 +18,9 @@ from app.models import (
     ActivityLog,
     AgentToken,
     AgentToolCall,
+    AssetHolding,
+    AssetProfile,
+    AssetValuation,
     AuthChallenge,
     AuthIdentity,
     Comment,
@@ -133,6 +136,10 @@ _TABLE_ORDER: list[tuple[str, type]] = [
     ("sticky_notes", StickyNote),
     ("sticky_note_attachments", StickyNoteAttachment),
     ("sticky_note_ai_parses", StickyNoteAIParse),
+    # 个人资产账本
+    ("asset_profiles", AssetProfile),
+    ("asset_holdings", AssetHolding),
+    ("asset_valuations", AssetValuation),
     # 规划
     ("plan_templates", PlanTemplate),
     ("plan_slots", PlanSlot),

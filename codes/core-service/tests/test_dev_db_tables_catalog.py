@@ -7,6 +7,9 @@ from app.routes.dev_db_tables import _TABLE_ORDER, _orm_row_dict
 _EXPECTED = {
     "agent_tokens",
     "agent_tool_calls",
+    "asset_profiles",
+    "asset_holdings",
+    "asset_valuations",
     "llm_api_keys",
     "health_metrics_dirty",
     "health_sync_run",

@@ -4,6 +4,7 @@
     "schedule": "我的日程",
     "workspaces": "工作空间",
     "health": "健康",
+    "assets": "资产",
     "plans": "规划",
     "analytics": "数据分析",
     "members": "成员",
@@ -36,6 +37,7 @@
     "schedule": "日程",
     "analytics": "数据分析",
     "health": "健康",
+    "assets": "资产",
     "plans": "规划",
     "new": "新建",
     "edit": "编辑",
@@ -229,5 +231,172 @@
     "language": "界面语言",
     "logOut": "退出登录",
     "loggingOut": "退出中…"
+  },
+  "assets": {
+    "title": "资产",
+    "subtitle": "按资产负债表盘点：净资产 = 资产 − 负债。这里记的是某一天的余额，不是每一笔流水。",
+    "add": "记一笔",
+    "loading": "加载中…",
+    "emptyTitle": "先把资产负债表摆出来",
+    "emptyBody": "把你拥有的和欠下的分开记。银行卡里的钱是资产，信用卡未还是负债，不要抵消后再记。房子和车子算净资产，但不能当成随时能花的钱。",
+    "starterHint": "可以从一项开始，不用一次记全。",
+    "starters": {
+      "cash": "活期或现金",
+      "investment": "基金或股票",
+      "property": "房产",
+      "credit": "信用卡",
+      "mortgage": "房贷"
+    },
+    "summary": {
+      "netWorth": "净资产",
+      "assets": "总资产",
+      "liabilities": "总负债",
+      "liquid": "可动用净资产",
+      "netWorthHint": "资产 − 负债",
+      "liquidHint": "现金、投资、应收，扣掉高息短期、分期和其他应付",
+      "latest": "最近账面日 {date}"
+    },
+    "metrics": {
+      "emergency": "应急金",
+      "emergencyMonths": "{months} 个月",
+      "emergencyUnset": "填写每月必要开支后计算",
+      "debtRatio": "资产负债率",
+      "debtUnset": "还没有可计资产",
+      "review": "待复核",
+      "reviewCount": "{count} 项超过 35 天",
+      "reviewClear": "都在 35 天内"
+    },
+    "bands": {
+      "unset": "未设置",
+      "thin": "不足 1 个月",
+      "building": "不到 3 个月",
+      "adequate": "3 到 6 个月",
+      "comfortable": "6 到 12 个月",
+      "excess": "超过 12 个月",
+      "none": "没有负债",
+      "low": "低于 30%",
+      "moderate": "30% 到 50%",
+      "high": "高于 50%"
+    },
+    "focus": {
+      "start": "从一项现金或一张银行卡开始就够了。负债有就记，没有就空着。",
+      "high_interest": "账上有高息短期负债。它和房贷不是一类：没有资产托着，而且会按期吃掉结余。盘点时先看清这笔未还金额。",
+      "emergency": "现金还盖不住 3 个月必要开支。先把这笔钱留出来，再安排余钱。",
+      "set_essential": "填一个月度必要开支，应急金才能换成「够几个月」。必要开支是停不掉的部分。",
+      "excess_cash": "现金已经超过 12 个月必要开支。超出应急区间的部分不必全部留在活期。",
+      "balanced": "净资产、可动用的钱和应急金是分开的。下次盘点时更新余额即可。"
+    },
+    "allocation": {
+      "assets": "资产构成",
+      "liabilities": "负债构成"
+    },
+    "series": {
+      "title": "净资产走势",
+      "caption": "只回放当前仍计入净资产的项目。",
+      "aria": "净资产从 {start} 到 {end}"
+    },
+    "columns": {
+      "assets": "资产",
+      "liabilities": "负债",
+      "assetsEmpty": "还没有资产。",
+      "liabilitiesEmpty": "还没有负债。没有欠款就留空。"
+    },
+    "holding": {
+      "excluded": "不计入净资产",
+      "review": "待复核",
+      "confirm": "余额未变",
+      "edit": "编辑",
+      "asOf": "账面日 {date}"
+    },
+    "profile": {
+      "title": "这本账",
+      "currency": "记账货币",
+      "currencyHint": "整本账用同一种货币。外币余额按你认定的价格折算后记入。",
+      "currencyLocked": "已经有记录时不能改货币。想换货币，需要先移除全部项目。",
+      "essential": "每月必要开支",
+      "essentialHint": "停不掉的开支：住房、饮食、通勤、保险。不含可以暂停的消费。",
+      "save": "保存",
+      "saving": "保存中…",
+      "saved": "已保存"
+    },
+    "principles": {
+      "title": "这些数字怎么读",
+      "item1": "净资产 = 资产 − 负债。先分开记「拥有的」和「欠下的」，不要把银行卡余额和信用卡欠款抵消后再记。",
+      "item2": "房子、车子算净资产，但不能当成随时能花的钱。可动用净资产只计入现金、投资和应收，并扣掉高息短期、分期和其他应付。",
+      "item3": "应急金看现金能覆盖几个月必要开支。必要开支是停不掉的部分，常见够用区间是 3 到 6 个月。",
+      "item4": "高息短期负债单独看，不和房贷混在一起。房贷有房子托着，信用卡和消费贷没有。",
+      "item5": "这是余额盘点，不是流水账。现金大约每月对一次，投资每季，房产和车辆每年按能卖出的价格估一次。超过 35 天未更新会标为待复核。"
+    },
+    "kinds": {
+      "asset": "资产",
+      "liability": "负债"
+    },
+    "categories": {
+      "cash": "现金及等价物",
+      "investment": "投资",
+      "property": "不动产",
+      "durable": "耐用实物",
+      "receivable": "应收",
+      "other_asset": "其他资产",
+      "credit": "高息短期",
+      "installment": "分期",
+      "mortgage": "长期抵押",
+      "payable": "其他应付",
+      "other_liability": "其他负债"
+    },
+    "categoryHints": {
+      "cash": "活期、货币基金、手头现金。算进应急金。",
+      "investment": "基金、股票、债券、理财。算进可动用净资产，不算应急金。",
+      "property": "自住房或投资房。按你认可的市价，不是当年买入价。",
+      "durable": "车、贵重物品。按大概能卖出的价格，不是原价。",
+      "receivable": "别人确定会还你的钱。",
+      "other_asset": "上面都不合适时再用。",
+      "credit": "信用卡欠款、消费贷。按未还本金，不和房贷混记。",
+      "installment": "车贷、消费分期的剩余本金。",
+      "mortgage": "房贷剩余本金。和房产一起计入，或一起排除。",
+      "payable": "欠亲友、尚未支付但已经确定的款项。",
+      "other_liability": "上面都不合适时再用。"
+    },
+    "form": {
+      "createTitle": "记一笔",
+      "editTitle": "编辑",
+      "name": "名称",
+      "kind": "方向",
+      "category": "分类",
+      "amount": "金额",
+      "institution": "机构",
+      "institutionOptional": "选填",
+      "asOf": "账面日",
+      "include": "计入净资产",
+      "includeHint": "自住房和对应的房贷建议同时计入，或同时排除。",
+      "note": "备注",
+      "save": "保存",
+      "saving": "保存中…",
+      "cancel": "取消",
+      "close": "关闭",
+      "archive": "从账上移除",
+      "archiveConfirm": "移除后不再计入。确定移除？",
+      "archiving": "移除中…",
+      "amountInvalid": "请输入有效金额"
+    },
+    "errors": {
+      "generic": "没有保存成功，请稍后重试",
+      "not_found": "这条记录已经不在账上",
+      "version_conflict": "账本刚被更新过，已重新加载，请再试一次",
+      "category_kind_mismatch": "分类和资产或负债对不上",
+      "as_of_in_future": "账面日不能晚于明天",
+      "as_of_too_old": "账面日太早了",
+      "currency_has_holdings": "账上已有记录，不能更换货币",
+      "unsupported_currency": "不支持这个货币",
+      "name_required": "请填写名称"
+    },
+    "currencies": {
+      "CNY": "人民币 CNY",
+      "USD": "美元 USD",
+      "HKD": "港币 HKD",
+      "EUR": "欧元 EUR",
+      "GBP": "英镑 GBP",
+      "JPY": "日元 JPY"
+    }
   }
 }

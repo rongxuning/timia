@@ -1441,6 +1441,92 @@ export interface paths {
         patch: operations["health_profile_patch_health_profile_patch"];
         trace?: never;
     };
+    "/asset-holdings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Asset Holding */
+        post: operations["post_asset_holding_asset_holdings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-holdings/{holding_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Asset Holding */
+        patch: operations["patch_asset_holding_asset_holdings__holding_id__patch"];
+        trace?: never;
+    };
+    "/asset-holdings/{holding_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Confirm Asset Holding */
+        post: operations["post_confirm_asset_holding_asset_holdings__holding_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-holdings/{holding_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Archive Asset Holding */
+        post: operations["post_archive_asset_holding_asset_holdings__holding_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Asset Profile */
+        get: operations["get_asset_profile_asset_profile_get"];
+        /** Put Asset Profile */
+        put: operations["put_asset_profile_asset_profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dev/db-tables": {
         parameters: {
             query?: never;
@@ -1866,6 +1952,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/views/me/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Assets */
+        get: operations["my_assets_views_me_assets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/views/plans": {
         parameters: {
             query?: never;
@@ -2074,6 +2177,168 @@ export interface components {
             request_meta?: {
                 [key: string]: unknown;
             };
+        };
+        /** AllocationSliceOut */
+        AllocationSliceOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "asset" | "liability";
+            /** Category */
+            category: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Share */
+            share: number;
+        };
+        /** AssetHoldingArchive */
+        AssetHoldingArchive: {
+            /** Version */
+            version: number;
+        };
+        /** AssetHoldingConfirm */
+        AssetHoldingConfirm: {
+            /** Version */
+            version: number;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+        };
+        /** AssetHoldingCreate */
+        AssetHoldingCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "asset" | "liability";
+            /** Category */
+            category: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Institution */
+            institution?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /**
+             * Include In Net Worth
+             * @default true
+             */
+            include_in_net_worth: boolean;
+        };
+        /** AssetHoldingOut */
+        AssetHoldingOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "asset" | "liability";
+            /** Category */
+            category: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Institution */
+            institution: string | null;
+            /** Note */
+            note: string | null;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Include In Net Worth */
+            include_in_net_worth: boolean;
+            /** Needs Review */
+            needs_review: boolean;
+            /** Version */
+            version: number;
+        };
+        /** AssetHoldingUpdate */
+        AssetHoldingUpdate: {
+            /** Version */
+            version: number;
+            /** Name */
+            name?: string | null;
+            /** Kind */
+            kind?: ("asset" | "liability") | null;
+            /** Category */
+            category?: string | null;
+            /** Amount Minor */
+            amount_minor?: number | null;
+            /** Institution */
+            institution?: string | null;
+            /** Note */
+            note?: string | null;
+            /** As Of */
+            as_of?: string | null;
+            /** Include In Net Worth */
+            include_in_net_worth?: boolean | null;
+        };
+        /** AssetProfileOut */
+        AssetProfileOut: {
+            /** Currency */
+            currency: string;
+            /** Monthly Essential Minor */
+            monthly_essential_minor: number | null;
+            /** Version */
+            version: number;
+            /** Currency Locked */
+            currency_locked: boolean;
+        };
+        /** AssetProfileUpdate */
+        AssetProfileUpdate: {
+            /** Version */
+            version: number;
+            /** Currency */
+            currency?: string | null;
+            /** Monthly Essential Minor */
+            monthly_essential_minor?: number | null;
+        };
+        /** AssetsSummaryOut */
+        AssetsSummaryOut: {
+            /** Total Assets Minor */
+            total_assets_minor: number;
+            /** Total Liabilities Minor */
+            total_liabilities_minor: number;
+            /** Net Worth Minor */
+            net_worth_minor: number;
+            /** Liquid Net Worth Minor */
+            liquid_net_worth_minor: number;
+            /** Cash Minor */
+            cash_minor: number;
+            /** Investment Minor */
+            investment_minor: number;
+            /** High Interest Debt Minor */
+            high_interest_debt_minor: number;
+            /** Debt Ratio */
+            debt_ratio: number | null;
+            /** Emergency Months */
+            emergency_months: number | null;
+            /** Emergency Band */
+            emergency_band: string;
+            /** Debt Band */
+            debt_band: string;
+            /** Needs Review Count */
+            needs_review_count: number;
+            /** Focus */
+            focus: string;
+            /** Holding Count */
+            holding_count: number;
+            /** Latest As Of */
+            latest_as_of: string | null;
         };
         /** AssignableUserOut */
         AssignableUserOut: {
@@ -3986,6 +4251,17 @@ export interface components {
             /** Project Count */
             project_count: number;
         };
+        /** MyAssetsViewOut */
+        MyAssetsViewOut: {
+            profile: components["schemas"]["AssetProfileOut"];
+            summary: components["schemas"]["AssetsSummaryOut"];
+            /** Holdings */
+            holdings?: components["schemas"]["AssetHoldingOut"][];
+            /** Allocation */
+            allocation?: components["schemas"]["AllocationSliceOut"][];
+            /** Net Worth Series */
+            net_worth_series?: components["schemas"]["NetWorthPointOut"][];
+        };
         /** MyHealthViewOut */
         MyHealthViewOut: {
             /** Timezone */
@@ -4100,6 +4376,16 @@ export interface components {
              * Format: date
              */
             selected_date: string;
+        };
+        /** NetWorthPointOut */
+        NetWorthPointOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Net Worth Minor */
+            net_worth_minor: number;
         };
         /** PlanApplyRequest */
         PlanApplyRequest: {
@@ -9592,6 +9878,216 @@ export interface operations {
             };
         };
     };
+    post_asset_holding_asset_holdings_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetHoldingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetHoldingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_asset_holding_asset_holdings__holding_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                holding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetHoldingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetHoldingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_confirm_asset_holding_asset_holdings__holding_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                holding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetHoldingConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetHoldingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_archive_asset_holding_asset_holdings__holding_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                holding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetHoldingArchive"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_asset_profile_asset_profile_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_asset_profile_asset_profile_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_db_tables_dev_db_tables_get: {
         parameters: {
             query?: never;
@@ -10445,6 +10941,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthWorkoutDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_assets_views_me_assets_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyAssetsViewOut"];
                 };
             };
             /** @description Validation Error */
