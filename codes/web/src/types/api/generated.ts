@@ -2525,6 +2525,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** As Of */
+            as_of?: string | null;
+            /** Source */
+            source?: string | null;
         };
         /** AssetFxRateUpdate */
         AssetFxRateUpdate: {

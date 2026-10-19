@@ -11,6 +11,7 @@ from app.models.asset import (
     AssetHolding,
     AssetParty,
     AssetProfile,
+    AssetReferenceRate,
 )
 from app.models.comment import Comment
 from app.models.health import (
@@ -67,6 +68,7 @@ __all__ = [
     "AssetHolding",
     "AssetParty",
     "AssetProfile",
+    "AssetReferenceRate",
     "Comment",
     "HealthInsightDaily",
     "HealthMetricsDaily",

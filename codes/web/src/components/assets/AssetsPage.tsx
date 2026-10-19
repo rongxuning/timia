@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { AssetsDisplaySettings } from "@/components/assets/AssetsDisplaySettings";
 import { AssetsMixPies, categorySlices } from "@/components/assets/AssetsMixPies";
 import { AssetsRangeCalendar, defaultRangeStart } from "@/components/assets/AssetsRangeCalendar";
 import { AssetsTrendChart, hasDailyMovement, sliceDailySeries } from "@/components/assets/AssetsTrendChart";
@@ -38,8 +39,8 @@ export function AssetsPage() {
   const [rangeEnd, setRangeEnd] = useState(() => localToday());
 
   const load = useCallback(
-    async (accessToken: string) => {
-      setLoading(true);
+    async (accessToken: string, quiet = false) => {
+      if (!quiet) setLoading(true);
       setError(null);
       try {
         setView(await fetchMyAssets(accessToken));
@@ -74,7 +75,7 @@ export function AssetsPage() {
   return (
     <PageMain className="!px-3" fullWidth>
       <div className="grid items-start gap-lg lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="self-start lg:sticky lg:top-lg">
+        <aside className="self-start space-y-lg lg:sticky lg:top-lg lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           <AssetsRangeCalendar
             start={rangeStart}
             end={rangeEnd}
@@ -86,6 +87,18 @@ export function AssetsPage() {
               setRangeEnd(end);
             }}
           />
+          {view ? (
+            <AssetsDisplaySettings
+              key={`${view.profile.display_currency}:${view.profile.version}`}
+              profile={view.profile}
+              rates={view.rates}
+              locale={numberLocale}
+              onChanged={() => {
+                const accessToken = getToken();
+                if (accessToken) void load(accessToken, true);
+              }}
+            />
+          ) : null}
         </aside>
         <div className="min-w-0 space-y-lg pb-20">
           <div>

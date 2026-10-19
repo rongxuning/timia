@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -328,6 +328,8 @@ class AssetFxRateOut(BaseModel):
     currency: str
     cny_per_unit: str
     updated_at: datetime
+    as_of: date | None = None
+    source: str | None = None
 
 
 class AssetExpenseOut(BaseModel):

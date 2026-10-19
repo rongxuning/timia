@@ -8,13 +8,14 @@ adjustment with a reason and a time.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -88,6 +89,23 @@ class AssetFxRate(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     cny_per_unit: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+
+
+class AssetReferenceRate(Base):
+    """Official CNY bridge rate shared by every book. CNY itself stays 1."""
+
+    __tablename__ = "asset_reference_rates"
+    __table_args__ = (
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_reference_rates_currency"),
+        CheckConstraint("currency <> 'CNY'", name="ck_asset_reference_rates_not_cny"),
+        CheckConstraint("cny_per_unit > 0", name="ck_asset_reference_rates_positive"),
+    )
+
+    currency: Mapped[str] = mapped_column(String(3), primary_key=True)
+    cny_per_unit: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    as_of: Mapped[date] = mapped_column(Date, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
 
 
 class AssetCodeCounter(Base):

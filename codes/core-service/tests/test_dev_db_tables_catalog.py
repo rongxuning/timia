@@ -12,6 +12,7 @@ _EXPECTED = {
     "asset_accounts",
     "asset_codes",
     "asset_fx_rates",
+    "asset_reference_rates",
     "asset_holdings",
     "asset_adjustments",
     "asset_expense_items",

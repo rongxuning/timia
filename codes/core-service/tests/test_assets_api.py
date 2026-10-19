@@ -2,15 +2,17 @@
 
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.core.config import settings
 from app.core.security import create_access_token, hash_password
 from app.db.deps import get_db
+from app.db.session import SessionLocal
 from app.main import app
 from app.models.asset import (
     AssetAccount,
@@ -23,7 +25,9 @@ from app.models.asset import (
     AssetHolding,
     AssetParty,
     AssetProfile,
+    AssetReferenceRate,
 )
+from app.services.fx_reference import store_reference_rates
 from app.models.user import User
 
 
@@ -97,15 +101,58 @@ def test_assets_require_auth():
     assert client.post("/asset-book/open", json={}).status_code == 401
 
 
+def _replace_reference_rates(rates: dict[str, str]) -> list[tuple]:
+    db = SessionLocal()
+    snapshot = [
+        (row.currency, row.cny_per_unit, row.as_of, row.fetched_at, row.source)
+        for row in db.scalars(select(AssetReferenceRate)).all()
+    ]
+    db.execute(delete(AssetReferenceRate))
+    db.commit()
+    store_reference_rates(
+        db,
+        date(2026, 10, 16),
+        {code: Decimal(value) for code, value in rates.items()},
+        fetched_at=datetime(2026, 10, 16, tzinfo=timezone.utc),
+    )
+    db.close()
+    return snapshot
+
+
+def _restore_reference_rates(snapshot: list[tuple]) -> None:
+    db = SessionLocal()
+    db.execute(delete(AssetReferenceRate))
+    db.commit()
+    for currency, cny_per_unit, as_of, fetched_at, source in snapshot:
+        db.add(
+            AssetReferenceRate(
+                currency=currency,
+                cny_per_unit=cny_per_unit,
+                as_of=as_of,
+                fetched_at=fetched_at,
+                source=source,
+            )
+        )
+    db.commit()
+    db.close()
+
+
 def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
     client, headers, _user = client_and_user
-    rate = client.put(
+    previous = _replace_reference_rates({"HKD": "0.92"})
+    try:
+        _assert_hkd_uses_reference_rate(client, headers)
+    finally:
+        _restore_reference_rates(previous)
+
+
+def _assert_hkd_uses_reference_rate(client, headers):
+    manual = client.put(
         "/asset-fx-rates",
         headers=headers,
-        json={"currency": "HKD", "cny_per_unit": "0.92"},
+        json={"currency": "HKD", "cny_per_unit": "0.50"},
     )
-    assert rate.status_code == 200, rate.text
-    assert rate.json()["cny_per_unit"] == "0.92"
+    assert manual.status_code == 200, manual.text
 
     bank = _open(
         client,
@@ -180,6 +227,45 @@ def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
     )
     assert jpy["display_minor"] is None
     assert jpy["amount_minor"] == 1000
+    quoted = next(row for row in again["rates"] if row["currency"] == "HKD")
+    assert quoted["cny_per_unit"] == "0.92"
+    assert quoted["source"] == "ecb"
+    assert quoted["as_of"] == "2026-10-16"
+
+
+def test_display_currency_switches_the_total(client_and_user):
+    client, headers, _user = client_and_user
+    previous = _replace_reference_rates({"USD": "7.2"})
+    try:
+        opened = _open(
+            client,
+            headers,
+            party_name="美元现金",
+            institution_kind="bank",
+            account_name="美元",
+            account_kind="fx",
+            card_number=None,
+            balance_name="美元",
+            category="fx",
+            currency="USD",
+            amount_minor=10000,
+        )
+        assert opened.status_code == 201, opened.text
+        view = client.get("/views/me/assets", headers=headers)
+        assert view.status_code == 200, view.text
+        body = view.json()
+        assert body["summary"]["total_assets_minor"] == 72000
+        switched = client.put(
+            "/asset-profile",
+            headers=headers,
+            json={"version": body["profile"]["version"], "display_currency": "USD"},
+        )
+        assert switched.status_code == 200, switched.text
+        again = client.get("/views/me/assets", headers=headers).json()
+        assert again["summary"]["display_currency"] == "USD"
+        assert again["summary"]["total_assets_minor"] == 10000
+    finally:
+        _restore_reference_rates(previous)
 
 
 def test_adjustment_records_reason_time_and_delta(client_and_user):

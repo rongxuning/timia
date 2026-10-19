@@ -59,6 +59,8 @@ export type AssetFxRate = {
   currency: string;
   cny_per_unit: string;
   updated_at: string;
+  as_of: string | null;
+  source: string | null;
 };
 
 export type AssetPartyNode = {

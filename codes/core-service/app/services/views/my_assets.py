@@ -27,10 +27,10 @@ from app.services.asset_api import (
     list_active_expenses,
     list_active_holdings,
     list_holding_adjustments,
-    list_rates,
     profile_out,
 )
 from app.services.asset_book import list_accounts, list_parties
+from app.services.fx_reference import ensure_fresh_reference_rates, list_reference_rates
 from app.services.assets_math import (
     EXPENSE_GROUP_ORDER,
     BookAdjustment,
@@ -49,9 +49,10 @@ from app.services.assets_math import (
 
 def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
     today = datetime.now(timezone.utc).date()
+    ensure_fresh_reference_rates(db)
     profile = profile_out(db, user)
     display = profile.display_currency
-    rate_rows = list_rates(db, user.id)
+    rate_rows = list_reference_rates(db)
     rates = {row.currency: Decimal(row.cny_per_unit) for row in rate_rows}
     holdings = list_active_holdings(db, user.id)
     expenses = list_active_expenses(db, user.id)
@@ -303,4 +304,10 @@ def _expense_groups(totals, items: list[AssetExpenseViewOut]) -> list[ExpenseGro
 def _rate_out(row) -> AssetFxRateOut:
     quantized = Decimal(row.cny_per_unit).quantize(Decimal("0.00000001"))
     text = f"{quantized:f}".rstrip("0").rstrip(".")
-    return AssetFxRateOut(currency=row.currency, cny_per_unit=text or "0", updated_at=row.updated_at)
+    return AssetFxRateOut(
+        currency=row.currency,
+        cny_per_unit=text or "0",
+        updated_at=row.fetched_at,
+        as_of=row.as_of,
+        source=row.source,
+    )
