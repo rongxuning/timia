@@ -40,11 +40,17 @@ export function SideNav() {
             label={t("workspaces")}
             active={pathname === "/workspaces" || pathname.startsWith("/workspace/")}
           />
-          <NavItem
+            <NavItem
             href="/my/health"
             icon="monitor_heart"
             label={t("health")}
             active={pathname.startsWith("/my/health")}
+          />
+          <NavItem
+            href="/my/assets"
+            icon="account_balance_wallet"
+            label={t("assets")}
+            active={pathname.startsWith("/my/assets")}
           />
           <NavItem
             href="/plans"

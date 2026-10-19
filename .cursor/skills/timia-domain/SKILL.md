@@ -36,6 +36,7 @@ Workspace / Project 角色只有 **`owner` | `member`**（没有 admin/guest）�
 | Sticky notes | 个人、无 workspace | AI parse → convert 才变成 Item；MCP P1。见 `timia-sticky-notes` |
 | Plans | 模板订阅/导入 | 导入会**创建真实 Item**；仅 Web。见 `timia-plans` |
 | Health | iOS HealthKit → core | 同步写接口禁止进 MCP；只读 views 为 P2。见 `timia-health` |
+| Assets | 个人资产负债表 | 仅 Web。开户机构 → 账户 → 币种余额，每层有唯一编号并向上汇总。余额按实际币种保存。不进 workspace、不进 MCP。 |
 | Analytics | **仅 Web** | iOS 不做数据分析 |
 
 个人域（便签/健康）对他人 id 返回 **404** 而非 403。系统角色 `user`/`admin` 与空间角色 `owner`/`member` 不是同一套。

@@ -299,6 +299,16 @@ function BreadcrumbsInner({
         out.push({ href: search ? `${href}?${search}` : href, label: t("health") });
         continue;
       }
+
+      if (segment === "my" && segments[i + 1] === "assets") {
+        href += `/${segment}`;
+        continue;
+      }
+      if (segment === "assets" && prev === "my") {
+        href += `/${segment}`;
+        out.push({ href, label: t("assets") });
+        continue;
+      }
       if (segment === "workouts" && prev === "health") {
         href += `/${segment}`;
         continue;

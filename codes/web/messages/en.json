@@ -4,6 +4,7 @@
     "schedule": "My schedule",
     "workspaces": "Workspaces",
     "health": "Health",
+    "assets": "Assets",
     "plans": "Plans",
     "analytics": "Analytics",
     "members": "Members",
@@ -36,6 +37,7 @@
     "schedule": "Schedule",
     "analytics": "Analytics",
     "health": "Health",
+    "assets": "Assets",
     "plans": "Plans",
     "new": "New",
     "edit": "Edit",
@@ -229,5 +231,235 @@
     "language": "Language",
     "logOut": "Log out",
     "loggingOut": "Logging out…"
+  },
+  "assets": {
+    "title": "Assets",
+    "subtitle": "Totals use the display currency. Each line is saved in its own currency. When those differ, the original currency and amount stay visible.",
+    "add": "Add a line",
+    "loading": "Loading…",
+    "emptyTitle": "Start from the total, then break it down",
+    "emptyBody": "Record savings, shares, wallets, and the housing fund first, then credit cards. The same kind of account can be several lines, such as two CCB cards. Enter each balance in that account's currency.",
+    "sameAccountHint": "CCB savings and credit, SPDB savings and credit, CMB savings, HSBC Hong Kong, housing fund, medical insurance, WeChat, Alipay, yen, won, and gold can start from the shortcuts below.",
+    "summary": {
+      "netWorth": "Net worth",
+      "assets": "Total assets",
+      "liabilities": "Liabilities",
+      "spendable": "Spendable net worth",
+      "emergencyCash": "Emergency cash",
+      "monthly": "Monthly running cost",
+      "reserve": "Emergency reserve",
+      "coverage": "Cash cover",
+      "coverageUnset": "Add running costs first",
+      "coverageMonths": "{months} months",
+      "netWorthHint": "Assets − liabilities, in the display currency",
+      "spendableHint": "Deposits, wallets, shares, foreign cash, and gold, minus cards. Housing fund and medical insurance stay out.",
+      "emergencyCashHint": "Bank deposits and payment wallets only.",
+      "monthlyHint": "Fixed, daily, and other. The emergency reserve is not included.",
+      "reserveHint": "The emergency group. 10,000 is a starting figure."
+    },
+    "focus": {
+      "start": "Start with one savings account or one wallet. Record each credit card on its own line.",
+      "missing_fx": "Some lines have no exchange rate yet, so they are missing from the total. Add the rate under Display and rates. The original amount is still stored.",
+      "missingList": "Missing: {currencies}",
+      "credit": "There is credit-card debt. It is kept separate from savings and already subtracted from net worth.",
+      "balanced": "The total is in the display currency. Open a group to see each account and the reason, time, and amount of every change."
+    },
+    "currency": {
+      "title": "Display and rates",
+      "hint": "The display currency only changes the totals. Balances stay in their own currency. Write each rate as how many yuan one unit is worth. Yuan itself needs no rate.",
+      "display": "Display currency",
+      "rate": "1 {code} =",
+      "save": "Save rate",
+      "saved": "Rate saved",
+      "rateInvalid": "Enter a rate greater than 0"
+    },
+    "allocation": {
+      "assets": "Assets",
+      "liabilities": "Liabilities"
+    },
+    "columns": {
+      "liabilitiesEmpty": "No liabilities. Leave this empty if you owe nothing."
+    },
+    "holding": {
+      "adjust": "Adjust",
+      "excluded": "Excluded from net worth",
+      "missingFx": "Rate missing",
+      "actual": "Actual {amount}",
+      "delta": "Change {sign}{amount}"
+    },
+    "expense": {
+      "title": "Spending",
+      "add": "Add spending",
+      "createTitle": "Add spending",
+      "group": "Group"
+    },
+    "form": {
+      "createTitle": "Add a line",
+      "name": "Name",
+      "kind": "Side",
+      "category": "Category",
+      "currency": "Actual currency",
+      "amount": "Amount",
+      "institution": "Institution",
+      "reason": "Reason",
+      "recordedAt": "Time",
+      "include": "Include in net worth",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "close": "Close",
+      "recordAdjustment": "Record this change",
+      "details": "Name and placement",
+      "saveDetails": "Save name",
+      "history": "Changes",
+      "archive": "Remove from the book",
+      "archiveReason": "Reason for removing",
+      "archiveConfirm": "Remove",
+      "archiving": "Removing…",
+      "amountInvalid": "Enter an amount and a reason",
+      "savedAs": "Saved in {currency}",
+      "displayIs": "Totals use {currency}",
+      "partyName": "Institution",
+      "accountName": "Account name",
+      "cardNumber": "Card number",
+      "assetAccountNo": "Asset account",
+      "accountNumber": "Account number",
+      "balanceName": "Balance name"
+    },
+    "principles": {
+      "title": "How to read this",
+      "item1": "Net worth is assets minus liabilities. Keep a savings balance and a card balance on separate lines.",
+      "item2": "Value A-shares in yuan and Hong Kong shares in Hong Kong dollars. Yen and won stay in those currencies. Gold uses the currency you price it in.",
+      "item3": "The housing fund and medical-insurance balance count in total assets, not in money you can spend. Emergency cash is bank deposits plus WeChat and Alipay.",
+      "item4": "Spending is fixed (housing, sport, insurance), daily (food, commute, shopping), an emergency reserve, and other. The reserve is not part of the monthly running cost.",
+      "item5": "Every balance change needs a reason and a time. The history stays on that account, in the currency it was saved in."
+    },
+    "kinds": {
+      "asset": "Asset",
+      "liability": "Liability"
+    },
+    "categories": {
+      "a_share": "China A-shares",
+      "hk_share": "Hong Kong shares",
+      "bank_deposit": "Bank deposits",
+      "wallet": "Wallets",
+      "housing_fund": "Housing fund",
+      "medical": "Medical insurance",
+      "fx": "Foreign cash",
+      "gold": "Gold",
+      "other_asset": "Other assets",
+      "credit_card": "Credit cards",
+      "other_liability": "Other liabilities"
+    },
+    "categoryHints": {
+      "a_share": "Market value in yuan.",
+      "hk_share": "Market value in Hong Kong dollars.",
+      "bank_deposit": "CCB, SPDB, CMB, or HSBC savings. HSBC Hong Kong is in Hong Kong dollars.",
+      "wallet": "WeChat or Alipay. Counts as emergency cash.",
+      "housing_fund": "Housing-fund balance. In total assets, not in emergency cash.",
+      "medical": "Medical-insurance account. In total assets, not in emergency cash.",
+      "fx": "Yen, won, or other cash. Record it in that currency.",
+      "gold": "A price you could sell at, in the currency you use to price it.",
+      "other_asset": "Use this only when nothing else fits.",
+      "credit_card": "Unpaid balance. Keep two CCB cards and one SPDB card on separate lines.",
+      "other_liability": "Use this only when nothing else fits."
+    },
+    "groups": {
+      "fixed": "Fixed",
+      "daily": "Daily",
+      "emergency": "Emergency",
+      "other": "Other"
+    },
+    "groupHints": {
+      "fixed": "Housing, sport, insurance.",
+      "daily": "Food, commute, shopping.",
+      "emergency": "A reserve. 10,000 is a starting figure. Not part of the monthly running cost.",
+      "other": "Spending that does not fit above."
+    },
+    "starters": {
+      "aShare": "China A-shares",
+      "hkShare": "Hong Kong shares",
+      "ccbSavings": "CCB savings",
+      "ccbCredit": "CCB credit",
+      "spdbSavings": "SPDB savings",
+      "spdbCredit": "SPDB credit",
+      "cmbSavings": "CMB savings",
+      "hsbc": "HSBC Hong Kong",
+      "housingFund": "Housing fund",
+      "medical": "Medical insurance",
+      "wechat": "WeChat",
+      "alipay": "Alipay",
+      "jpy": "Japanese yen",
+      "krw": "Korean won",
+      "gold": "Gold"
+    },
+    "expenseStarters": {
+      "housing": "Housing",
+      "sport": "Sport",
+      "insurance": "Insurance",
+      "food": "Food",
+      "commute": "Commute",
+      "shopping": "Shopping",
+      "emergency": "Emergency"
+    },
+    "errors": {
+      "generic": "Could not save. Try again.",
+      "not_found": "That line is no longer on the book",
+      "version_conflict": "The book changed. It has been reloaded — try again.",
+      "category_kind_mismatch": "That category does not match the side",
+      "recorded_at_in_future": "The time cannot be after tomorrow",
+      "recorded_at_too_old": "That time is too early",
+      "unsupported_currency": "That currency is not supported",
+      "cny_rate_fixed": "The yuan rate stays at 1",
+      "reason_required": "Enter a reason",
+      "name_required": "Enter a name",
+      "card_number_required": "Enter the card number",
+      "card_number_invalid": "A card number is 8 to 30 digits",
+      "card_number_taken": "That card is already on the book",
+      "asset_account_no_required": "Enter the asset account number",
+      "asset_account_no_taken": "That asset account is already on the book",
+      "account_no_invalid": "That account number is invalid",
+      "balance_exists": "This account already has that category and currency",
+      "category_not_allowed": "That category does not belong on this account",
+      "account_required": "Enter the account",
+      "party_required": "Enter the institution",
+      "institution_kind_mismatch": "The institution type does not match the account"
+    },
+    "currencies": {
+      "CNY": "Chinese yuan CNY",
+      "HKD": "Hong Kong dollar HKD",
+      "JPY": "Japanese yen JPY",
+      "KRW": "Korean won KRW",
+      "USD": "US dollar USD",
+      "EUR": "Euro EUR",
+      "GBP": "British pound GBP"
+    },
+    "tree": {
+      "title": "Ownership",
+      "addAccount": "Add account",
+      "addCurrency": "Add currency",
+      "addPosition": "Add position",
+      "cardNumber": "Card {number}",
+      "assetAccountNo": "Account {number}",
+      "accountNumber": "No. {number}"
+    },
+    "institutionKinds": {
+      "bank": "Bank",
+      "broker": "Broker",
+      "payment": "Payment",
+      "agency": "Agency",
+      "other": "Other"
+    },
+    "accountKinds": {
+      "debit_card": "Debit card",
+      "credit_card": "Credit card",
+      "securities": "Securities",
+      "wallet": "Wallet",
+      "housing_fund": "Housing fund",
+      "medical": "Medical",
+      "gold": "Gold",
+      "fx": "Foreign cash",
+      "other": "Other"
+    }
   }
 }

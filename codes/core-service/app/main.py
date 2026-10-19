@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.agent_tokens import router as agent_tokens_router
+from app.routes.assets import book_router as asset_book_router
+from app.routes.assets import expense_router as asset_expenses_router
+from app.routes.assets import profile_router as asset_profile_router
+from app.routes.assets import rate_router as asset_fx_rates_router
+from app.routes.assets import router as asset_holdings_router
 from app.routes.auth import router as auth_router
 from app.routes.comments import router as comments_router
 from app.routes.items import router as items_router
@@ -28,6 +33,7 @@ from app.routes.views.project import router as views_project_router
 from app.routes.views.users import router as views_users_router
 from app.routes.views.task import router as views_task_router
 from app.routes.views.analytics import router as views_analytics_router
+from app.routes.views.assets import router as views_assets_router
 from app.routes.views.health import router as views_health_router
 from app.routes.views.plans import notification_view_router as views_plan_notifications_router
 from app.routes.views.plans import router as views_plans_router
@@ -63,6 +69,11 @@ app.include_router(plan_notifications_router)
 app.include_router(comments_router)
 app.include_router(sticky_notes_router)
 app.include_router(health_router)
+app.include_router(asset_holdings_router)
+app.include_router(asset_profile_router)
+app.include_router(asset_fx_rates_router)
+app.include_router(asset_book_router)
+app.include_router(asset_expenses_router)
 app.include_router(dev_db_tables_router)
 app.include_router(views_schedule_router)
 app.include_router(views_workspace_router)
@@ -71,6 +82,7 @@ app.include_router(views_users_router)
 app.include_router(views_task_router)
 app.include_router(views_analytics_router)
 app.include_router(views_health_router)
+app.include_router(views_assets_router)
 app.include_router(views_plans_router)
 app.include_router(views_plan_notifications_router)
 

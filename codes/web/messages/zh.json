@@ -4,6 +4,7 @@
     "schedule": "我的日程",
     "workspaces": "工作空间",
     "health": "健康",
+    "assets": "资产",
     "plans": "规划",
     "analytics": "数据分析",
     "members": "成员",
@@ -36,6 +37,7 @@
     "schedule": "日程",
     "analytics": "数据分析",
     "health": "健康",
+    "assets": "资产",
     "plans": "规划",
     "new": "新建",
     "edit": "编辑",
@@ -229,5 +231,235 @@
     "language": "界面语言",
     "logOut": "退出登录",
     "loggingOut": "退出中…"
+  },
+  "assets": {
+    "title": "资产",
+    "subtitle": "总资产按显示币种汇总。每一笔仍用它实际的币种保存；和显示币种不同时，旁边标出实际币种和数额。",
+    "add": "记一笔",
+    "loading": "加载中…",
+    "emptyTitle": "从总资产往下记",
+    "emptyBody": "先记储蓄、股票、钱包、公积金这些账户，再记信用卡。同一种账户可以记多笔，比如两张建行信用卡分开记。余额按账户自己的币种填写。",
+    "sameAccountHint": "建行储蓄和信用、浦发储蓄和信用、招商储蓄、汇丰香港、公积金、医保、微信、支付宝、日元、韩元、黄金，都可以从下面的快捷项开始。",
+    "summary": {
+      "netWorth": "净资产",
+      "assets": "总资产",
+      "liabilities": "总负债",
+      "spendable": "可动用净资产",
+      "emergencyCash": "应急现金",
+      "monthly": "每月常规支出",
+      "reserve": "应急备用",
+      "coverage": "现金覆盖",
+      "coverageUnset": "先记常规支出",
+      "coverageMonths": "{months} 个月",
+      "netWorthHint": "资产 − 负债，按显示币种",
+      "spendableHint": "储蓄、钱包、股票、外汇、黄金，扣掉信用卡。不含公积金和医保。",
+      "emergencyCashHint": "只有银行储蓄和支付钱包。",
+      "monthlyHint": "固定、日常、其他。不含应急备用。",
+      "reserveHint": "应急这一档的合计，暂可按 10,000 记。"
+    },
+    "focus": {
+      "start": "从一张储蓄卡或一个钱包开始。信用卡有几张就分开记。",
+      "missing_fx": "有账户还没有汇率，总资产里暂时没算上它们。在「显示与汇率」里补上，实际币种的数额仍然在。",
+      "missingList": "缺少：{currencies}",
+      "credit": "账上有信用卡欠款。它和储蓄分开记，总资产里已经扣掉。",
+      "balanced": "总资产已经按显示币种汇总。点开每一类可以看到账户，以及每次调整的原因、时间和数额。"
+    },
+    "currency": {
+      "title": "显示与汇率",
+      "hint": "显示币种只影响汇总。账上仍保存实际币种。汇率统一写成：1 单位外币等于多少人民币。人民币本身不需要汇率。",
+      "display": "显示币种",
+      "rate": "1 {code} =",
+      "save": "保存汇率",
+      "saved": "汇率已保存",
+      "rateInvalid": "请输入大于 0 的汇率"
+    },
+    "allocation": {
+      "assets": "资产",
+      "liabilities": "负债"
+    },
+    "columns": {
+      "liabilitiesEmpty": "还没有负债。没有欠款就留空。"
+    },
+    "holding": {
+      "adjust": "调整",
+      "excluded": "不计入净资产",
+      "missingFx": "缺少汇率",
+      "actual": "实际 {amount}",
+      "delta": "变动 {sign}{amount}"
+    },
+    "expense": {
+      "title": "支出",
+      "add": "记一项支出",
+      "createTitle": "记一项支出",
+      "group": "分类"
+    },
+    "form": {
+      "createTitle": "记一笔",
+      "name": "名称",
+      "kind": "方向",
+      "category": "分类",
+      "currency": "实际币种",
+      "amount": "数额",
+      "institution": "机构",
+      "reason": "原因",
+      "recordedAt": "时间",
+      "include": "计入净资产",
+      "save": "保存",
+      "saving": "保存中…",
+      "cancel": "取消",
+      "close": "关闭",
+      "recordAdjustment": "记录这次调整",
+      "details": "名称和归属",
+      "saveDetails": "保存名称",
+      "history": "调整记录",
+      "archive": "从账上移除",
+      "archiveReason": "移除原因",
+      "archiveConfirm": "确认移除",
+      "archiving": "移除中…",
+      "amountInvalid": "请填写数额和原因",
+      "savedAs": "按 {currency} 保存",
+      "displayIs": "汇总用 {currency}",
+      "partyName": "开户行",
+      "accountName": "账户名称",
+      "cardNumber": "银行卡号",
+      "assetAccountNo": "资产账号",
+      "accountNumber": "账号",
+      "balanceName": "余额名称"
+    },
+    "principles": {
+      "title": "这些数字怎么读",
+      "item1": "净资产 = 资产 − 负债。储蓄和信用卡分开记，不要先抵消。",
+      "item2": "A 股、港股按市值记在各自的币种里。港股用港币，日元和韩元用各自的货币，黄金用你计价的货币。",
+      "item3": "公积金和医保算进总资产，但不算能随时拿来花的钱。应急现金只看银行储蓄和微信、支付宝。",
+      "item4": "支出分成固定（住房、运动、保险）、日常（吃饭、通勤、购物）、应急备用和其他。应急备用不计入每月常规支出。",
+      "item5": "每次改余额都要写原因和时间。历史留在这个账户下面，数额始终是当时的实际币种。"
+    },
+    "kinds": {
+      "asset": "资产",
+      "liability": "负债"
+    },
+    "categories": {
+      "a_share": "中国A股",
+      "hk_share": "港股",
+      "bank_deposit": "银行储蓄",
+      "wallet": "支付钱包",
+      "housing_fund": "公积金",
+      "medical": "医保余额",
+      "fx": "外汇",
+      "gold": "黄金",
+      "other_asset": "其他资产",
+      "credit_card": "信用卡",
+      "other_liability": "其他负债"
+    },
+    "categoryHints": {
+      "a_share": "按人民币市值记。",
+      "hk_share": "按港币市值记。",
+      "bank_deposit": "建行、浦发、招商、汇丰的储蓄余额。汇丰香港用港币。",
+      "wallet": "微信钱包、支付宝余额。算进应急现金。",
+      "housing_fund": "公积金账户余额。算进总资产，不算应急现金。",
+      "medical": "医保个人账户余额。算进总资产，不算应急现金。",
+      "fx": "日元、韩元等外币现汇。用那种货币本身记。",
+      "gold": "按当前能卖出的价格，用你的计价货币记。",
+      "other_asset": "上面都不合适时再用。",
+      "credit_card": "未还金额。建行两张、浦发一张分开记。",
+      "other_liability": "上面都不合适时再用。"
+    },
+    "groups": {
+      "fixed": "固定",
+      "daily": "日常",
+      "emergency": "应急",
+      "other": "其他"
+    },
+    "groupHints": {
+      "fixed": "住房、运动、保险。",
+      "daily": "吃饭、通勤、购物。",
+      "emergency": "应急备用，暂可记 10,000。不计入每月常规支出。",
+      "other": "上面都不合适的支出。"
+    },
+    "starters": {
+      "aShare": "中国A股",
+      "hkShare": "港股",
+      "ccbSavings": "建行储蓄",
+      "ccbCredit": "建行信用",
+      "spdbSavings": "浦发储蓄",
+      "spdbCredit": "浦发信用",
+      "cmbSavings": "招商银行储蓄",
+      "hsbc": "汇丰香港",
+      "housingFund": "公积金",
+      "medical": "医保余额",
+      "wechat": "微信钱包",
+      "alipay": "支付宝",
+      "jpy": "日元",
+      "krw": "韩元",
+      "gold": "黄金"
+    },
+    "expenseStarters": {
+      "housing": "住房",
+      "sport": "运动",
+      "insurance": "保险",
+      "food": "吃饭",
+      "commute": "通勤",
+      "shopping": "购物",
+      "emergency": "应急"
+    },
+    "errors": {
+      "generic": "没有保存成功，请稍后重试",
+      "not_found": "这条记录已经不在账上",
+      "version_conflict": "账本刚被更新过，已重新加载，请再试一次",
+      "category_kind_mismatch": "分类和资产或负债对不上",
+      "recorded_at_in_future": "时间不能晚于明天",
+      "recorded_at_too_old": "时间太早了",
+      "unsupported_currency": "不支持这个币种",
+      "cny_rate_fixed": "人民币汇率固定为 1",
+      "reason_required": "请填写原因",
+      "name_required": "请填写名称",
+      "card_number_required": "请填写银行卡号",
+      "card_number_invalid": "银行卡号需要 8 到 30 位数字",
+      "card_number_taken": "这张卡已经在账上",
+      "asset_account_no_required": "请填写资产账号",
+      "asset_account_no_taken": "这个资产账号已经在账上",
+      "account_no_invalid": "账号格式不对",
+      "balance_exists": "这个账户下已经有同一分类和币种的余额",
+      "category_not_allowed": "这个账户不能记这个分类",
+      "account_required": "请填写账户",
+      "party_required": "请填写开户行",
+      "institution_kind_mismatch": "开户机构类型和账户类型对不上"
+    },
+    "currencies": {
+      "CNY": "人民币 CNY",
+      "HKD": "港币 HKD",
+      "JPY": "日元 JPY",
+      "KRW": "韩元 KRW",
+      "USD": "美元 USD",
+      "EUR": "欧元 EUR",
+      "GBP": "英镑 GBP"
+    },
+    "tree": {
+      "title": "归属",
+      "addAccount": "添加账户",
+      "addCurrency": "添加币种",
+      "addPosition": "添加持仓",
+      "cardNumber": "卡号 {number}",
+      "assetAccountNo": "资产账号 {number}",
+      "accountNumber": "账号 {number}"
+    },
+    "institutionKinds": {
+      "bank": "银行",
+      "broker": "券商",
+      "payment": "支付",
+      "agency": "专户机构",
+      "other": "其他机构"
+    },
+    "accountKinds": {
+      "debit_card": "储蓄卡",
+      "credit_card": "信用卡",
+      "securities": "证券账户",
+      "wallet": "钱包",
+      "housing_fund": "公积金",
+      "medical": "医保",
+      "gold": "黄金",
+      "fx": "外汇",
+      "other": "其他账户"
+    }
   }
 }

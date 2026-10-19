@@ -6665,6 +6665,862 @@
         }
       }
     },
+    "/asset-holdings": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Holding",
+        "operationId": "post_asset_holding_asset_holdings_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetHoldingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetHoldingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-holdings/{holding_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset Holding",
+        "operationId": "get_asset_holding_asset_holdings__holding_id__get",
+        "parameters": [
+          {
+            "name": "holding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Holding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetHoldingDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Patch Asset Holding",
+        "operationId": "patch_asset_holding_asset_holdings__holding_id__patch",
+        "parameters": [
+          {
+            "name": "holding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Holding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetHoldingUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetHoldingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-holdings/{holding_id}/adjustments": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Adjustment",
+        "operationId": "post_asset_adjustment_asset_holdings__holding_id__adjustments_post",
+        "parameters": [
+          {
+            "name": "holding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Holding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAdjustmentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetHoldingOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-holdings/{holding_id}/archive": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Archive Asset Holding",
+        "operationId": "post_archive_asset_holding_asset_holdings__holding_id__archive_post",
+        "parameters": [
+          {
+            "name": "holding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Holding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetHoldingArchive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-profile": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset Profile",
+        "operationId": "get_asset_profile_asset_profile_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Put Asset Profile",
+        "operationId": "put_asset_profile_asset_profile_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-fx-rates": {
+      "put": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Put Asset Fx Rate",
+        "operationId": "put_asset_fx_rate_asset_fx_rates_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetFxRateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetFxRateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-book/open": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Open Asset Book",
+        "operationId": "post_open_asset_book_asset_book_open_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetBookOpen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetBookOpenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Expense",
+        "operationId": "post_asset_expense_asset_expenses_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses/{item_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset Expense",
+        "operationId": "get_asset_expense_asset_expenses__item_id__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Patch Asset Expense",
+        "operationId": "patch_asset_expense_asset_expenses__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses/{item_id}/adjustments": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Expense Adjustment",
+        "operationId": "post_asset_expense_adjustment_asset_expenses__item_id__adjustments_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseAdjust"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses/{item_id}/archive": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Archive Asset Expense",
+        "operationId": "post_archive_asset_expense_asset_expenses__item_id__archive_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseArchive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dev/db-tables": {
       "get": {
         "tags": [
@@ -8845,6 +9701,55 @@
         }
       }
     },
+    "/views/me/assets": {
+      "get": {
+        "tags": [
+          "views-assets"
+        ],
+        "summary": "My Assets",
+        "operationId": "my_assets_views_me_assets_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyAssetsViewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/views/plans": {
       "get": {
         "tags": [
@@ -9534,6 +10439,89 @@
   },
   "components": {
     "schemas": {
+      "AccountViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "party_id": {
+            "type": "string",
+            "title": "Party Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "account_kind": {
+            "type": "string",
+            "title": "Account Kind"
+          },
+          "card_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Number"
+          },
+          "asset_account_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Account No"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "balances": {
+            "items": {
+              "$ref": "#/components/schemas/AssetHoldingViewOut"
+            },
+            "type": "array",
+            "title": "Balances"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "party_id",
+          "name",
+          "account_kind",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "AccountViewOut"
+      },
       "ActivityTimelineItemOut": {
         "properties": {
           "id": {
@@ -9838,6 +10826,1395 @@
           "ok"
         ],
         "title": "AgentToolCallAuditIn"
+      },
+      "AssetAdjustmentCreate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetAdjustmentCreate"
+      },
+      "AssetAdjustmentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "delta_minor": {
+            "type": "integer",
+            "title": "Delta Minor"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "amount_minor",
+          "delta_minor",
+          "reason",
+          "recorded_at"
+        ],
+        "title": "AssetAdjustmentOut"
+      },
+      "AssetBookOpen": {
+        "properties": {
+          "party_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "party_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Name"
+          },
+          "institution_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bank",
+                  "broker",
+                  "payment",
+                  "agency",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Kind"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Name"
+          },
+          "account_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "debit_card",
+                  "credit_card",
+                  "securities",
+                  "wallet",
+                  "housing_fund",
+                  "medical",
+                  "gold",
+                  "fx",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Kind"
+          },
+          "card_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Number"
+          },
+          "asset_account_no": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Account No"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "balance_name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Balance Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth",
+            "default": true
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance_name",
+          "category",
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetBookOpen",
+        "description": "Create a currency balance, and the institution or account above it when needed."
+      },
+      "AssetBookOpenOut": {
+        "properties": {
+          "party_id": {
+            "type": "string",
+            "title": "Party Id"
+          },
+          "party_code": {
+            "type": "string",
+            "title": "Party Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "account_code": {
+            "type": "string",
+            "title": "Account Code"
+          },
+          "holding": {
+            "$ref": "#/components/schemas/AssetHoldingOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "party_id",
+          "party_code",
+          "account_id",
+          "account_code",
+          "holding"
+        ],
+        "title": "AssetBookOpenOut"
+      },
+      "AssetExpenseAdjust": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetExpenseAdjust"
+      },
+      "AssetExpenseArchive": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "reason"
+        ],
+        "title": "AssetExpenseArchive"
+      },
+      "AssetExpenseCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "group_kind",
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetExpenseCreate"
+      },
+      "AssetExpenseDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "adjustments": {
+            "items": {
+              "$ref": "#/components/schemas/AssetAdjustmentOut"
+            },
+            "type": "array",
+            "title": "Adjustments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group_kind",
+          "name",
+          "currency",
+          "amount_minor",
+          "adjusted_at",
+          "version"
+        ],
+        "title": "AssetExpenseDetailOut"
+      },
+      "AssetExpenseOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group_kind",
+          "name",
+          "currency",
+          "amount_minor",
+          "adjusted_at",
+          "version"
+        ],
+        "title": "AssetExpenseOut"
+      },
+      "AssetExpenseUpdate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "AssetExpenseUpdate"
+      },
+      "AssetExpenseViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "display_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Minor"
+          },
+          "fx_missing": {
+            "type": "boolean",
+            "title": "Fx Missing",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group_kind",
+          "name",
+          "currency",
+          "amount_minor",
+          "adjusted_at",
+          "version"
+        ],
+        "title": "AssetExpenseViewOut"
+      },
+      "AssetFxRateOut": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "cny_per_unit": {
+            "type": "string",
+            "title": "Cny Per Unit"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "cny_per_unit",
+          "updated_at"
+        ],
+        "title": "AssetFxRateOut"
+      },
+      "AssetFxRateUpdate": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "cny_per_unit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,21}0*$)\\d{0,12}\\.\\d{0,8}0*$)"
+              }
+            ],
+            "title": "Cny Per Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "cny_per_unit"
+        ],
+        "title": "AssetFxRateUpdate"
+      },
+      "AssetHoldingArchive": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "reason"
+        ],
+        "title": "AssetHoldingArchive"
+      },
+      "AssetHoldingCreate": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth",
+            "default": true
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "name",
+          "category",
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetHoldingCreate"
+      },
+      "AssetHoldingDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "adjustments": {
+            "items": {
+              "$ref": "#/components/schemas/AssetAdjustmentOut"
+            },
+            "type": "array",
+            "title": "Adjustments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "account_id",
+          "name",
+          "kind",
+          "category",
+          "currency",
+          "amount_minor",
+          "institution",
+          "note",
+          "adjusted_at",
+          "include_in_net_worth",
+          "needs_review",
+          "version"
+        ],
+        "title": "AssetHoldingDetailOut"
+      },
+      "AssetHoldingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "account_id",
+          "name",
+          "kind",
+          "category",
+          "currency",
+          "amount_minor",
+          "institution",
+          "note",
+          "adjusted_at",
+          "include_in_net_worth",
+          "needs_review",
+          "version"
+        ],
+        "title": "AssetHoldingOut"
+      },
+      "AssetHoldingUpdate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "asset",
+                  "liability"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "include_in_net_worth": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include In Net Worth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "AssetHoldingUpdate"
+      },
+      "AssetHoldingViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "display_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Minor"
+          },
+          "fx_missing": {
+            "type": "boolean",
+            "title": "Fx Missing",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "account_id",
+          "name",
+          "kind",
+          "category",
+          "currency",
+          "amount_minor",
+          "institution",
+          "note",
+          "adjusted_at",
+          "include_in_net_worth",
+          "needs_review",
+          "version"
+        ],
+        "title": "AssetHoldingViewOut"
+      },
+      "AssetProfileOut": {
+        "properties": {
+          "display_currency": {
+            "type": "string",
+            "title": "Display Currency"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_currency",
+          "version"
+        ],
+        "title": "AssetProfileOut"
+      },
+      "AssetProfileUpdate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "display_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Currency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "AssetProfileUpdate"
+      },
+      "AssetsSummaryOut": {
+        "properties": {
+          "display_currency": {
+            "type": "string",
+            "title": "Display Currency"
+          },
+          "total_assets_minor": {
+            "type": "integer",
+            "title": "Total Assets Minor"
+          },
+          "total_liabilities_minor": {
+            "type": "integer",
+            "title": "Total Liabilities Minor"
+          },
+          "net_worth_minor": {
+            "type": "integer",
+            "title": "Net Worth Minor"
+          },
+          "spendable_net_worth_minor": {
+            "type": "integer",
+            "title": "Spendable Net Worth Minor"
+          },
+          "emergency_cash_minor": {
+            "type": "integer",
+            "title": "Emergency Cash Minor"
+          },
+          "credit_minor": {
+            "type": "integer",
+            "title": "Credit Minor"
+          },
+          "investment_minor": {
+            "type": "integer",
+            "title": "Investment Minor"
+          },
+          "restricted_minor": {
+            "type": "integer",
+            "title": "Restricted Minor"
+          },
+          "monthly_running_minor": {
+            "type": "integer",
+            "title": "Monthly Running Minor"
+          },
+          "emergency_reserve_minor": {
+            "type": "integer",
+            "title": "Emergency Reserve Minor"
+          },
+          "spending_total_minor": {
+            "type": "integer",
+            "title": "Spending Total Minor"
+          },
+          "coverage_months": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Months"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "missing_currencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Currencies"
+          },
+          "holding_count": {
+            "type": "integer",
+            "title": "Holding Count"
+          },
+          "needs_review_count": {
+            "type": "integer",
+            "title": "Needs Review Count"
+          },
+          "latest_adjusted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Adjusted At"
+          },
+          "focus": {
+            "type": "string",
+            "title": "Focus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_currency",
+          "total_assets_minor",
+          "total_liabilities_minor",
+          "net_worth_minor",
+          "spendable_net_worth_minor",
+          "emergency_cash_minor",
+          "credit_minor",
+          "investment_minor",
+          "restricted_minor",
+          "monthly_running_minor",
+          "emergency_reserve_minor",
+          "spending_total_minor",
+          "coverage_months",
+          "fx_incomplete",
+          "holding_count",
+          "needs_review_count",
+          "latest_adjusted_at",
+          "focus"
+        ],
+        "title": "AssetsSummaryOut"
       },
       "AssignableUserOut": {
         "properties": {
@@ -10210,6 +12587,42 @@
           "item_title"
         ],
         "title": "DiscussionViewItemOut"
+      },
+      "ExpenseGroupOut": {
+        "properties": {
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssetExpenseViewOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_kind",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "ExpenseGroupOut"
       },
       "GeoPlaceOut": {
         "properties": {
@@ -13827,6 +16240,45 @@
         ],
         "title": "HealthZoneShareOut"
       },
+      "HoldingGroupOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "holdings": {
+            "items": {
+              "$ref": "#/components/schemas/AssetHoldingViewOut"
+            },
+            "type": "array",
+            "title": "Holdings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "category",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "HoldingGroupOut"
+      },
       "ItemCreate": {
         "properties": {
           "title": {
@@ -15702,6 +18154,57 @@
         ],
         "title": "MyAnalyticsViewOut"
       },
+      "MyAssetsViewOut": {
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/AssetProfileOut"
+          },
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/AssetFxRateOut"
+            },
+            "type": "array",
+            "title": "Rates"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AssetsSummaryOut"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/HoldingGroupOut"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/PartyViewOut"
+            },
+            "type": "array",
+            "title": "Parties"
+          },
+          "expense_groups": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseGroupOut"
+            },
+            "type": "array",
+            "title": "Expense Groups"
+          },
+          "net_worth_series": {
+            "items": {
+              "$ref": "#/components/schemas/NetWorthPointOut"
+            },
+            "type": "array",
+            "title": "Net Worth Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile",
+          "summary"
+        ],
+        "title": "MyAssetsViewOut"
+      },
       "MyHealthViewOut": {
         "properties": {
           "timezone": {
@@ -16040,6 +18543,70 @@
           "selected_date"
         ],
         "title": "NaturalLanguageParseRequest"
+      },
+      "NetWorthPointOut": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "net_worth_minor": {
+            "type": "integer",
+            "title": "Net Worth Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "net_worth_minor"
+        ],
+        "title": "NetWorthPointOut"
+      },
+      "PartyViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "institution_kind": {
+            "type": "string",
+            "title": "Institution Kind"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountViewOut"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "institution_kind",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "PartyViewOut"
       },
       "PlanApplyRequest": {
         "properties": {
