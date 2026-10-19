@@ -114,3 +114,7 @@ xcodebuild -project Timia.xcodeproj -scheme Timia \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath /tmp/timia-ios-derived CODE_SIGNING_ALLOWED=NO build
 ```
+
+## TestFlight
+
+推到 `main` 且改动 `codes/mobile/ios/**` 时，GitHub Actions 会归档 scheme `Timia`（含 TimiaWidget）并上传 TestFlight。密钥和构建号规则见 [docs/ci-testflight.md](../../../docs/ci-testflight.md)。

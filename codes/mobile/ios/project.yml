@@ -9,7 +9,8 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    # Checked-in build. TestFlight CI overrides this for the job only (ASC latest + 1).
+    CURRENT_PROJECT_VERSION: "46"
     DEVELOPMENT_TEAM: ""
 targets:
   Timia:
