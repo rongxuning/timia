@@ -14,6 +14,7 @@ from app.schemas.views.assets import (
     AssetExpenseViewOut,
     AssetHoldingViewOut,
     AssetsSummaryOut,
+    DailyBalancePointOut,
     ExpenseGroupOut,
     HoldingGroupOut,
     MyAssetsViewOut,
@@ -38,6 +39,7 @@ from app.services.assets_math import (
     category_sort_key,
     convert_minor,
     coverage_months,
+    daily_balance_series,
     needs_review,
     net_worth_series,
     summarize_expenses,
@@ -146,6 +148,14 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
         display_currency=display,
         rates=rates,
     )
+    daily = daily_balance_series(
+        book_lines,
+        adjustments,
+        display_currency=display,
+        rates=rates,
+        today=today,
+    )
+    change_ats = sorted(point.recorded_at for point in adjustments)
     groups = _groups(group_totals, view_holdings)
     expense_groups = _expense_groups(expense_summary.groups, view_expenses)
     return MyAssetsViewOut(
@@ -178,6 +188,16 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
         net_worth_series=[
             NetWorthPointOut(as_of=point.as_of, net_worth_minor=point.net_worth_minor) for point in series
         ],
+        daily_series=[
+            DailyBalancePointOut(
+                as_of=point.as_of,
+                assets_minor=point.assets_minor,
+                liabilities_minor=point.liabilities_minor,
+                net_worth_minor=point.net_worth_minor,
+            )
+            for point in daily
+        ],
+        change_ats=change_ats,
     )
 
 

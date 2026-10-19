@@ -127,6 +127,13 @@ export type NetWorthPoint = {
   net_worth_minor: number;
 };
 
+export type DailyBalancePoint = {
+  as_of: string;
+  assets_minor: number;
+  liabilities_minor: number;
+  net_worth_minor: number;
+};
+
 export type MyAssetsView = {
   profile: AssetProfile;
   rates: AssetFxRate[];
@@ -135,6 +142,8 @@ export type MyAssetsView = {
   parties: AssetPartyNode[];
   expense_groups: ExpenseGroupBlock[];
   net_worth_series: NetWorthPoint[];
+  daily_series: DailyBalancePoint[];
+  change_ats: string[];
 };
 
 export type AssetHoldingInput = {

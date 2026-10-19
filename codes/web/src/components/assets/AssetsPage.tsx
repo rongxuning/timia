@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { AssetsRangeCalendar, defaultRangeStart } from "@/components/assets/AssetsRangeCalendar";
+import { AssetsTrendChart, sliceDailySeries } from "@/components/assets/AssetsTrendChart";
 import { AssetTree } from "@/components/assets/AssetTree";
 import {
   ACCOUNT_STARTERS,
@@ -43,6 +45,17 @@ import { formatMinor, formatStamp, localInputToIso, minorToInput, nowLocalInput,
 import type { AssetAdjustment, AssetExpense, AssetHolding, MyAssetsView } from "@/types/api/views/assets";
 
 const RATE_CURRENCIES = ["HKD", "JPY", "KRW", "USD", "EUR", "GBP"];
+
+function localToday(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function localDateFromIso(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 function blankOpen(recordedAt = nowLocalInput()): OpenDraft {
   return {
@@ -94,6 +107,9 @@ export function AssetsPage() {
   const [saving, setSaving] = useState(false);
   const [rates, setRates] = useState<Record<string, string>>({});
   const [rateMessage, setRateMessage] = useState<string | null>(null);
+  const today = useMemo(() => localToday(), []);
+  const [rangeStart, setRangeStart] = useState(() => defaultRangeStart(localToday()));
+  const [rangeEnd, setRangeEnd] = useState(() => localToday());
 
   const load = useCallback(
     async (accessToken: string) => {
@@ -392,10 +408,28 @@ export function AssetsPage() {
   const summary = view?.summary;
   const display = summary?.display_currency ?? "CNY";
   const money = (amount: number) => formatMinor(amount, display, numberLocale);
+  const chartPoints = useMemo(
+    () => sliceDailySeries(view?.daily_series ?? [], rangeStart, rangeEnd),
+    [rangeEnd, rangeStart, view?.daily_series],
+  );
 
   return (
     <PageMain>
-      <div className="space-y-lg pb-20">
+      <div className="grid items-start gap-lg lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="self-start lg:sticky lg:top-lg">
+          <AssetsRangeCalendar
+            start={rangeStart}
+            end={rangeEnd}
+            today={today}
+            locale={numberLocale}
+            changeDates={(view?.change_ats ?? []).map(localDateFromIso)}
+            onRangeChange={(start, end) => {
+              setRangeStart(start);
+              setRangeEnd(end);
+            }}
+          />
+        </aside>
+        <div className="min-w-0 space-y-lg pb-20">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="font-subhead text-subhead text-text-primary">{t("title")}</h1>
@@ -421,22 +455,29 @@ export function AssetsPage() {
         {loading ? <p className="text-small text-text-secondary">{t("loading")}</p> : null}
 
         {summary ? (
+          <section className="grid gap-3 md:grid-cols-3">
+            <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} hint={t("summary.asOfNow")} />
+            <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} hint={t("summary.asOfNow")} />
+            <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} hint={t("summary.asOfNow")} />
+          </section>
+        ) : null}
+
+        <section className="rounded-xl border border-border-subtle bg-white p-lg">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-small font-medium text-text-primary">{t("chart.title")}</h2>
+            <p className="text-caption text-text-secondary">{t("chart.caption")}</p>
+          </div>
+          <div className="mt-3">
+            <AssetsTrendChart points={chartPoints} formatMoney={money} />
+          </div>
+        </section>
+
+        {summary ? (
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} hint={t("summary.netWorthHint")} />
-            <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} />
-            <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} />
             <Stat label={t("summary.spendable")} value={money(summary.spendable_net_worth_minor)} hint={t("summary.spendableHint")} />
             <Stat label={t("summary.emergencyCash")} value={money(summary.emergency_cash_minor)} hint={t("summary.emergencyCashHint")} />
             <Stat label={t("summary.monthly")} value={money(summary.monthly_running_minor)} hint={t("summary.monthlyHint")} />
             <Stat label={t("summary.reserve")} value={money(summary.emergency_reserve_minor)} hint={t("summary.reserveHint")} />
-            <Stat
-              label={t("summary.coverage")}
-              value={
-                summary.coverage_months == null
-                  ? t("summary.coverageUnset")
-                  : t("summary.coverageMonths", { months: summary.coverage_months })
-              }
-            />
           </section>
         ) : null}
 
@@ -639,6 +680,7 @@ export function AssetsPage() {
             <li>{t("principles.item5")}</li>
           </ul>
         </details>
+        </div>
       </div>
 
       {openDraft ? (
