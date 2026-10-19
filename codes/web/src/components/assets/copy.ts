@@ -1,30 +1,30 @@
 import type { useTranslations } from "next-intl";
-import type { AssetKind } from "@/components/assets/categories";
+import type { AssetKind, ExpenseGroup } from "@/components/assets/categories";
 
 type AssetsT = ReturnType<typeof useTranslations<"assets">>;
 
 export function categoryLabel(t: AssetsT, category: string): string {
   switch (category) {
-    case "cash":
-      return t("categories.cash");
-    case "investment":
-      return t("categories.investment");
-    case "property":
-      return t("categories.property");
-    case "durable":
-      return t("categories.durable");
-    case "receivable":
-      return t("categories.receivable");
+    case "a_share":
+      return t("categories.a_share");
+    case "hk_share":
+      return t("categories.hk_share");
+    case "bank_deposit":
+      return t("categories.bank_deposit");
+    case "wallet":
+      return t("categories.wallet");
+    case "housing_fund":
+      return t("categories.housing_fund");
+    case "medical":
+      return t("categories.medical");
+    case "fx":
+      return t("categories.fx");
+    case "gold":
+      return t("categories.gold");
     case "other_asset":
       return t("categories.other_asset");
-    case "credit":
-      return t("categories.credit");
-    case "installment":
-      return t("categories.installment");
-    case "mortgage":
-      return t("categories.mortgage");
-    case "payable":
-      return t("categories.payable");
+    case "credit_card":
+      return t("categories.credit_card");
     case "other_liability":
       return t("categories.other_liability");
     default:
@@ -34,28 +34,58 @@ export function categoryLabel(t: AssetsT, category: string): string {
 
 export function categoryHint(t: AssetsT, category: string): string {
   switch (category) {
-    case "cash":
-      return t("categoryHints.cash");
-    case "investment":
-      return t("categoryHints.investment");
-    case "property":
-      return t("categoryHints.property");
-    case "durable":
-      return t("categoryHints.durable");
-    case "receivable":
-      return t("categoryHints.receivable");
+    case "a_share":
+      return t("categoryHints.a_share");
+    case "hk_share":
+      return t("categoryHints.hk_share");
+    case "bank_deposit":
+      return t("categoryHints.bank_deposit");
+    case "wallet":
+      return t("categoryHints.wallet");
+    case "housing_fund":
+      return t("categoryHints.housing_fund");
+    case "medical":
+      return t("categoryHints.medical");
+    case "fx":
+      return t("categoryHints.fx");
+    case "gold":
+      return t("categoryHints.gold");
     case "other_asset":
       return t("categoryHints.other_asset");
-    case "credit":
-      return t("categoryHints.credit");
-    case "installment":
-      return t("categoryHints.installment");
-    case "mortgage":
-      return t("categoryHints.mortgage");
-    case "payable":
-      return t("categoryHints.payable");
+    case "credit_card":
+      return t("categoryHints.credit_card");
     case "other_liability":
       return t("categoryHints.other_liability");
+    default:
+      return "";
+  }
+}
+
+export function groupLabel(t: AssetsT, group: string): string {
+  switch (group) {
+    case "fixed":
+      return t("groups.fixed");
+    case "daily":
+      return t("groups.daily");
+    case "emergency":
+      return t("groups.emergency");
+    case "other":
+      return t("groups.other");
+    default:
+      return group;
+  }
+}
+
+export function groupHint(t: AssetsT, group: string): string {
+  switch (group) {
+    case "fixed":
+      return t("groupHints.fixed");
+    case "daily":
+      return t("groupHints.daily");
+    case "emergency":
+      return t("groupHints.emergency");
+    case "other":
+      return t("groupHints.other");
     default:
       return "";
   }
@@ -65,75 +95,88 @@ export function kindLabel(t: AssetsT, kind: AssetKind): string {
   return kind === "asset" ? t("kinds.asset") : t("kinds.liability");
 }
 
-export function focusText(t: AssetsT, focus: string): string {
-  switch (focus) {
-    case "start":
-      return t("focus.start");
-    case "high_interest":
-      return t("focus.high_interest");
-    case "emergency":
-      return t("focus.emergency");
-    case "set_essential":
-      return t("focus.set_essential");
-    case "excess_cash":
-      return t("focus.excess_cash");
-    case "balanced":
-      return t("focus.balanced");
-    default:
-      return t("focus.balanced");
-  }
-}
-
-export function emergencyBandLabel(t: AssetsT, band: string): string {
-  switch (band) {
-    case "unset":
-      return t("bands.unset");
-    case "thin":
-      return t("bands.thin");
-    case "building":
-      return t("bands.building");
-    case "adequate":
-      return t("bands.adequate");
-    case "comfortable":
-      return t("bands.comfortable");
-    case "excess":
-      return t("bands.excess");
-    default:
-      return band;
-  }
-}
-
-export function debtBandLabel(t: AssetsT, band: string): string {
-  switch (band) {
-    case "none":
-      return t("bands.none");
-    case "low":
-      return t("bands.low");
-    case "moderate":
-      return t("bands.moderate");
-    case "high":
-      return t("bands.high");
-    default:
-      return band;
-  }
-}
-
 export function currencyLabel(t: AssetsT, currency: string): string {
   switch (currency) {
     case "CNY":
       return t("currencies.CNY");
-    case "USD":
-      return t("currencies.USD");
     case "HKD":
       return t("currencies.HKD");
+    case "JPY":
+      return t("currencies.JPY");
+    case "KRW":
+      return t("currencies.KRW");
+    case "USD":
+      return t("currencies.USD");
     case "EUR":
       return t("currencies.EUR");
     case "GBP":
       return t("currencies.GBP");
-    case "JPY":
-      return t("currencies.JPY");
     default:
       return currency;
+  }
+}
+
+export function starterLabel(t: AssetsT, id: string): string {
+  switch (id) {
+    case "aShare":
+      return t("starters.aShare");
+    case "hkShare":
+      return t("starters.hkShare");
+    case "ccbSavings":
+      return t("starters.ccbSavings");
+    case "ccbCredit":
+      return t("starters.ccbCredit");
+    case "spdbSavings":
+      return t("starters.spdbSavings");
+    case "spdbCredit":
+      return t("starters.spdbCredit");
+    case "cmbSavings":
+      return t("starters.cmbSavings");
+    case "hsbc":
+      return t("starters.hsbc");
+    case "housingFund":
+      return t("starters.housingFund");
+    case "medical":
+      return t("starters.medical");
+    case "wechat":
+      return t("starters.wechat");
+    case "alipay":
+      return t("starters.alipay");
+    case "jpy":
+      return t("starters.jpy");
+    case "krw":
+      return t("starters.krw");
+    case "gold":
+      return t("starters.gold");
+    case "housing":
+      return t("expenseStarters.housing");
+    case "sport":
+      return t("expenseStarters.sport");
+    case "insurance":
+      return t("expenseStarters.insurance");
+    case "food":
+      return t("expenseStarters.food");
+    case "commute":
+      return t("expenseStarters.commute");
+    case "shopping":
+      return t("expenseStarters.shopping");
+    case "emergency":
+      return t("expenseStarters.emergency");
+    default:
+      return id;
+  }
+}
+
+export function focusText(t: AssetsT, focus: string): string {
+  switch (focus) {
+    case "start":
+      return t("focus.start");
+    case "missing_fx":
+      return t("focus.missing_fx");
+    case "credit":
+      return t("focus.credit");
+    default:
+      return t("focus.balanced");
   }
 }
 
@@ -145,17 +188,25 @@ export function errorText(t: AssetsT, message: string): string {
       return t("errors.version_conflict");
     case "category_kind_mismatch":
       return t("errors.category_kind_mismatch");
-    case "as_of_in_future":
-      return t("errors.as_of_in_future");
-    case "as_of_too_old":
-      return t("errors.as_of_too_old");
-    case "currency_has_holdings":
-      return t("errors.currency_has_holdings");
+    case "recorded_at_in_future":
+      return t("errors.recorded_at_in_future");
+    case "recorded_at_too_old":
+      return t("errors.recorded_at_too_old");
     case "unsupported_currency":
       return t("errors.unsupported_currency");
+    case "cny_rate_fixed":
+      return t("errors.cny_rate_fixed");
+    case "reason_required":
+      return t("errors.reason_required");
     case "name_required":
       return t("errors.name_required");
     default:
       return t("errors.generic");
   }
+}
+
+export function expenseGroupOrder(group: string): number {
+  const order: ExpenseGroup[] = ["fixed", "daily", "emergency", "other"];
+  const index = order.indexOf(group as ExpenseGroup);
+  return index === -1 ? order.length : index;
 }

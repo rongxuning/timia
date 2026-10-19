@@ -1,10 +1,11 @@
 const CURRENCY_DIGITS: Record<string, number> = {
   CNY: 2,
-  USD: 2,
   HKD: 2,
+  USD: 2,
   EUR: 2,
   GBP: 2,
   JPY: 0,
+  KRW: 0,
 };
 
 const MAX_MINOR = 9_007_199_254_740_991;
@@ -49,9 +50,27 @@ export function parseAmountToMinor(input: string, currency: string): number | nu
   return minor;
 }
 
-export function localToday(): string {
+export function nowLocalInput(): string {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}T${hours}:${minutes}`;
+}
+
+export function localInputToIso(value: string): string {
+  return new Date(value).toISOString();
+}
+
+export function formatStamp(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }

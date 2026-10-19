@@ -3,106 +3,73 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { categoryBarClass, categoriesFor, type AssetKind } from "@/components/assets/categories";
+import {
+  ACCOUNT_STARTERS,
+  BOOK_CURRENCIES,
+  EXPENSE_STARTERS,
+  type AssetKind,
+  type ExpenseGroup,
+} from "@/components/assets/categories";
 import {
   categoryLabel,
   currencyLabel,
-  debtBandLabel,
-  emergencyBandLabel,
   errorText,
   focusText,
+  groupHint,
+  groupLabel,
+  starterLabel,
 } from "@/components/assets/copy";
-import { HoldingFormDialog, type HoldingDraft } from "@/components/assets/HoldingFormDialog";
+import { ExpenseDialog, type ExpenseDraft } from "@/components/assets/ExpenseDialog";
+import { fieldClass, labelClass } from "@/components/assets/fields";
+import { HoldingDialog, type HoldingDraft } from "@/components/assets/HoldingDialog";
 import { PageMain } from "@/components/layout";
 import {
+  adjustAssetExpense,
+  adjustAssetHolding,
+  archiveAssetExpense,
   archiveAssetHolding,
-  confirmAssetHolding,
+  createAssetExpense,
   createAssetHolding,
+  fetchAssetExpense,
+  fetchAssetHolding,
   fetchMyAssets,
   updateAssetHolding,
   updateAssetProfile,
+  upsertFxRate,
 } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
 import { htmlLang, type Locale } from "@/i18n/config";
-import { formatMinor, localToday, minorToInput, parseAmountToMinor } from "@/lib/money";
-import type { AssetHolding, MyAssetsView, NetWorthPoint } from "@/types/api/views/assets";
+import { formatMinor, formatStamp, localInputToIso, minorToInput, nowLocalInput, parseAmountToMinor } from "@/lib/money";
+import type { AssetAdjustment, AssetExpense, AssetHolding, MyAssetsView } from "@/types/api/views/assets";
 
-const CURRENCIES = ["CNY", "USD", "HKD", "EUR", "GBP", "JPY"] as const;
-const PRINCIPLES = ["item1", "item2", "item3", "item4", "item5"] as const;
+const RATE_CURRENCIES = ["HKD", "JPY", "KRW", "USD", "EUR", "GBP"];
 
-function formatDay(iso: string, locale: Locale): string {
-  const [year, month, day] = iso.split("-").map(Number);
-  if (!year || !month || !day) return iso;
-  return new Intl.DateTimeFormat(htmlLang(locale), {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(year, month - 1, day));
-}
-
-function blankDraft(kind: AssetKind, category: string, name: string): HoldingDraft {
+function blankHolding(kind: AssetKind, category: string, currency: string, name: string): HoldingDraft {
   return {
     mode: "create",
     name,
     kind,
     category,
+    currency,
     amount: "",
     institution: "",
     note: "",
-    asOf: localToday(),
     includeInNetWorth: true,
+    reason: "",
+    recordedAt: nowLocalInput(),
   };
 }
 
-function draftFromHolding(holding: AssetHolding, currency: string): HoldingDraft {
+function blankExpense(group: ExpenseGroup, currency: string, name: string, amount = ""): ExpenseDraft {
   return {
-    mode: "edit",
-    id: holding.id,
-    version: holding.version,
-    name: holding.name,
-    kind: holding.kind,
-    category: holding.category,
-    amount: minorToInput(holding.amount_minor, currency),
-    institution: holding.institution ?? "",
-    note: holding.note ?? "",
-    asOf: holding.as_of,
-    includeInNetWorth: holding.include_in_net_worth,
+    mode: "create",
+    name,
+    group,
+    currency,
+    amount,
+    reason: "",
+    recordedAt: nowLocalInput(),
   };
-}
-
-function NetWorthLine({
-  points,
-  currency,
-  locale,
-  label,
-}: {
-  points: NetWorthPoint[];
-  currency: string;
-  locale: string;
-  label: string;
-}) {
-  if (points.length < 2) return null;
-  const values = points.map((point) => point.net_worth_minor);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const width = 320;
-  const height = 72;
-  const coords = values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * (width - 8) + 4;
-      const y = height - 8 - ((value - min) / span) * (height - 16);
-      return `${x},${y}`;
-    })
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-16 w-full text-primary" role="img" aria-label={label}>
-      <polyline fill="none" stroke="currentColor" strokeWidth="2" points={coords} />
-      <title>
-        {formatMinor(values[0] ?? 0, currency, locale)} – {formatMinor(values[values.length - 1] ?? 0, currency, locale)}
-      </title>
-    </svg>
-  );
 }
 
 export function AssetsPage() {
@@ -114,28 +81,35 @@ export function AssetsPage() {
   const [view, setView] = useState<MyAssetsView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<HoldingDraft | null>(null);
+  const [holdingDraft, setHoldingDraft] = useState<HoldingDraft | null>(null);
+  const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
+  const [history, setHistory] = useState<AssetAdjustment[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [currentHolding, setCurrentHolding] = useState<AssetHolding | null>(null);
+  const [currentExpense, setCurrentExpense] = useState<AssetExpense | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [today, setToday] = useState<string | null>(null);
-  const [currency, setCurrency] = useState("CNY");
-  const [essential, setEssential] = useState("");
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSaved, setProfileSaved] = useState(false);
-  const [profileSaving, setProfileSaving] = useState(false);
+  const [rates, setRates] = useState<Record<string, string>>({});
+  const [rateMessage, setRateMessage] = useState<string | null>(null);
 
-  const load = useCallback(async (accessToken: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const next = await fetchMyAssets(accessToken);
-      setView(next);
-    } catch (err) {
-      setError(errorText(t, (err as { message?: string }).message ?? ""));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+  const load = useCallback(
+    async (accessToken: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const next = await fetchMyAssets(accessToken);
+        setView(next);
+        const nextRates: Record<string, string> = {};
+        for (const rate of next.rates) nextRates[rate.currency] = rate.cny_per_unit;
+        setRates(nextRates);
+      } catch (err) {
+        setError(errorText(t, (err as { message?: string }).message ?? ""));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     const accessToken = getToken();
@@ -144,151 +118,274 @@ export function AssetsPage() {
       return;
     }
     setToken(accessToken);
-    setToday(localToday());
     void load(accessToken);
   }, [load, router]);
 
-  useEffect(() => {
-    if (!view) return;
-    setCurrency(view.profile.currency);
-    setEssential(
-      view.profile.monthly_essential_minor == null
-        ? ""
-        : minorToInput(view.profile.monthly_essential_minor, view.profile.currency),
-    );
-  }, [view]);
-
-  async function reloadAfterWrite() {
+  async function reload() {
     if (!token) return;
     const next = await fetchMyAssets(token);
     setView(next);
   }
 
-  async function submitHolding() {
-    if (!token || !draft || !view) return;
-    const name = draft.name.trim();
-    if (!name) {
-      setDialogError(t("errors.name_required"));
-      return;
+  function fail(err: unknown) {
+    const message = (err as { message?: string }).message ?? "";
+    if (message === "version_conflict") void reload();
+    setDialogError(errorText(t, message));
+  }
+
+  async function openHolding(holding: AssetHolding) {
+    if (!token) return;
+    setDialogError(null);
+    setCurrentHolding(holding);
+    setHistory([]);
+    setHoldingDraft({
+      mode: "adjust",
+      id: holding.id,
+      version: holding.version,
+      name: holding.name,
+      kind: holding.kind,
+      category: holding.category,
+      currency: holding.currency,
+      amount: minorToInput(holding.amount_minor, holding.currency),
+      institution: holding.institution ?? "",
+      note: holding.note ?? "",
+      includeInNetWorth: holding.include_in_net_worth,
+      reason: "",
+      recordedAt: nowLocalInput(),
+    });
+    setHistoryLoading(true);
+    try {
+      const detail = await fetchAssetHolding(token, holding.id);
+      setHistory(detail.adjustments);
+      setCurrentHolding({ ...holding, version: detail.version, amount_minor: detail.amount_minor });
+      setHoldingDraft((current) =>
+        current && current.id === holding.id ? { ...current, version: detail.version } : current,
+      );
+    } catch (err) {
+      fail(err);
+    } finally {
+      setHistoryLoading(false);
     }
-    const bookCurrency =
-      draft.mode === "create" && !view.profile.currency_locked ? currency : view.profile.currency;
-    const amount = parseAmountToMinor(draft.amount, bookCurrency);
-    if (amount == null) {
+  }
+
+  async function openExpense(item: AssetExpense) {
+    if (!token) return;
+    setDialogError(null);
+    setCurrentExpense(item);
+    setHistory([]);
+    setExpenseDraft({
+      mode: "adjust",
+      id: item.id,
+      version: item.version,
+      name: item.name,
+      group: item.group_kind,
+      currency: item.currency,
+      amount: minorToInput(item.amount_minor, item.currency),
+      reason: "",
+      recordedAt: nowLocalInput(),
+    });
+    try {
+      const detail = await fetchAssetExpense(token, item.id);
+      setHistory(detail.adjustments);
+      setCurrentExpense({ ...item, version: detail.version, amount_minor: detail.amount_minor });
+      setExpenseDraft((current) => (current && current.id === item.id ? { ...current, version: detail.version } : current));
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  async function createHolding() {
+    if (!token || !holdingDraft) return;
+    const amount = parseAmountToMinor(holdingDraft.amount, holdingDraft.currency);
+    if (!holdingDraft.name.trim() || !holdingDraft.reason.trim() || amount == null) {
       setDialogError(t("form.amountInvalid"));
       return;
     }
     setSaving(true);
     setDialogError(null);
-    const body = {
-      name,
-      kind: draft.kind,
-      category: draft.category,
-      amount_minor: amount,
-      institution: draft.institution.trim() || null,
-      note: draft.note.trim() || null,
-      as_of: draft.asOf,
-      include_in_net_worth: draft.includeInNetWorth,
-    };
     try {
-      if (
-        draft.mode === "create" &&
-        !view.profile.currency_locked &&
-        currency !== view.profile.currency
-      ) {
-        await updateAssetProfile(token, {
-          version: view.profile.version,
-          currency,
-        });
-      }
-      if (draft.mode === "create") {
-        await createAssetHolding(token, body);
-      } else if (draft.id && draft.version) {
-        await updateAssetHolding(token, draft.id, { ...body, version: draft.version });
-      }
-      await reloadAfterWrite();
-      setDraft(null);
+      await createAssetHolding(token, {
+        name: holdingDraft.name.trim(),
+        kind: holdingDraft.kind,
+        category: holdingDraft.category,
+        currency: holdingDraft.currency,
+        amount_minor: amount,
+        institution: holdingDraft.institution.trim() || null,
+        note: holdingDraft.note.trim() || null,
+        include_in_net_worth: holdingDraft.includeInNetWorth,
+        reason: holdingDraft.reason.trim(),
+        recorded_at: localInputToIso(holdingDraft.recordedAt),
+      });
+      await reload();
+      setHoldingDraft(null);
     } catch (err) {
-      const message = (err as { message?: string }).message ?? "";
-      if (message === "version_conflict") await reloadAfterWrite();
-      setDialogError(errorText(t, message));
+      fail(err);
     } finally {
       setSaving(false);
     }
   }
 
-  async function archiveHolding() {
-    if (!token || !draft?.id || !draft.version) return;
+  async function adjustHolding() {
+    if (!token || !holdingDraft?.id || !holdingDraft.version) return;
+    const amount = parseAmountToMinor(holdingDraft.amount, holdingDraft.currency);
+    if (!holdingDraft.reason.trim() || amount == null) {
+      setDialogError(t("form.amountInvalid"));
+      return;
+    }
     setSaving(true);
     setDialogError(null);
     try {
-      await archiveAssetHolding(token, draft.id, draft.version);
-      await reloadAfterWrite();
-      setDraft(null);
+      await adjustAssetHolding(token, holdingDraft.id, {
+        version: holdingDraft.version,
+        amount_minor: amount,
+        reason: holdingDraft.reason.trim(),
+        recorded_at: localInputToIso(holdingDraft.recordedAt),
+      });
+      await reload();
+      setHoldingDraft(null);
     } catch (err) {
-      const message = (err as { message?: string }).message ?? "";
-      if (message === "version_conflict") await reloadAfterWrite();
-      setDialogError(errorText(t, message));
+      fail(err);
     } finally {
       setSaving(false);
     }
   }
 
-  async function confirmHolding(holding: AssetHolding) {
-    if (!token || !today) return;
-    setError(null);
+  async function saveHoldingDetails() {
+    if (!token || !holdingDraft?.id || !holdingDraft.version) return;
+    setSaving(true);
+    setDialogError(null);
     try {
-      await confirmAssetHolding(token, holding.id, { version: holding.version, as_of: today });
-      await reloadAfterWrite();
+      const saved = await updateAssetHolding(token, holdingDraft.id, {
+        version: holdingDraft.version,
+        name: holdingDraft.name.trim(),
+        category: holdingDraft.category,
+        kind: holdingDraft.kind,
+        institution: holdingDraft.institution.trim() || null,
+        note: holdingDraft.note.trim() || null,
+        include_in_net_worth: holdingDraft.includeInNetWorth,
+      });
+      setHoldingDraft({ ...holdingDraft, version: saved.version });
+      await reload();
     } catch (err) {
-      const message = (err as { message?: string }).message ?? "";
-      if (message === "version_conflict") await reloadAfterWrite();
-      setError(errorText(t, message));
+      fail(err);
+    } finally {
+      setSaving(false);
     }
   }
 
-  async function saveProfile() {
-    if (!token || !view) return;
-    const bookCurrency = view.profile.currency_locked ? view.profile.currency : currency;
-    let monthly: number | null = null;
-    if (essential.trim()) {
-      const parsed = parseAmountToMinor(essential, bookCurrency);
-      if (parsed == null || parsed <= 0) {
-        setProfileError(t("form.amountInvalid"));
-        setProfileSaved(false);
-        return;
-      }
-      monthly = parsed;
-    }
-    setProfileSaving(true);
-    setProfileError(null);
-    setProfileSaved(false);
+  async function archiveHolding(reason: string) {
+    if (!token || !holdingDraft?.id || !holdingDraft.version || !reason) return;
+    setSaving(true);
     try {
-      await updateAssetProfile(token, {
-        version: view.profile.version,
-        currency: view.profile.currency_locked ? undefined : currency,
-        monthly_essential_minor: monthly,
-      });
-      await reloadAfterWrite();
-      setProfileSaved(true);
+      await archiveAssetHolding(token, holdingDraft.id, { version: holdingDraft.version, reason });
+      await reload();
+      setHoldingDraft(null);
     } catch (err) {
-      const message = (err as { message?: string }).message ?? "";
-      if (message === "version_conflict") await reloadAfterWrite();
-      setProfileError(errorText(t, message));
+      fail(err);
     } finally {
-      setProfileSaving(false);
+      setSaving(false);
+    }
+  }
+
+  async function createExpense() {
+    if (!token || !expenseDraft) return;
+    const amount = parseAmountToMinor(expenseDraft.amount, expenseDraft.currency);
+    if (!expenseDraft.name.trim() || !expenseDraft.reason.trim() || amount == null) {
+      setDialogError(t("form.amountInvalid"));
+      return;
+    }
+    setSaving(true);
+    setDialogError(null);
+    try {
+      await createAssetExpense(token, {
+        name: expenseDraft.name.trim(),
+        group_kind: expenseDraft.group,
+        currency: expenseDraft.currency,
+        amount_minor: amount,
+        reason: expenseDraft.reason.trim(),
+        recorded_at: localInputToIso(expenseDraft.recordedAt),
+      });
+      await reload();
+      setExpenseDraft(null);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function adjustExpense() {
+    if (!token || !expenseDraft?.id || !expenseDraft.version) return;
+    const amount = parseAmountToMinor(expenseDraft.amount, expenseDraft.currency);
+    if (!expenseDraft.reason.trim() || amount == null) {
+      setDialogError(t("form.amountInvalid"));
+      return;
+    }
+    setSaving(true);
+    setDialogError(null);
+    try {
+      await adjustAssetExpense(token, expenseDraft.id, {
+        version: expenseDraft.version,
+        amount_minor: amount,
+        reason: expenseDraft.reason.trim(),
+        recorded_at: localInputToIso(expenseDraft.recordedAt),
+      });
+      await reload();
+      setExpenseDraft(null);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archiveExpense(reason: string) {
+    if (!token || !expenseDraft?.id || !expenseDraft.version) return;
+    setSaving(true);
+    try {
+      await archiveAssetExpense(token, expenseDraft.id, { version: expenseDraft.version, reason });
+      await reload();
+      setExpenseDraft(null);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveDisplayCurrency(displayCurrency: string) {
+    if (!token || !view || displayCurrency === view.profile.display_currency) return;
+    setError(null);
+    try {
+      await updateAssetProfile(token, { version: view.profile.version, display_currency: displayCurrency });
+      await reload();
+    } catch (err) {
+      setError(errorText(t, (err as { message?: string }).message ?? ""));
+    }
+  }
+
+  async function saveRate(currency: string) {
+    if (!token) return;
+    const raw = (rates[currency] ?? "").trim();
+    if (!/^\d+(\.\d+)?$/.test(raw) || Number(raw) <= 0) {
+      setRateMessage(t("currency.rateInvalid"));
+      return;
+    }
+    setRateMessage(null);
+    try {
+      await upsertFxRate(token, { currency, cny_per_unit: raw });
+      await reload();
+      setRateMessage(t("currency.saved"));
+    } catch (err) {
+      setRateMessage(errorText(t, (err as { message?: string }).message ?? ""));
     }
   }
 
   const summary = view?.summary;
-  const bookCurrency = view?.profile.currency ?? "CNY";
-  const money = (amount: number) => formatMinor(amount, bookCurrency, numberLocale);
-  const empty = !loading && !error && summary?.holding_count === 0;
-
-  function openCreate(kind: AssetKind, category: string, name = "") {
-    setDialogError(null);
-    setDraft(blankDraft(kind, category, name));
-  }
+  const display = summary?.display_currency ?? "CNY";
+  const money = (amount: number) => formatMinor(amount, display, numberLocale);
+  const assetGroups = view?.groups.filter((group) => group.kind === "asset") ?? [];
+  const liabilityGroups = view?.groups.filter((group) => group.kind === "liability") ?? [];
 
   return (
     <PageMain>
@@ -301,7 +398,10 @@ export function AssetsPage() {
           <button
             type="button"
             className="rounded-xl bg-primary px-4 py-2 text-small font-medium text-on-primary hover:bg-primary-hover"
-            onClick={() => openCreate("asset", "cash")}
+            onClick={() => {
+              setDialogError(null);
+              setHoldingDraft(blankHolding("asset", "bank_deposit", "CNY", ""));
+            }}
           >
             {t("add")}
           </button>
@@ -312,403 +412,350 @@ export function AssetsPage() {
             {error}
           </p>
         ) : null}
-
         {loading ? <p className="text-small text-text-secondary">{t("loading")}</p> : null}
 
-        {empty ? (
-          <section className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-            <h2 className="font-section-heading text-text-primary">{t("emptyTitle")}</h2>
-            <p className="mt-2 max-w-2xl text-small text-text-secondary">{t("emptyBody")}</p>
-            <p className="mt-4 text-caption text-neutral-muted">{t("starterHint")}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(
-                [
-                  ["asset", "cash", t("starters.cash")],
-                  ["asset", "investment", t("starters.investment")],
-                  ["asset", "property", t("starters.property")],
-                  ["liability", "credit", t("starters.credit")],
-                  ["liability", "mortgage", t("starters.mortgage")],
-                ] as const
-              ).map(([kind, category, name]) => (
-                <button
-                  key={category}
-                  type="button"
-                  className="rounded-xl border border-border-subtle px-3 py-2 text-small text-text-primary hover:bg-surface-container-lowest"
-                  onClick={() => openCreate(kind, category, name)}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
+        {summary ? (
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} hint={t("summary.netWorthHint")} />
+            <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} />
+            <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} />
+            <Stat label={t("summary.spendable")} value={money(summary.spendable_net_worth_minor)} hint={t("summary.spendableHint")} />
+            <Stat label={t("summary.emergencyCash")} value={money(summary.emergency_cash_minor)} hint={t("summary.emergencyCashHint")} />
+            <Stat label={t("summary.monthly")} value={money(summary.monthly_running_minor)} hint={t("summary.monthlyHint")} />
+            <Stat label={t("summary.reserve")} value={money(summary.emergency_reserve_minor)} hint={t("summary.reserveHint")} />
+            <Stat
+              label={t("summary.coverage")}
+              value={
+                summary.coverage_months == null
+                  ? t("summary.coverageUnset")
+                  : t("summary.coverageMonths", { months: summary.coverage_months })
+              }
+            />
           </section>
         ) : null}
 
-        {summary && summary.holding_count > 0 ? (
-          <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm sm:col-span-2 xl:col-span-1">
-                <p className="text-overline text-neutral-muted">{t("summary.netWorth")}</p>
-                <p className="mt-2 font-display text-2xl tabular-nums text-text-primary">{money(summary.net_worth_minor)}</p>
-                <p className="mt-1 text-caption text-text-secondary">{t("summary.netWorthHint")}</p>
-              </article>
-              <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-                <p className="text-overline text-neutral-muted">{t("summary.assets")}</p>
-                <p className="mt-2 text-xl tabular-nums text-text-primary">{money(summary.total_assets_minor)}</p>
-              </article>
-              <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-                <p className="text-overline text-neutral-muted">{t("summary.liabilities")}</p>
-                <p className="mt-2 text-xl tabular-nums text-text-primary">{money(summary.total_liabilities_minor)}</p>
-              </article>
-              <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-                <p className="text-overline text-neutral-muted">{t("summary.liquid")}</p>
-                <p className="mt-2 text-xl tabular-nums text-text-primary">{money(summary.liquid_net_worth_minor)}</p>
-                <p className="mt-1 text-caption text-text-secondary">{t("summary.liquidHint")}</p>
-              </article>
-            </section>
+        {summary && summary.holding_count === 0 ? (
+          <section className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
+            <h2 className="text-small font-medium text-text-primary">{t("emptyTitle")}</h2>
+            <p className="mt-2 max-w-2xl text-small text-text-secondary">{t("emptyBody")}</p>
+            <p className="mt-3 text-caption text-text-secondary">{t("sameAccountHint")}</p>
+          </section>
+        ) : null}
 
-            <p
-              className={[
-                "rounded-xl border px-lg py-md text-small",
-                summary.focus === "high_interest"
-                  ? "border-error-container bg-error-container/10 text-error"
-                  : "border-indigo-100 bg-indigo-50 text-indigo-950",
-              ].join(" ")}
-            >
-              {focusText(t, summary.focus)}
-            </p>
-
-            <section className="grid gap-3 md:grid-cols-3">
-              <article className="rounded-xl border border-border-subtle bg-white p-lg">
-                <p className="text-overline text-neutral-muted">{t("metrics.emergency")}</p>
-                <p className="mt-2 text-body tabular-nums text-text-primary">
-                  {summary.emergency_months == null
-                    ? t("metrics.emergencyUnset")
-                    : t("metrics.emergencyMonths", { months: summary.emergency_months })}
-                </p>
-                <p className="mt-1 text-caption text-text-secondary">
-                  {emergencyBandLabel(t, summary.emergency_band)}
-                </p>
-              </article>
-              <article className="rounded-xl border border-border-subtle bg-white p-lg">
-                <p className="text-overline text-neutral-muted">{t("metrics.debtRatio")}</p>
-                <p className="mt-2 text-body tabular-nums text-text-primary">
-                  {summary.debt_ratio == null
-                    ? t("metrics.debtUnset")
-                    : new Intl.NumberFormat(numberLocale, { style: "percent", maximumFractionDigits: 1 }).format(
-                        summary.debt_ratio,
-                      )}
-                </p>
-                <p className="mt-1 text-caption text-text-secondary">{debtBandLabel(t, summary.debt_band)}</p>
-              </article>
-              <article className="rounded-xl border border-border-subtle bg-white p-lg">
-                <p className="text-overline text-neutral-muted">{t("metrics.review")}</p>
-                <p className="mt-2 text-body text-text-primary">
-                  {summary.needs_review_count > 0
-                    ? t("metrics.reviewCount", { count: summary.needs_review_count })
-                    : t("metrics.reviewClear")}
-                </p>
-                {summary.latest_as_of ? (
-                  <p className="mt-1 text-caption text-text-secondary">
-                    {t("summary.latest", { date: formatDay(summary.latest_as_of, locale) })}
-                  </p>
-                ) : null}
-              </article>
-            </section>
-
-            <AllocationBars view={view!} money={money} />
-
-            {view && view.net_worth_series.length >= 2 ? (
-              <section className="rounded-xl border border-border-subtle bg-white p-lg">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="text-small font-medium text-text-primary">{t("series.title")}</h2>
-                  <p className="text-caption text-text-secondary">
-                    {formatDay(view.net_worth_series[0]?.as_of ?? "", locale)} –{" "}
-                    {formatDay(view.net_worth_series[view.net_worth_series.length - 1]?.as_of ?? "", locale)}
-                  </p>
-                </div>
-                <NetWorthLine
-                  points={view.net_worth_series}
-                  currency={bookCurrency}
-                  locale={numberLocale}
-                  label={t("series.aria", {
-                    start: formatDay(view.net_worth_series[0]?.as_of ?? "", locale),
-                    end: formatDay(view.net_worth_series[view.net_worth_series.length - 1]?.as_of ?? "", locale),
-                  })}
-                />
-                <p className="text-caption text-text-secondary">{t("series.caption")}</p>
-              </section>
-            ) : null}
-
-            <section className="grid gap-lg lg:grid-cols-2">
-              <HoldingColumn
-                kind="asset"
-                title={t("columns.assets")}
-                empty={t("columns.assetsEmpty")}
-                holdings={view?.holdings.filter((row) => row.kind === "asset") ?? []}
-                currency={bookCurrency}
-                locale={locale}
-                numberLocale={numberLocale}
-                today={today}
-                onEdit={(holding) => {
-                  setDialogError(null);
-                  setDraft(draftFromHolding(holding, bookCurrency));
-                }}
-                onConfirm={(holding) => void confirmHolding(holding)}
-                onAdd={() => openCreate("asset", "cash")}
-              />
-              <HoldingColumn
-                kind="liability"
-                title={t("columns.liabilities")}
-                empty={t("columns.liabilitiesEmpty")}
-                holdings={view?.holdings.filter((row) => row.kind === "liability") ?? []}
-                currency={bookCurrency}
-                locale={locale}
-                numberLocale={numberLocale}
-                today={today}
-                onEdit={(holding) => {
-                  setDialogError(null);
-                  setDraft(draftFromHolding(holding, bookCurrency));
-                }}
-                onConfirm={(holding) => void confirmHolding(holding)}
-                onAdd={() => openCreate("liability", "credit")}
-              />
-            </section>
-          </>
+        {summary ? (
+          <p
+            className={[
+              "rounded-xl border px-lg py-md text-small",
+              summary.focus === "credit" || summary.focus === "missing_fx"
+                ? "border-error-container bg-error-container/10 text-error"
+                : "border-indigo-100 bg-indigo-50 text-indigo-700",
+            ].join(" ")}
+          >
+            {focusText(t, summary.focus)}
+            {summary.missing_currencies.length > 0
+              ? ` ${t("focus.missingList", { currencies: summary.missing_currencies.join("、") })}`
+              : ""}
+          </p>
         ) : null}
 
         {view ? (
           <section className="rounded-xl border border-border-subtle bg-white p-lg">
-            <h2 className="text-small font-medium text-text-primary">{t("profile.title")}</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="block space-y-1">
-                <span className="text-small font-medium text-on-surface-variant">{t("profile.currency")}</span>
-                <select
-                  value={currency}
-                  disabled={view.profile.currency_locked || profileSaving}
-                  onChange={(event) => {
-                    setCurrency(event.target.value);
-                    setProfileSaved(false);
-                  }}
-                  className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-50"
-                >
-                  {CURRENCIES.map((code) => (
-                    <option key={code} value={code}>
-                      {currencyLabel(t, code)}
-                    </option>
-                  ))}
-                </select>
-                <span className="block text-caption text-text-secondary">
-                  {view.profile.currency_locked ? t("profile.currencyLocked") : t("profile.currencyHint")}
-                </span>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-small font-medium text-on-surface-variant">{t("profile.essential")}</span>
-                <input
-                  inputMode="decimal"
-                  value={essential}
-                  onChange={(event) => {
-                    setEssential(event.target.value);
-                    setProfileSaved(false);
-                  }}
-                  placeholder={bookCurrency === "JPY" ? "0" : "0.00"}
-                  className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body tabular-nums outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
-                />
-                <span className="block text-caption text-text-secondary">{t("profile.essentialHint")}</span>
-              </label>
-            </div>
-            {profileError ? <p className="mt-3 text-small text-error">{profileError}</p> : null}
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                type="button"
-                className="rounded-xl bg-primary px-4 py-2 text-small font-medium text-on-primary hover:bg-primary-hover disabled:opacity-50"
-                onClick={() => void saveProfile()}
-                disabled={profileSaving}
+            <h2 className="text-small font-medium text-text-primary">{t("currency.title")}</h2>
+            <p className="mt-1 text-caption text-text-secondary">{t("currency.hint")}</p>
+            <label className="mt-4 block max-w-xs space-y-1">
+              <span className={labelClass}>{t("currency.display")}</span>
+              <select
+                value={view.profile.display_currency}
+                onChange={(event) => void saveDisplayCurrency(event.target.value)}
+                className={fieldClass}
               >
-                {profileSaving ? t("profile.saving") : t("profile.save")}
-              </button>
-              {profileSaved ? <span className="text-small text-text-secondary">{t("profile.saved")}</span> : null}
+                {BOOK_CURRENCIES.map((code) => (
+                  <option key={code} value={code}>
+                    {currencyLabel(t, code)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-4 space-y-2">
+              {RATE_CURRENCIES.map((code) => (
+                <div key={code} className="flex flex-wrap items-center gap-2">
+                  <label className="text-small text-text-secondary" htmlFor={`rate-${code}`}>
+                    {t("currency.rate", { code })}
+                  </label>
+                  <input
+                    id={`rate-${code}`}
+                    inputMode="decimal"
+                    value={rates[code] ?? ""}
+                    onChange={(event) => setRates({ ...rates, [code]: event.target.value })}
+                    className="w-32 rounded-xl border border-border-subtle bg-surface-bright px-3 py-2 text-small tabular-nums outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  />
+                  <button type="button" className="text-small text-primary" onClick={() => void saveRate(code)}>
+                    {t("currency.save")}
+                  </button>
+                </div>
+              ))}
             </div>
+            {rateMessage ? <p className="mt-2 text-caption text-text-secondary">{rateMessage}</p> : null}
           </section>
         ) : null}
 
-        <details
-          key={empty ? "guide-open" : "guide"}
-          className="rounded-xl border border-border-subtle bg-white p-lg"
-          {...(empty ? { open: true } : {})}
-        >
+        <GroupList
+          title={t("allocation.assets")}
+          groups={assetGroups}
+          display={display}
+          locale={numberLocale}
+          stampLocale={numberLocale}
+          money={money}
+          onOpen={(holding) => void openHolding(holding)}
+          onAdd={() => {
+            setDialogError(null);
+            setHoldingDraft(blankHolding("asset", "bank_deposit", "CNY", ""));
+          }}
+        />
+        <div className="flex flex-wrap gap-2">
+          {ACCOUNT_STARTERS.map((starter) => (
+            <button
+              key={starter.id}
+              type="button"
+              className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-primary hover:bg-surface-container-lowest"
+              onClick={() => {
+                setDialogError(null);
+                setHoldingDraft(blankHolding(starter.kind, starter.category, starter.currency, starterLabel(t, starter.id)));
+              }}
+            >
+              {starterLabel(t, starter.id)}
+            </button>
+          ))}
+        </div>
+
+        <GroupList
+          title={t("allocation.liabilities")}
+          groups={liabilityGroups}
+          display={display}
+          locale={numberLocale}
+          stampLocale={numberLocale}
+          money={money}
+          onOpen={(holding) => void openHolding(holding)}
+          onAdd={() => {
+            setDialogError(null);
+            setHoldingDraft(blankHolding("liability", "credit_card", "CNY", ""));
+          }}
+          empty={t("columns.liabilitiesEmpty")}
+        />
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-small font-medium text-text-primary">{t("expense.title")}</h2>
+            <button
+              type="button"
+              className="text-small text-primary"
+              onClick={() => {
+                setDialogError(null);
+                setExpenseDraft(blankExpense("other", "CNY", ""));
+              }}
+            >
+              {t("expense.add")}
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {EXPENSE_STARTERS.map((starter) => (
+              <button
+                key={starter.id}
+                type="button"
+                className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption hover:bg-surface-container-lowest"
+                onClick={() => {
+                  setDialogError(null);
+                  setExpenseDraft(
+                    blankExpense(starter.group, starter.currency, starterLabel(t, starter.id), starter.amount ?? ""),
+                  );
+                }}
+              >
+                {starterLabel(t, starter.id)}
+              </button>
+            ))}
+          </div>
+          {(view?.expense_groups ?? []).map((group) => (
+            <details key={group.group_kind} open className="rounded-xl border border-border-subtle bg-white p-lg">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 text-small">
+                <span>
+                  <span className="font-medium text-text-primary">{groupLabel(t, group.group_kind)}</span>
+                  <span className="mt-1 block text-caption text-text-secondary">{groupHint(t, group.group_kind)}</span>
+                </span>
+                <span className="tabular-nums text-text-primary">{money(group.display_minor)}</span>
+              </summary>
+              <ul className="mt-3 divide-y divide-border-subtle">
+                {group.items.map((item) => (
+                  <li key={item.id} className="flex items-start justify-between gap-3 py-3">
+                    <div>
+                      <p className="text-small text-text-primary">{item.name}</p>
+                      <p className="text-caption text-text-secondary">
+                        {formatStamp(item.adjusted_at, numberLocale)}
+                        {item.latest_reason ? ` · ${item.latest_reason}` : ""}
+                      </p>
+                      {item.currency !== display || item.fx_missing ? (
+                        <p className="text-caption text-text-secondary">
+                          {item.fx_missing
+                            ? t("holding.missingFx")
+                            : t("holding.actual", { amount: formatMinor(item.amount_minor, item.currency, numberLocale) })}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-small tabular-nums">
+                        {item.display_minor == null ? "—" : money(item.display_minor)}
+                      </p>
+                      <button type="button" className="text-caption text-primary" onClick={() => void openExpense(item)}>
+                        {t("holding.adjust")}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </section>
+
+        <details className="rounded-xl border border-border-subtle bg-white p-lg">
           <summary className="cursor-pointer text-small font-medium text-text-primary">{t("principles.title")}</summary>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-small text-text-secondary">
-            {PRINCIPLES.map((key) => (
-              <li key={key}>{t(`principles.${key}`)}</li>
-            ))}
+            <li>{t("principles.item1")}</li>
+            <li>{t("principles.item2")}</li>
+            <li>{t("principles.item3")}</li>
+            <li>{t("principles.item4")}</li>
+            <li>{t("principles.item5")}</li>
           </ul>
         </details>
       </div>
 
-      {draft && view ? (
-        <HoldingFormDialog
-          draft={draft}
-          currency={view.profile.currency_locked ? view.profile.currency : currency}
+      {holdingDraft ? (
+        <HoldingDialog
+          draft={holdingDraft}
+          displayCurrency={display}
+          locale={numberLocale}
           saving={saving}
           error={dialogError}
-          onChange={setDraft}
+          history={history}
+          historyLoading={historyLoading}
+          current={currentHolding}
+          onChange={setHoldingDraft}
           onClose={() => {
-            if (!saving) setDraft(null);
+            if (!saving) setHoldingDraft(null);
           }}
-          onSubmit={() => void submitHolding()}
-          onArchive={() => void archiveHolding()}
+          onCreate={() => void createHolding()}
+          onAdjust={() => void adjustHolding()}
+          onSaveDetails={() => void saveHoldingDetails()}
+          onArchive={(reason) => void archiveHolding(reason)}
+        />
+      ) : null}
+      {expenseDraft ? (
+        <ExpenseDialog
+          draft={expenseDraft}
+          locale={numberLocale}
+          saving={saving}
+          error={dialogError}
+          history={history}
+          current={currentExpense}
+          onChange={setExpenseDraft}
+          onClose={() => {
+            if (!saving) setExpenseDraft(null);
+          }}
+          onCreate={() => void createExpense()}
+          onAdjust={() => void adjustExpense()}
+          onArchive={(reason) => void archiveExpense(reason)}
         />
       ) : null}
     </PageMain>
   );
 }
 
-function AllocationBars({
-  view,
-  money,
-}: {
-  view: MyAssetsView;
-  money: (amount: number) => string;
-}) {
-  const t = useTranslations("assets");
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <section className="grid gap-lg lg:grid-cols-2">
-      {(["asset", "liability"] as const).map((kind) => {
-        const slices = view.allocation.filter((slice) => slice.kind === kind);
-        if (slices.length === 0) return null;
-        return (
-          <div key={kind} className="rounded-xl border border-border-subtle bg-white p-lg">
-            <h2 className="text-small font-medium text-text-primary">
-              {kind === "asset" ? t("allocation.assets") : t("allocation.liabilities")}
-            </h2>
-            <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-zinc-100">
-              {slices.map((slice) => (
-                <div
-                  key={slice.category}
-                  className={categoryBarClass(slice.category)}
-                  style={{ width: `${Math.max(slice.share * 100, 1)}%` }}
-                  title={`${categoryLabel(t, slice.category)} ${money(slice.amount_minor)}`}
-                />
-              ))}
-            </div>
-            <ul className="mt-3 space-y-1">
-              {slices.map((slice) => (
-                <li key={slice.category} className="flex items-center justify-between gap-3 text-small">
-                  <span className="flex items-center gap-2 text-text-secondary">
-                    <span className={`h-2 w-2 rounded-full ${categoryBarClass(slice.category)}`} />
-                    {categoryLabel(t, slice.category)}
-                  </span>
-                  <span className="tabular-nums text-text-primary">{money(slice.amount_minor)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
-    </section>
+    <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
+      <p className="text-overline text-neutral-muted">{label}</p>
+      <p className="mt-2 text-xl tabular-nums text-text-primary">{value}</p>
+      {hint ? <p className="mt-1 text-caption text-text-secondary">{hint}</p> : null}
+    </article>
   );
 }
 
-function HoldingColumn({
-  kind,
+function GroupList({
   title,
-  empty,
-  holdings,
-  currency,
+  groups,
+  display,
   locale,
-  numberLocale,
-  today,
-  onEdit,
-  onConfirm,
+  stampLocale,
+  money,
+  onOpen,
   onAdd,
+  empty,
 }: {
-  kind: AssetKind;
   title: string;
-  empty: string;
-  holdings: AssetHolding[];
-  currency: string;
-  locale: Locale;
-  numberLocale: string;
-  today: string | null;
-  onEdit: (holding: AssetHolding) => void;
-  onConfirm: (holding: AssetHolding) => void;
+  groups: MyAssetsView["groups"];
+  display: string;
+  locale: string;
+  stampLocale: string;
+  money: (amount: number) => string;
+  onOpen: (holding: AssetHolding) => void;
   onAdd: () => void;
+  empty?: string;
 }) {
   const t = useTranslations("assets");
-  const groups = categoriesFor(kind)
-    .map((category) => ({
-      category,
-      rows: holdings.filter((row) => row.category === category),
-    }))
-    .filter((group) => group.rows.length > 0);
-
   return (
-    <section className="rounded-xl border border-border-subtle bg-white p-lg">
-      <div className="flex items-center justify-between gap-3">
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
         <h2 className="text-small font-medium text-text-primary">{title}</h2>
-        <button type="button" className="text-small text-primary hover:underline" onClick={onAdd}>
+        <button type="button" className="text-small text-primary" onClick={onAdd}>
           {t("add")}
         </button>
       </div>
-      {groups.length === 0 ? <p className="mt-3 text-small text-text-secondary">{empty}</p> : null}
-      <div className="mt-3 space-y-4">
-        {groups.map((group) => (
-          <div key={group.category}>
-            <p className="text-overline text-neutral-muted">{categoryLabel(t, group.category)}</p>
-            <ul className="mt-1 divide-y divide-border-subtle">
-              {group.rows.map((holding) => (
-                <li key={holding.id} className="flex items-start justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-small text-text-primary">{holding.name}</p>
-                    <p className="mt-0.5 text-caption text-text-secondary">
-                      {holding.institution ? `${holding.institution} · ` : ""}
-                      {t("holding.asOf", { date: formatDay(holding.as_of, locale) })}
+      {groups.length === 0 && empty ? <p className="text-small text-text-secondary">{empty}</p> : null}
+      {groups.map((group) => (
+        <details key={group.category} open className="rounded-xl border border-border-subtle bg-white p-lg">
+          <summary className="flex cursor-pointer items-center justify-between gap-3 text-small font-medium text-text-primary">
+            <span>
+              {categoryLabel(t, group.category)}
+              {group.fx_incomplete ? (
+                <span className="ml-2 text-caption font-normal text-error">{t("holding.missingFx")}</span>
+              ) : null}
+            </span>
+            <span className="tabular-nums">{money(group.display_minor)}</span>
+          </summary>
+          <ul className="mt-2 divide-y divide-border-subtle">
+            {group.holdings.map((holding) => (
+              <li key={holding.id} className="flex items-start justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-small text-text-primary">{holding.name}</p>
+                  <p className="text-caption text-text-secondary">
+                    {holding.institution ? `${holding.institution} · ` : ""}
+                    {formatStamp(holding.adjusted_at, stampLocale)}
+                    {holding.latest_reason ? ` · ${holding.latest_reason}` : ""}
+                  </p>
+                  {holding.currency !== display || holding.fx_missing ? (
+                    <p className="text-caption text-text-secondary">
+                      {holding.fx_missing
+                        ? `${t("holding.missingFx")} · ${formatMinor(holding.amount_minor, holding.currency, locale)}`
+                        : t("holding.actual", {
+                            amount: formatMinor(holding.amount_minor, holding.currency, locale),
+                          })}
                     </p>
-                    {holding.note ? (
-                      <p className="mt-1 line-clamp-2 text-caption text-text-secondary">{holding.note}</p>
-                    ) : null}
-                    <div className="mt-1 flex flex-wrap gap-2">
-                      {holding.needs_review ? (
-                        <span className="rounded-md border border-error-container px-1.5 py-0.5 text-caption text-error">
-                          {t("holding.review")}
-                        </span>
-                      ) : null}
-                      {!holding.include_in_net_worth ? (
-                        <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-caption text-text-secondary">
-                          {t("holding.excluded")}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <p className="text-small tabular-nums text-text-primary">
-                      {formatMinor(holding.amount_minor, currency, numberLocale)}
-                    </p>
-                    <div className="flex gap-2">
-                      {today && holding.as_of !== today ? (
-                        <button
-                          type="button"
-                          className="text-caption text-text-secondary hover:text-text-primary hover:underline"
-                          onClick={() => onConfirm(holding)}
-                        >
-                          {t("holding.confirm")}
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="text-caption text-primary hover:underline"
-                        onClick={() => onEdit(holding)}
-                      >
-                        {t("holding.edit")}
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
+                  ) : null}
+                  {!holding.include_in_net_worth ? (
+                    <p className="text-caption text-text-secondary">{t("holding.excluded")}</p>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  <p className="text-small tabular-nums text-text-primary">
+                    {holding.display_minor == null ? "—" : money(holding.display_minor)}
+                  </p>
+                  <button type="button" className="text-caption text-primary" onClick={() => onOpen(holding)}>
+                    {t("holding.adjust")}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
     </section>
   );
 }

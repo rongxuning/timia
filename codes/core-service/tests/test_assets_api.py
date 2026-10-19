@@ -1,8 +1,8 @@
-"""HTTP tests for the personal asset ledger."""
+"""HTTP tests for multi-currency asset stocktakes."""
 
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,9 +12,15 @@ from app.core.config import settings
 from app.core.security import create_access_token, hash_password
 from app.db.deps import get_db
 from app.main import app
-from app.models.asset import AssetHolding, AssetProfile, AssetValuation
+from app.models.asset import (
+    AssetAdjustment,
+    AssetExpenseAdjustment,
+    AssetExpenseItem,
+    AssetFxRate,
+    AssetHolding,
+    AssetProfile,
+)
 from app.models.user import User
-from app.services.asset_api import utc_today
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -36,8 +42,11 @@ def _make_user(db, suffix: str) -> User:
 
 
 def _cleanup(db, user: User) -> None:
-    db.execute(delete(AssetValuation).where(AssetValuation.owner_user_id == user.id))
+    db.execute(delete(AssetAdjustment).where(AssetAdjustment.owner_user_id == user.id))
+    db.execute(delete(AssetExpenseAdjustment).where(AssetExpenseAdjustment.owner_user_id == user.id))
     db.execute(delete(AssetHolding).where(AssetHolding.owner_user_id == user.id))
+    db.execute(delete(AssetExpenseItem).where(AssetExpenseItem.owner_user_id == user.id))
+    db.execute(delete(AssetFxRate).where(AssetFxRate.owner_user_id == user.id))
     db.execute(delete(AssetProfile).where(AssetProfile.owner_user_id == user.id))
     db.execute(delete(User).where(User.id == user.id))
     db.commit()
@@ -63,170 +72,203 @@ def test_assets_require_auth():
     assert client.post("/asset-holdings", json={}).status_code == 401
 
 
-def test_stocktake_rolls_into_net_worth(client_and_user):
+def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
     client, headers, _user = client_and_user
-    today = utc_today().isoformat()
-    cash = client.post(
+    rate = client.put(
+        "/asset-fx-rates",
+        headers=headers,
+        json={"currency": "HKD", "cny_per_unit": "0.92"},
+    )
+    assert rate.status_code == 200, rate.text
+    assert rate.json()["cny_per_unit"] == "0.92"
+
+    bank = client.post(
         "/asset-holdings",
         headers=headers,
         json={
-            "name": "工资卡",
+            "name": "建行储蓄",
             "kind": "asset",
-            "category": "cash",
+            "category": "bank_deposit",
+            "currency": "CNY",
             "amount_minor": 20000_00,
-            "institution": "招商银行",
-            "as_of": today,
+            "reason": "建账",
         },
     )
-    assert cash.status_code == 201, cash.text
-    card = client.post(
+    assert bank.status_code == 201, bank.text
+    hk = client.post(
         "/asset-holdings",
         headers=headers,
         json={
-            "name": "信用卡",
-            "kind": "liability",
-            "category": "credit",
-            "amount_minor": 3000_00,
-            "as_of": today,
+            "name": "港股",
+            "kind": "asset",
+            "category": "hk_share",
+            "currency": "HKD",
+            "amount_minor": 10000_00,
+            "reason": "建账",
         },
     )
-    assert card.status_code == 201, card.text
+    assert hk.status_code == 201, hk.text
+    assert hk.json()["currency"] == "HKD"
+    assert hk.json()["amount_minor"] == 10000_00
 
     view = client.get("/views/me/assets", headers=headers)
     assert view.status_code == 200, view.text
     body = view.json()
-    assert body["summary"]["net_worth_minor"] == 17000_00
-    assert body["summary"]["liquid_net_worth_minor"] == 17000_00
-    assert body["summary"]["focus"] == "high_interest"
-    assert body["profile"]["currency"] == "CNY"
-    assert body["profile"]["currency_locked"] is True
-    assert len(body["net_worth_series"]) == 1
+    assert body["summary"]["display_currency"] == "CNY"
+    assert body["summary"]["total_assets_minor"] == 20000_00 + 9200_00
+    assert body["summary"]["emergency_cash_minor"] == 20000_00
+    assert body["summary"]["investment_minor"] == 9200_00
+    hk_row = next(row for group in body["groups"] for row in group["holdings"] if row["name"] == "港股")
+    assert hk_row["display_minor"] == 9200_00
+    assert hk_row["amount_minor"] == 10000_00
+    assert hk_row["currency"] == "HKD"
+    assert hk_row["fx_missing"] is False
 
-    locked = client.put(
-        "/asset-profile",
+    missing = client.post(
+        "/asset-holdings",
         headers=headers,
-        json={"version": body["profile"]["version"], "currency": "USD"},
+        json={
+            "name": "日元",
+            "kind": "asset",
+            "category": "fx",
+            "currency": "JPY",
+            "amount_minor": 1000,
+            "reason": "建账",
+        },
     )
-    assert locked.status_code == 400
-    assert locked.json()["detail"] == "currency_has_holdings"
+    assert missing.status_code == 201, missing.text
+    again = client.get("/views/me/assets", headers=headers).json()
+    assert again["summary"]["fx_incomplete"] is True
+    assert "JPY" in again["summary"]["missing_currencies"]
+    jpy = next(row for group in again["groups"] for row in group["holdings"] if row["currency"] == "JPY")
+    assert jpy["display_minor"] is None
+    assert jpy["amount_minor"] == 1000
 
 
-def test_other_user_holding_is_hidden(client_and_user):
+def test_adjustment_records_reason_time_and_delta(client_and_user):
     client, headers, _user = client_and_user
     created = client.post(
         "/asset-holdings",
         headers=headers,
         json={
-            "name": "现金",
+            "name": "招商银行储蓄",
             "kind": "asset",
-            "category": "cash",
+            "category": "bank_deposit",
+            "currency": "CNY",
+            "amount_minor": 8000_00,
+            "reason": "建账",
+        },
+    )
+    assert created.status_code == 201, created.text
+    holding = created.json()
+    when = datetime.now(timezone.utc).isoformat()
+    adjusted = client.post(
+        f"/asset-holdings/{holding['id']}/adjustments",
+        headers=headers,
+        json={
+            "version": holding["version"],
+            "amount_minor": 5000_00,
+            "reason": "取出生活费",
+            "recorded_at": when,
+        },
+    )
+    assert adjusted.status_code == 200, adjusted.text
+    assert adjusted.json()["amount_minor"] == 5000_00
+    assert adjusted.json()["latest_reason"] == "取出生活费"
+
+    detail = client.get(f"/asset-holdings/{holding['id']}", headers=headers)
+    assert detail.status_code == 200, detail.text
+    history = detail.json()["adjustments"]
+    assert history[0]["reason"] == "取出生活费"
+    assert history[0]["delta_minor"] == -3000_00
+    assert history[0]["amount_minor"] == 5000_00
+    assert history[1]["reason"] == "建账"
+    assert history[1]["delta_minor"] == 8000_00
+
+
+def test_other_user_cannot_see_a_holding(client_and_user):
+    client, headers, _user = client_and_user
+    created = client.post(
+        "/asset-holdings",
+        headers=headers,
+        json={
+            "name": "微信钱包",
+            "kind": "asset",
+            "category": "wallet",
+            "currency": "CNY",
             "amount_minor": 100,
-            "as_of": utc_today().isoformat(),
+            "reason": "建账",
         },
     )
     holding_id = created.json()["id"]
-
     db = next(get_db())
     other = _make_user(db, secrets.token_hex(4))
     other_headers = _headers(
         create_access_token(subject=str(other.id), audience=settings.jwt_audience)
     )
     try:
-        hidden = client.patch(
-            f"/asset-holdings/{holding_id}",
-            headers=other_headers,
-            json={"version": 1, "amount_minor": 1},
-        )
+        hidden = client.get(f"/asset-holdings/{holding_id}", headers=other_headers)
         assert hidden.status_code == 404
-        assert hidden.json()["detail"] == "not_found"
     finally:
         _cleanup(db, other)
         db.close()
 
 
-def test_version_conflict_confirm_and_archive(client_and_user):
+def test_expense_reserve_is_separate_from_monthly_cover(client_and_user):
     client, headers, _user = client_and_user
-    created = client.post(
+    for name, group, amount in (
+        ("住房", "fixed", 3000_00),
+        ("吃饭", "daily", 1500_00),
+        ("应急", "emergency", 10000_00),
+    ):
+        created = client.post(
+            "/asset-expenses",
+            headers=headers,
+            json={
+                "name": name,
+                "group_kind": group,
+                "currency": "CNY",
+                "amount_minor": amount,
+                "reason": "建账",
+            },
+        )
+        assert created.status_code == 201, created.text
+    client.post(
         "/asset-holdings",
         headers=headers,
         json={
-            "name": "基金",
+            "name": "建行储蓄",
             "kind": "asset",
-            "category": "investment",
-            "amount_minor": 5000,
-            "as_of": "2026-01-01",
+            "category": "bank_deposit",
+            "currency": "CNY",
+            "amount_minor": 9000_00,
+            "reason": "建账",
         },
     )
-    assert created.status_code == 201, created.text
-    holding = created.json()
-    stale = client.patch(
-        f"/asset-holdings/{holding['id']}",
-        headers=headers,
-        json={"version": holding["version"] + 1, "amount_minor": 1},
-    )
-    assert stale.status_code == 409
-    assert stale.json()["detail"] == "version_conflict"
-
-    confirmed = client.post(
-        f"/asset-holdings/{holding['id']}/confirm",
-        headers=headers,
-        json={"version": holding["version"], "as_of": utc_today().isoformat()},
-    )
-    assert confirmed.status_code == 200, confirmed.text
-    assert confirmed.json()["as_of"] == utc_today().isoformat()
-    assert confirmed.json()["needs_review"] is False
-
-    archived = client.post(
-        f"/asset-holdings/{holding['id']}/archive",
-        headers=headers,
-        json={"version": confirmed.json()["version"]},
-    )
-    assert archived.status_code == 204
-    view = client.get("/views/me/assets", headers=headers)
-    assert view.json()["summary"]["holding_count"] == 0
+    view = client.get("/views/me/assets", headers=headers).json()
+    assert view["summary"]["monthly_running_minor"] == 4500_00
+    assert view["summary"]["emergency_reserve_minor"] == 10000_00
+    assert view["summary"]["coverage_months"] == 2.0
+    groups = {row["group_kind"]: row["display_minor"] for row in view["expense_groups"]}
+    assert groups["fixed"] == 3000_00
+    assert groups["emergency"] == 10000_00
 
 
-def test_future_stocktake_date_is_rejected(client_and_user):
+def test_future_adjustment_is_rejected(client_and_user):
     client, headers, _user = client_and_user
-    future = (utc_today() + timedelta(days=3)).isoformat()
+    future = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
     created = client.post(
         "/asset-holdings",
         headers=headers,
         json={
             "name": "现金",
             "kind": "asset",
-            "category": "cash",
+            "category": "wallet",
+            "currency": "CNY",
             "amount_minor": 1,
-            "as_of": future,
+            "reason": "建账",
+            "recorded_at": future,
         },
     )
     assert created.status_code == 400
-    assert created.json()["detail"] == "as_of_in_future"
-
-
-def test_profile_sets_emergency_months(client_and_user):
-    client, headers, _user = client_and_user
-    saved = client.put(
-        "/asset-profile",
-        headers=headers,
-        json={"version": 0, "monthly_essential_minor": 10000_00},
-    )
-    assert saved.status_code == 200, saved.text
-    assert saved.json()["version"] == 1
-    created = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "活期",
-            "kind": "asset",
-            "category": "cash",
-            "amount_minor": 30000_00,
-            "as_of": utc_today().isoformat(),
-        },
-    )
-    assert created.status_code == 201, created.text
-    view = client.get("/views/me/assets", headers=headers)
-    summary = view.json()["summary"]
-    assert summary["emergency_months"] == 3.0
-    assert summary["emergency_band"] == "adequate"
-    assert summary["focus"] == "balanced"
+    assert created.json()["detail"] == "recorded_at_in_future"

@@ -6725,6 +6725,63 @@
       }
     },
     "/asset-holdings/{holding_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset Holding",
+        "operationId": "get_asset_holding_asset_holdings__holding_id__get",
+        "parameters": [
+          {
+            "name": "holding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Holding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetHoldingDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "assets"
@@ -6793,13 +6850,13 @@
         }
       }
     },
-    "/asset-holdings/{holding_id}/confirm": {
+    "/asset-holdings/{holding_id}/adjustments": {
       "post": {
         "tags": [
           "assets"
         ],
-        "summary": "Post Confirm Asset Holding",
-        "operationId": "post_confirm_asset_holding_asset_holdings__holding_id__confirm_post",
+        "summary": "Post Asset Adjustment",
+        "operationId": "post_asset_adjustment_asset_holdings__holding_id__adjustments_post",
         "parameters": [
           {
             "name": "holding_id",
@@ -6833,7 +6890,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AssetHoldingConfirm"
+                "$ref": "#/components/schemas/AssetAdjustmentCreate"
               }
             }
           }
@@ -7016,6 +7073,381 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-fx-rates": {
+      "put": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Put Asset Fx Rate",
+        "operationId": "put_asset_fx_rate_asset_fx_rates_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetFxRateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetFxRateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Expense",
+        "operationId": "post_asset_expense_asset_expenses_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses/{item_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset Expense",
+        "operationId": "get_asset_expense_asset_expenses__item_id__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Patch Asset Expense",
+        "operationId": "patch_asset_expense_asset_expenses__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses/{item_id}/adjustments": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Expense Adjustment",
+        "operationId": "post_asset_expense_adjustment_asset_expenses__item_id__adjustments_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseAdjust"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetExpenseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-expenses/{item_id}/archive": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Archive Asset Expense",
+        "operationId": "post_archive_asset_expense_asset_expenses__item_id__archive_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetExpenseArchive"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -10253,37 +10685,480 @@
         ],
         "title": "AgentToolCallAuditIn"
       },
-      "AllocationSliceOut": {
+      "AssetAdjustmentCreate": {
         "properties": {
-          "kind": {
-            "type": "string",
-            "enum": [
-              "asset",
-              "liability"
-            ],
-            "title": "Kind"
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
           },
-          "category": {
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
             "type": "string",
-            "title": "Category"
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetAdjustmentCreate"
+      },
+      "AssetAdjustmentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
           },
           "amount_minor": {
             "type": "integer",
             "title": "Amount Minor"
           },
-          "share": {
-            "type": "number",
-            "title": "Share"
+          "delta_minor": {
+            "type": "integer",
+            "title": "Delta Minor"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
           }
         },
         "type": "object",
         "required": [
-          "kind",
-          "category",
+          "id",
           "amount_minor",
-          "share"
+          "delta_minor",
+          "reason",
+          "recorded_at"
         ],
-        "title": "AllocationSliceOut"
+        "title": "AssetAdjustmentOut"
+      },
+      "AssetExpenseAdjust": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetExpenseAdjust"
+      },
+      "AssetExpenseArchive": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "reason"
+        ],
+        "title": "AssetExpenseArchive"
+      },
+      "AssetExpenseCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "group_kind",
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetExpenseCreate"
+      },
+      "AssetExpenseDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "adjustments": {
+            "items": {
+              "$ref": "#/components/schemas/AssetAdjustmentOut"
+            },
+            "type": "array",
+            "title": "Adjustments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group_kind",
+          "name",
+          "currency",
+          "amount_minor",
+          "adjusted_at",
+          "version"
+        ],
+        "title": "AssetExpenseDetailOut"
+      },
+      "AssetExpenseOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group_kind",
+          "name",
+          "currency",
+          "amount_minor",
+          "adjusted_at",
+          "version"
+        ],
+        "title": "AssetExpenseOut"
+      },
+      "AssetExpenseUpdate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "AssetExpenseUpdate"
+      },
+      "AssetExpenseViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "display_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Minor"
+          },
+          "fx_missing": {
+            "type": "boolean",
+            "title": "Fx Missing",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "group_kind",
+          "name",
+          "currency",
+          "amount_minor",
+          "adjusted_at",
+          "version"
+        ],
+        "title": "AssetExpenseViewOut"
+      },
+      "AssetFxRateOut": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "cny_per_unit": {
+            "type": "string",
+            "title": "Cny Per Unit"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "cny_per_unit",
+          "updated_at"
+        ],
+        "title": "AssetFxRateOut"
+      },
+      "AssetFxRateUpdate": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "cny_per_unit": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,12}|(?=[\\d.]{1,21}0*$)\\d{0,12}\\.\\d{0,8}0*$)"
+              }
+            ],
+            "title": "Cny Per Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "cny_per_unit"
+        ],
+        "title": "AssetFxRateUpdate"
       },
       "AssetHoldingArchive": {
         "properties": {
@@ -10291,33 +11166,32 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Version"
-          }
-        },
-        "type": "object",
-        "required": [
-          "version"
-        ],
-        "title": "AssetHoldingArchive"
-      },
-      "AssetHoldingConfirm": {
-        "properties": {
-          "version": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Version"
           },
-          "as_of": {
+          "reason": {
             "type": "string",
-            "format": "date",
-            "title": "As Of"
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
           }
         },
         "type": "object",
         "required": [
           "version",
-          "as_of"
+          "reason"
         ],
-        "title": "AssetHoldingConfirm"
+        "title": "AssetHoldingArchive"
       },
       "AssetHoldingCreate": {
         "properties": {
@@ -10338,6 +11212,10 @@
           "category": {
             "type": "string",
             "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
           },
           "amount_minor": {
             "type": "integer",
@@ -10369,15 +11247,28 @@
             ],
             "title": "Note"
           },
-          "as_of": {
-            "type": "string",
-            "format": "date",
-            "title": "As Of"
-          },
           "include_in_net_worth": {
             "type": "boolean",
             "title": "Include In Net Worth",
             "default": true
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
           }
         },
         "type": "object",
@@ -10385,12 +11276,13 @@
           "name",
           "kind",
           "category",
+          "currency",
           "amount_minor",
-          "as_of"
+          "reason"
         ],
         "title": "AssetHoldingCreate"
       },
-      "AssetHoldingOut": {
+      "AssetHoldingDetailOut": {
         "properties": {
           "id": {
             "type": "string",
@@ -10411,6 +11303,10 @@
           "category": {
             "type": "string",
             "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
           },
           "amount_minor": {
             "type": "integer",
@@ -10438,10 +11334,10 @@
             ],
             "title": "Note"
           },
-          "as_of": {
+          "adjusted_at": {
             "type": "string",
-            "format": "date",
-            "title": "As Of"
+            "format": "date-time",
+            "title": "Adjusted At"
           },
           "include_in_net_worth": {
             "type": "boolean",
@@ -10454,6 +11350,24 @@
           "version": {
             "type": "integer",
             "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "adjustments": {
+            "items": {
+              "$ref": "#/components/schemas/AssetAdjustmentOut"
+            },
+            "type": "array",
+            "title": "Adjustments"
           }
         },
         "type": "object",
@@ -10462,10 +11376,109 @@
           "name",
           "kind",
           "category",
+          "currency",
           "amount_minor",
           "institution",
           "note",
-          "as_of",
+          "adjusted_at",
+          "include_in_net_worth",
+          "needs_review",
+          "version"
+        ],
+        "title": "AssetHoldingDetailOut"
+      },
+      "AssetHoldingOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "category",
+          "currency",
+          "amount_minor",
+          "institution",
+          "note",
+          "adjusted_at",
           "include_in_net_worth",
           "needs_review",
           "version"
@@ -10517,19 +11530,6 @@
             ],
             "title": "Category"
           },
-          "amount_minor": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 9007199254740991.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Amount Minor"
-          },
           "institution": {
             "anyOf": [
               {
@@ -10554,18 +11554,6 @@
             ],
             "title": "Note"
           },
-          "as_of": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "As Of"
-          },
           "include_in_net_worth": {
             "anyOf": [
               {
@@ -10584,13 +11572,87 @@
         ],
         "title": "AssetHoldingUpdate"
       },
-      "AssetProfileOut": {
+      "AssetHoldingViewOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
           "currency": {
             "type": "string",
             "title": "Currency"
           },
-          "monthly_essential_minor": {
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth"
+          },
+          "needs_review": {
+            "type": "boolean",
+            "title": "Needs Review"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "latest_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Reason"
+          },
+          "display_minor": {
             "anyOf": [
               {
                 "type": "integer"
@@ -10599,23 +11661,46 @@
                 "type": "null"
               }
             ],
-            "title": "Monthly Essential Minor"
+            "title": "Display Minor"
           },
-          "version": {
-            "type": "integer",
-            "title": "Version"
-          },
-          "currency_locked": {
+          "fx_missing": {
             "type": "boolean",
-            "title": "Currency Locked"
+            "title": "Fx Missing",
+            "default": false
           }
         },
         "type": "object",
         "required": [
+          "id",
+          "name",
+          "kind",
+          "category",
           "currency",
-          "monthly_essential_minor",
-          "version",
-          "currency_locked"
+          "amount_minor",
+          "institution",
+          "note",
+          "adjusted_at",
+          "include_in_net_worth",
+          "needs_review",
+          "version"
+        ],
+        "title": "AssetHoldingViewOut"
+      },
+      "AssetProfileOut": {
+        "properties": {
+          "display_currency": {
+            "type": "string",
+            "title": "Display Currency"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_currency",
+          "version"
         ],
         "title": "AssetProfileOut"
       },
@@ -10626,7 +11711,7 @@
             "minimum": 0.0,
             "title": "Version"
           },
-          "currency": {
+          "display_currency": {
             "anyOf": [
               {
                 "type": "string"
@@ -10635,20 +11720,7 @@
                 "type": "null"
               }
             ],
-            "title": "Currency"
-          },
-          "monthly_essential_minor": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 9007199254740991.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Monthly Essential Minor"
+            "title": "Display Currency"
           }
         },
         "type": "object",
@@ -10659,6 +11731,10 @@
       },
       "AssetsSummaryOut": {
         "properties": {
+          "display_currency": {
+            "type": "string",
+            "title": "Display Currency"
+          },
           "total_assets_minor": {
             "type": "integer",
             "title": "Total Assets Minor"
@@ -10671,23 +11747,39 @@
             "type": "integer",
             "title": "Net Worth Minor"
           },
-          "liquid_net_worth_minor": {
+          "spendable_net_worth_minor": {
             "type": "integer",
-            "title": "Liquid Net Worth Minor"
+            "title": "Spendable Net Worth Minor"
           },
-          "cash_minor": {
+          "emergency_cash_minor": {
             "type": "integer",
-            "title": "Cash Minor"
+            "title": "Emergency Cash Minor"
+          },
+          "credit_minor": {
+            "type": "integer",
+            "title": "Credit Minor"
           },
           "investment_minor": {
             "type": "integer",
             "title": "Investment Minor"
           },
-          "high_interest_debt_minor": {
+          "restricted_minor": {
             "type": "integer",
-            "title": "High Interest Debt Minor"
+            "title": "Restricted Minor"
           },
-          "debt_ratio": {
+          "monthly_running_minor": {
+            "type": "integer",
+            "title": "Monthly Running Minor"
+          },
+          "emergency_reserve_minor": {
+            "type": "integer",
+            "title": "Emergency Reserve Minor"
+          },
+          "spending_total_minor": {
+            "type": "integer",
+            "title": "Spending Total Minor"
+          },
+          "coverage_months": {
             "anyOf": [
               {
                 "type": "number"
@@ -10696,69 +11788,64 @@
                 "type": "null"
               }
             ],
-            "title": "Debt Ratio"
+            "title": "Coverage Months"
           },
-          "emergency_months": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Emergency Months"
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
           },
-          "emergency_band": {
-            "type": "string",
-            "title": "Emergency Band"
-          },
-          "debt_band": {
-            "type": "string",
-            "title": "Debt Band"
-          },
-          "needs_review_count": {
-            "type": "integer",
-            "title": "Needs Review Count"
-          },
-          "focus": {
-            "type": "string",
-            "title": "Focus"
+          "missing_currencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Currencies"
           },
           "holding_count": {
             "type": "integer",
             "title": "Holding Count"
           },
-          "latest_as_of": {
+          "needs_review_count": {
+            "type": "integer",
+            "title": "Needs Review Count"
+          },
+          "latest_adjusted_at": {
             "anyOf": [
               {
                 "type": "string",
-                "format": "date"
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Latest As Of"
+            "title": "Latest Adjusted At"
+          },
+          "focus": {
+            "type": "string",
+            "title": "Focus"
           }
         },
         "type": "object",
         "required": [
+          "display_currency",
           "total_assets_minor",
           "total_liabilities_minor",
           "net_worth_minor",
-          "liquid_net_worth_minor",
-          "cash_minor",
+          "spendable_net_worth_minor",
+          "emergency_cash_minor",
+          "credit_minor",
           "investment_minor",
-          "high_interest_debt_minor",
-          "debt_ratio",
-          "emergency_months",
-          "emergency_band",
-          "debt_band",
-          "needs_review_count",
-          "focus",
+          "restricted_minor",
+          "monthly_running_minor",
+          "emergency_reserve_minor",
+          "spending_total_minor",
+          "coverage_months",
+          "fx_incomplete",
           "holding_count",
-          "latest_as_of"
+          "needs_review_count",
+          "latest_adjusted_at",
+          "focus"
         ],
         "title": "AssetsSummaryOut"
       },
@@ -11133,6 +12220,42 @@
           "item_title"
         ],
         "title": "DiscussionViewItemOut"
+      },
+      "ExpenseGroupOut": {
+        "properties": {
+          "group_kind": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "daily",
+              "emergency",
+              "other"
+            ],
+            "title": "Group Kind"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssetExpenseViewOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_kind",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "ExpenseGroupOut"
       },
       "GeoPlaceOut": {
         "properties": {
@@ -14750,6 +15873,45 @@
         ],
         "title": "HealthZoneShareOut"
       },
+      "HoldingGroupOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "liability"
+            ],
+            "title": "Kind"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "holdings": {
+            "items": {
+              "$ref": "#/components/schemas/AssetHoldingViewOut"
+            },
+            "type": "array",
+            "title": "Holdings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "category",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "HoldingGroupOut"
+      },
       "ItemCreate": {
         "properties": {
           "title": {
@@ -16630,22 +17792,29 @@
           "profile": {
             "$ref": "#/components/schemas/AssetProfileOut"
           },
+          "rates": {
+            "items": {
+              "$ref": "#/components/schemas/AssetFxRateOut"
+            },
+            "type": "array",
+            "title": "Rates"
+          },
           "summary": {
             "$ref": "#/components/schemas/AssetsSummaryOut"
           },
-          "holdings": {
+          "groups": {
             "items": {
-              "$ref": "#/components/schemas/AssetHoldingOut"
+              "$ref": "#/components/schemas/HoldingGroupOut"
             },
             "type": "array",
-            "title": "Holdings"
+            "title": "Groups"
           },
-          "allocation": {
+          "expense_groups": {
             "items": {
-              "$ref": "#/components/schemas/AllocationSliceOut"
+              "$ref": "#/components/schemas/ExpenseGroupOut"
             },
             "type": "array",
-            "title": "Allocation"
+            "title": "Expense Groups"
           },
           "net_worth_series": {
             "items": {

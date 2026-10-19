@@ -2,7 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.agent_tokens import router as agent_tokens_router
+from app.routes.assets import expense_router as asset_expenses_router
 from app.routes.assets import profile_router as asset_profile_router
+from app.routes.assets import rate_router as asset_fx_rates_router
 from app.routes.assets import router as asset_holdings_router
 from app.routes.auth import router as auth_router
 from app.routes.comments import router as comments_router
@@ -68,6 +70,8 @@ app.include_router(sticky_notes_router)
 app.include_router(health_router)
 app.include_router(asset_holdings_router)
 app.include_router(asset_profile_router)
+app.include_router(asset_fx_rates_router)
+app.include_router(asset_expenses_router)
 app.include_router(dev_db_tables_router)
 app.include_router(views_schedule_router)
 app.include_router(views_workspace_router)
