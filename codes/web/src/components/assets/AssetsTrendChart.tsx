@@ -8,11 +8,15 @@ type AssetsTrendChartProps = {
   formatMoney: (amountMinor: number) => string;
 };
 
+export function hasDailyMovement(points: DailyBalancePoint[]): boolean {
+  return points.some(
+    (point) => point.assets_minor !== 0 || point.liabilities_minor !== 0 || point.net_worth_minor !== 0,
+  );
+}
+
 export function AssetsTrendChart({ points, formatMoney }: AssetsTrendChartProps) {
   const t = useTranslations("assets");
-  if (points.length < 2) {
-    return <p className="text-small text-text-secondary">{t("chart.empty")}</p>;
-  }
+  if (!hasDailyMovement(points)) return null;
   const width = 640;
   const height = 240;
   const pad = { top: 16, right: 16, bottom: 28, left: 8 };
