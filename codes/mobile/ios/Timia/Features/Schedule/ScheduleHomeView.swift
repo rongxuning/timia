@@ -675,7 +675,10 @@ struct ScheduleHomeView: View {
         if newRange == .day {
             revealDateOnStrip(targetDate)
         } else if newRange == .week {
-            dateStripStart = dateStripStartForWeek(containing: targetDate)
+            dateStripStart = dateStripStartForWeek(
+                containing: targetDate,
+                calendar: TimiaWeekCalendar.calendar()
+            )
         }
     }
 
@@ -739,9 +742,19 @@ struct ScheduleHomeView: View {
             return
         }
 
-        let nextDate = dateByPreservingWeekday(from: selectedDate, intoWeekContaining: date)
-        dateStripStart = dateStripStartForWeek(containing: nextDate)
-        withAnimation(.snappy(duration: 0.32)) {
+        let calendar = TimiaWeekCalendar.calendar()
+        let nextDate = dateByPreservingWeekday(
+            from: selectedDate,
+            intoWeekContaining: date,
+            calendar: calendar
+        )
+        // Don't animate this write. The week pager and header each already move
+        // one page; animating `selectedDate` makes `scrollPosition` apply that
+        // same week a second time.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dateStripStart = dateStripStartForWeek(containing: nextDate, calendar: calendar)
             selectedDate = nextDate
             if let cached = cachedCalendar(for: nextDate, range: .week) {
                 calendarData = cached
@@ -1518,9 +1531,10 @@ private struct DayScheduleView: View {
         }
     }
 
-    private func selectPage(_ dayKey: String) {
-        guard let date = ScheduleFormat.date(dayKey) else { return }
+    private func selectPage(_ dayKey: String) -> String {
+        guard let date = ScheduleFormat.date(dayKey) else { return dayKey }
         onVisibleDate(date)
+        return dayKey
     }
 
     private func pinHourTargetId(date: Date, prefix: String) -> String {
@@ -1603,7 +1617,12 @@ private struct WeekScheduleView: View {
     @Binding var idleCollapseEnabled: Bool
 
     @State private var interaction: TimelineInteractionState
-    @State private var pageOrigin: Date
+    @State private var pagingAnchor: WeekPagingAnchor
+    @State private var pagingReanchorToken = 0
+    @State private var pageCorrectionKey: String?
+    @State private var pageCorrectionToken = 0
+    @State private var suppressPageSelection = false
+    @State private var suppressToken = 0
     @State private var collapsePinToken = 0
 
     init(
@@ -1617,7 +1636,6 @@ private struct WeekScheduleView: View {
         onReschedule: @escaping (ScheduleTask, Date, Date) -> Void,
         idleCollapseEnabled: Binding<Bool>
     ) {
-        let weekStart = ScheduleFormat.week(containing: selectedDate).first ?? selectedDate
         self.selectedDate = selectedDate
         self.weeksByAnchor = weeksByAnchor
         self.stripStart = stripStart
@@ -1628,7 +1646,12 @@ private struct WeekScheduleView: View {
         self.onReschedule = onReschedule
         _idleCollapseEnabled = idleCollapseEnabled
         _interaction = State(initialValue: TimelineInteractionState(idleCollapseEnabled: idleCollapseEnabled.wrappedValue))
-        _pageOrigin = State(initialValue: weekStart)
+        _pagingAnchor = State(
+            initialValue: WeekPagingAnchor(
+                weekContaining: selectedDate,
+                calendar: TimiaWeekCalendar.calendar()
+            )
+        )
     }
 
     private var visibleWeekStart: Date {
@@ -1651,7 +1674,7 @@ private struct WeekScheduleView: View {
     }
 
     private var pageKeys: [String] {
-        timelinePageWeekKeys(origin: pageOrigin)
+        pagingAnchor.pageKeys(calendar: TimiaWeekCalendar.calendar())
     }
 
     var body: some View {
@@ -1674,7 +1697,12 @@ private struct WeekScheduleView: View {
                 onToggle: toggleIdleCollapse
             )
 
-            PagedTimelinePager(selectedKey: selectedWeekKey, pageKeys: pageKeys, onSelectKey: selectPage) { weekKey in
+            PagedTimelinePager(
+                selectedKey: selectedWeekKey,
+                pageKeys: pageKeys,
+                suppressSelection: suppressPageSelection,
+                onSelectKey: selectPage
+            ) { weekKey in
                 let weekStart = ScheduleFormat.date(weekKey) ?? visibleWeekStart
                 HourPinnedTimelinePage(
                     isSelected: weekKey == selectedWeekKey,
@@ -1703,13 +1731,17 @@ private struct WeekScheduleView: View {
             .onChange(of: idleCollapseEnabled) { _, newValue in
                 interaction.idleCollapseEnabled = newValue
             }
-            .onChange(of: selectedWeekKey) { _, _ in
-                recenterOriginIfNeeded()
+            .onChange(of: selectedWeekKey) { _, newKey in
+                if pageCorrectionKey != newKey {
+                    pageCorrectionKey = nil
+                }
+                schedulePagingReanchor(for: newKey)
             }
             .onChange(of: ScheduleFormat.weekKey(stripStart)) { _, newWeekKey in
                 guard let target = weekTimelineTarget(
                     stripStart: ScheduleFormat.date(newWeekKey) ?? stripStart,
-                    displayedDate: selectedDate
+                    displayedDate: selectedDate,
+                    calendar: TimiaWeekCalendar.calendar()
                 ) else {
                     return
                 }
@@ -1719,9 +1751,42 @@ private struct WeekScheduleView: View {
         }
     }
 
-    private func selectPage(_ weekKey: String) {
-        guard let date = ScheduleFormat.date(weekKey) else { return }
-        onVisibleWeek(date)
+    private func selectPage(_ reportedKey: String) -> String {
+        if let pageCorrectionKey {
+            return pageCorrectionKey
+        }
+        let calendar = TimiaWeekCalendar.calendar()
+        switch classifyWeekPageReport(
+            currentKey: selectedWeekKey,
+            reportedKey: reportedKey,
+            calendar: calendar
+        ) {
+        case .unchanged:
+            return selectedWeekKey
+        case .step(let key):
+            // A two-week report collapses to one step. Hold that week as the
+            // base so the extra page cannot immediately become the next swipe.
+            if key != reportedKey {
+                armPageCorrection(key)
+            }
+            if let date = ScheduleFormat.date(key) {
+                onVisibleWeek(date)
+            }
+            return key
+        case .resetTo(let key):
+            return key
+        }
+    }
+
+    private func armPageCorrection(_ key: String) {
+        pageCorrectionKey = key
+        pageCorrectionToken += 1
+        let token = pageCorrectionToken
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard token == pageCorrectionToken, pageCorrectionKey == key else { return }
+            pageCorrectionKey = nil
+        }
     }
 
     private func pinHourTargetId(weekStart: Date, prefix: String) -> String {
@@ -1749,10 +1814,38 @@ private struct WeekScheduleView: View {
         }
     }
 
+    /// Wait until the paging animation finishes, then make the visible week the
+    /// origin of the next swipe. Shifting the page window mid-gesture applies
+    /// the same one-week delta a second time.
+    private func schedulePagingReanchor(for weekKey: String) {
+        pagingReanchorToken += 1
+        let token = pagingReanchorToken
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(380))
+            guard token == pagingReanchorToken, selectedWeekKey == weekKey else { return }
+            recenterOriginIfNeeded()
+        }
+    }
+
     private func recenterOriginIfNeeded() {
-        let weekStart = ScheduleFormat.week(containing: selectedDate).first ?? selectedDate
-        if CalendarInfiniteWindow.shouldRecenterWeekAnchor(from: pageOrigin, to: weekStart) {
-            pageOrigin = weekStart
+        let calendar = TimiaWeekCalendar.calendar()
+        var anchor = pagingAnchor
+        anchor.settle(on: selectedDate, calendar: calendar)
+        guard !calendar.isDate(anchor.origin, inSameDayAs: pagingAnchor.origin) else { return }
+        suppressToken += 1
+        let token = suppressToken
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            pagingAnchor = anchor
+            // The visible week is now the center page. Ignore the index shift
+            // the scroll view may report while it catches up to that id.
+            suppressPageSelection = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard token == suppressToken else { return }
+            suppressPageSelection = false
         }
     }
 }
@@ -1809,8 +1902,30 @@ private struct WeekTimelineSection: View {
 private struct PagedTimelinePager<Page: View>: View {
     let selectedKey: String
     let pageKeys: [String]
-    let onSelectKey: (String) -> Void
+    var suppressSelection = false
+    let onSelectKey: (String) -> String
     @ViewBuilder let page: (String) -> Page
+
+    /// Owned by the scroll view. Parent `selectedKey` must not be written back
+    /// into this binding during a finger swipe, or the same page delta is applied twice.
+    @State private var positionedKey: String?
+    @State private var ignorePagingUntil = Date.distantPast
+    @State private var didSettleInitialPosition = false
+
+    init(
+        selectedKey: String,
+        pageKeys: [String],
+        suppressSelection: Bool = false,
+        onSelectKey: @escaping (String) -> String,
+        @ViewBuilder page: @escaping (String) -> Page
+    ) {
+        self.selectedKey = selectedKey
+        self.pageKeys = pageKeys
+        self.suppressSelection = suppressSelection
+        self.onSelectKey = onSelectKey
+        self.page = page
+        _positionedKey = State(initialValue: selectedKey)
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -1826,20 +1941,53 @@ private struct PagedTimelinePager<Page: View>: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.paging)
-            .scrollPosition(id: selectedPageBinding)
+            .scrollPosition(id: $positionedKey)
             .scrollIndicators(.hidden)
+            .onAppear {
+                pin(selectedKey)
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(200))
+                    if positionedKey != selectedKey {
+                        pin(selectedKey)
+                    }
+                    didSettleInitialPosition = true
+                }
+            }
+            .onChange(of: positionedKey) { _, newKey in
+                guard let newKey else { return }
+                guard didSettleInitialPosition else {
+                    pin(selectedKey)
+                    return
+                }
+                if suppressSelection || Date() < ignorePagingUntil {
+                    pin(selectedKey)
+                    return
+                }
+                guard newKey != selectedKey else { return }
+                let resolved = onSelectKey(newKey)
+                guard resolved != newKey else { return }
+                pin(resolved)
+            }
+            .onChange(of: selectedKey) { _, newKey in
+                guard positionedKey != newKey else { return }
+                pin(newKey)
+            }
+            .onChange(of: pageKeys) { _, keys in
+                ignorePagingUntil = Date().addingTimeInterval(0.35)
+                guard keys.contains(selectedKey) else { return }
+                pin(selectedKey)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var selectedPageBinding: Binding<String?> {
-        Binding(
-            get: { selectedKey },
-            set: { newKey in
-                guard let newKey, newKey != selectedKey else { return }
-                onSelectKey(newKey)
-            }
-        )
+    private func pin(_ key: String) {
+        guard positionedKey != key else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            positionedKey = key
+        }
     }
 }
 
@@ -2106,10 +2254,16 @@ private struct PagedWeekHeader: View {
     let visibleStart: Date
     let onVisibleStartChange: (Date) -> Void
 
-    @State private var origin: Date
-    @State private var settledStart: Date
-    @State private var jumpTarget: Date?
-    @State private var ignoreStartReportingUntil = Date.distantPast
+    @State private var pagingAnchor: WeekPagingAnchor
+    @State private var positionedKey: String?
+    @State private var settledKey: String
+    @State private var externalTargetKey: String?
+    @State private var pageCorrectionKey: String?
+    @State private var pageCorrectionToken = 0
+    @State private var reanchorPinKey: String?
+    @State private var reanchorToken = 0
+
+    private var weekCalendar: Calendar { TimiaWeekCalendar.calendar() }
 
     init(
         selectedDate: Date,
@@ -2119,85 +2273,182 @@ private struct PagedWeekHeader: View {
         self.selectedDate = selectedDate
         self.visibleStart = visibleStart
         self.onVisibleStartChange = onVisibleStartChange
-        let start = dateStripStartForWeek(containing: visibleStart)
-        _origin = State(initialValue: start)
-        _settledStart = State(initialValue: start)
+        let calendar = TimiaWeekCalendar.calendar()
+        let anchor = WeekPagingAnchor(weekContaining: visibleStart, calendar: calendar)
+        let key = calendarDayKey(anchor.origin, calendar: calendar)
+        _pagingAnchor = State(initialValue: anchor)
+        _positionedKey = State(initialValue: key)
+        _settledKey = State(initialValue: key)
     }
 
     var body: some View {
-        // Timeline week paging updates `visibleStart` first. Pin that week to the
-        // leading edge and drop stale current-week reports so the header actually
-        // follows instead of staying on the previous Sunday–Saturday.
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(weekKeys, id: \.self) { key in
-                        WeekHeader(
-                            days: dateStripDays(starting: dateFromDayKey(key) ?? visibleStart),
-                            selectedDate: selectedDate
-                        )
-                            .containerRelativeFrame(.horizontal)
-                            .id(key)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: visibleWeekBinding, anchor: .leading)
-            .frame(height: 44)
-            .accessibilityIdentifier("calendar-week-date-strip")
-            .onChange(of: visibleStart) { oldStart, newStart in
-                let weekStart = dateStripStartForWeek(containing: newStart)
-                if dateStripShouldIgnoreScrollReporting(from: oldStart, to: weekStart) {
-                    ignoreStartReportingUntil = Date().addingTimeInterval(0.45)
-                    jumpTarget = weekStart
-                    proxy.scrollTo(ScheduleFormat.dayKey(weekStart), anchor: .leading)
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(150))
-                        guard Calendar.current.isDate(
-                            weekStart,
-                            inSameDayAs: dateStripStartForWeek(containing: visibleStart)
-                        ) else {
-                            return
-                        }
-                        settledStart = weekStart
-                        jumpTarget = nil
-                    }
-                } else {
-                    settledStart = weekStart
+        // Finger swipes update `positionedKey` only. A second scroll — the old
+        // 7-day `scrollTo` — pushed the strip one extra week and left the next
+        // gesture based on the week paging started from.
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 0) {
+                ForEach(weekKeys, id: \.self) { key in
+                    WeekHeader(
+                        days: dateStripDays(
+                            starting: dateFromDayKey(key, calendar: weekCalendar) ?? visibleStart,
+                            calendar: weekCalendar
+                        ),
+                        selectedDate: selectedDate
+                    )
+                        .containerRelativeFrame(.horizontal)
+                        .id(key)
                 }
             }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $positionedKey, anchor: .leading)
+        .frame(height: 44)
+        .accessibilityIdentifier("calendar-week-date-strip")
+        .onChange(of: positionedKey) { _, newKey in
+            handlePositionedKey(newKey)
+        }
+        .onChange(of: visibleWeekKey) { _, newKey in
+            followVisibleWeek(newKey)
         }
     }
 
     private var weekKeys: [String] {
-        (-52...52).map { ScheduleFormat.dayKey(dateByAddingDays($0 * 7, to: origin)) }
+        pagingAnchor.pageKeys(offsets: -52...52, calendar: weekCalendar)
     }
 
-    private var visibleWeekBinding: Binding<String?> {
-        Binding(
-            get: { ScheduleFormat.dayKey(dateStripStartForWeek(containing: visibleStart)) },
-            set: { newKey in
-                guard Date() >= ignoreStartReportingUntil,
-                      let newKey, let date = dateFromDayKey(newKey) else { return }
-                let weekStart = dateStripStartForWeek(containing: date)
-                let currentStart = dateStripStartForWeek(containing: visibleStart)
-                if Calendar.current.isDate(weekStart, inSameDayAs: currentStart) {
-                    settledStart = currentStart
-                    jumpTarget = nil
-                    return
-                }
-                guard dateStripShouldCommitScrolledStart(
-                    proposedStart: weekStart,
-                    visibleStart: currentStart,
-                    settledStart: settledStart,
-                    jumpTarget: jumpTarget
-                ) else { return }
-                jumpTarget = nil
-                settledStart = weekStart
-                onVisibleStartChange(weekStart)
-            }
+    private var visibleWeekKey: String {
+        calendarDayKey(
+            dateStripStartForWeek(containing: visibleStart, calendar: weekCalendar),
+            calendar: weekCalendar
         )
+    }
+
+    private func handlePositionedKey(_ newKey: String?) {
+        guard let newKey else { return }
+        if let reanchorPinKey {
+            if newKey != reanchorPinKey {
+                pin(reanchorPinKey)
+            }
+            return
+        }
+        if let pageCorrectionKey {
+            if newKey != pageCorrectionKey {
+                pin(pageCorrectionKey)
+            }
+            return
+        }
+        if let externalTargetKey {
+            if newKey != externalTargetKey {
+                pin(externalTargetKey)
+                return
+            }
+            settledKey = externalTargetKey
+            if let weekStart = dateFromDayKey(externalTargetKey, calendar: weekCalendar) {
+                scheduleReanchor(to: weekStart, key: externalTargetKey, clearExternalTarget: true)
+            }
+            return
+        }
+
+        switch classifyWeekPageReport(
+            currentKey: settledKey,
+            reportedKey: newKey,
+            calendar: weekCalendar
+        ) {
+        case .unchanged:
+            if let weekStart = dateFromDayKey(settledKey, calendar: weekCalendar) {
+                scheduleReanchor(to: weekStart, key: settledKey, clearExternalTarget: false)
+            }
+        case .step(let key):
+            if key != newKey {
+                armPageCorrection(key)
+                pin(key)
+            }
+            guard let weekStart = dateFromDayKey(key, calendar: weekCalendar) else { return }
+            settledKey = key
+            scheduleReanchor(to: weekStart, key: key, clearExternalTarget: false)
+            guard key != visibleWeekKey else { return }
+            onVisibleStartChange(weekStart)
+        case .resetTo(let key):
+            pin(key)
+        }
+    }
+
+    private func armPageCorrection(_ key: String) {
+        pageCorrectionKey = key
+        pageCorrectionToken += 1
+        let token = pageCorrectionToken
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard token == pageCorrectionToken, pageCorrectionKey == key else { return }
+            pageCorrectionKey = nil
+        }
+    }
+
+    private func pin(_ key: String) {
+        guard positionedKey != key else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            positionedKey = key
+        }
+    }
+
+    private func followVisibleWeek(_ newKey: String) {
+        let visible = dateFromDayKey(newKey, calendar: weekCalendar) ?? visibleStart
+        let positioned = positionedKey.flatMap { dateFromDayKey($0, calendar: weekCalendar) }
+        guard weekHeaderNeedsProgrammaticScroll(
+            visibleStart: visible,
+            positionedStart: positioned,
+            calendar: weekCalendar
+        ) else {
+            externalTargetKey = nil
+            if pageCorrectionKey != newKey {
+                pageCorrectionKey = nil
+            }
+            settledKey = newKey
+            if let weekStart = dateFromDayKey(newKey, calendar: weekCalendar) {
+                scheduleReanchor(to: weekStart, key: newKey, clearExternalTarget: false)
+            }
+            return
+        }
+        if pageCorrectionKey != newKey {
+            pageCorrectionKey = nil
+        }
+        externalTargetKey = newKey
+        settledKey = newKey
+        pin(newKey)
+    }
+
+    private func scheduleReanchor(to weekStart: Date, key: String, clearExternalTarget: Bool) {
+        reanchorToken += 1
+        let token = reanchorToken
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(380))
+            guard token == reanchorToken, positionedKey == key else { return }
+            if clearExternalTarget {
+                externalTargetKey = nil
+            }
+            reanchor(to: weekStart, key: key)
+        }
+    }
+
+    private func reanchor(to weekStart: Date, key: String) {
+        var anchor = pagingAnchor
+        anchor.settle(on: weekStart, calendar: weekCalendar)
+        guard !weekCalendar.isDate(anchor.origin, inSameDayAs: pagingAnchor.origin) else { return }
+        reanchorPinKey = key
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            pagingAnchor = anchor
+            positionedKey = key
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard reanchorPinKey == key else { return }
+            reanchorPinKey = nil
+        }
     }
 }
 
