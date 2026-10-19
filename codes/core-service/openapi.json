@@ -12509,6 +12509,35 @@
         ],
         "title": "CommentUpdate"
       },
+      "DailyBalancePointOut": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "assets_minor": {
+            "type": "integer",
+            "title": "Assets Minor"
+          },
+          "liabilities_minor": {
+            "type": "integer",
+            "title": "Liabilities Minor"
+          },
+          "net_worth_minor": {
+            "type": "integer",
+            "title": "Net Worth Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "assets_minor",
+          "liabilities_minor",
+          "net_worth_minor"
+        ],
+        "title": "DailyBalancePointOut"
+      },
       "DiscussionViewItemOut": {
         "properties": {
           "id": {
@@ -18196,6 +18225,21 @@
             },
             "type": "array",
             "title": "Net Worth Series"
+          },
+          "daily_series": {
+            "items": {
+              "$ref": "#/components/schemas/DailyBalancePointOut"
+            },
+            "type": "array",
+            "title": "Daily Series"
+          },
+          "change_ats": {
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": "array",
+            "title": "Change Ats"
           }
         },
         "type": "object",

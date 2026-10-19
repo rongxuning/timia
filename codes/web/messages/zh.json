@@ -255,7 +255,8 @@
       "spendableHint": "储蓄、钱包、股票、外汇、黄金，扣掉信用卡。不含公积金和医保。",
       "emergencyCashHint": "只有银行储蓄和支付钱包。",
       "monthlyHint": "固定、日常、其他。不含应急备用。",
-      "reserveHint": "应急这一档的合计，暂可按 10,000 记。"
+      "reserveHint": "应急这一档的合计，暂可按 10,000 记。",
+      "asOfNow": "截止当前"
     },
     "focus": {
       "start": "从一张储蓄卡或一个钱包开始。信用卡有几张就分开记。",
@@ -460,6 +461,26 @@
       "gold": "黄金",
       "fx": "外汇",
       "other": "其他账户"
+    },
+    "chart": {
+      "title": "每日变化",
+      "caption": "区间内每个自然日的余额，按当前汇率换算",
+      "empty": "这个区间还画不出曲线",
+      "aria": "净资产、总资产和总负债的每日曲线",
+      "netWorth": "净资产",
+      "assets": "总资产",
+      "liabilities": "总负债"
+    },
+    "calendar": {
+      "previousMonth": "上个月",
+      "nextMonth": "下个月",
+      "range": "起止日期",
+      "changed": "有调整",
+      "pickStart": "先点开始日期，再点结束日期",
+      "pickEnd": "再点一个结束日期",
+      "rangeTitle": "时间段",
+      "rangeHint": "区间曲线",
+      "days": "{count} 天"
     }
   }
 }

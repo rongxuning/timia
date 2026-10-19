@@ -13,6 +13,7 @@ from app.services.assets_math import (
     ExpenseLine,
     convert_minor,
     coverage_months,
+    daily_balance_series,
     net_worth_series,
     summarize_expenses,
     summarize_holdings,
@@ -106,6 +107,34 @@ def test_expenses_split_the_reserve_from_the_monthly_run_rate():
     assert summary.emergency_minor == 10_000_00
     assert summary.spending_total_minor == 15_500_00
     assert coverage_months(20_000_00, summary.monthly_running_minor) == 3.64
+
+
+def test_daily_series_carries_each_day_through_today():
+    lines = [
+        _line("cash", kind="asset", category="bank_deposit", currency="CNY", amount=200, display=200),
+        _line("card", kind="liability", category="credit_card", currency="CNY", amount=50, display=50),
+    ]
+    series = daily_balance_series(
+        lines,
+        [
+            BookAdjustment("cash", 100, "CNY", datetime(2026, 2, 1, tzinfo=timezone.utc)),
+            BookAdjustment("cash", 200, "CNY", datetime(2026, 2, 3, tzinfo=timezone.utc)),
+            BookAdjustment("card", 50, "CNY", datetime(2026, 2, 3, tzinfo=timezone.utc)),
+        ],
+        display_currency="CNY",
+        rates={},
+        today=date(2026, 2, 4),
+    )
+    by_day = {point.as_of: point for point in series}
+    assert by_day[date(2026, 2, 1)].assets_minor == 100
+    assert by_day[date(2026, 2, 1)].liabilities_minor == 0
+    assert by_day[date(2026, 2, 2)].net_worth_minor == 100
+    assert by_day[date(2026, 2, 3)].assets_minor == 200
+    assert by_day[date(2026, 2, 3)].liabilities_minor == 50
+    assert by_day[date(2026, 2, 3)].net_worth_minor == 150
+    assert by_day[date(2026, 2, 4)].net_worth_minor == 150
+    assert series[0].as_of == date(2026, 2, 1)
+    assert series[-1].as_of == date(2026, 2, 4)
 
 
 def test_series_replays_actual_balances_at_the_current_rate():

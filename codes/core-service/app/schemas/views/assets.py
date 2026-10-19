@@ -84,6 +84,13 @@ class NetWorthPointOut(BaseModel):
     net_worth_minor: int
 
 
+class DailyBalancePointOut(BaseModel):
+    as_of: date
+    assets_minor: int
+    liabilities_minor: int
+    net_worth_minor: int
+
+
 class MyAssetsViewOut(BaseModel):
     profile: AssetProfileOut
     rates: list[AssetFxRateOut] = Field(default_factory=list)
@@ -92,6 +99,8 @@ class MyAssetsViewOut(BaseModel):
     parties: list[PartyViewOut] = Field(default_factory=list)
     expense_groups: list[ExpenseGroupOut] = Field(default_factory=list)
     net_worth_series: list[NetWorthPointOut] = Field(default_factory=list)
+    daily_series: list[DailyBalancePointOut] = Field(default_factory=list)
+    change_ats: list[datetime] = Field(default_factory=list)
 
 
 # Resolve forward references used in the group models above.

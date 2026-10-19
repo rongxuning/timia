@@ -60,6 +60,7 @@ BASE_CURRENCY = "CNY"
 MAX_MINOR = 9_007_199_254_740_991
 REVIEW_AFTER_DAYS = 35
 SERIES_LIMIT = 48
+DAILY_SERIES_LIMIT = 1200
 RECORDED_AT_MIN = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
@@ -206,6 +207,14 @@ class ExpenseSummary:
 @dataclass(frozen=True)
 class NetWorthPoint:
     as_of: date
+    net_worth_minor: int
+
+
+@dataclass(frozen=True)
+class DailyBalancePoint:
+    as_of: date
+    assets_minor: int
+    liabilities_minor: int
     net_worth_minor: int
 
 
@@ -390,7 +399,91 @@ def net_worth_series(
     return series
 
 
+def daily_balance_series(
+    lines: list[BookLine],
+    adjustments: list[BookAdjustment],
+    *,
+    display_currency: str,
+    rates: dict[str, Decimal],
+    today: date,
+    limit: int = DAILY_SERIES_LIMIT,
+) -> list[DailyBalancePoint]:
+    """End-of-day assets, liabilities, and net worth, filled through today."""
+    included = {
+        line.line_id: line for line in lines if line.include_in_net_worth and not line.archived
+    }
+    by_holding: dict[str, list[BookAdjustment]] = {}
+    for point in adjustments:
+        if point.holding_id not in included:
+            continue
+        by_holding.setdefault(point.holding_id, []).append(point)
+    if not by_holding:
+        return [DailyBalancePoint(today, 0, 0, 0)]
+    for rows in by_holding.values():
+        rows.sort(key=lambda row: row.recorded_at)
+    event_days = sorted(
+        {_utc_date(point.recorded_at) for rows in by_holding.values() for point in rows}
+    )
+    cursor = {holding_id: 0 for holding_id in by_holding}
+    latest: dict[str, int] = {}
+    events: dict[date, tuple[int, int]] = {}
+    for day in event_days:
+        for holding_id, rows in by_holding.items():
+            index = cursor[holding_id]
+            while index < len(rows) and _utc_date(rows[index].recorded_at) <= day:
+                latest[holding_id] = rows[index].amount_minor
+                index += 1
+            cursor[holding_id] = index
+        assets, liabilities = _split_totals(latest, included, display_currency, rates)
+        events[day] = (assets, liabilities)
+    first = event_days[0]
+    end = today if today >= first else first
+    start = first
+    if (end - start).days + 1 > limit:
+        start = end - timedelta(days=limit - 1)
+    series: list[DailyBalancePoint] = []
+    carried = (0, 0)
+    day = start
+    while day <= end:
+        if day in events:
+            carried = events[day]
+        assets, liabilities = carried
+        series.append(
+            DailyBalancePoint(
+                as_of=day,
+                assets_minor=assets,
+                liabilities_minor=liabilities,
+                net_worth_minor=assets - liabilities,
+            )
+        )
+        day += timedelta(days=1)
+    return series
+
+
+def _split_totals(
+    latest: dict[str, int],
+    included: dict[str, BookLine],
+    display_currency: str,
+    rates: dict[str, Decimal],
+) -> tuple[int, int]:
+    assets = 0
+    liabilities = 0
+    for holding_id, amount in latest.items():
+        line = included[holding_id]
+        display = convert_minor(amount, line.currency, display_currency, rates)
+        if display is None:
+            continue
+        if line.kind == ASSET_KIND:
+            assets += display
+        else:
+            liabilities += display
+    return assets, liabilities
+
+
 def _utc_date(moment: datetime) -> date:
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).date()
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
     return moment.astimezone(timezone.utc).date()

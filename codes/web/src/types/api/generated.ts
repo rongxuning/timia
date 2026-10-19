@@ -2872,6 +2872,20 @@ export interface components {
              */
             completion_status: "pending" | "done";
         };
+        /** DailyBalancePointOut */
+        DailyBalancePointOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Assets Minor */
+            assets_minor: number;
+            /** Liabilities Minor */
+            liabilities_minor: number;
+            /** Net Worth Minor */
+            net_worth_minor: number;
+        };
         /** DiscussionViewItemOut */
         DiscussionViewItemOut: {
             /** Id */
@@ -4719,6 +4733,10 @@ export interface components {
             expense_groups?: components["schemas"]["ExpenseGroupOut"][];
             /** Net Worth Series */
             net_worth_series?: components["schemas"]["NetWorthPointOut"][];
+            /** Daily Series */
+            daily_series?: components["schemas"]["DailyBalancePointOut"][];
+            /** Change Ats */
+            change_ats?: string[];
         };
         /** MyHealthViewOut */
         MyHealthViewOut: {
