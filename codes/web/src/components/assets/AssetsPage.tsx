@@ -3,15 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { AssetTree } from "@/components/assets/AssetTree";
 import {
   ACCOUNT_STARTERS,
   BOOK_CURRENCIES,
   EXPENSE_STARTERS,
-  type AssetKind,
   type ExpenseGroup,
 } from "@/components/assets/categories";
 import {
-  categoryLabel,
   currencyLabel,
   errorText,
   focusText,
@@ -22,6 +21,7 @@ import {
 import { ExpenseDialog, type ExpenseDraft } from "@/components/assets/ExpenseDialog";
 import { fieldClass, labelClass } from "@/components/assets/fields";
 import { HoldingDialog, type HoldingDraft } from "@/components/assets/HoldingDialog";
+import { OpenBookDialog, draftFromStarter, type OpenDraft } from "@/components/assets/OpenBookDialog";
 import { PageMain } from "@/components/layout";
 import {
   adjustAssetExpense,
@@ -29,10 +29,10 @@ import {
   archiveAssetExpense,
   archiveAssetHolding,
   createAssetExpense,
-  createAssetHolding,
   fetchAssetExpense,
   fetchAssetHolding,
   fetchMyAssets,
+  openAssetBook,
   updateAssetHolding,
   updateAssetProfile,
   upsertFxRate,
@@ -44,19 +44,21 @@ import type { AssetAdjustment, AssetExpense, AssetHolding, MyAssetsView } from "
 
 const RATE_CURRENCIES = ["HKD", "JPY", "KRW", "USD", "EUR", "GBP"];
 
-function blankHolding(kind: AssetKind, category: string, currency: string, name: string): HoldingDraft {
+function blankOpen(recordedAt = nowLocalInput()): OpenDraft {
   return {
-    mode: "create",
-    name,
-    kind,
-    category,
-    currency,
+    partyName: "",
+    institutionKind: "bank",
+    accountName: "",
+    accountKind: "debit_card",
+    cardNumber: "",
+    assetAccountNo: "",
+    accountNumber: "",
+    balanceName: "",
+    category: "bank_deposit",
+    currency: "CNY",
     amount: "",
-    institution: "",
-    note: "",
-    includeInNetWorth: true,
     reason: "",
-    recordedAt: nowLocalInput(),
+    recordedAt,
   };
 }
 
@@ -82,6 +84,7 @@ export function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [holdingDraft, setHoldingDraft] = useState<HoldingDraft | null>(null);
+  const [openDraft, setOpenDraft] = useState<OpenDraft | null>(null);
   const [expenseDraft, setExpenseDraft] = useState<ExpenseDraft | null>(null);
   const [history, setHistory] = useState<AssetAdjustment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -194,30 +197,35 @@ export function AssetsPage() {
     }
   }
 
-  async function createHolding() {
-    if (!token || !holdingDraft) return;
-    const amount = parseAmountToMinor(holdingDraft.amount, holdingDraft.currency);
-    if (!holdingDraft.name.trim() || !holdingDraft.reason.trim() || amount == null) {
+  async function submitOpen() {
+    if (!token || !openDraft) return;
+    const amount = parseAmountToMinor(openDraft.amount, openDraft.currency);
+    if (!openDraft.balanceName.trim() || !openDraft.reason.trim() || amount == null) {
       setDialogError(t("form.amountInvalid"));
       return;
     }
     setSaving(true);
     setDialogError(null);
     try {
-      await createAssetHolding(token, {
-        name: holdingDraft.name.trim(),
-        kind: holdingDraft.kind,
-        category: holdingDraft.category,
-        currency: holdingDraft.currency,
+      await openAssetBook(token, {
+        party_id: openDraft.partyId,
+        party_name: openDraft.partyId ? undefined : openDraft.partyName.trim(),
+        institution_kind: openDraft.partyId || openDraft.accountId ? undefined : openDraft.institutionKind,
+        account_id: openDraft.accountId,
+        account_name: openDraft.accountId ? undefined : openDraft.accountName.trim(),
+        account_kind: openDraft.accountId ? undefined : openDraft.accountKind,
+        card_number: openDraft.cardNumber.trim() || null,
+        asset_account_no: openDraft.assetAccountNo.trim() || null,
+        account_number: openDraft.accountNumber.trim() || null,
+        balance_name: openDraft.balanceName.trim(),
+        category: openDraft.category,
+        currency: openDraft.currency,
         amount_minor: amount,
-        institution: holdingDraft.institution.trim() || null,
-        note: holdingDraft.note.trim() || null,
-        include_in_net_worth: holdingDraft.includeInNetWorth,
-        reason: holdingDraft.reason.trim(),
-        recorded_at: localInputToIso(holdingDraft.recordedAt),
+        reason: openDraft.reason.trim(),
+        recorded_at: localInputToIso(openDraft.recordedAt),
       });
       await reload();
-      setHoldingDraft(null);
+      setOpenDraft(null);
     } catch (err) {
       fail(err);
     } finally {
@@ -384,8 +392,6 @@ export function AssetsPage() {
   const summary = view?.summary;
   const display = summary?.display_currency ?? "CNY";
   const money = (amount: number) => formatMinor(amount, display, numberLocale);
-  const assetGroups = view?.groups.filter((group) => group.kind === "asset") ?? [];
-  const liabilityGroups = view?.groups.filter((group) => group.kind === "liability") ?? [];
 
   return (
     <PageMain>
@@ -400,7 +406,7 @@ export function AssetsPage() {
             className="rounded-xl bg-primary px-4 py-2 text-small font-medium text-on-primary hover:bg-primary-hover"
             onClick={() => {
               setDialogError(null);
-              setHoldingDraft(blankHolding("asset", "bank_deposit", "CNY", ""));
+              setOpenDraft(blankOpen());
             }}
           >
             {t("add")}
@@ -499,17 +505,40 @@ export function AssetsPage() {
           </section>
         ) : null}
 
-        <GroupList
-          title={t("allocation.assets")}
-          groups={assetGroups}
+        <AssetTree
+          parties={view?.parties ?? []}
           display={display}
           locale={numberLocale}
-          stampLocale={numberLocale}
           money={money}
-          onOpen={(holding) => void openHolding(holding)}
-          onAdd={() => {
+          onAdjust={(holding) => void openHolding(holding)}
+          onAddAccount={(party) => {
             setDialogError(null);
-            setHoldingDraft(blankHolding("asset", "bank_deposit", "CNY", ""));
+            const kind = party.institution_kind === "broker" ? "securities" : party.institution_kind === "payment" ? "wallet" : "debit_card";
+            const category = kind === "securities" ? "a_share" : kind === "wallet" ? "wallet" : "bank_deposit";
+            setOpenDraft({
+              ...blankOpen(),
+              partyId: party.id,
+              partyName: party.name,
+              institutionKind: party.institution_kind,
+              accountKind: kind,
+              category,
+              accountName: "",
+              balanceName: "",
+            });
+          }}
+          onAddCurrency={(party, accountId, accountKind) => {
+            setDialogError(null);
+            const category = accountKind === "credit_card" ? "credit_card" : accountKind === "securities" ? "hk_share" : accountKind === "wallet" ? "wallet" : accountKind === "fx" ? "fx" : "bank_deposit";
+            setOpenDraft({
+              ...blankOpen(),
+              partyId: party.id,
+              partyName: party.name,
+              accountId,
+              accountKind,
+              category,
+              currency: accountKind === "securities" ? "HKD" : "CNY",
+              balanceName: "",
+            });
           }}
         />
         <div className="flex flex-wrap gap-2">
@@ -520,28 +549,13 @@ export function AssetsPage() {
               className="rounded-xl border border-border-subtle px-3 py-1.5 text-caption text-text-primary hover:bg-surface-container-lowest"
               onClick={() => {
                 setDialogError(null);
-                setHoldingDraft(blankHolding(starter.kind, starter.category, starter.currency, starterLabel(t, starter.id)));
+                setOpenDraft(draftFromStarter(starter, starterLabel(t, starter.id), nowLocalInput()));
               }}
             >
               {starterLabel(t, starter.id)}
             </button>
           ))}
         </div>
-
-        <GroupList
-          title={t("allocation.liabilities")}
-          groups={liabilityGroups}
-          display={display}
-          locale={numberLocale}
-          stampLocale={numberLocale}
-          money={money}
-          onOpen={(holding) => void openHolding(holding)}
-          onAdd={() => {
-            setDialogError(null);
-            setHoldingDraft(blankHolding("liability", "credit_card", "CNY", ""));
-          }}
-          empty={t("columns.liabilitiesEmpty")}
-        />
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -627,6 +641,18 @@ export function AssetsPage() {
         </details>
       </div>
 
+      {openDraft ? (
+        <OpenBookDialog
+          draft={openDraft}
+          saving={saving}
+          error={dialogError}
+          onChange={setOpenDraft}
+          onClose={() => {
+            if (!saving) setOpenDraft(null);
+          }}
+          onSubmit={() => void submitOpen()}
+        />
+      ) : null}
       {holdingDraft ? (
         <HoldingDialog
           draft={holdingDraft}
@@ -641,7 +667,7 @@ export function AssetsPage() {
           onClose={() => {
             if (!saving) setHoldingDraft(null);
           }}
-          onCreate={() => void createHolding()}
+          onCreate={() => undefined}
           onAdjust={() => void adjustHolding()}
           onSaveDetails={() => void saveHoldingDetails()}
           onArchive={(reason) => void archiveHolding(reason)}
@@ -675,87 +701,5 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
       <p className="mt-2 text-xl tabular-nums text-text-primary">{value}</p>
       {hint ? <p className="mt-1 text-caption text-text-secondary">{hint}</p> : null}
     </article>
-  );
-}
-
-function GroupList({
-  title,
-  groups,
-  display,
-  locale,
-  stampLocale,
-  money,
-  onOpen,
-  onAdd,
-  empty,
-}: {
-  title: string;
-  groups: MyAssetsView["groups"];
-  display: string;
-  locale: string;
-  stampLocale: string;
-  money: (amount: number) => string;
-  onOpen: (holding: AssetHolding) => void;
-  onAdd: () => void;
-  empty?: string;
-}) {
-  const t = useTranslations("assets");
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-small font-medium text-text-primary">{title}</h2>
-        <button type="button" className="text-small text-primary" onClick={onAdd}>
-          {t("add")}
-        </button>
-      </div>
-      {groups.length === 0 && empty ? <p className="text-small text-text-secondary">{empty}</p> : null}
-      {groups.map((group) => (
-        <details key={group.category} open className="rounded-xl border border-border-subtle bg-white p-lg">
-          <summary className="flex cursor-pointer items-center justify-between gap-3 text-small font-medium text-text-primary">
-            <span>
-              {categoryLabel(t, group.category)}
-              {group.fx_incomplete ? (
-                <span className="ml-2 text-caption font-normal text-error">{t("holding.missingFx")}</span>
-              ) : null}
-            </span>
-            <span className="tabular-nums">{money(group.display_minor)}</span>
-          </summary>
-          <ul className="mt-2 divide-y divide-border-subtle">
-            {group.holdings.map((holding) => (
-              <li key={holding.id} className="flex items-start justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-small text-text-primary">{holding.name}</p>
-                  <p className="text-caption text-text-secondary">
-                    {holding.institution ? `${holding.institution} · ` : ""}
-                    {formatStamp(holding.adjusted_at, stampLocale)}
-                    {holding.latest_reason ? ` · ${holding.latest_reason}` : ""}
-                  </p>
-                  {holding.currency !== display || holding.fx_missing ? (
-                    <p className="text-caption text-text-secondary">
-                      {holding.fx_missing
-                        ? `${t("holding.missingFx")} · ${formatMinor(holding.amount_minor, holding.currency, locale)}`
-                        : t("holding.actual", {
-                            amount: formatMinor(holding.amount_minor, holding.currency, locale),
-                          })}
-                    </p>
-                  ) : null}
-                  {!holding.include_in_net_worth ? (
-                    <p className="text-caption text-text-secondary">{t("holding.excluded")}</p>
-                  ) : null}
-                </div>
-                <div className="text-right">
-                  <p className="text-small tabular-nums text-text-primary">
-                    {holding.display_minor == null ? "—" : money(holding.display_minor)}
-                  </p>
-                  <button type="button" className="text-caption text-primary" onClick={() => onOpen(holding)}>
-                    {t("holding.adjust")}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ))}
-    </section>
   );
 }

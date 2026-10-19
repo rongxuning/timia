@@ -105,36 +105,9 @@ def upsert_rate(db: Session, user: User, payload: AssetFxRateUpdate) -> AssetFxR
 
 
 def create_holding(db: Session, user: User, payload: AssetHoldingCreate) -> AssetHoldingOut:
-    moment = _moment(payload.recorded_at)
-    _ensure_profile(db, user.id)
-    holding = AssetHolding(
-        owner_user_id=user.id,
-        name=payload.name,
-        kind=payload.kind,
-        category=payload.category,
-        currency=payload.currency,
-        amount_minor=payload.amount_minor,
-        institution=payload.institution,
-        note=payload.note,
-        adjusted_at=moment,
-        include_in_net_worth=payload.include_in_net_worth,
-        version=1,
-    )
-    db.add(holding)
-    db.flush()
-    db.add(
-        AssetAdjustment(
-            holding_id=holding.id,
-            owner_user_id=user.id,
-            amount_minor=payload.amount_minor,
-            delta_minor=payload.amount_minor,
-            reason=payload.reason,
-            recorded_at=moment,
-        )
-    )
-    db.commit()
-    db.refresh(holding)
-    return _holding_out(holding, payload.reason, utcnow().date())
+    from app.services.asset_book import add_balance
+
+    return add_balance(db, user, payload)
 
 
 def update_holding(
@@ -432,6 +405,8 @@ def _conflict() -> None:
 def _holding_out(row: AssetHolding, reason: str | None, today) -> AssetHoldingOut:
     return AssetHoldingOut(
         id=str(row.id),
+        code=row.code,
+        account_id=str(row.account_id),
         name=row.name,
         kind=row.kind,  # type: ignore[arg-type]
         category=row.category,

@@ -7146,6 +7146,65 @@
         }
       }
     },
+    "/asset-book/open": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Open Asset Book",
+        "operationId": "post_open_asset_book_asset_book_open_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetBookOpen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetBookOpenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/asset-expenses": {
       "post": {
         "tags": [
@@ -10380,6 +10439,89 @@
   },
   "components": {
     "schemas": {
+      "AccountViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "party_id": {
+            "type": "string",
+            "title": "Party Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "account_kind": {
+            "type": "string",
+            "title": "Account Kind"
+          },
+          "card_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Number"
+          },
+          "asset_account_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Account No"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "balances": {
+            "items": {
+              "$ref": "#/components/schemas/AssetHoldingViewOut"
+            },
+            "type": "array",
+            "title": "Balances"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "party_id",
+          "name",
+          "account_kind",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "AccountViewOut"
+      },
       "ActivityTimelineItemOut": {
         "properties": {
           "id": {
@@ -10758,6 +10900,217 @@
           "recorded_at"
         ],
         "title": "AssetAdjustmentOut"
+      },
+      "AssetBookOpen": {
+        "properties": {
+          "party_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "party_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Name"
+          },
+          "institution_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bank",
+                  "broker",
+                  "payment",
+                  "agency",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Kind"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Name"
+          },
+          "account_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "debit_card",
+                  "credit_card",
+                  "securities",
+                  "wallet",
+                  "housing_fund",
+                  "medical",
+                  "gold",
+                  "fx",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Kind"
+          },
+          "card_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Number"
+          },
+          "asset_account_no": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Account No"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "balance_name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Balance Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "include_in_net_worth": {
+            "type": "boolean",
+            "title": "Include In Net Worth",
+            "default": true
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance_name",
+          "category",
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "AssetBookOpen",
+        "description": "Create a currency balance, and the institution or account above it when needed."
+      },
+      "AssetBookOpenOut": {
+        "properties": {
+          "party_id": {
+            "type": "string",
+            "title": "Party Id"
+          },
+          "party_code": {
+            "type": "string",
+            "title": "Party Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "account_code": {
+            "type": "string",
+            "title": "Account Code"
+          },
+          "holding": {
+            "$ref": "#/components/schemas/AssetHoldingOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "party_id",
+          "party_code",
+          "account_id",
+          "account_code",
+          "holding"
+        ],
+        "title": "AssetBookOpenOut"
       },
       "AssetExpenseAdjust": {
         "properties": {
@@ -11195,19 +11548,15 @@
       },
       "AssetHoldingCreate": {
         "properties": {
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
           "name": {
             "type": "string",
             "maxLength": 80,
             "minLength": 1,
             "title": "Name"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "asset",
-              "liability"
-            ],
-            "title": "Kind"
           },
           "category": {
             "type": "string",
@@ -11222,18 +11571,6 @@
             "maximum": 9007199254740991.0,
             "minimum": 0.0,
             "title": "Amount Minor"
-          },
-          "institution": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 80
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Institution"
           },
           "note": {
             "anyOf": [
@@ -11273,8 +11610,8 @@
         },
         "type": "object",
         "required": [
+          "account_id",
           "name",
-          "kind",
           "category",
           "currency",
           "amount_minor",
@@ -11287,6 +11624,14 @@
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
           },
           "name": {
             "type": "string",
@@ -11373,6 +11718,8 @@
         "type": "object",
         "required": [
           "id",
+          "code",
+          "account_id",
           "name",
           "kind",
           "category",
@@ -11392,6 +11739,14 @@
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
           },
           "name": {
             "type": "string",
@@ -11471,6 +11826,8 @@
         "type": "object",
         "required": [
           "id",
+          "code",
+          "account_id",
           "name",
           "kind",
           "category",
@@ -11578,6 +11935,14 @@
             "type": "string",
             "title": "Id"
           },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -11672,6 +12037,8 @@
         "type": "object",
         "required": [
           "id",
+          "code",
+          "account_id",
           "name",
           "kind",
           "category",
@@ -17809,6 +18176,13 @@
             "type": "array",
             "title": "Groups"
           },
+          "parties": {
+            "items": {
+              "$ref": "#/components/schemas/PartyViewOut"
+            },
+            "type": "array",
+            "title": "Parties"
+          },
           "expense_groups": {
             "items": {
               "$ref": "#/components/schemas/ExpenseGroupOut"
@@ -18188,6 +18562,51 @@
           "net_worth_minor"
         ],
         "title": "NetWorthPointOut"
+      },
+      "PartyViewOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "institution_kind": {
+            "type": "string",
+            "title": "Institution Kind"
+          },
+          "display_minor": {
+            "type": "integer",
+            "title": "Display Minor"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountViewOut"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "institution_kind",
+          "display_minor",
+          "fx_incomplete"
+        ],
+        "title": "PartyViewOut"
       },
       "PlanApplyRequest": {
         "properties": {

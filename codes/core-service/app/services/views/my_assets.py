@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.asset import AssetFxRateOut
 from app.schemas.views.assets import (
+    AccountViewOut,
     AssetExpenseViewOut,
     AssetHoldingViewOut,
     AssetsSummaryOut,
@@ -17,6 +18,7 @@ from app.schemas.views.assets import (
     HoldingGroupOut,
     MyAssetsViewOut,
     NetWorthPointOut,
+    PartyViewOut,
 )
 from app.services.asset_api import (
     latest_expense_reasons,
@@ -27,6 +29,7 @@ from app.services.asset_api import (
     list_rates,
     profile_out,
 )
+from app.services.asset_book import list_accounts, list_parties
 from app.services.assets_math import (
     EXPENSE_GROUP_ORDER,
     BookAdjustment,
@@ -72,6 +75,8 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
         view_holdings.append(
             AssetHoldingViewOut(
                 id=str(row.id),
+                code=row.code,
+                account_id=str(row.account_id),
                 name=row.name,
                 kind=row.kind,  # type: ignore[arg-type]
                 category=row.category,
@@ -168,11 +173,67 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
             focus=summary.focus if not expense_summary.fx_incomplete else "missing_fx",
         ),
         groups=groups,
+        parties=_parties(list_parties(db, user.id), list_accounts(db, user.id), view_holdings),
         expense_groups=expense_groups,
         net_worth_series=[
             NetWorthPointOut(as_of=point.as_of, net_worth_minor=point.net_worth_minor) for point in series
         ],
     )
+
+
+def _parties(parties, accounts, holdings: list[AssetHoldingViewOut]) -> list[PartyViewOut]:
+    balances: dict[str, list[AssetHoldingViewOut]] = {}
+    for row in holdings:
+        balances.setdefault(row.account_id, []).append(row)
+    accounts_by_party: dict[str, list] = {}
+    for account in accounts:
+        accounts_by_party.setdefault(str(account.party_id), []).append(account)
+    result: list[PartyViewOut] = []
+    ordered = sorted(parties, key=lambda row: (row.name.casefold(), row.code))
+    for party in ordered:
+        account_views: list[AccountViewOut] = []
+        party_total = 0
+        party_missing = False
+        for account in sorted(accounts_by_party.get(str(party.id), []), key=lambda row: row.code):
+            rows = balances.get(str(account.id), [])
+            total = 0
+            missing = False
+            for row in rows:
+                if row.display_minor is None:
+                    missing = True
+                    continue
+                signed = row.display_minor if row.kind == "asset" else -row.display_minor
+                if row.include_in_net_worth:
+                    total += signed
+            account_views.append(
+                AccountViewOut(
+                    id=str(account.id),
+                    code=account.code,
+                    party_id=str(account.party_id),
+                    name=account.name,
+                    account_kind=account.account_kind,
+                    card_number=account.card_number,
+                    asset_account_no=account.asset_account_no,
+                    account_number=account.account_number,
+                    display_minor=total,
+                    fx_incomplete=missing,
+                    balances=rows,
+                )
+            )
+            party_total += total
+            party_missing = party_missing or missing
+        result.append(
+            PartyViewOut(
+                id=str(party.id),
+                code=party.code,
+                name=party.name,
+                institution_kind=party.institution_kind,
+                display_minor=party_total,
+                fx_incomplete=party_missing,
+                accounts=account_views,
+            )
+        )
+    return result
 
 
 def _groups(totals, holdings: list[AssetHoldingViewOut]) -> list[HoldingGroupOut]:

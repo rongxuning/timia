@@ -10,7 +10,6 @@ from app.services.assets_math import (
     CURRENCIES,
     EXPENSE_GROUPS,
     MAX_MINOR,
-    categories_for,
 )
 
 AssetKind = Literal["asset", "liability"]
@@ -39,12 +38,11 @@ def _reason(value: str) -> str:
 
 
 class AssetHoldingCreate(BaseModel):
+    account_id: str
     name: str = Field(min_length=1, max_length=80)
-    kind: AssetKind
     category: str
     currency: str
     amount_minor: int = Field(ge=0, le=MAX_MINOR)
-    institution: str | None = Field(default=None, max_length=80)
     note: str | None = Field(default=None, max_length=500)
     include_in_net_worth: bool = True
     reason: str = Field(min_length=1, max_length=200)
@@ -58,26 +56,20 @@ class AssetHoldingCreate(BaseModel):
             raise ValueError("name_required")
         return text
 
-    @field_validator("currency")
-    @classmethod
-    def currency_code(cls, value: str) -> str:
-        return _currency(value)
-
     @field_validator("reason")
     @classmethod
     def strip_reason(cls, value: str) -> str:
         return _reason(value)
 
-    @field_validator("institution", "note")
+    @field_validator("currency")
+    @classmethod
+    def currency_code(cls, value: str) -> str:
+        return _currency(value)
+
+    @field_validator("note")
     @classmethod
     def strip_optional(cls, value: str | None) -> str | None:
         return _clean(value)
-
-    @model_validator(mode="after")
-    def category_matches_kind(self) -> AssetHoldingCreate:
-        if self.category not in categories_for(self.kind):
-            raise ValueError("category_kind_mismatch")
-        return self
 
 
 class AssetHoldingUpdate(BaseModel):
@@ -233,6 +225,8 @@ class AssetAdjustmentOut(BaseModel):
 
 class AssetHoldingOut(BaseModel):
     id: str
+    code: str
+    account_id: str
     name: str
     kind: AssetKind
     category: str
@@ -245,6 +239,80 @@ class AssetHoldingOut(BaseModel):
     needs_review: bool
     version: int
     latest_reason: str | None = None
+
+
+InstitutionKind = Literal["bank", "broker", "payment", "agency", "other"]
+AccountKind = Literal[
+    "debit_card",
+    "credit_card",
+    "securities",
+    "wallet",
+    "housing_fund",
+    "medical",
+    "gold",
+    "fx",
+    "other",
+]
+
+
+class AssetBookOpen(BaseModel):
+    """Create a currency balance, and the institution or account above it when needed."""
+
+    party_id: str | None = None
+    party_name: str | None = Field(default=None, max_length=80)
+    institution_kind: InstitutionKind | None = None
+    account_id: str | None = None
+    account_name: str | None = Field(default=None, max_length=80)
+    account_kind: AccountKind | None = None
+    card_number: str | None = Field(default=None, max_length=40)
+    asset_account_no: str | None = Field(default=None, max_length=40)
+    account_number: str | None = Field(default=None, max_length=40)
+    balance_name: str = Field(min_length=1, max_length=80)
+    category: str
+    currency: str
+    amount_minor: int = Field(ge=0, le=MAX_MINOR)
+    include_in_net_worth: bool = True
+    reason: str = Field(min_length=1, max_length=200)
+    recorded_at: datetime | None = None
+
+    @field_validator("party_name", "account_name")
+    @classmethod
+    def strip_names(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        return text or None
+
+    @field_validator("balance_name")
+    @classmethod
+    def strip_balance_name(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("name_required")
+        return text
+
+    @field_validator("reason")
+    @classmethod
+    def strip_open_reason(cls, value: str) -> str:
+        return _reason(value)
+
+    @field_validator("currency")
+    @classmethod
+    def open_currency(cls, value: str) -> str:
+        return _currency(value)
+
+    @field_validator("card_number", "asset_account_no", "account_number")
+    @classmethod
+    def strip_numbers(cls, value: str | None) -> str | None:
+        return _clean(value)
+
+
+class AssetBookOpenOut(BaseModel):
+    party_id: str
+    party_code: str
+    account_id: str
+    account_code: str
+    holding: AssetHoldingOut
 
 
 class AssetHoldingDetailOut(AssetHoldingOut):

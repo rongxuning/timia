@@ -11,6 +11,8 @@ export type AssetAdjustment = {
 
 export type AssetHolding = {
   id: string;
+  code: string;
+  account_id: string;
   name: string;
   kind: AssetKind;
   category: string;
@@ -57,6 +59,30 @@ export type AssetFxRate = {
   currency: string;
   cny_per_unit: string;
   updated_at: string;
+};
+
+export type AssetPartyNode = {
+  id: string;
+  code: string;
+  name: string;
+  institution_kind: string;
+  display_minor: number;
+  fx_incomplete: boolean;
+  accounts: AssetAccountNode[];
+};
+
+export type AssetAccountNode = {
+  id: string;
+  code: string;
+  party_id: string;
+  name: string;
+  account_kind: string;
+  card_number: string | null;
+  asset_account_no: string | null;
+  account_number: string | null;
+  display_minor: number;
+  fx_incomplete: boolean;
+  balances: AssetHolding[];
 };
 
 export type HoldingGroup = {
@@ -106,6 +132,7 @@ export type MyAssetsView = {
   rates: AssetFxRate[];
   summary: AssetsSummary;
   groups: HoldingGroup[];
+  parties: AssetPartyNode[];
   expense_groups: ExpenseGroupBlock[];
   net_worth_series: NetWorthPoint[];
 };

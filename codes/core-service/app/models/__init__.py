@@ -2,10 +2,14 @@ from app.models.activity import ActivityLog
 from app.models.agent_token import AgentToken, AgentToolCall
 from app.models.asset import (
     AssetAdjustment,
+    AssetAccount,
+    AssetCode,
+    AssetCodeCounter,
     AssetExpenseAdjustment,
     AssetExpenseItem,
     AssetFxRate,
     AssetHolding,
+    AssetParty,
     AssetProfile,
 )
 from app.models.comment import Comment
@@ -53,11 +57,15 @@ __all__ = [
     "ActivityLog",
     "AgentToken",
     "AgentToolCall",
+    "AssetAccount",
     "AssetAdjustment",
+    "AssetCode",
+    "AssetCodeCounter",
     "AssetExpenseAdjustment",
     "AssetExpenseItem",
     "AssetFxRate",
     "AssetHolding",
+    "AssetParty",
     "AssetProfile",
     "Comment",
     "HealthInsightDaily",

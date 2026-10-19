@@ -16,6 +16,34 @@ export function fetchMyAssets(token: string): Promise<MyAssetsView> {
   return apiFetch<MyAssetsView>("/views/me/assets", { token });
 }
 
+export function openAssetBook(
+  token: string,
+  body: {
+    party_id?: string;
+    party_name?: string;
+    institution_kind?: string;
+    account_id?: string;
+    account_name?: string;
+    account_kind?: string;
+    card_number?: string | null;
+    asset_account_no?: string | null;
+    account_number?: string | null;
+    balance_name: string;
+    category: string;
+    currency: string;
+    amount_minor: number;
+    include_in_net_worth?: boolean;
+    reason: string;
+    recorded_at?: string;
+  },
+): Promise<{ party_id: string; party_code: string; account_id: string; account_code: string; holding: AssetHolding }> {
+  return apiFetch("/asset-book/open", {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function createAssetHolding(token: string, body: AssetHoldingInput): Promise<AssetHolding> {
   return apiFetch<AssetHolding>("/asset-holdings", {
     token,

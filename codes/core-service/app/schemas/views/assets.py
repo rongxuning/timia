@@ -21,6 +21,30 @@ class AssetHoldingViewOut(AssetHoldingOut):
     fx_missing: bool = False
 
 
+class AccountViewOut(BaseModel):
+    id: str
+    code: str
+    party_id: str
+    name: str
+    account_kind: str
+    card_number: str | None = None
+    asset_account_no: str | None = None
+    account_number: str | None = None
+    display_minor: int
+    fx_incomplete: bool
+    balances: list[AssetHoldingViewOut] = Field(default_factory=list)
+
+
+class PartyViewOut(BaseModel):
+    id: str
+    code: str
+    name: str
+    institution_kind: str
+    display_minor: int
+    fx_incomplete: bool
+    accounts: list[AccountViewOut] = Field(default_factory=list)
+
+
 class ExpenseGroupOut(BaseModel):
     group_kind: Literal["fixed", "daily", "emergency", "other"]
     display_minor: int
@@ -65,6 +89,7 @@ class MyAssetsViewOut(BaseModel):
     rates: list[AssetFxRateOut] = Field(default_factory=list)
     summary: AssetsSummaryOut
     groups: list[HoldingGroupOut] = Field(default_factory=list)
+    parties: list[PartyViewOut] = Field(default_factory=list)
     expense_groups: list[ExpenseGroupOut] = Field(default_factory=list)
     net_worth_series: list[NetWorthPointOut] = Field(default_factory=list)
 

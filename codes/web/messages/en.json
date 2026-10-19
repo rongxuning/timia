@@ -318,7 +318,13 @@
       "archiving": "Removing…",
       "amountInvalid": "Enter an amount and a reason",
       "savedAs": "Saved in {currency}",
-      "displayIs": "Totals use {currency}"
+      "displayIs": "Totals use {currency}",
+      "partyName": "Institution",
+      "accountName": "Account name",
+      "cardNumber": "Card number",
+      "assetAccountNo": "Asset account",
+      "accountNumber": "Account number",
+      "balanceName": "Balance name"
     },
     "principles": {
       "title": "How to read this",
@@ -406,7 +412,18 @@
       "unsupported_currency": "That currency is not supported",
       "cny_rate_fixed": "The yuan rate stays at 1",
       "reason_required": "Enter a reason",
-      "name_required": "Enter a name"
+      "name_required": "Enter a name",
+      "card_number_required": "Enter the card number",
+      "card_number_invalid": "A card number is 8 to 30 digits",
+      "card_number_taken": "That card is already on the book",
+      "asset_account_no_required": "Enter the asset account number",
+      "asset_account_no_taken": "That asset account is already on the book",
+      "account_no_invalid": "That account number is invalid",
+      "balance_exists": "This account already has that category and currency",
+      "category_not_allowed": "That category does not belong on this account",
+      "account_required": "Enter the account",
+      "party_required": "Enter the institution",
+      "institution_kind_mismatch": "The institution type does not match the account"
     },
     "currencies": {
       "CNY": "Chinese yuan CNY",
@@ -416,6 +433,33 @@
       "USD": "US dollar USD",
       "EUR": "Euro EUR",
       "GBP": "British pound GBP"
+    },
+    "tree": {
+      "title": "Ownership",
+      "addAccount": "Add account",
+      "addCurrency": "Add currency",
+      "addPosition": "Add position",
+      "cardNumber": "Card {number}",
+      "assetAccountNo": "Account {number}",
+      "accountNumber": "No. {number}"
+    },
+    "institutionKinds": {
+      "bank": "Bank",
+      "broker": "Broker",
+      "payment": "Payment",
+      "agency": "Agency",
+      "other": "Other"
+    },
+    "accountKinds": {
+      "debit_card": "Debit card",
+      "credit_card": "Credit card",
+      "securities": "Securities",
+      "wallet": "Wallet",
+      "housing_fund": "Housing fund",
+      "medical": "Medical",
+      "gold": "Gold",
+      "fx": "Foreign cash",
+      "other": "Other"
     }
   }
 }

@@ -318,7 +318,13 @@
       "archiving": "移除中…",
       "amountInvalid": "请填写数额和原因",
       "savedAs": "按 {currency} 保存",
-      "displayIs": "汇总用 {currency}"
+      "displayIs": "汇总用 {currency}",
+      "partyName": "开户行",
+      "accountName": "账户名称",
+      "cardNumber": "银行卡号",
+      "assetAccountNo": "资产账号",
+      "accountNumber": "账号",
+      "balanceName": "余额名称"
     },
     "principles": {
       "title": "这些数字怎么读",
@@ -406,7 +412,18 @@
       "unsupported_currency": "不支持这个币种",
       "cny_rate_fixed": "人民币汇率固定为 1",
       "reason_required": "请填写原因",
-      "name_required": "请填写名称"
+      "name_required": "请填写名称",
+      "card_number_required": "请填写银行卡号",
+      "card_number_invalid": "银行卡号需要 8 到 30 位数字",
+      "card_number_taken": "这张卡已经在账上",
+      "asset_account_no_required": "请填写资产账号",
+      "asset_account_no_taken": "这个资产账号已经在账上",
+      "account_no_invalid": "账号格式不对",
+      "balance_exists": "这个账户下已经有同一分类和币种的余额",
+      "category_not_allowed": "这个账户不能记这个分类",
+      "account_required": "请填写账户",
+      "party_required": "请填写开户行",
+      "institution_kind_mismatch": "开户机构类型和账户类型对不上"
     },
     "currencies": {
       "CNY": "人民币 CNY",
@@ -416,6 +433,33 @@
       "USD": "美元 USD",
       "EUR": "欧元 EUR",
       "GBP": "英镑 GBP"
+    },
+    "tree": {
+      "title": "归属",
+      "addAccount": "添加账户",
+      "addCurrency": "添加币种",
+      "addPosition": "添加持仓",
+      "cardNumber": "卡号 {number}",
+      "assetAccountNo": "资产账号 {number}",
+      "accountNumber": "账号 {number}"
+    },
+    "institutionKinds": {
+      "bank": "银行",
+      "broker": "券商",
+      "payment": "支付",
+      "agency": "专户机构",
+      "other": "其他机构"
+    },
+    "accountKinds": {
+      "debit_card": "储蓄卡",
+      "credit_card": "信用卡",
+      "securities": "证券账户",
+      "wallet": "钱包",
+      "housing_fund": "公积金",
+      "medical": "医保",
+      "gold": "黄金",
+      "fx": "外汇",
+      "other": "其他账户"
     }
   }
 }

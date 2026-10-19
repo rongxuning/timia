@@ -90,6 +90,90 @@ class AssetFxRate(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     cny_per_unit: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
 
 
+class AssetCodeCounter(Base):
+    """Per-user sequence for asset codes. Codes are unique across the whole book."""
+
+    __tablename__ = "asset_code_counters"
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    next_value: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class AssetCode(Base):
+    __tablename__ = "asset_codes"
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    code: Mapped[str] = mapped_column(String(16), primary_key=True)
+
+
+class AssetParty(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """开户机构：银行、券商、支付机构。下面挂账户。"""
+
+    __tablename__ = "asset_parties"
+    __table_args__ = (
+        CheckConstraint(
+            "institution_kind IN ('bank', 'broker', 'payment', 'agency', 'other')",
+            name="ck_asset_parties_kind",
+        ),
+        Index("ix_asset_parties_owner", "owner_user_id"),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    institution_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AssetAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """一张卡或一个资产账号，归属某个开户机构。币种余额挂在它下面。"""
+
+    __tablename__ = "asset_accounts"
+    __table_args__ = (
+        CheckConstraint(
+            "account_kind IN ("
+            "'debit_card', 'credit_card', 'securities', 'wallet', "
+            "'housing_fund', 'medical', 'gold', 'fx', 'other'"
+            ")",
+            name="ck_asset_accounts_kind",
+        ),
+        Index("ix_asset_accounts_owner", "owner_user_id"),
+        Index("ix_asset_accounts_party", "party_id"),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    party_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_parties.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    account_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    card_number: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    asset_account_no: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    account_number: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AssetHolding(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "asset_holdings"
     __table_args__ = (
@@ -108,6 +192,12 @@ class AssetHolding(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     category: Mapped[str] = mapped_column(String(32), nullable=False)

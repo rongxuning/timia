@@ -1545,6 +1545,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-book/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Open Asset Book */
+        post: operations["post_open_asset_book_asset_book_open_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-expenses": {
         parameters: {
             query?: never;
@@ -2162,6 +2179,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountViewOut */
+        AccountViewOut: {
+            /** Id */
+            id: string;
+            /** Code */
+            code: string;
+            /** Party Id */
+            party_id: string;
+            /** Name */
+            name: string;
+            /** Account Kind */
+            account_kind: string;
+            /** Card Number */
+            card_number?: string | null;
+            /** Asset Account No */
+            asset_account_no?: string | null;
+            /** Account Number */
+            account_number?: string | null;
+            /** Display Minor */
+            display_minor: number;
+            /** Fx Incomplete */
+            fx_incomplete: boolean;
+            /** Balances */
+            balances?: components["schemas"]["AssetHoldingViewOut"][];
+        };
         /** ActivityTimelineItemOut */
         ActivityTimelineItemOut: {
             /** Id */
@@ -2291,6 +2333,59 @@ export interface components {
              * Format: date-time
              */
             recorded_at: string;
+        };
+        /**
+         * AssetBookOpen
+         * @description Create a currency balance, and the institution or account above it when needed.
+         */
+        AssetBookOpen: {
+            /** Party Id */
+            party_id?: string | null;
+            /** Party Name */
+            party_name?: string | null;
+            /** Institution Kind */
+            institution_kind?: ("bank" | "broker" | "payment" | "agency" | "other") | null;
+            /** Account Id */
+            account_id?: string | null;
+            /** Account Name */
+            account_name?: string | null;
+            /** Account Kind */
+            account_kind?: ("debit_card" | "credit_card" | "securities" | "wallet" | "housing_fund" | "medical" | "gold" | "fx" | "other") | null;
+            /** Card Number */
+            card_number?: string | null;
+            /** Asset Account No */
+            asset_account_no?: string | null;
+            /** Account Number */
+            account_number?: string | null;
+            /** Balance Name */
+            balance_name: string;
+            /** Category */
+            category: string;
+            /** Currency */
+            currency: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /**
+             * Include In Net Worth
+             * @default true
+             */
+            include_in_net_worth: boolean;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** AssetBookOpenOut */
+        AssetBookOpenOut: {
+            /** Party Id */
+            party_id: string;
+            /** Party Code */
+            party_code: string;
+            /** Account Id */
+            account_id: string;
+            /** Account Code */
+            account_code: string;
+            holding: components["schemas"]["AssetHoldingOut"];
         };
         /** AssetExpenseAdjust */
         AssetExpenseAdjust: {
@@ -2449,21 +2544,16 @@ export interface components {
         };
         /** AssetHoldingCreate */
         AssetHoldingCreate: {
+            /** Account Id */
+            account_id: string;
             /** Name */
             name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "asset" | "liability";
             /** Category */
             category: string;
             /** Currency */
             currency: string;
             /** Amount Minor */
             amount_minor: number;
-            /** Institution */
-            institution?: string | null;
             /** Note */
             note?: string | null;
             /**
@@ -2480,6 +2570,10 @@ export interface components {
         AssetHoldingDetailOut: {
             /** Id */
             id: string;
+            /** Code */
+            code: string;
+            /** Account Id */
+            account_id: string;
             /** Name */
             name: string;
             /**
@@ -2517,6 +2611,10 @@ export interface components {
         AssetHoldingOut: {
             /** Id */
             id: string;
+            /** Code */
+            code: string;
+            /** Account Id */
+            account_id: string;
             /** Name */
             name: string;
             /**
@@ -2569,6 +2667,10 @@ export interface components {
         AssetHoldingViewOut: {
             /** Id */
             id: string;
+            /** Code */
+            code: string;
+            /** Account Id */
+            account_id: string;
             /** Name */
             name: string;
             /**
@@ -4611,6 +4713,8 @@ export interface components {
             summary: components["schemas"]["AssetsSummaryOut"];
             /** Groups */
             groups?: components["schemas"]["HoldingGroupOut"][];
+            /** Parties */
+            parties?: components["schemas"]["PartyViewOut"][];
             /** Expense Groups */
             expense_groups?: components["schemas"]["ExpenseGroupOut"][];
             /** Net Worth Series */
@@ -4740,6 +4844,23 @@ export interface components {
             as_of: string;
             /** Net Worth Minor */
             net_worth_minor: number;
+        };
+        /** PartyViewOut */
+        PartyViewOut: {
+            /** Id */
+            id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Institution Kind */
+            institution_kind: string;
+            /** Display Minor */
+            display_minor: number;
+            /** Fx Incomplete */
+            fx_incomplete: boolean;
+            /** Accounts */
+            accounts?: components["schemas"]["AccountViewOut"][];
         };
         /** PlanApplyRequest */
         PlanApplyRequest: {
@@ -10497,6 +10618,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssetFxRateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_open_asset_book_asset_book_open_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetBookOpen"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetBookOpenOut"];
                 };
             };
             /** @description Validation Error */

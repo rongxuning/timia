@@ -1,5 +1,5 @@
 import type { useTranslations } from "next-intl";
-import type { AssetKind, ExpenseGroup } from "@/components/assets/categories";
+import type { AssetKind } from "@/components/assets/categories";
 
 type AssetsT = ReturnType<typeof useTranslations<"assets">>;
 
@@ -200,13 +200,67 @@ export function errorText(t: AssetsT, message: string): string {
       return t("errors.reason_required");
     case "name_required":
       return t("errors.name_required");
+    case "card_number_required":
+      return t("errors.card_number_required");
+    case "card_number_invalid":
+      return t("errors.card_number_invalid");
+    case "card_number_taken":
+      return t("errors.card_number_taken");
+    case "asset_account_no_required":
+      return t("errors.asset_account_no_required");
+    case "asset_account_no_taken":
+      return t("errors.asset_account_no_taken");
+    case "account_no_invalid":
+      return t("errors.account_no_invalid");
+    case "balance_exists":
+      return t("errors.balance_exists");
+    case "category_not_allowed":
+      return t("errors.category_not_allowed");
+    case "account_required":
+      return t("errors.account_required");
+    case "party_required":
+      return t("errors.party_required");
+    case "institution_kind_mismatch":
+      return t("errors.institution_kind_mismatch");
     default:
       return t("errors.generic");
   }
 }
 
-export function expenseGroupOrder(group: string): number {
-  const order: ExpenseGroup[] = ["fixed", "daily", "emergency", "other"];
-  const index = order.indexOf(group as ExpenseGroup);
-  return index === -1 ? order.length : index;
+export function institutionKindLabel(t: AssetsT, kind: string): string {
+  switch (kind) {
+    case "bank":
+      return t("institutionKinds.bank");
+    case "broker":
+      return t("institutionKinds.broker");
+    case "payment":
+      return t("institutionKinds.payment");
+    case "agency":
+      return t("institutionKinds.agency");
+    default:
+      return t("institutionKinds.other");
+  }
+}
+
+export function accountKindLabel(t: AssetsT, kind: string): string {
+  switch (kind) {
+    case "debit_card":
+      return t("accountKinds.debit_card");
+    case "credit_card":
+      return t("accountKinds.credit_card");
+    case "securities":
+      return t("accountKinds.securities");
+    case "wallet":
+      return t("accountKinds.wallet");
+    case "housing_fund":
+      return t("accountKinds.housing_fund");
+    case "medical":
+      return t("accountKinds.medical");
+    case "gold":
+      return t("accountKinds.gold");
+    case "fx":
+      return t("accountKinds.fx");
+    default:
+      return t("accountKinds.other");
+  }
 }

@@ -27,27 +27,30 @@ export function categoriesFor(kind: AssetKind): readonly AssetCategory[] {
 
 export type AccountStarter = {
   id: string;
-  kind: AssetKind;
+  partyName: string;
+  institutionKind: "bank" | "broker" | "payment" | "agency" | "other";
+  accountKind: "debit_card" | "credit_card" | "securities" | "wallet" | "housing_fund" | "medical" | "gold" | "fx" | "other";
+  accountName: string;
   category: AssetCategory;
   currency: BookCurrency;
 };
 
 export const ACCOUNT_STARTERS: AccountStarter[] = [
-  { id: "aShare", kind: "asset", category: "a_share", currency: "CNY" },
-  { id: "hkShare", kind: "asset", category: "hk_share", currency: "HKD" },
-  { id: "ccbSavings", kind: "asset", category: "bank_deposit", currency: "CNY" },
-  { id: "ccbCredit", kind: "liability", category: "credit_card", currency: "CNY" },
-  { id: "spdbSavings", kind: "asset", category: "bank_deposit", currency: "CNY" },
-  { id: "spdbCredit", kind: "liability", category: "credit_card", currency: "CNY" },
-  { id: "cmbSavings", kind: "asset", category: "bank_deposit", currency: "CNY" },
-  { id: "hsbc", kind: "asset", category: "bank_deposit", currency: "HKD" },
-  { id: "housingFund", kind: "asset", category: "housing_fund", currency: "CNY" },
-  { id: "medical", kind: "asset", category: "medical", currency: "CNY" },
-  { id: "wechat", kind: "asset", category: "wallet", currency: "CNY" },
-  { id: "alipay", kind: "asset", category: "wallet", currency: "CNY" },
-  { id: "jpy", kind: "asset", category: "fx", currency: "JPY" },
-  { id: "krw", kind: "asset", category: "fx", currency: "KRW" },
-  { id: "gold", kind: "asset", category: "gold", currency: "CNY" },
+  { id: "aShare", partyName: "证券账户", institutionKind: "broker", accountKind: "securities", accountName: "A股", category: "a_share", currency: "CNY" },
+  { id: "hkShare", partyName: "证券账户", institutionKind: "broker", accountKind: "securities", accountName: "港股", category: "hk_share", currency: "HKD" },
+  { id: "ccbSavings", partyName: "建设银行", institutionKind: "bank", accountKind: "debit_card", accountName: "储蓄卡", category: "bank_deposit", currency: "CNY" },
+  { id: "ccbCredit", partyName: "建设银行", institutionKind: "bank", accountKind: "credit_card", accountName: "信用卡", category: "credit_card", currency: "CNY" },
+  { id: "spdbSavings", partyName: "浦发银行", institutionKind: "bank", accountKind: "debit_card", accountName: "储蓄卡", category: "bank_deposit", currency: "CNY" },
+  { id: "spdbCredit", partyName: "浦发银行", institutionKind: "bank", accountKind: "credit_card", accountName: "信用卡", category: "credit_card", currency: "CNY" },
+  { id: "cmbSavings", partyName: "招商银行", institutionKind: "bank", accountKind: "debit_card", accountName: "储蓄卡", category: "bank_deposit", currency: "CNY" },
+  { id: "hsbc", partyName: "汇丰银行", institutionKind: "bank", accountKind: "debit_card", accountName: "汇丰香港", category: "bank_deposit", currency: "HKD" },
+  { id: "housingFund", partyName: "公积金", institutionKind: "agency", accountKind: "housing_fund", accountName: "公积金", category: "housing_fund", currency: "CNY" },
+  { id: "medical", partyName: "医保", institutionKind: "agency", accountKind: "medical", accountName: "医保余额", category: "medical", currency: "CNY" },
+  { id: "wechat", partyName: "微信支付", institutionKind: "payment", accountKind: "wallet", accountName: "微信钱包", category: "wallet", currency: "CNY" },
+  { id: "alipay", partyName: "支付宝", institutionKind: "payment", accountKind: "wallet", accountName: "支付宝", category: "wallet", currency: "CNY" },
+  { id: "jpy", partyName: "外汇", institutionKind: "bank", accountKind: "fx", accountName: "日元", category: "fx", currency: "JPY" },
+  { id: "krw", partyName: "外汇", institutionKind: "bank", accountKind: "fx", accountName: "韩元", category: "fx", currency: "KRW" },
+  { id: "gold", partyName: "黄金", institutionKind: "other", accountKind: "gold", accountName: "黄金", category: "gold", currency: "CNY" },
 ];
 
 export type ExpenseStarter = {

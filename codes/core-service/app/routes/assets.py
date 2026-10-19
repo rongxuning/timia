@@ -12,6 +12,8 @@ from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.asset import (
     AssetAdjustmentCreate,
+    AssetBookOpen,
+    AssetBookOpenOut,
     AssetExpenseAdjust,
     AssetExpenseArchive,
     AssetExpenseCreate,
@@ -28,6 +30,7 @@ from app.schemas.asset import (
     AssetProfileOut,
     AssetProfileUpdate,
 )
+from app.services.asset_book import open_book
 from app.services.asset_api import (
     adjust_expense,
     adjust_holding,
@@ -48,6 +51,16 @@ router = APIRouter(prefix="/asset-holdings", tags=["assets"])
 profile_router = APIRouter(prefix="/asset-profile", tags=["assets"])
 rate_router = APIRouter(prefix="/asset-fx-rates", tags=["assets"])
 expense_router = APIRouter(prefix="/asset-expenses", tags=["assets"])
+book_router = APIRouter(prefix="/asset-book", tags=["assets"])
+
+
+@book_router.post("/open", response_model=AssetBookOpenOut, status_code=status.HTTP_201_CREATED)
+def post_open_asset_book(
+    payload: AssetBookOpen,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return open_book(db, user, payload)
 
 
 @profile_router.get("", response_model=AssetProfileOut)

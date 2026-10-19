@@ -13,11 +13,15 @@ from app.core.security import create_access_token, hash_password
 from app.db.deps import get_db
 from app.main import app
 from app.models.asset import (
+    AssetAccount,
     AssetAdjustment,
+    AssetCode,
+    AssetCodeCounter,
     AssetExpenseAdjustment,
     AssetExpenseItem,
     AssetFxRate,
     AssetHolding,
+    AssetParty,
     AssetProfile,
 )
 from app.models.user import User
@@ -45,6 +49,10 @@ def _cleanup(db, user: User) -> None:
     db.execute(delete(AssetAdjustment).where(AssetAdjustment.owner_user_id == user.id))
     db.execute(delete(AssetExpenseAdjustment).where(AssetExpenseAdjustment.owner_user_id == user.id))
     db.execute(delete(AssetHolding).where(AssetHolding.owner_user_id == user.id))
+    db.execute(delete(AssetAccount).where(AssetAccount.owner_user_id == user.id))
+    db.execute(delete(AssetParty).where(AssetParty.owner_user_id == user.id))
+    db.execute(delete(AssetCode).where(AssetCode.owner_user_id == user.id))
+    db.execute(delete(AssetCodeCounter).where(AssetCodeCounter.owner_user_id == user.id))
     db.execute(delete(AssetExpenseItem).where(AssetExpenseItem.owner_user_id == user.id))
     db.execute(delete(AssetFxRate).where(AssetFxRate.owner_user_id == user.id))
     db.execute(delete(AssetProfile).where(AssetProfile.owner_user_id == user.id))
@@ -66,10 +74,27 @@ def client_and_user():
         db.close()
 
 
+def _open(client, headers, **overrides):
+    body = {
+        "party_name": "建设银行",
+        "institution_kind": "bank",
+        "account_name": "储蓄卡",
+        "account_kind": "debit_card",
+        "card_number": "6217000011112222",
+        "balance_name": "人民币",
+        "category": "bank_deposit",
+        "currency": "CNY",
+        "amount_minor": 100,
+        "reason": "建账",
+    }
+    body.update(overrides)
+    return client.post("/asset-book/open", headers=headers, json=body)
+
+
 def test_assets_require_auth():
     client = TestClient(app)
     assert client.get("/views/me/assets").status_code == 401
-    assert client.post("/asset-holdings", json={}).status_code == 401
+    assert client.post("/asset-book/open", json={}).status_code == 401
 
 
 def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
@@ -82,34 +107,33 @@ def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
     assert rate.status_code == 200, rate.text
     assert rate.json()["cny_per_unit"] == "0.92"
 
-    bank = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "建行储蓄",
-            "kind": "asset",
-            "category": "bank_deposit",
-            "currency": "CNY",
-            "amount_minor": 20000_00,
-            "reason": "建账",
-        },
+    bank = _open(
+        client,
+        headers,
+        account_name="建行储蓄",
+        card_number="6217000011110001",
+        balance_name="建行储蓄",
+        amount_minor=20000_00,
     )
     assert bank.status_code == 201, bank.text
-    hk = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "港股",
-            "kind": "asset",
-            "category": "hk_share",
-            "currency": "HKD",
-            "amount_minor": 10000_00,
-            "reason": "建账",
-        },
+    hk = _open(
+        client,
+        headers,
+        party_name="港股券商",
+        institution_kind="broker",
+        account_name="港股",
+        account_kind="securities",
+        card_number=None,
+        asset_account_no="A123456789",
+        balance_name="港股",
+        category="hk_share",
+        currency="HKD",
+        amount_minor=10000_00,
     )
     assert hk.status_code == 201, hk.text
-    assert hk.json()["currency"] == "HKD"
-    assert hk.json()["amount_minor"] == 10000_00
+    assert hk.json()["holding"]["currency"] == "HKD"
+    assert hk.json()["holding"]["amount_minor"] == 10000_00
+    assert hk.json()["holding"]["code"].startswith("A")
 
     view = client.get("/views/me/assets", headers=headers)
     assert view.status_code == 200, view.text
@@ -118,49 +142,59 @@ def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
     assert body["summary"]["total_assets_minor"] == 20000_00 + 9200_00
     assert body["summary"]["emergency_cash_minor"] == 20000_00
     assert body["summary"]["investment_minor"] == 9200_00
-    hk_row = next(row for group in body["groups"] for row in group["holdings"] if row["name"] == "港股")
+    hk_row = next(
+        balance
+        for party in body["parties"]
+        for account in party["accounts"]
+        for balance in account["balances"]
+        if balance["name"] == "港股"
+    )
     assert hk_row["display_minor"] == 9200_00
     assert hk_row["amount_minor"] == 10000_00
     assert hk_row["currency"] == "HKD"
     assert hk_row["fx_missing"] is False
 
-    missing = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "日元",
-            "kind": "asset",
-            "category": "fx",
-            "currency": "JPY",
-            "amount_minor": 1000,
-            "reason": "建账",
-        },
+    missing = _open(
+        client,
+        headers,
+        party_name="日元现金",
+        institution_kind="bank",
+        account_name="日元",
+        account_kind="fx",
+        card_number=None,
+        balance_name="日元",
+        category="fx",
+        currency="JPY",
+        amount_minor=1000,
     )
     assert missing.status_code == 201, missing.text
     again = client.get("/views/me/assets", headers=headers).json()
     assert again["summary"]["fx_incomplete"] is True
     assert "JPY" in again["summary"]["missing_currencies"]
-    jpy = next(row for group in again["groups"] for row in group["holdings"] if row["currency"] == "JPY")
+    jpy = next(
+        balance
+        for party in again["parties"]
+        for account in party["accounts"]
+        for balance in account["balances"]
+        if balance["currency"] == "JPY"
+    )
     assert jpy["display_minor"] is None
     assert jpy["amount_minor"] == 1000
 
 
 def test_adjustment_records_reason_time_and_delta(client_and_user):
     client, headers, _user = client_and_user
-    created = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "招商银行储蓄",
-            "kind": "asset",
-            "category": "bank_deposit",
-            "currency": "CNY",
-            "amount_minor": 8000_00,
-            "reason": "建账",
-        },
+    created = _open(
+        client,
+        headers,
+        party_name="招商银行",
+        account_name="招商银行储蓄",
+        card_number="6214830011110002",
+        balance_name="招商银行储蓄",
+        amount_minor=8000_00,
     )
     assert created.status_code == 201, created.text
-    holding = created.json()
+    holding = created.json()["holding"]
     when = datetime.now(timezone.utc).isoformat()
     adjusted = client.post(
         f"/asset-holdings/{holding['id']}/adjustments",
@@ -188,19 +222,19 @@ def test_adjustment_records_reason_time_and_delta(client_and_user):
 
 def test_other_user_cannot_see_a_holding(client_and_user):
     client, headers, _user = client_and_user
-    created = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "微信钱包",
-            "kind": "asset",
-            "category": "wallet",
-            "currency": "CNY",
-            "amount_minor": 100,
-            "reason": "建账",
-        },
+    created = _open(
+        client,
+        headers,
+        account_name="微信钱包",
+        account_kind="wallet",
+        party_name="微信支付",
+        institution_kind="payment",
+        card_number=None,
+        balance_name="微信钱包",
+        category="wallet",
+        amount_minor=100,
     )
-    holding_id = created.json()["id"]
+    holding_id = created.json()["holding"]["id"]
     db = next(get_db())
     other = _make_user(db, secrets.token_hex(4))
     other_headers = _headers(
@@ -234,11 +268,15 @@ def test_expense_reserve_is_separate_from_monthly_cover(client_and_user):
         )
         assert created.status_code == 201, created.text
     client.post(
-        "/asset-holdings",
+        "/asset-book/open",
         headers=headers,
         json={
-            "name": "建行储蓄",
-            "kind": "asset",
+            "party_name": "建设银行",
+            "institution_kind": "bank",
+            "account_name": "建行储蓄",
+            "account_kind": "debit_card",
+            "card_number": "6217000099990003",
+            "balance_name": "建行储蓄",
             "category": "bank_deposit",
             "currency": "CNY",
             "amount_minor": 9000_00,
@@ -257,18 +295,77 @@ def test_expense_reserve_is_separate_from_monthly_cover(client_and_user):
 def test_future_adjustment_is_rejected(client_and_user):
     client, headers, _user = client_and_user
     future = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
-    created = client.post(
-        "/asset-holdings",
-        headers=headers,
-        json={
-            "name": "现金",
-            "kind": "asset",
-            "category": "wallet",
-            "currency": "CNY",
-            "amount_minor": 1,
-            "reason": "建账",
-            "recorded_at": future,
-        },
+    created = _open(
+        client,
+        headers,
+        account_name="现金",
+        account_kind="wallet",
+        party_name="现金",
+        institution_kind="payment",
+        card_number=None,
+        balance_name="现金",
+        category="wallet",
+        amount_minor=1,
+        recorded_at=future,
     )
     assert created.status_code == 400
     assert created.json()["detail"] == "recorded_at_in_future"
+
+
+def test_one_bank_many_cards_and_one_card_many_currencies(client_and_user):
+    client, headers, _user = client_and_user
+    first = _open(
+        client,
+        headers,
+        party_name="建设银行",
+        account_name="储蓄卡",
+        card_number="6217 0000 1111 0001",
+        balance_name="人民币",
+        amount_minor=100_00,
+    )
+    assert first.status_code == 201, first.text
+    second = _open(
+        client,
+        headers,
+        party_name="建设银行",
+        account_name="信用卡",
+        account_kind="credit_card",
+        card_number="6227 0000 2222 0002",
+        balance_name="信用卡人民币",
+        category="credit_card",
+        amount_minor=20_00,
+    )
+    assert second.status_code == 201, second.text
+    assert second.json()["party_code"] == first.json()["party_code"]
+    assert second.json()["account_code"] != first.json()["account_code"]
+
+    extra = _open(
+        client,
+        headers,
+        account_id=first.json()["account_id"],
+        balance_name="港币",
+        currency="HKD",
+        amount_minor=50_00,
+    )
+    assert extra.status_code == 201, extra.text
+    assert extra.json()["account_code"] == first.json()["account_code"]
+    assert extra.json()["holding"]["code"] != first.json()["holding"]["code"]
+
+    duplicate = _open(
+        client,
+        headers,
+        account_name="另一张",
+        card_number="6217000011110001",
+        balance_name="重复",
+        amount_minor=1,
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "card_number_taken"
+
+    view = client.get("/views/me/assets", headers=headers).json()
+    bank = next(party for party in view["parties"] if party["name"] == "建设银行")
+    assert len(bank["accounts"]) == 2
+    savings = next(account for account in bank["accounts"] if account["card_number"] == "6217000011110001")
+    assert savings["asset_account_no"] is None
+    assert {row["currency"] for row in savings["balances"]} == {"CNY", "HKD"}
+    assert all(row["code"].startswith("A") for row in savings["balances"])

@@ -3,11 +3,8 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-import pytest
-from pydantic import ValidationError
-
 from app.models.asset import AssetHolding
-from app.schemas.asset import AssetHoldingCreate
+from app.services.asset_book import ACCOUNT_CATEGORIES
 from app.services.assets_math import (
     ASSET_CATEGORIES,
     LIABILITY_CATEGORIES,
@@ -141,13 +138,7 @@ def test_model_categories_match_the_ledger_math():
         assert f"'{code}'" in sql
 
 
-def test_schema_rejects_a_share_as_a_liability():
-    with pytest.raises(ValidationError):
-        AssetHoldingCreate(
-            name="信用卡",
-            kind="liability",
-            category="a_share",
-            currency="CNY",
-            amount_minor=1,
-            reason="建账",
-        )
+def test_a_share_does_not_belong_on_a_debit_card():
+    assert "a_share" not in ACCOUNT_CATEGORIES["debit_card"]
+    assert "bank_deposit" in ACCOUNT_CATEGORIES["debit_card"]
+    assert ACCOUNT_CATEGORIES["securities"] >= {"a_share", "hk_share"}
