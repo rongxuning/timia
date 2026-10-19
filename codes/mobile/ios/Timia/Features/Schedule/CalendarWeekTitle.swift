@@ -203,6 +203,95 @@ func timelinePageWeekKeys(
     }
 }
 
+/// Week the next horizontal swipe is measured from.
+///
+/// After a swipe settles, `origin` becomes that visible week. The following
+/// swipe is then exactly one week earlier or later. Leaving the origin on the
+/// week where paging started makes the next gesture apply its delta again.
+struct WeekPagingAnchor: Equatable {
+    var origin: Date
+
+    init(weekContaining date: Date, calendar: Calendar) {
+        origin = dateStripStartForWeek(containing: date, calendar: calendar)
+    }
+
+    mutating func settle(on visible: Date, calendar: Calendar) {
+        origin = weekPagingOrigin(currentOrigin: origin, visibleWeek: visible, calendar: calendar)
+    }
+
+    func neighbor(direction: Int, calendar: Calendar) -> Date {
+        dateByAddingDays(direction * 7, to: origin, calendar: calendar)
+    }
+
+    func pageKeys(
+        offsets: ClosedRange<Int> = CalendarInfiniteWindow.weekOffsets,
+        calendar: Calendar
+    ) -> [String] {
+        timelinePageWeekKeys(origin: origin, offsets: offsets, calendar: calendar)
+    }
+}
+
+func weekPagingOrigin(
+    currentOrigin: Date,
+    visibleWeek: Date,
+    calendar: Calendar = TimiaWeekCalendar.calendar()
+) -> Date {
+    let visible = dateStripStartForWeek(containing: visibleWeek, calendar: calendar)
+    let origin = dateStripStartForWeek(containing: currentOrigin, calendar: calendar)
+    if calendar.isDate(visible, inSameDayAs: origin) {
+        return origin
+    }
+    return visible
+}
+
+enum WeekPageReport: Equatable {
+    /// Reported week is the current base.
+    case unchanged
+    /// Move exactly one week from the current base. A two-week report is the
+    /// extra page applied on top of a swipe, so it collapses to one step.
+    case step(String)
+    /// Not a single swipe (layout reset, stale origin). Stay on the current week.
+    case resetTo(String)
+}
+
+func classifyWeekPageReport(
+    currentKey: String,
+    reportedKey: String,
+    calendar: Calendar = TimiaWeekCalendar.calendar()
+) -> WeekPageReport {
+    if currentKey == reportedKey { return .unchanged }
+    guard let current = dateFromDayKey(currentKey, calendar: calendar),
+          let reported = dateFromDayKey(reportedKey, calendar: calendar) else {
+        return .resetTo(currentKey)
+    }
+    let from = dateStripStartForWeek(containing: current, calendar: calendar)
+    let to = dateStripStartForWeek(containing: reported, calendar: calendar)
+    let days = calendar.dateComponents([.day], from: from, to: to).day ?? 0
+    guard days != 0, days.isMultiple(of: 7) else { return .resetTo(currentKey) }
+    let steps = days / 7
+    if abs(steps) == 1 {
+        return .step(calendarDayKey(to, calendar: calendar))
+    }
+    if abs(steps) == 2 {
+        let oneStep = dateByAddingDays((steps > 0 ? 1 : -1) * 7, to: from, calendar: calendar)
+        return .step(calendarDayKey(oneStep, calendar: calendar))
+    }
+    return .resetTo(currentKey)
+}
+
+/// Scroll the week header only when it is not already on the requested week.
+/// A finger swipe has already paged there; scrolling again adds a second week.
+func weekHeaderNeedsProgrammaticScroll(
+    visibleStart: Date,
+    positionedStart: Date?,
+    calendar: Calendar = TimiaWeekCalendar.calendar()
+) -> Bool {
+    let visible = dateStripStartForWeek(containing: visibleStart, calendar: calendar)
+    guard let positionedStart else { return true }
+    let positioned = dateStripStartForWeek(containing: positionedStart, calendar: calendar)
+    return !calendar.isDate(visible, inSameDayAs: positioned)
+}
+
 /// Re-center the strip catalog when `visibleStart` approaches the edge of the generated range.
 func dateStripNeedsReanchor(
     visibleStart: Date,

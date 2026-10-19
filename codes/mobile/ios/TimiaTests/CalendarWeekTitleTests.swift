@@ -337,6 +337,123 @@ final class CalendarWeekTitleTests: XCTestCase {
         )
     }
 
+    func testWeekPagingAnchorUsesSettledWeekAsNextBase() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        var anchor = WeekPagingAnchor(weekContaining: date(2026, 10, 14), calendar: monday)
+        XCTAssertEqual(dayKey(anchor.origin, calendar: monday), "2026-10-12")
+
+        anchor.settle(on: anchor.neighbor(direction: 1, calendar: monday), calendar: monday)
+        XCTAssertEqual(dayKey(anchor.origin, calendar: monday), "2026-10-19")
+        XCTAssertEqual(
+            anchor.pageKeys(offsets: -1...1, calendar: monday),
+            ["2026-10-12", "2026-10-19", "2026-10-26"]
+        )
+
+        anchor.settle(on: anchor.neighbor(direction: 1, calendar: monday), calendar: monday)
+        anchor.settle(on: anchor.neighbor(direction: -1, calendar: monday), calendar: monday)
+        anchor.settle(on: anchor.neighbor(direction: -1, calendar: monday), calendar: monday)
+        XCTAssertEqual(dayKey(anchor.origin, calendar: monday), "2026-10-12")
+    }
+
+    func testWeekPagingAnchorSettlesMidweekOntoWeekStart() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        var anchor = WeekPagingAnchor(weekContaining: date(2026, 10, 12), calendar: monday)
+        anchor.settle(on: date(2026, 10, 21), calendar: monday)
+        XCTAssertEqual(dayKey(anchor.origin, calendar: monday), "2026-10-19")
+        XCTAssertEqual(dayKey(anchor.neighbor(direction: -1, calendar: monday), calendar: monday), "2026-10-12")
+    }
+
+    func testWeekPagingAnchorFollowsSaturdayWeekNotDeviceSunday() {
+        var saturday = calendar
+        saturday.firstWeekday = 7
+        var anchor = WeekPagingAnchor(weekContaining: date(2026, 10, 14), calendar: saturday)
+        XCTAssertEqual(dayKey(anchor.origin, calendar: saturday), "2026-10-10")
+        anchor.settle(on: anchor.neighbor(direction: 1, calendar: saturday), calendar: saturday)
+        XCTAssertEqual(dayKey(anchor.origin, calendar: saturday), "2026-10-17")
+        XCTAssertEqual(dayKey(anchor.neighbor(direction: -1, calendar: saturday), calendar: saturday), "2026-10-10")
+    }
+
+    func testUserWeekSwipeDoesNotProgrammaticallyScrollAgain() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        XCTAssertFalse(
+            weekHeaderNeedsProgrammaticScroll(
+                visibleStart: date(2026, 10, 19),
+                positionedStart: date(2026, 10, 19),
+                calendar: monday
+            )
+        )
+        XCTAssertFalse(
+            weekHeaderNeedsProgrammaticScroll(
+                visibleStart: date(2026, 10, 21),
+                positionedStart: date(2026, 10, 19),
+                calendar: monday
+            )
+        )
+    }
+
+    func testOneWeekReportStepsFromTheCurrentBase() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        XCTAssertEqual(
+            classifyWeekPageReport(currentKey: "2026-10-12", reportedKey: "2026-10-19", calendar: monday),
+            .step("2026-10-19")
+        )
+        XCTAssertEqual(
+            classifyWeekPageReport(currentKey: "2026-10-19", reportedKey: "2026-10-12", calendar: monday),
+            .step("2026-10-12")
+        )
+        XCTAssertEqual(
+            classifyWeekPageReport(currentKey: "2026-10-12", reportedKey: "2026-10-12", calendar: monday),
+            .unchanged
+        )
+    }
+
+    func testTwoWeekReportCollapsesToOneStepFromTheCurrentWeek() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        // Swipe reported two weeks because the delta was applied from the stale
+        // origin and again from the landed week. Keep a single step.
+        XCTAssertEqual(
+            classifyWeekPageReport(currentKey: "2026-10-12", reportedKey: "2026-10-26", calendar: monday),
+            .step("2026-10-19")
+        )
+        XCTAssertEqual(
+            classifyWeekPageReport(currentKey: "2026-10-19", reportedKey: "2026-10-05", calendar: monday),
+            .step("2026-10-12")
+        )
+    }
+
+    func testFarWeekReportKeepsTheCurrentBase() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        XCTAssertEqual(
+            classifyWeekPageReport(currentKey: "2026-10-12", reportedKey: "2026-08-03", calendar: monday),
+            .resetTo("2026-10-12")
+        )
+    }
+
+    func testExternalWeekChangeScrollsHeaderOnce() {
+        var monday = calendar
+        monday.firstWeekday = 2
+        XCTAssertTrue(
+            weekHeaderNeedsProgrammaticScroll(
+                visibleStart: date(2026, 10, 19),
+                positionedStart: date(2026, 10, 12),
+                calendar: monday
+            )
+        )
+        XCTAssertTrue(
+            weekHeaderNeedsProgrammaticScroll(
+                visibleStart: date(2026, 10, 19),
+                positionedStart: nil,
+                calendar: monday
+            )
+        )
+    }
+
     func testTimelinePageWeekKeysStayOnSevenDayNeighborsAcrossYearBoundary() {
         var monday = calendar
         monday.firstWeekday = 2
