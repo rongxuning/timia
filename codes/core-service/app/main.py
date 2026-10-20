@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,6 +27,7 @@ from app.routes.users import router as users_router
 from app.routes.web_auth import router as web_auth_router
 from app.routes.workspaces import router as workspaces_router
 from app.core.config import settings
+from app.services.fx_reference import start_fx_refresh
 from app.middleware.gzip_request import GzipRequestMiddleware
 from app.routes.dev_db_tables import router as dev_db_tables_router
 from app.routes.views.schedule import router as views_schedule_router
@@ -39,7 +42,13 @@ from app.routes.views.plans import notification_view_router as views_plan_notifi
 from app.routes.views.plans import router as views_plans_router
 
 
-app = FastAPI(title="Timia API")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    start_fx_refresh()
+    yield
+
+
+app = FastAPI(title="Timia API", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,

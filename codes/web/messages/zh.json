@@ -481,6 +481,17 @@
       "rangeTitle": "时间段",
       "rangeHint": "区间曲线",
       "days": "{count} 天"
+    },
+    "display": {
+      "title": "显示货币",
+      "hint": "账上仍按实际币种保存。这里只改汇总时用的货币。",
+      "ratesTitle": "参考汇率",
+      "ratesHint": "每 1 单位兑人民币",
+      "source": "欧洲央行欧元参考汇率",
+      "asOf": "牌价日 {date}",
+      "empty": "还没有取到汇率。取到之前，外币先不折进总额。",
+      "saving": "保存中…",
+      "saveFailed": "显示货币没有改成"
     }
   }
 }

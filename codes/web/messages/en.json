@@ -481,6 +481,17 @@
       "rangeTitle": "Range",
       "rangeHint": "Chart window",
       "days": "{count} days"
+    },
+    "display": {
+      "title": "Display currency",
+      "hint": "Each balance stays in its own currency. This only changes the currency used for totals.",
+      "ratesTitle": "Reference rates",
+      "ratesHint": "CNY for 1 unit",
+      "source": "ECB euro reference rates",
+      "asOf": "Rate date {date}",
+      "empty": "Rates are not in yet. Foreign balances stay out of the totals until they arrive.",
+      "saving": "Saving…",
+      "saveFailed": "Could not change the display currency"
     }
   }
 }
