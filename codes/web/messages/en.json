@@ -234,7 +234,7 @@
   },
   "assets": {
     "title": "Assets",
-    "subtitle": "Totals use the display currency. Each line is saved in its own currency. When those differ, the original currency and amount stay visible.",
+    "subtitle": "Net worth, assets, and liabilities are totaled in the display currency. The mix is the current breakdown, and the daily chart follows the dates on the left.",
     "add": "Add a line",
     "loading": "Loading…",
     "emptyTitle": "Start from the total, then break it down",
