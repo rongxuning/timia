@@ -1,0 +1,276 @@
+# Build Timia (iPhone + embedded TimiaWidget) and upload to TestFlight.
+#
+# macos-latest in October 2026 is macOS 26. Its newest non-beta Xcode is 26.6,
+# which ships the iOS 26.5 SDK. Timia sets xcodeVersion 26.0 (Swift 6) and
+# IPHONEOS_DEPLOYMENT_TARGET 17.0. That deployment target sits inside the
+# Xcode 26.6 supported range (iOS 15–26.5). The runner Xcode is not too old.
+# The xcode-27 image is newer and is not required.
+#
+# There is no Watch target. Signing uses an Apple Distribution p12 plus two
+# App Store profiles: online.timia.ios and online.timia.ios.widget. One profile
+# cannot cover both bundle ids. The API key is written to
+# ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 for altool / iTMSTransporter and is
+# never printed. Build numbers are applied only to this job's archive; nothing
+# is pushed back to the repo.
+#
+# Timia.xcscheme is gitignored, so the job writes a shared scheme from the
+# committed project and deletes it afterwards. xcodegen is not run.
+#
+# The first successful run needs the secrets in docs/ci-testflight.md.
+# Missing secrets exit before any certificate or profile is decoded.
+
+name: iOS TestFlight
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "codes/mobile/ios/**"
+  workflow_dispatch:
+
+# One upload at a time. Do not cancel an upload that is already in progress.
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+      BUILD_PROVISION_PROFILE_WIDGET_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_WIDGET_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Self-test version and signing helpers
+        run: python3 .github/scripts/testflight_asc.py self-test
+
+      - name: Check required secrets
+        run: python3 .github/scripts/testflight_asc.py check-secrets
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          developer="$(python3 .github/scripts/testflight_asc.py select-xcode --root /Applications)"
+          sudo xcode-select -s "$developer"
+          xcodebuild -version
+          python3 .github/scripts/testflight_asc.py assert-ios-sdk --minimum 17.0
+          echo "DEVELOPER_DIR=$developer" >> "$GITHUB_ENV"
+
+      - name: Resolve marketing version and build number
+        run: |
+          set -euo pipefail
+          marketing="$(python3 .github/scripts/testflight_asc.py print-marketing-version --project codes/mobile/ios/Timia.xcodeproj/project.pbxproj)"
+          build="$(python3 .github/scripts/testflight_asc.py next-build --marketing-version "$marketing" --fallback "$GITHUB_RUN_NUMBER")"
+          echo "Marketing version (not bumped): $marketing"
+          echo "CFBundleVersion for this archive: $build"
+          if [[ ! "$marketing" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Refusing unexpected marketing version."
+            exit 1
+          fi
+          if [[ ! "$build" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Refusing unexpected build number."
+            exit 1
+          fi
+          {
+            echo "MARKETING_VERSION=$marketing"
+            echo "BUILD_NUMBER=$build"
+          } >> "$GITHUB_ENV"
+
+      - name: Install Apple certificate and provisioning profiles
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/testflight_asc.py decode-signing-assets \
+            --p12-out "$RUNNER_TEMP/cert.p12" \
+            --ios-out "$RUNNER_TEMP/ios.mobileprovision" \
+            --widget-out "$RUNNER_TEMP/widget.mobileprovision"
+
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import secrets
+          path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "keychain.password"
+          path.write_text(secrets.token_urlsafe(32))
+          path.chmod(0o600)
+          PY
+
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          keychain_password="$(cat "$RUNNER_TEMP/keychain.password")"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -k "$keychain" \
+            -P "$P12_PASSWORD" \
+            -f pkcs12 \
+            -A
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -s "$keychain"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          security find-identity -v -p codesigning "$keychain" > "$RUNNER_TEMP/identities.txt"
+          python3 .github/scripts/testflight_asc.py pick-identity \
+            --identities "$RUNNER_TEMP/identities.txt" \
+            --out "$RUNNER_TEMP/identity.txt"
+          rm -f "$RUNNER_TEMP/identities.txt"
+
+          python3 .github/scripts/testflight_asc.py install-profiles \
+            --ios "$RUNNER_TEMP/ios.mobileprovision" \
+            --widget "$RUNNER_TEMP/widget.mobileprovision" \
+            --identity-file "$RUNNER_TEMP/identity.txt" \
+            --env-out "$RUNNER_TEMP/signing.env"
+          rm -f "$RUNNER_TEMP/ios.mobileprovision" "$RUNNER_TEMP/widget.mobileprovision"
+
+      - name: Write ExportOptions and apply CI-only signing
+        run: |
+          set -euo pipefail
+          # ExportOptions method is app-store-connect (local IPA, not an Xcode upload).
+          python3 .github/scripts/testflight_asc.py write-export-options \
+            --out "$RUNNER_TEMP/ExportOptions.plist" \
+            --signing-env "$RUNNER_TEMP/signing.env"
+          python3 .github/scripts/testflight_asc.py patch-project \
+            --project codes/mobile/ios/Timia.xcodeproj/project.pbxproj \
+            --signing-env "$RUNNER_TEMP/signing.env" \
+            --build-number "$BUILD_NUMBER" \
+            --marketing-version "$MARKETING_VERSION"
+          python3 .github/scripts/testflight_asc.py write-scheme \
+            --project codes/mobile/ios/Timia.xcodeproj/project.pbxproj
+
+      - name: Archive
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          security unlock-keychain -p "$(cat "$RUNNER_TEMP/keychain.password")" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          identity="$(tr -d '\n' < "$RUNNER_TEMP/identity.txt")"
+          xcodebuild \
+            -project codes/mobile/ios/Timia.xcodeproj \
+            -scheme Timia \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Timia.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            "DEVELOPMENT_TEAM=$APPLE_TEAM_ID" \
+            "CODE_SIGN_IDENTITY=$identity" \
+            "CURRENT_PROJECT_VERSION=$BUILD_NUMBER" \
+            "MARKETING_VERSION=$MARKETING_VERSION"
+
+      - name: Export IPA
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/app-signing.keychain-db"
+          security unlock-keychain -p "$(cat "$RUNNER_TEMP/keychain.password")" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/Timia.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload to TestFlight
+        run: |
+          set -euo pipefail
+          ipa=""
+          while IFS= read -r candidate; do
+            ipa="$candidate"
+            break
+          done < <(find "$RUNNER_TEMP/export" -name '*.ipa')
+          if [[ -z "$ipa" ]]; then
+            echo "Export did not produce an IPA."
+            exit 1
+          fi
+          echo "IPA bytes: $(wc -c < "$ipa" | tr -d ' ')"
+          # altool reads ~/private_keys/AuthKey_<ASC_KEY_ID>.p8. The file is
+          # already there from the build-number step; rewrite it in case of a
+          # partial run and do not print the path or the key.
+          python3 .github/scripts/testflight_asc.py write-api-key
+          summary="${GITHUB_STEP_SUMMARY:-}"
+          write_summary() {
+            if [[ -z "$summary" ]]; then
+              return 0
+            fi
+            {
+              echo "### TestFlight"
+              echo "- Marketing version: \`$MARKETING_VERSION\` (unchanged)"
+              echo "- Build: \`$BUILD_NUMBER\`"
+              echo "- Uploader: $1"
+            } >> "$summary"
+          }
+          if xcrun --find altool >/dev/null 2>&1; then
+            echo "Uploading with xcrun altool."
+            if xcrun altool --upload-app -f "$ipa" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"; then
+              write_summary altool
+              exit 0
+            fi
+            echo "altool failed; trying iTMSTransporter."
+          else
+            echo "altool is not on this Xcode; using iTMSTransporter."
+          fi
+          xcrun iTMSTransporter -m upload -assetFile "$ipa" -apiKey "$ASC_KEY_ID" -apiIssuer "$ASC_ISSUER_ID"
+          write_summary iTMSTransporter
+
+      - name: Set usesNonExemptEncryption=false
+        if: success()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/testflight_asc.py set-encryption \
+            --build-number "$BUILD_NUMBER" \
+            --wait-seconds 180
+
+      - name: Remove signing material
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ -f "$RUNNER_TEMP/app-signing.keychain-db" ]]; then
+            security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true
+          fi
+          if [[ -f "$RUNNER_TEMP/signing.env" ]]; then
+            # shellcheck disable=SC1091,SC2154
+            source "$RUNNER_TEMP/signing.env"
+            for dir in \
+              "$HOME/Library/MobileDevice/Provisioning Profiles" \
+              "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+            do
+              rm -f "$dir/$IOS_PROFILE_UUID.mobileprovision" \
+                "$dir/$WIDGET_PROFILE_UUID.mobileprovision"
+            done
+          fi
+          python3 - <<'PY'
+          import pathlib
+          directory = pathlib.Path.home() / "private_keys"
+          if directory.is_dir():
+              for path in directory.glob("AuthKey_*.p8"):
+                  path.unlink()
+          PY
+          rm -f \
+            "$RUNNER_TEMP/cert.p12" \
+            "$RUNNER_TEMP/ios.mobileprovision" \
+            "$RUNNER_TEMP/widget.mobileprovision" \
+            "$RUNNER_TEMP/keychain.password" \
+            "$RUNNER_TEMP/identity.txt" \
+            "$RUNNER_TEMP/identities.txt" \
+            "$RUNNER_TEMP/signing.env" \
+            "$RUNNER_TEMP/ExportOptions.plist" \
+            codes/mobile/ios/Timia.xcodeproj/xcshareddata/xcschemes/Timia.xcscheme
+          git checkout -- codes/mobile/ios/Timia.xcodeproj/project.pbxproj
