@@ -1,18 +1,49 @@
 name: Deploy to Lighthouse
 
+# 主路径：轻量云 cron 轮询 main 并执行 deploy/local.sh
+# （sudo bash deploy/local.sh install-cron）。
+# 本 workflow 的 SSH 只是辅助。GitHub → 腾讯云轻量云入站 SSH 经常
+# connection reset by peer，失败不代表线上没发版。见 docs/deploy/cloud.md。
+#
+# paths：只有服务端相关文件变更才启动 Deploy。
+# codes/mobile（含 iOS TestFlight）和 docs 不在此列。
+# 手动运行走 workflow_dispatch，不受 paths 限制。
+
 on:
   push:
     branches: [main]
+    paths:
+      - "codes/core-service/**"
+      - "codes/file-service/**"
+      - "codes/web/**"
+      - "codes/mcp-server/**"
+      - "deploy/nginx.conf"
+      - "deploy/local.sh"
+      - "deploy/_common.sh"
+      - "deploy/dc.sh"
+      - "docker-compose.prod.yml"
   workflow_dispatch:
-
-# GitHub → 国内轻量云 SSH 常被 reset（connection reset by peer）。
-# 推荐在服务器启用轮询：sudo bash deploy/local.sh install-cron
-# 见 docs/deploy/cloud.md
+    inputs:
+      deploy_mode:
+        description: "DEPLOY_MODE for deploy/local.sh (push runs use smart)"
+        required: false
+        default: smart
+        type: choice
+        options:
+          - smart
+          - full
+          - core-service
+          - file-service
+          - web
+          - mcp-server
 
 jobs:
   deploy-ssh:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    env:
+      # push 没有 workflow_dispatch inputs，回落到与 local.sh 相同的 smart。
+      DEPLOY_MODE: ${{ github.event.inputs.deploy_mode || 'smart' }}
     steps:
       - name: Deploy via SSH (attempt 1/3)
         id: attempt1
@@ -26,6 +57,7 @@ jobs:
           timeout: 120s
           command_timeout: 120m
           script_stop: true
+          envs: DEPLOY_MODE
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
@@ -34,6 +66,8 @@ jobs:
               exit 1
             fi
             export GIT_REF=main
+            export DEPLOY_MODE="${DEPLOY_MODE:-smart}"
+            echo "DEPLOY_MODE=${DEPLOY_MODE}"
             bash deploy/local.sh
 
       - name: Deploy via SSH (attempt 2/3)
@@ -49,10 +83,13 @@ jobs:
           timeout: 120s
           command_timeout: 120m
           script_stop: true
+          envs: DEPLOY_MODE
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
             export GIT_REF=main
+            export DEPLOY_MODE="${DEPLOY_MODE:-smart}"
+            echo "DEPLOY_MODE=${DEPLOY_MODE}"
             bash deploy/local.sh
 
       - name: Deploy via SSH (attempt 3/3)
@@ -68,10 +105,13 @@ jobs:
           timeout: 120s
           command_timeout: 120m
           script_stop: true
+          envs: DEPLOY_MODE
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
             export GIT_REF=main
+            export DEPLOY_MODE="${DEPLOY_MODE:-smart}"
+            echo "DEPLOY_MODE=${DEPLOY_MODE}"
             bash deploy/local.sh
 
       - name: SSH deploy result
@@ -80,11 +120,12 @@ jobs:
           if [[ "${{ steps.attempt1.outcome }}" == "success" ]] \
             || [[ "${{ steps.attempt2.outcome }}" == "success" ]] \
             || [[ "${{ steps.attempt3.outcome }}" == "success" ]]; then
-            echo "SSH deploy succeeded."
+            echo "SSH deploy succeeded (DEPLOY_MODE=${DEPLOY_MODE})."
             exit 0
           fi
           echo "::warning::SSH deploy failed (e.g. connection reset by peer)."
-          echo "Use poll deploy on the server (recommended for Lighthouse):"
+          echo "Use poll deploy on the server (primary path for Lighthouse):"
           echo "  cd /opt/timia && git pull && sudo bash deploy/local.sh install-cron"
-          echo "Then push to main deploys within ~3 minutes without inbound SSH."
+          echo "Then a server-relevant push to main deploys within ~3 minutes without inbound SSH."
+          echo "Poll log: tail -f /var/log/timia-deploy-poll.log"
           exit 1

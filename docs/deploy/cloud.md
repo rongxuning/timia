@@ -4,10 +4,12 @@
 
 生产环境仅使用 **腾讯云轻量应用服务器（Docker CE 镜像）**：在服务器上 `git pull`，用 **Docker Compose 本地构建** 并启动，**不使用** 容器镜像服务（TCR/CCR）。
 
-自动部署两种方式（二选一或同时用）：
+自动部署以服务器轮询为主，GitHub Actions SSH 为辅：
 
-1. **轮询部署（推荐，轻量云）**：服务器每 3 分钟 `git fetch`，`main` 有新提交则执行 `local.sh`——**不需要** GitHub 连 SSH 进来。
-2. **GitHub Actions SSH**：push 后由 Actions SSH 执行 `local.sh`；从 GitHub 连国内轻量云常被 **`connection reset by peer`** 拒绝，仅作辅助。
+1. **轮询部署（主路径，推荐）**：服务器 cron 每 3 分钟 `git fetch`，`main` 有新提交则执行 `local.sh`（`install-cron` / `poll`）。**不需要** GitHub 连 SSH 进来。
+2. **GitHub Actions SSH（辅助）**：仅当 push 命中服务端 **paths** 时，由 Actions SSH 执行 `local.sh`。从 GitHub 连国内轻量云常被 **`connection reset by peer`** 重置，失败不代表轮询没在发版。
+
+**paths 过滤**（`.github/workflows/deploy.yml`）：只有 `codes/core-service`、`codes/file-service`、`codes/web`、`codes/mcp-server`、`deploy/nginx.conf`、`deploy/local.sh`、`deploy/_common.sh`、`deploy/dc.sh`、`docker-compose.prod.yml` 的变更才启动 **Deploy to Lighthouse**。`codes/mobile/**` 与 `docs/**` 不触发这条 workflow（iOS 仍走独立的 TestFlight workflow）。手动运行用 **workflow_dispatch**，可选 `deploy_mode`。
 
 ## 架构
 
@@ -15,16 +17,17 @@
 flowchart LR
   subgraph GitHub
     A[push main]
-    B[SSH 触发 local.sh]
   end
   subgraph Lighthouse["轻量云 Docker CE"]
-    G[git pull]
-    D[docker compose build]
+    P[cron poll local.sh]
+    G[git fetch]
+    D[smart compose build]
     S[docker compose up]
     DB[(PostgreSQL)]
     NG[Nginx]
   end
-  A --> B --> G --> D --> S
+  A --> P --> G --> D --> S
+  SSH[Actions SSH 辅助] -.-> G
   S --> DB
   NG --> S
   User[用户] -->|timia.online| NG
@@ -39,7 +42,7 @@ flowchart LR
 
 | 文件 | 用途 |
 |------|------|
-| `.github/workflows/deploy.yml` | push `main` 后 SSH 执行部署 |
+| `.github/workflows/deploy.yml` | 辅助：push `main` 且命中服务端 paths 时 SSH 执行 `local.sh`；`workflow_dispatch` 可选手动 `deploy_mode` |
 | `docker-compose.prod.yml` | 生产编排 |
 | `deploy/local.sh` | 服务器部署；子命令 `bootstrap` / `poll` / `install-cron` |
 | `deploy/dc.sh` | 带 `.env.prod` 的 compose 命令 |
@@ -250,15 +253,43 @@ bash deploy/local.sh poll
 
 ### 部署模式（缩短耗时）
 
-默认 **`smart`**：只拉代码，**仅当 `codes/core-service` 或 `codes/web` 有改动时才 build**，改文档不会触发 30 分钟 web 构建。
+默认 **`DEPLOY_MODE=smart`**（`deploy/local.sh` 与轮询都是这个默认值）：`git fetch` 后对照上一版 HEAD，按 `deploy/_common.sh` 的路径映射**只构建有改动的镜像**。只改 `codes/mobile/**` 或纯文档时**不重建镜像**（清单为空时只 `compose up` 确认栈在跑），不会因为 iOS 或文档去跑长时间的 web 构建。
 
-| 命令 | 耗时 | 适用 |
-|------|------|------|
-| `bash deploy/local.sh` | 智能最短 | 日常 push 后（默认 smart；只 build 有改动的服务，**并行**） |
-| `DEPLOY_MODE=quick bash deploy/local.sh` | 最快（秒级～1 分钟） | 只改了配置/重启，或镜像已是最新 |
-| `DEPLOY_MODE=full bash deploy/local.sh` | 最慢（全量 build） | 依赖升级、构建异常、首次部署 |
-| `DEPLOY_MODE=core-service bash deploy/local.sh` | 中等 | 只改了后端 |
-| `DEPLOY_MODE=web bash deploy/local.sh` | 慢 | 只改了前端 |
+| 变更路径 | smart 目标 |
+|----------|------------|
+| `codes/core-service/**` | `core-service` |
+| `codes/file-service/**` | `file-service` |
+| `codes/web/**` | `web` |
+| `codes/mcp-server/**` | `mcp-server` |
+| `deploy/nginx.conf` | `nginx`（重建容器，不 build 业务镜像） |
+| `docker-compose.prod.yml` | `core-service`、`file-service`、`web`、`mcp-server` 与 `nginx` |
+| `codes/mobile/**`、`docs/**` 及其它未映射路径 | 不 build 镜像 |
+
+| 命令 | 适用 |
+|------|------|
+| `bash deploy/local.sh` | 日常（默认 smart；只 build 清单里的服务，**并行**） |
+| `DEPLOY_MODE=quick bash deploy/local.sh` | 只重启，或镜像已是最新（不 build） |
+| `DEPLOY_MODE=full bash deploy/local.sh` | 依赖升级、构建异常、首次部署（四个应用服务 + nginx） |
+| `DEPLOY_MODE=core-service bash deploy/local.sh` | 只构建 core-service |
+| `DEPLOY_MODE=file-service bash deploy/local.sh` | 只构建 file-service |
+| `DEPLOY_MODE=web bash deploy/local.sh` | 只构建 web |
+| `DEPLOY_MODE=mcp-server bash deploy/local.sh` | 只构建 mcp-server |
+
+### GitHub Actions paths（只约束 SSH 辅助）
+
+`.github/workflows/deploy.yml` 的 `push` **paths** 与上表里的服务端文件对齐，并额外包含部署脚本（改脚本可以走一遍 SSH；smart 仍只按上表决定是否 build）：
+
+- `codes/core-service/**`
+- `codes/file-service/**`
+- `codes/web/**`
+- `codes/mcp-server/**`
+- `deploy/nginx.conf`
+- `deploy/local.sh`
+- `deploy/_common.sh`
+- `deploy/dc.sh`
+- `docker-compose.prod.yml`
+
+不包含 `codes/mobile/**`、`docs/**`。因此 **只改 iOS 的 push 不会启动 Deploy to Lighthouse**（TestFlight workflow 有自己的 paths）。`workflow_dispatch` 不受 paths 限制。可选输入 `deploy_mode`：`smart` | `full` | `core-service` | `file-service` | `web` | `mcp-server`，经 SSH 设为服务器上的 `DEPLOY_MODE`。普通 push 没有该输入，固定 `smart`。
 
 本机 `deploy/remote.sh`（轻量云 SSH 上传镜像）同样默认 **smart**：
 
@@ -277,20 +308,23 @@ PARALLEL_UPLOAD=0 bash deploy/remote.sh upload  # 串行上传（SSH 不稳时�
 
 推送到 **`main`** 后：
 
-- **已安装轮询**（推荐）：服务器约 3 分钟内自动部署，看 `tail -f /var/log/timia-deploy-poll.log`
-- **仅 Actions SSH**：在 **Actions → Deploy to Lighthouse** 查看是否成功（可能因 SSH 被重置而失败）
+- **已安装轮询**（主路径）：服务器约 3 分钟内自动部署。看 `tail -f /var/log/timia-deploy-poll.log`。日志里的 `Deploy checklist` 列出本次要 build 的服务；只有文档或 iOS 时应看到 `(none) — compose up only`。
+- **Actions SSH**（辅助）：仅当上一节的 paths 命中时，**Actions → Deploy to Lighthouse** 才会出现。GitHub 连国内轻量云常 `connection reset by peer`，失败不代表轮询没在发版。
 
-服务器上执行流程（`deploy/local.sh`）：
+服务器上 `deploy/local.sh` 默认流程：
 
-1. `git pull origin main`
-2. `docker compose -f docker-compose.prod.yml --env-file .env.prod build`
-3. `docker compose ... up -d`
+1. `git fetch` 并切到 `origin/main`
+2. smart 对照 diff，并行 `docker compose build` 清单中的应用镜像（构建日志在 `/tmp/timia-deploy-logs/build-<service>.log`）
+3. `up -d` 重建这些服务；构建了应用镜像，或 nginx/compose 在清单里时，重建 nginx，并保证整栈 `up -d`
 
 ### 验证
 
 ```bash
+tail -f /var/log/timia-deploy-poll.log
 curl -fsS https://timia.online/core-service/health
 ```
+
+只改 iOS 或文档后：该次 push 的 Actions 里不应出现 **Deploy to Lighthouse**；轮询日志不应出现对应服务的 `docker build`。MCP 健康检查（若本次动了 mcp-server）：`curl -fsS https://timia.online/mcp-health`。
 
 ---
 
@@ -354,7 +388,7 @@ tail -f /tmp/timia-deploy.log
 ```bash
 docker ps                    # 运行中的容器
 docker ps -a --last 5      # 最近退出的容器（含 build 中间层）
-docker images | head -20   # 是否已有新构建的 core-service/web 镜像
+docker images | head -20   # 是否已有新构建的 core/file/web/mcp 镜像
 ```
 
 **4. Compose 服务状态**
@@ -368,15 +402,17 @@ cd /opt/timia
 
 | 状态 | 含义 |
 |------|------|
-| 四个服务均为 `Up` | 部署很可能已成功 |
-| 无 `core-service`/`web` 或状态 `Exit` | build 未完成或 `up` 失败 |
+| `core-service`、`file-service`、`web`、`mcp-server`、`db`、`nginx` 均为 `Up` | 部署很可能已成功 |
+| 缺少上述应用服务或状态 `Exit` | build 未完成或 `up` 失败 |
 | 仅有 `db` 在跑 | 可能卡在 build 或脚本已退出 |
 
 **5. 查看服务日志（定位失败）**
 
 ```bash
 ./deploy/dc.sh logs --tail=100 core-service
+./deploy/dc.sh logs --tail=100 file-service
 ./deploy/dc.sh logs --tail=100 web
+./deploy/dc.sh logs --tail=100 mcp-server
 ```
 
 **6. 验证是否已上线**
@@ -418,12 +454,14 @@ export SKIP_GIT_PULL=1
 cd /opt/timia
 ./deploy/dc.sh ps
 ./deploy/dc.sh logs -f --tail=200 core-service
+./deploy/dc.sh logs -f --tail=200 file-service
 ./deploy/dc.sh logs -f --tail=200 web
+./deploy/dc.sh logs -f --tail=200 mcp-server
 ./deploy/dc.sh logs -f --tail=200 nginx
 ./deploy/dc.sh logs -f --tail=200 db
 ```
 
-仅重建某一服务：
+仅重建某一服务（示例为 web；core-service / file-service / mcp-server 同样替换服务名）：
 
 ```bash
 ./deploy/dc.sh build web
@@ -442,21 +480,25 @@ cd /opt/timia
 
 ### `local.sh` 卡住、长时间无输出
 
-脚本会按顺序执行：**git pull → build core-service → build web → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**），BuildKit 默认几乎不刷屏。
+默认 **smart** 会：**git fetch → 按变更清单并行 build 有改动的服务 → up**。多数「假死」是 **web 的 `npm ci` / `next build`**（轻量云 2GB 内存可能要 **20～40 分钟**）。并行构建的详细输出写在 `/tmp/timia-deploy-logs/build-<service>.log`，主日志在构建结束前可能只有 `Building N service(s) in parallel ...`。
 
 **先确认卡在哪一步**（另开一个 SSH 窗口）：
 
 ```bash
 pgrep -af "local.sh|docker|npm|node"
-tail -20 /tmp/timia-deploy.log   # 若用 nohup 部署
+tail -20 /var/log/timia-deploy-poll.log   # cron 轮询
+tail -20 /tmp/timia-deploy.log            # 若用 nohup 部署
+tail -20 /tmp/timia-deploy-logs/build-web.log
 ```
 
-| 最后一行日志 | 实际在做什么 |
-|--------------|--------------|
-| `Step 1/4: git` | 拉代码；私有库未配 Deploy Key 可能一直等（新版本会快速失败） |
-| `Step 2/4: docker build core-service` | 构建 core-service 镜像 |
-| `Step 3/4: docker build web` | 构建前端（最慢，属正常） |
-| `Step 4/4: docker compose up` | 启动容器 |
+| 日志 | 实际在做什么 |
+|------|----------------|
+| `Step 1: git fetch & sync` | 拉代码；私有库未配 Deploy Key 会失败 |
+| `Deploy checklist:` 后列出服务名 | smart 判定要 build / 重建的服务 |
+| `Deploy checklist: (none)` | 本次 diff 不映射到镜像（例如只改了 iOS 或文档） |
+| `Building N service(s) in parallel` | 正在 build；看 `/tmp/timia-deploy-logs/build-<service>.log` |
+| `docker build web` 长时间无新行 | 构建前端（最慢，属正常） |
+| `Recreating` / `Ensuring stack is up` | 启动或重建容器 |
 
 **建议**：用 `tmux` 跑部署，并 `git pull` 拿到带分步日志的 `local.sh`：
 
@@ -472,7 +514,9 @@ export SKIP_GIT_PULL=1   # 代码已最新时可跳过
 ```bash
 cd /opt/timia
 ./deploy/dc.sh build --progress=plain core-service
+./deploy/dc.sh build --progress=plain file-service
 ./deploy/dc.sh build --progress=plain web   # 最耗时
+./deploy/dc.sh build --progress=plain mcp-server
 ./deploy/dc.sh up -d
 ```
 
@@ -539,8 +583,9 @@ export SKIP_GIT_PULL=1
 | Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/local.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
-| `build` 很慢或 OOM | 用 **`smart`** / `DEPLOY_MODE=quick`；只改 core-service 用 `DEPLOY_MODE=core-service`；升级内存 |
-| 每次部署都要 build web | 确认用默认 `smart`；全量才用 `DEPLOY_MODE=full` |
+| `build` 很慢或 OOM | 用默认 **`smart`** 或 `DEPLOY_MODE=quick`；只重建一个服务时用 `DEPLOY_MODE=core-service`（或 `file-service` / `web` / `mcp-server`）；升级内存 |
+| 每次部署都要 build web | 确认用默认 `smart`；全量才用 `DEPLOY_MODE=full`。只改 iOS/文档不应 build web |
+| Actions 在只改 iOS 时仍启动 Deploy | 确认 `main` 上的 `deploy.yml` 已带 **paths**，且该 push 没有同时改服务端路径 |
 | CORS 错误 | `.env.prod` 中 `CORS_ORIGINS=https://timia.online` |
 | 前端 API 地址错误 | 修改 `NEXT_PUBLIC_API_BASE_URL` 后必须 **`build web`** 再 `up` |
 | 迁移失败 | `docker compose logs core-service`（启动时自动 `alembic upgrade head`） |
