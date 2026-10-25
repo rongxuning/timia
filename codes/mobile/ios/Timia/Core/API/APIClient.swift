@@ -34,6 +34,12 @@ enum APIError: LocalizedError, Equatable {
             return "地点搜索暂时不可用"
         case "geo_rate_limited":
             return "搜索过快，请稍后再试"
+        case "invalid_participant", "invalid_participant_user_id":
+            return "所选成员无效，请重新选择项目成员"
+        case "invalid_assignee", "invalid_assignee_user_id":
+            return "所选负责人无效，请重新选择"
+        case "version_conflict":
+            return "任务已被他人更新，请关闭后重试"
         default:
             if status == 404 { return "未找到" }
             return message
