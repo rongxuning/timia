@@ -27,6 +27,6 @@ description: Use when implementing or changing codes/web Next.js pages, componen
 
 ## UI 要点
 
-主题 token（`primary`、`surface`、`text-body`…），不要单页 palettes。Material Symbols Outlined。加载 / 空 / 错误三条路径都要有 i18n。壳层 `pt-14` + `md:ml-48`，别让内容顶到固定头下面。
+主题 token（`primary`、`surface`、`text-body`…），不要单页 palettes。Material Symbols Outlined 自托管在 `app/fonts.ts`，不要用 Google Fonts。加载 / 空 / 错误三条路径都要有 i18n。壳层 `pt-14` + `md:ml-48`，别让内容顶到固定头下面。
 
 日历周起始读当前用户的 `week_starts_on`（`src/lib/weekStart.ts`，默认周一）。账号设置在 `/my/account`，不要放进仅管理员可进的 `/settings`。规划编辑器的周列固定周一到周日（`rel_day` 1–7），不随账号旋转。空间/项目选择复用 `PinnedTagSelect`。规划只在 Web。健康页只读 views。改 `messages/*.json` 后 `npm run test:i18n`（中英 key 必须对齐）。

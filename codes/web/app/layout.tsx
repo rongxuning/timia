@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { htmlLang, type Locale } from "@/i18n/config";
-import { beVietnamPro, epilogue, jetBrainsMono } from "./fonts";
+import { beVietnamPro, epilogue, jetBrainsMono, materialSymbols } from "./fonts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
@@ -23,17 +23,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const messages = await getMessages();
   return (
     <html lang={htmlLang(locale)}>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-        />
-      </head>
       <body
         className={[
           epilogue.variable,
           beVietnamPro.variable,
           jetBrainsMono.variable,
+          materialSymbols.variable,
           "bg-background font-body text-on-background selection:bg-primary-fixed selection:text-on-primary-fixed",
         ].join(" ")}
       >
