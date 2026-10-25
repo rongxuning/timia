@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { htmlLang, type Locale } from "@/i18n/config";
-import { beVietnamPro, epilogue, jetBrainsMono, materialSymbols } from "./fonts";
+import { MATERIAL_SYMBOLS_HREF } from "@/lib/material-symbols-font";
+import { beVietnamPro, epilogue, jetBrainsMono } from "./fonts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("meta");
@@ -23,12 +24,29 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const messages = await getMessages();
   return (
     <html lang={htmlLang(locale)}>
+      <head>
+        <link
+          rel="preload"
+          href={MATERIAL_SYMBOLS_HREF}
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <style>{`
+          @font-face {
+            font-family: "Material Symbols Outlined";
+            font-style: normal;
+            font-weight: 100 700;
+            font-display: block;
+            src: url("${MATERIAL_SYMBOLS_HREF}") format("woff2");
+          }
+        `}</style>
+      </head>
       <body
         className={[
           epilogue.variable,
           beVietnamPro.variable,
           jetBrainsMono.variable,
-          materialSymbols.variable,
           "bg-background font-body text-on-background selection:bg-primary-fixed selection:text-on-primary-fixed",
         ].join(" ")}
       >

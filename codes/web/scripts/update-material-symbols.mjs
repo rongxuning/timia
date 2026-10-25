@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { FONT_REL, MANIFEST_REL, scanMaterialIconNames } from "./material-symbols.mjs";
+import { FONT_REL, HREF_REL, MANIFEST_REL, scanMaterialIconNames } from "./material-symbols.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const icons = scanMaterialIconNames(root);
@@ -94,9 +94,19 @@ if (check.status !== 0) {
   process.exit(check.status || 1);
 }
 
-const manifest = {
-  sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
-  icons,
-};
+const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+const manifest = { sha256, icons };
 fs.writeFileSync(path.join(root, MANIFEST_REL), `${JSON.stringify(manifest, null, 2)}\n`);
+
+const hrefPath = path.join(root, HREF_REL);
+const hrefSource = fs.readFileSync(hrefPath, "utf8");
+const hrefNext = hrefSource.replace(
+  /\/fonts\/material-symbols-outlined\.woff2\?v=[a-f0-9]+/,
+  `/fonts/material-symbols-outlined.woff2?v=${sha256.slice(0, 12)}`,
+);
+if (hrefNext === hrefSource) {
+  console.error(`could not update font href in ${HREF_REL}`);
+  process.exit(1);
+}
+fs.writeFileSync(hrefPath, hrefNext);
 console.log(`wrote ${FONT_REL} (${bytes.length} bytes, ${icons.length} icons)`);

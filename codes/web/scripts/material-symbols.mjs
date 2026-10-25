@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const FONT_REL = "app/fonts/material-symbols-outlined.woff2";
+export const FONT_REL = "public/fonts/material-symbols-outlined.woff2";
 export const MANIFEST_REL = "app/fonts/material-symbols-icons.json";
+export const HREF_REL = "src/lib/material-symbols-font.ts";
 
 const ICON_NAME = /^[a-z][a-z0-9_]*$/;
 

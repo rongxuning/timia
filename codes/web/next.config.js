@@ -7,6 +7,19 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  async headers() {
+    return [
+      {
+        source: "/fonts/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

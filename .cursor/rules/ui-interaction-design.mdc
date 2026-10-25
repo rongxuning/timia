@@ -41,7 +41,7 @@ alwaysApply: false
 
 ## 图标
 
-- 使用 **Material Symbols Outlined**（`app/fonts.ts` 用 `next/font/local` 自托管子集，不要再链到 fonts.googleapis.com）；默认线框，需要强调时用 `style={{ fontVariationSettings: "'FILL' 1" }}`。
+- 使用 **Material Symbols Outlined**（字体文件在 `public/fonts`，由本站 `/fonts/` 下发，`Cache-Control` 让浏览器长期缓存；不要再链到 fonts.googleapis.com）；默认线框，需要强调时用 `style={{ fontVariationSettings: "'FILL' 1" }}`。
 - 图标与文案并排时用 `flex items-center gap-2` / `gap-3`，尺寸常见 `text-[18px]`～`text-xl`。
 
 ## 表单与输入

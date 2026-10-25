@@ -24,15 +24,3 @@ export const jetBrainsMono = localFont({
   display: "swap",
   weight: "100 800",
 });
-
-// Self-hosted Material Symbols Outlined subset (Apache-2.0).
-// Regenerate with `node scripts/update-material-symbols.mjs`.
-export const materialSymbols = localFont({
-  src: "./fonts/material-symbols-outlined.woff2",
-  variable: "--font-material-symbols",
-  display: "block",
-  weight: "100 700",
-  style: "normal",
-  adjustFontFallback: false,
-  preload: true,
-});

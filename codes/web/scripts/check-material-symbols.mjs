@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FONT_REL, MANIFEST_REL, scanMaterialIconNames } from "./material-symbols.mjs";
+import { FONT_REL, HREF_REL, MANIFEST_REL, scanMaterialIconNames } from "./material-symbols.mjs";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fontPath = path.join(root, FONT_REL);
@@ -41,12 +41,25 @@ if (bytes.length < 1000 || bytes.subarray(0, 4).toString() !== "wOF2") {
 }
 
 const layout = fs.readFileSync(path.join(root, "app/layout.tsx"), "utf8");
-const fonts = fs.readFileSync(path.join(root, "app/fonts.ts"), "utf8");
+const hrefSource = fs.readFileSync(path.join(root, HREF_REL), "utf8");
+const nextConfig = fs.readFileSync(path.join(root, "next.config.js"), "utf8");
+const nginx = fs.readFileSync(path.join(root, "../../deploy/nginx.conf"), "utf8");
+const href = hrefSource.match(/\/fonts\/material-symbols-outlined\.woff2\?v=([a-f0-9]+)/)?.[1];
 if (layout.includes("fonts.googleapis.com") || layout.includes("fonts.gstatic.com")) {
   fail("app/layout.tsx still loads Material Symbols from Google Fonts");
 }
-if (!fonts.includes("material-symbols-outlined.woff2")) {
-  fail("app/fonts.ts does not load the self-hosted Material Symbols file");
+if (!layout.includes("MATERIAL_SYMBOLS_HREF")) {
+  fail("app/layout.tsx does not preload the server icon font");
+}
+if (href !== sha256.slice(0, 12)) {
+  fail(`font href version ${href} does not match sha256 ${sha256.slice(0, 12)}`);
+}
+const cacheControl = "public, max-age=31536000, immutable";
+if (!nextConfig.includes(cacheControl) || !nextConfig.includes("/fonts/:path*")) {
+  fail("next.config.js does not cache /fonts/ in the browser");
+}
+if (!nginx.includes("location /fonts/") || !nginx.includes(cacheControl)) {
+  fail("deploy/nginx.conf does not cache /fonts/ in the browser");
 }
 
 console.log(`material symbols ok (${scanned.length} icons, ${bytes.length} bytes)`);
