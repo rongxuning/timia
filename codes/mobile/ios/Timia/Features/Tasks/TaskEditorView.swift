@@ -326,7 +326,7 @@ struct TaskEditorView: View {
                         .lineLimit(1)
                 }
             }
-            .disabled(projectId.isEmpty)
+            .disabled(projectId.isEmpty || (isEditing && !isPrepared))
 
             NavigationLink {
                 TaskParticipantsSelectionView(
@@ -340,7 +340,7 @@ struct TaskEditorView: View {
                         .lineLimit(1)
                 }
             }
-            .disabled(projectId.isEmpty)
+            .disabled(projectId.isEmpty || (isEditing && !isPrepared))
             .onChange(of: assigneeUserId) { _, newValue in
                 participantUserIds.remove(newValue)
             }
@@ -473,11 +473,22 @@ struct TaskEditorView: View {
                     .disabled(
                         isSaving
                             || isDeleting
+                            || !isPrepared
                             || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             || workspaceId.isEmpty
                             || projectId.isEmpty
                             || endDate <= startDate
                     )
+            }
+        }
+        .overlay {
+            if isEditing && !isPrepared {
+                ZStack {
+                    Color(.systemBackground).opacity(0.92)
+                    ProgressView("加载任务…")
+                }
+                .allowsHitTesting(true)
+                .ignoresSafeArea()
             }
         }
         .keyboardDoneToolbar { focusedField = nil }
@@ -543,7 +554,13 @@ struct TaskEditorView: View {
     }
 
     private func prepare() async {
-        defer { isPrepared = true }
+        isPrepared = false
+        defer {
+            // Cancelled `.task` restarts still run defer; only mark ready on success.
+            if !Task.isCancelled {
+                isPrepared = true
+            }
+        }
         switch mode {
         case .create:
             await loadWorkspaces()
@@ -588,7 +605,9 @@ struct TaskEditorView: View {
             projectId = task.projectId
             fill(task)
             await loadWorkspaces()
+            guard !Task.isCancelled else { return }
             await loadProjects()
+            guard !Task.isCancelled else { return }
             await loadDetail(taskId: task.id)
         }
     }
@@ -740,16 +759,21 @@ struct TaskEditorView: View {
 
     private func loadWorkspaces(selecting id: String? = nil) async {
         do {
-            workspaces = sortFavoriteThenCreatedAt(
+            let cards = sortFavoriteThenCreatedAt(
                 try await session.api.request("/workspaces/cards", response: [WorkspaceCard].self)
             )
+            guard !Task.isCancelled else { return }
+            workspaces = cards
             if let id, workspaces.contains(where: { $0.id == id }) {
                 workspaceId = id
             } else if workspaceId.isEmpty, let first = workspaces.first {
                 workspaceId = first.id
                 await loadProjects()
             }
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadProjects(selecting id: String? = nil) async {
@@ -760,9 +784,11 @@ struct TaskEditorView: View {
             return
         }
         do {
-            projects = sortFavoriteThenCreatedAt(
+            let loaded = sortFavoriteThenCreatedAt(
                 try await session.api.request("/workspaces/\(workspaceId)/projects", response: [Project].self)
             )
+            guard !Task.isCancelled else { return }
+            projects = loaded
             if let id, projects.contains(where: { $0.id == id }) {
                 projectId = id
                 if id != lockedParsedProjectId {
@@ -776,7 +802,10 @@ struct TaskEditorView: View {
                 projectId = projects.first?.id ?? ""
             }
             await loadMemberOptions()
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func loadMemberOptions() async {
@@ -791,6 +820,7 @@ struct TaskEditorView: View {
                 "/views/workspace/\(requestedWorkspaceId)/projects/\(requestedProjectId)/task-drawer-context",
                 response: TaskDrawerContext.self
             )
+            guard !Task.isCancelled else { return }
             guard workspaceId == requestedWorkspaceId, projectId == requestedProjectId else { return }
             let selectedIds = participantUserIds.union([assigneeUserId])
             let selectedFallbacks = memberOptions.filter { selectedIds.contains($0.userId) }
@@ -808,6 +838,7 @@ struct TaskEditorView: View {
             let validIds = Set(memberOptions.map(\.userId))
             participantUserIds = participantUserIds.intersection(validIds)
         } catch {
+            guard !Task.isCancelled else { return }
             guard workspaceId == requestedWorkspaceId, projectId == requestedProjectId else { return }
             errorMessage = error.localizedDescription
         }
@@ -828,6 +859,7 @@ struct TaskEditorView: View {
                 "/views/workspace/\(sourceWorkspaceId)/projects/\(sourceProjectId)/items/\(taskId)/detail",
                 response: ItemDetail.self
             )
+            guard !Task.isCancelled else { return }
             if commentsOnly {
                 comments = detail.comments ?? []
                 return
@@ -847,7 +879,10 @@ struct TaskEditorView: View {
                 projectId: sourceProjectId,
                 itemId: taskId
             )
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func save() async {
@@ -869,7 +904,10 @@ struct TaskEditorView: View {
                     completedAt: status == "done" ? Self.format(completedDate) : nil,
                     details: details.nilIfBlank,
                     assigneeUserId: assigneeUserId.nilIfBlank,
-                    participantUserIds: Array(participantUserIds).sorted(),
+                    participantUserIds: taskParticipantIdsForSave(
+                        selected: participantUserIds,
+                        assigneeUserId: assigneeUserId
+                    ),
                     location: loc.location,
                     locationLat: loc.locationLat,
                     locationLng: loc.locationLng,
@@ -988,7 +1026,10 @@ struct TaskEditorView: View {
             completedAt: status == "done" ? Self.format(completedDate) : nil,
             details: details.nilIfBlank,
             assigneeUserId: assigneeUserId.nilIfBlank,
-            participantUserIds: Array(participantUserIds).sorted(),
+            participantUserIds: taskParticipantIdsForSave(
+                selected: participantUserIds,
+                assigneeUserId: assigneeUserId
+            ),
             location: loc.location,
             locationLat: loc.locationLat,
             locationLng: loc.locationLng,
@@ -1072,20 +1113,19 @@ private struct TaskAssigneeSelectionView: View {
     @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: String
-    @State private var localSelection: String = ""
-    @State private var didHydrate = false
     @State private var searchText = ""
 
     var body: some View {
         List {
             ForEach(filteredUsers) { user in
                 Button {
-                    localSelection = user.userId
+                    selection = user.userId
+                    dismiss()
                 } label: {
-                    TaskMemberOptionRow(user: user, isSelected: localSelection == user.userId)
+                    TaskMemberOptionRow(user: user, isSelected: selection == user.userId)
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(localSelection == user.userId ? .isSelected : [])
+                .accessibilityAddTraits(selection == user.userId ? .isSelected : [])
             }
         }
         .navigationTitle("选择负责人")
@@ -1095,24 +1135,13 @@ private struct TaskAssigneeSelectionView: View {
         .keyboardDoneToolbar { dismissSearch() }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("完成") {
-                    selection = localSelection
-                    dismiss()
-                }
+                Button("关闭") { dismiss() }
             }
         }
         .overlay {
             if filteredUsers.isEmpty, !searchText.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
-        }
-        .onAppear {
-            guard !didHydrate else { return }
-            localSelection = selection
-            didHydrate = true
         }
     }
 
@@ -1126,23 +1155,21 @@ private struct TaskParticipantsSelectionView: View {
     @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: Set<String>
-    @State private var localSelection: Set<String> = []
-    @State private var didHydrate = false
     @State private var searchText = ""
 
     var body: some View {
         List(filteredUsers) { user in
             Button {
-                if localSelection.contains(user.userId) {
-                    localSelection.remove(user.userId)
+                if selection.contains(user.userId) {
+                    selection.remove(user.userId)
                 } else {
-                    localSelection.insert(user.userId)
+                    selection.insert(user.userId)
                 }
             } label: {
-                TaskMemberOptionRow(user: user, isSelected: localSelection.contains(user.userId))
+                TaskMemberOptionRow(user: user, isSelected: selection.contains(user.userId))
             }
             .buttonStyle(.plain)
-            .accessibilityAddTraits(localSelection.contains(user.userId) ? .isSelected : [])
+            .accessibilityAddTraits(selection.contains(user.userId) ? .isSelected : [])
         }
         .navigationTitle("选择成员")
         .navigationBarTitleDisplayMode(.inline)
@@ -1150,14 +1177,8 @@ private struct TaskParticipantsSelectionView: View {
         .scrollDismissesKeyboard(.interactively)
         .keyboardDoneToolbar { dismissSearch() }
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }
-            }
             ToolbarItem(placement: .confirmationAction) {
-                Button("完成") {
-                    selection = localSelection
-                    dismiss()
-                }
+                Button("完成") { dismiss() }
             }
         }
         .overlay {
@@ -1169,16 +1190,15 @@ private struct TaskParticipantsSelectionView: View {
                 )
             }
         }
-        .onAppear {
-            guard !didHydrate else { return }
-            localSelection = selection
-            didHydrate = true
-        }
     }
 
     private var filteredUsers: [AssignableUser] {
         filterTaskMembers(users, query: searchText)
     }
+}
+
+func taskParticipantIdsForSave(selected: Set<String>, assigneeUserId: String) -> [String] {
+    selected.filter { !$0.isEmpty && $0 != assigneeUserId }.sorted()
 }
 
 private struct TaskMemberOptionRow: View {

@@ -57,6 +57,18 @@ final class APIModelsTests: XCTestCase {
         XCTAssertEqual(APIError.server(status: 404, message: "not_found").errorDescription, "未找到")
         XCTAssertEqual(APIError.server(status: 502, message: "geo_provider_error").errorDescription, "地点搜索暂时不可用")
         XCTAssertEqual(APIError.server(status: 429, message: "geo_rate_limited").errorDescription, "搜索过快，请稍后再试")
+        XCTAssertEqual(
+            APIError.server(status: 400, message: "invalid_participant").errorDescription,
+            "所选成员无效，请重新选择项目成员"
+        )
+        XCTAssertEqual(
+            APIError.server(status: 400, message: "invalid_assignee").errorDescription,
+            "所选负责人无效，请重新选择"
+        )
+        XCTAssertEqual(
+            APIError.server(status: 409, message: "version_conflict").errorDescription,
+            "任务已被他人更新，请关闭后重试"
+        )
         XCTAssertTrue(APIError.server(status: 404, message: "not found").isNotFound)
         XCTAssertTrue(APIError.server(status: 404, message: "not_found").isNotFound)
         XCTAssertFalse(APIError.server(status: 500, message: "server_error").isNotFound)
@@ -537,5 +549,28 @@ final class NaturalLanguagePlacementTests: XCTestCase {
             markers: ["工作空间", "空间"]
         )
         XCTAssertEqual(workspace?.id, "ws-rd")
+    }
+
+    func testParticipantIdsForSaveDropsAssigneeAndSorts() {
+        let ids = taskParticipantIdsForSave(
+            selected: ["user-3", "user-1", "user-2"],
+            assigneeUserId: "user-1"
+        )
+        XCTAssertEqual(ids, ["user-2", "user-3"])
+    }
+
+    func testParticipantIdsForSaveDropsBlanks() {
+        let ids = taskParticipantIdsForSave(
+            selected: ["", "user-2"],
+            assigneeUserId: "user-1"
+        )
+        XCTAssertEqual(ids, ["user-2"])
+    }
+
+    func testParticipantIdsForSaveAllowsEmptySelection() {
+        XCTAssertEqual(
+            taskParticipantIdsForSave(selected: [], assigneeUserId: "user-1"),
+            []
+        )
     }
 }
