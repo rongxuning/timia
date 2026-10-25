@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:i18n": "node --experimental-strip-types --test src/i18n/*.test.ts && node scripts/check-i18n-keys.mjs",
+    "test:i18n": "node --experimental-strip-types --test src/i18n/*.test.ts && node scripts/check-i18n-keys.mjs && node scripts/check-material-symbols.mjs",
     "codegen:types": "openapi-typescript ../core-service/openapi.json -o src/types/api/generated.ts",
     "codegen:file-types": "openapi-typescript ../file-service/openapi.json -o src/types/file-api/generated.ts"
   },

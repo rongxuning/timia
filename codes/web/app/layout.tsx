@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { htmlLang, type Locale } from "@/i18n/config";
+import { MATERIAL_SYMBOLS_HREF } from "@/lib/material-symbols-font";
 import { beVietnamPro, epilogue, jetBrainsMono } from "./fonts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,9 +26,21 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang={htmlLang(locale)}>
       <head>
         <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="preload"
+          href={MATERIAL_SYMBOLS_HREF}
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
         />
+        <style>{`
+          @font-face {
+            font-family: "Material Symbols Outlined";
+            font-style: normal;
+            font-weight: 100 700;
+            font-display: block;
+            src: url("${MATERIAL_SYMBOLS_HREF}") format("woff2");
+          }
+        `}</style>
       </head>
       <body
         className={[
