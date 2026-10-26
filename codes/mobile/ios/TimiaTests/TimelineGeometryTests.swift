@@ -98,3 +98,21 @@ final class TimelineGeometryTests: XCTestCase {
         }
     }
 }
+
+final class ScheduleDockMetricsTests: XCTestCase {
+    func testHomeIndicatorPhoneShortensTheBandUnderTheTools() {
+        let padding = ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 34)
+        XCTAssertEqual(padding, ScheduleDockMetrics.barBottomClearance)
+        XCTAssertLessThan(padding, 34)
+    }
+
+    func testSmallerInsetsStayClearOfTheSystemBand() {
+        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 0), 8)
+        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 8), 8)
+        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 12), 12)
+    }
+
+    func testModeClusterSitsInboardOfThePageMargin() {
+        XCTAssertGreaterThan(ScheduleDockMetrics.barHorizontalPadding, 16)
+    }
+}
