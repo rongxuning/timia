@@ -59,6 +59,9 @@ struct ScheduleHomeView: View {
     @State private var range: CalendarRange = .day
     @State private var selectedDate = Date()
     @State private var dateStripStart = weekDaysContaining(Date()).first ?? Date()
+    /// Remounts the month grid when Today is outside its generated window.
+    @State private var monthFocusToken = 0
+    @State private var suppressMonthAnchorEcho = false
     @State private var stickyDraft = StickyNoteDraftStore()
     @State private var isStickyNoteEditorPresented = false
     @State private var calendarData: ScheduleCalendar?
@@ -301,6 +304,11 @@ struct ScheduleHomeView: View {
             }
             .font(.system(size: 29, weight: .bold, design: .rounded))
 
+            if showsJumpToToday {
+                jumpToTodayButton
+                    .transition(.opacity.combined(with: .scale(scale: 0.86)))
+            }
+
             Spacer()
 
             Button {
@@ -333,6 +341,109 @@ struct ScheduleHomeView: View {
         .padding(.bottom, 6)
         .background(TimiaTheme.surface)
         .contentShape(Rectangle())
+        .animation(
+            reduceMotion ? .easeInOut(duration: 0.18) : .snappy(duration: 0.22),
+            value: showsJumpToToday
+        )
+    }
+
+    /// Todo and calendar only. Hidden while the visible period already contains today.
+    private var showsJumpToToday: Bool {
+        switch contentMode {
+        case .todo:
+            return !Calendar.current.isDateInToday(selectedDate)
+        case .calendar:
+            switch range {
+            case .day, .week:
+                return !Calendar.current.isDateInToday(selectedDate)
+            case .month:
+                return !Calendar.current.isDate(selectedDate, equalTo: Date(), toGranularity: .month)
+            case .year:
+                return !Calendar.current.isDate(selectedDate, equalTo: Date(), toGranularity: .year)
+            }
+        case .map, .stickyNote:
+            return false
+        }
+    }
+
+    private var jumpToTodayButton: some View {
+        Button {
+            jumpToToday()
+        } label: {
+            Text("今天")
+                .font(.caption.weight(.semibold))
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
+                .foregroundStyle(.primary)
+                .frame(width: 32, height: 32)
+                .background(TimiaTheme.field, in: Circle())
+                .overlay(Circle().stroke(TimiaTheme.border.opacity(0.5)))
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .accessibilityLabel("回到今天")
+        .accessibilityIdentifier("schedule-return-to-today")
+    }
+
+    private func jumpToToday() {
+        let today = Date()
+        switch contentMode {
+        case .todo:
+            selectDate(today)
+        case .calendar:
+            switch range {
+            case .day:
+                selectDate(today)
+            case .week:
+                // Week paging applies `selectedDate` through scrollPosition.
+                // Animating that write repeats the same week a second time.
+                jumpCalendarWeek(to: today)
+            case .month, .year:
+                jumpCalendarPeriod(to: today)
+            }
+        case .map, .stickyNote:
+            break
+        }
+    }
+
+    private func jumpCalendarWeek(to today: Date) {
+        let calendar = TimiaWeekCalendar.calendar()
+        guard !calendar.isDate(today, inSameDayAs: selectedDate) else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            dateStripStart = dateStripStartForWeek(containing: today, calendar: calendar)
+            selectedDate = today
+            if let cached = cachedCalendar(for: today, range: .week) {
+                calendarData = cached
+            }
+        }
+        Task { await loadCalendar() }
+    }
+
+    /// Keep the date write unanimated so month/year scroll once, instead of
+    /// stepping through every page between here and today.
+    private func jumpCalendarPeriod(to today: Date) {
+        guard !Calendar.current.isDate(today, inSameDayAs: selectedDate) else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            selectedDate = today
+            if let cached = cachedCalendar(for: today, range: range) {
+                calendarData = cached
+            }
+        }
+        revealDateOnStrip(today)
+        Task { await loadCalendar() }
+    }
+
+    private func resetMonthAnchor() {
+        suppressMonthAnchorEcho = true
+        monthFocusToken += 1
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            suppressMonthAnchorEcho = false
+        }
     }
 
     private var periodHeaderTransition: AnyTransition {
@@ -392,8 +503,10 @@ struct ScheduleHomeView: View {
                     },
                     onVisibleMonth: selectVisibleMonth,
                     onCreateDate: { createSelection = ScheduleCreateSelection(date: $0, hasExactTime: false) },
-                    onTaskTap: { selectedTask = $0 }
+                    onTaskTap: { selectedTask = $0 },
+                    onAnchorReset: resetMonthAnchor
                 )
+                .id(monthFocusToken)
             case .year:
                 YearScheduleView(
                     year: Calendar.current.component(.year, from: selectedDate),
@@ -724,6 +837,7 @@ struct ScheduleHomeView: View {
     }
 
     private func selectVisibleMonth(_ date: Date) {
+        guard !suppressMonthAnchorEcho else { return }
         guard range == .month,
               ScheduleFormat.monthKey(selectedDate) != ScheduleFormat.monthKey(date) else {
             return
@@ -3587,12 +3701,15 @@ private struct MonthScheduleView: View {
     let onVisibleMonth: (Date) -> Void
     let onCreateDate: (Date) -> Void
     let onTaskTap: (ScheduleTask) -> Void
+    let onAnchorReset: () -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
     @State private var anchorMonth: Date
     @State private var reportedMonthKey: String
     @State private var hasPositionedInitialMonth = false
     @State private var isTrackingVisibleMonth = false
+    @State private var suppressVisibleMonthReporting = false
+    @State private var monthRevealToken = 0
 
     init(
         selectedDate: Date,
@@ -3600,7 +3717,8 @@ private struct MonthScheduleView: View {
         onSelectDate: @escaping (Date) -> Void,
         onVisibleMonth: @escaping (Date) -> Void,
         onCreateDate: @escaping (Date) -> Void,
-        onTaskTap: @escaping (ScheduleTask) -> Void
+        onTaskTap: @escaping (ScheduleTask) -> Void,
+        onAnchorReset: @escaping () -> Void
     ) {
         let month = Calendar.current.date(
             from: Calendar.current.dateComponents([.year, .month], from: selectedDate)
@@ -3611,6 +3729,7 @@ private struct MonthScheduleView: View {
         self.onVisibleMonth = onVisibleMonth
         self.onCreateDate = onCreateDate
         self.onTaskTap = onTaskTap
+        self.onAnchorReset = onAnchorReset
         _anchorMonth = State(initialValue: month)
         _reportedMonthKey = State(initialValue: ScheduleFormat.monthKey(month))
     }
@@ -3648,8 +3767,12 @@ private struct MonthScheduleView: View {
                     reportedMonthKey = ScheduleFormat.monthKey(anchorMonth)
                     isTrackingVisibleMonth = true
                 }
+                .onChange(of: ScheduleFormat.monthKey(selectedDate)) { _, newKey in
+                    revealMonth(newKey, proxy: proxy)
+                }
                 .onPreferenceChange(MonthSectionOffsetPreferenceKey.self) { offsets in
                     guard isTrackingVisibleMonth,
+                          !suppressVisibleMonthReporting,
                           let topMonthKey = offsets
                         .filter({ $0.value <= 12 })
                         .max(by: { $0.value < $1.value })?
@@ -3664,6 +3787,40 @@ private struct MonthScheduleView: View {
                 .accessibilityIdentifier("calendar-month-grid")
             }
         }
+    }
+
+    /// Finger scrolls update `reportedMonthKey` before `selectedDate`, so this
+    /// only runs when the selection moves from outside the grid (Today).
+    private func revealMonth(_ key: String, proxy: ScrollViewProxy) {
+        guard key != reportedMonthKey else { return }
+        guard monthCanReveal(key) else {
+            onAnchorReset()
+            return
+        }
+        monthRevealToken += 1
+        let token = monthRevealToken
+        suppressVisibleMonthReporting = true
+        reportedMonthKey = key
+        Task { @MainActor in
+            await Task.yield()
+            guard token == monthRevealToken else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                proxy.scrollTo(key, anchor: .top)
+            }
+            try? await Task.sleep(for: .milliseconds(450))
+            guard token == monthRevealToken else { return }
+            suppressVisibleMonthReporting = false
+        }
+    }
+
+    /// The grid only builds `anchorMonth ± 60`. A year-view jump further away
+    /// has to rebuild around today instead of scrolling to a missing id.
+    private func monthCanReveal(_ key: String) -> Bool {
+        guard let target = ScheduleFormat.monthDate(key) else { return false }
+        let months = Calendar.current.dateComponents([.month], from: anchorMonth, to: target).month ?? 0
+        return abs(months) <= 60
     }
 
     private func monthSection(_ month: Date) -> some View {
@@ -3877,6 +4034,8 @@ private struct YearScheduleView: View {
     @State private var hasPositionedInitialYear = false
     @State private var isTrackingVisibleYear = false
     @State private var hasUserInitiatedScroll = false
+    @State private var suppressVisibleYearReporting = false
+    @State private var yearRevealToken = 0
     @State private var firstYear: Int
     @State private var lastYear: Int
 
@@ -3952,9 +4111,13 @@ private struct YearScheduleView: View {
                 reportedYear = year
                 isTrackingVisibleYear = true
             }
+            .onChange(of: year) { _, newYear in
+                revealYear(newYear, proxy: proxy)
+            }
             .onPreferenceChange(YearSectionOffsetPreferenceKey.self) { offsets in
                 guard isTrackingVisibleYear,
                       hasUserInitiatedScroll,
+                      !suppressVisibleYearReporting,
                       let topYear = offsets
                     .filter({ $0.value <= 12 })
                     .max(by: { $0.value < $1.value })?
@@ -3966,6 +4129,28 @@ private struct YearScheduleView: View {
                 onVisibleYear(topYear)
             }
             .accessibilityIdentifier("calendar-year-grid")
+        }
+    }
+
+    /// Finger scrolls update `reportedYear` before the parent year, so this
+    /// only runs when the selection moves from outside the grid (Today).
+    private func revealYear(_ newYear: Int, proxy: ScrollViewProxy) {
+        guard newYear != reportedYear else { return }
+        yearRevealToken += 1
+        let token = yearRevealToken
+        suppressVisibleYearReporting = true
+        reportedYear = newYear
+        Task { @MainActor in
+            await Task.yield()
+            guard token == yearRevealToken else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                proxy.scrollTo(newYear, anchor: .top)
+            }
+            try? await Task.sleep(for: .milliseconds(450))
+            guard token == yearRevealToken else { return }
+            suppressVisibleYearReporting = false
         }
     }
 
