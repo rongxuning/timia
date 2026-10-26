@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     mobile_jwt_audience: str = "timia-ios"
     cors_origins: str = "http://127.0.0.1:3000,http://localhost:3000"
     notification_internal_token: str = "dev_notification_internal_change_me"
+    # Seconds between due-notification scans. 0 disables the in-process loop.
+    notification_dispatch_interval_seconds: int = 30
 
     @property
     def cors_origin_list(self) -> list[str]:

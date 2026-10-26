@@ -65,7 +65,7 @@
 3. **场景关闭：** 仍写入通知行，`status=skipped`，**零条** delivery。
 4. **未知场景 key：** `400 unknown_scenario`。
 5. **无场景的自定义通知：** 允许，但必须自带 title（给以后的管理端群发留口）。
-6. **`timing != immediate`：** 只落通知行，`status=scheduled`，不展开。P0 不跑调度器。
+6. **`timing != immediate`：** 创建时只落通知行，`status=scheduled`，不展开。到期时间写在 `scheduled_at`（`delay` 为 now + delay）。调度器扫描 `delay` / `scheduled` 且 `scheduled_at <= now` 的行，再按当时的场景开关展开。
 7. 收件人必须是 `users.status=active`。`project_id` / `workspace_id` 只含 `status=active` 的成员。
 8. 重复任务的展开副本不各发一条；只针对创建/更新的那一行。
 9. 新建任务同时满足「项目全员」和「初始参与人」时，两个场景都发。同一个人可以收到两条，因为语义不同。
@@ -123,7 +123,7 @@ Link 与现有 Web 路由一致：
 | 阶段 | 内容 |
 |------|------|
 | **P0（本轮）** | 服务、表、五场景、即时投递、收件箱、管理开关、core 钩子、Web 铃铛与两页、基础测试 |
-| **P1** | `delay` / `scheduled` 调度器；APNs 设备 token 与真实推送；iOS 铃铛；失败重试与幂等键；管理端改模板 |
+| **P1** | `delay` / `scheduled` 调度器（已实现）；iOS 铃铛与收件箱（已实现）。仍未做：APNs 设备 token 与真实推送、失败重试与幂等键、管理端改模板 |
 | **P2** | 按用户关场景、邮件/摘要、管理端写广播、未读实时通道 |
 
 ## 测试

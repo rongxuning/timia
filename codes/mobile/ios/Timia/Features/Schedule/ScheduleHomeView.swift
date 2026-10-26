@@ -143,6 +143,7 @@ struct ScheduleHomeView: View {
 
     @EnvironmentObject private var session: AppSession
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var contentMode: ContentMode = .todo
     @State private var range: CalendarRange = .day
     @State private var selectedDate = Date()
@@ -172,6 +173,8 @@ struct ScheduleHomeView: View {
     @State private var isLoading = false
     @State private var errorTip: String?
     @State private var selectedTask: ScheduleTask?
+    @State private var notificationUnread = 0
+    @State private var showNotifications = false
     @State private var createSelection: ScheduleCreateSelection?
     @State private var isParsing = false
     @State private var voiceParsedTask: VoiceParsedTask?
@@ -306,6 +309,14 @@ struct ScheduleHomeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear { refreshBottomSafeInset() }
         .task { await loadVisibleContent() }
+        .task { await refreshNotificationUnread() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await refreshNotificationUnread() }
+        }
+        .navigationDestination(isPresented: $showNotifications) {
+            NotificationInboxView(unreadCount: $notificationUnread)
+        }
         .onChange(of: user.weekStartsOn) { _, _ in
             TimiaWeekCalendar.adopt(user.weekStartsOn)
             dateStripStart = weekDaysContaining(selectedDate).first ?? selectedDate
@@ -427,6 +438,15 @@ struct ScheduleHomeView: View {
             .accessibilityLabel("打开空间页面")
 
             Button {
+                showNotifications = true
+            } label: {
+                notificationBellLabel
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(notificationUnread > 0 ? "通知，\(notificationUnread) 条未读" : "通知")
+            .accessibilityIdentifier("schedule-notifications")
+
+            Button {
                 onOpenAccount()
             } label: {
                 Text(user.initials)
@@ -448,6 +468,34 @@ struct ScheduleHomeView: View {
             reduceMotion ? .easeInOut(duration: 0.18) : .snappy(duration: 0.22),
             value: showsJumpToToday
         )
+    }
+
+    private var notificationBellLabel: some View {
+        Image(systemName: "bell")
+            .font(.subheadline.weight(.semibold))
+            .frame(width: 32, height: 32)
+            .background(TimiaTheme.field, in: Circle())
+            .overlay(Circle().stroke(TimiaTheme.border.opacity(0.5)))
+            .overlay(alignment: .topTrailing) {
+                if notificationUnread > 0 {
+                    Text(notificationUnread > 99 ? "99+" : "\(notificationUnread)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 16, minHeight: 16)
+                        .background(Color.red, in: Capsule())
+                        .offset(x: 8, y: -4)
+                        .accessibilityHidden(true)
+                }
+            }
+    }
+
+    private func refreshNotificationUnread() async {
+        do {
+            notificationUnread = try await NotificationAPI(client: session.notificationApi).unreadCount()
+        } catch {
+            // The inbox page reports load failures. Keep the last badge.
+        }
     }
 
     /// Todo and calendar only. Hidden while the visible period already contains today.

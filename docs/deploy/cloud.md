@@ -168,6 +168,7 @@ sudo chmod 600 /etc/timia/.env.prod
 | `FILE_INTERNAL_TOKEN` | core 调 file-service `/internal`；与 file-service 相同 |
 | `NOTIFICATION_INTERNAL_TOKEN` | core 调 notification-service `POST /v1/notifications`；与 notification-service 相同 |
 | `NOTIFICATION_SERVICE_BASE` | 生产为 `http://notification-service:8001`（compose 也会覆盖） |
+| `NOTIFICATION_DISPATCH_INTERVAL_SECONDS` | 通知服务扫描到期 `delay` / `scheduled` 的间隔，默认 `30`。设为 `0` 关闭进程内循环，再手动执行 `python -m app.jobs.dispatch_scheduled` |
 | `MINIO_ROOT_PASSWORD` | MinIO 根密码；`MEDIA_S3_SECRET_KEY` 须与此一致 |
 
 示例 `DATABASE_URL`：
