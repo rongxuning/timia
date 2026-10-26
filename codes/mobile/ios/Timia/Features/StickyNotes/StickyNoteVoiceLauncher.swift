@@ -252,7 +252,10 @@ struct VoiceMicButton: View {
                 }
             }
             .foregroundStyle(.white)
-            .frame(width: 38, height: 38)
+            .frame(
+                width: ScheduleDockMetrics.controlDiameter,
+                height: ScheduleDockMetrics.controlDiameter
+            )
             .background(TimiaTheme.primary, in: Circle())
         }
         .buttonStyle(.plain)

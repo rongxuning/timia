@@ -140,8 +140,8 @@ final class TimiaUITests: XCTestCase {
         XCTAssertTrue(directCreateButton.waitForExistence(timeout: 2))
         XCTAssertLessThan(directCreateButton.frame.maxX, voiceInput.frame.minX)
         XCTAssertEqual(directCreateButton.frame.midY, voiceInput.frame.midY, accuracy: 6)
-        XCTAssertEqual(directCreateButton.frame.width, 38, accuracy: 2)
-        XCTAssertEqual(directCreateButton.frame.height, 38, accuracy: 2)
+        XCTAssertEqual(directCreateButton.frame.width, 30, accuracy: 2)
+        XCTAssertEqual(directCreateButton.frame.height, 30, accuracy: 2)
         directCreateButton.tap()
         XCTAssertTrue(app.navigationBars["新建任务"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.staticTexts["优先级"].exists)
@@ -594,7 +594,7 @@ final class TimiaUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(chevron.frame.minY, strip.frame.maxY - 1)
         XCTAssertLessThanOrEqual(chevron.frame.maxY, filter.frame.minY + 1)
         XCTAssertEqual(chevron.frame.midX, strip.frame.midX, accuracy: 12)
-        XCTAssertEqual(chevron.frame.height, 44, accuracy: 2)
+        XCTAssertEqual(chevron.frame.height, 24, accuracy: 2)
 
         guard let selectedKey = selectTodoDayOutsideCurrentMonth(in: app) else {
             XCTFail("Could not select a Todo date outside the current month")

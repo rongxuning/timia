@@ -25,6 +25,21 @@ struct SchedulePriorityStyle {
     }
 }
 
+/// Shared sizes for the schedule idle dock (mode cluster, create, mic, range picker).
+enum ScheduleDockMetrics {
+    /// Square control. 30pt is about 20% under the previous 38pt target.
+    static let controlDiameter: CGFloat = 30
+    static let clusterPadding: CGFloat = 3
+    static let barTopPadding: CGFloat = 8
+    static let barBottomPadding: CGFloat = 6
+    /// Gap between the floating day/week/month/year picker and the mode cluster.
+    static let rangePickerGap: CGFloat = 10
+
+    static var rangePickerOffsetY: CGFloat {
+        -(controlDiameter + clusterPadding * 2 + rangePickerGap)
+    }
+}
+
 struct ScheduleHomeView: View {
     private enum ContentMode: String, CaseIterable {
         case todo
@@ -608,7 +623,7 @@ struct ScheduleHomeView: View {
                 modeButton(.map, symbol: "map")
                 modeButton(.stickyNote, symbol: "highlighter")
             }
-            .padding(4)
+            .padding(ScheduleDockMetrics.clusterPadding)
             .background(TimiaTheme.field, in: Capsule())
             .overlay(alignment: .topLeading) {
                 if contentMode == .calendar, isRangePickerExpanded {
@@ -616,7 +631,7 @@ struct ScheduleHomeView: View {
                         // Keep both axes intrinsic so the popover never feeds
                         // flexible height back into the docked bar.
                         .fixedSize()
-                        .offset(y: -56)
+                        .offset(y: ScheduleDockMetrics.rangePickerOffsetY)
                         .transition(
                             .asymmetric(
                                 insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -674,8 +689,8 @@ struct ScheduleHomeView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
+        .padding(.top, ScheduleDockMetrics.barTopPadding)
+        .padding(.bottom, ScheduleDockMetrics.barBottomPadding)
         // Page surface already covers the home-indicator zone via .background(...).
         .background(.ultraThinMaterial)
     }
@@ -689,14 +704,17 @@ struct ScheduleHomeView: View {
                     Text(value.rawValue)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(range == value ? .white : .secondary)
-                        .frame(width: 42, height: 38)
+                        .frame(
+                            width: ScheduleDockMetrics.controlDiameter + 4,
+                            height: ScheduleDockMetrics.controlDiameter
+                        )
                         .background(range == value ? Color.primary.opacity(0.78) : .clear, in: Capsule())
                 }
                 .accessibilityLabel("\(value.rawValue) 视图")
                 .accessibilityIdentifier(value.rawValue)
             }
         }
-        .padding(4)
+        .padding(ScheduleDockMetrics.clusterPadding)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.7)))
         .shadow(color: TimiaTheme.shadow, radius: 12, y: 5)
@@ -710,7 +728,10 @@ struct ScheduleHomeView: View {
             Image(systemName: "plus")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 38, height: 38)
+                .frame(
+                    width: ScheduleDockMetrics.controlDiameter,
+                    height: ScheduleDockMetrics.controlDiameter
+                )
                 .background(TimiaTheme.primary, in: Circle())
         }
         .buttonStyle(.plain)
@@ -737,7 +758,10 @@ struct ScheduleHomeView: View {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(contentMode == value ? .white : .secondary)
-                .frame(width: 38, height: 38)
+                .frame(
+                    width: ScheduleDockMetrics.controlDiameter,
+                    height: ScheduleDockMetrics.controlDiameter
+                )
                 .background(contentMode == value ? Color.primary.opacity(0.78) : .clear, in: Capsule())
         }
         .accessibilityLabel(accessibilityLabel(for: value))
@@ -784,16 +808,13 @@ struct ScheduleHomeView: View {
             .padding(.horizontal, 12)
 
             Button(action: openSelectedDateInCalendarMonth) {
-                VStack(spacing: 0) {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 6)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .contentShape(Rectangle())
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    // Short row so the glyph sits close to the week cards and the filter.
+                    .frame(height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("打开月视图")
@@ -4455,14 +4476,14 @@ private struct TodoScheduleView: View {
         VStack(spacing: 0) {
             peopleFilterBar
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+                .padding(.top, 5)
+                .padding(.bottom, 7)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(TimiaTheme.canvas)
                 .zIndex(1)
 
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 10) {
                     ForEach(sections) { style in
                         let allTasks = tasks(for: style.id)
                         let visible = displayedTasks(allTasks, status: style.id)
@@ -4510,7 +4531,7 @@ private struct TodoScheduleView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(peopleFilter == filter ? .white : .primary)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
+                        .padding(.vertical, 5)
                         .background(
                             peopleFilter == filter ? Color.primary.opacity(0.78) : TimiaTheme.field,
                             in: Capsule()
@@ -4551,8 +4572,12 @@ private struct TodoScheduleView: View {
             .contentShape(Rectangle())
             .gesture(dateSwipeGesture)
 
-            ForEach(tasks) { task in
-                taskRow(task)
+            if !tasks.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(tasks) { task in
+                        taskRow(task)
+                    }
+                }
             }
 
             let paging = paging(for: loadMoreStatus, visibleCount: visibleCount)
