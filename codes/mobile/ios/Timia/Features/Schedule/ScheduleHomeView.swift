@@ -99,15 +99,7 @@ struct ScheduleHomeView: View {
                 header
 
                 if contentMode == .todo {
-                    DateStrip(
-                        selectedDate: selectedDate,
-                        onSelect: selectDate,
-                        visibleStart: dateStripStart,
-                        onVisibleStartChange: { dateStripStart = $0 },
-                        markedDayKeys: todoDateStripMarkedDayKeys
-                    )
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 4)
+                    todoDateStrip
                 }
 
                 Group {
@@ -772,6 +764,51 @@ struct ScheduleHomeView: View {
             return dominantMonthTitle(for: dateStripDays(starting: dateStripStart))
         }
         return ScheduleFormat.monthTitle(selectedDate)
+    }
+
+    /// Week strip plus the control that opens the selected date's month.
+    /// The chevron stays in this block, above the people-filter row.
+    private var todoDateStrip: some View {
+        VStack(spacing: 0) {
+            DateStrip(
+                selectedDate: selectedDate,
+                onSelect: selectDate,
+                visibleStart: dateStripStart,
+                onVisibleStartChange: { dateStripStart = $0 },
+                markedDayKeys: todoDateStripMarkedDayKeys
+            )
+            .padding(.horizontal, 12)
+
+            Button(action: openSelectedDateInCalendarMonth) {
+                VStack(spacing: 0) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 6)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("打开月视图")
+            .accessibilityIdentifier("todo-date-strip-expand-month")
+        }
+    }
+
+    /// Calendar month for the Todo strip's selected date.
+    /// `selectRange(.month)` jumps to today; this keeps `selectedDate` and anchors the grid there.
+    private func openSelectedDateInCalendarMonth() {
+        let date = selectedDate
+        resetMonthAnchor()
+        withAnimation(.snappy(duration: 0.25)) {
+            isRangePickerExpanded = false
+            calendarData = cachedCalendar(for: date, range: .month)
+            range = .month
+            contentMode = .calendar
+        }
+        Task { await loadCalendar() }
     }
 
     private func selectRange(_ newRange: CalendarRange) {
