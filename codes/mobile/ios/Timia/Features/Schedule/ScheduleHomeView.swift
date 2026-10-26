@@ -31,12 +31,39 @@ enum ScheduleDockMetrics {
     static let controlDiameter: CGFloat = 30
     static let clusterPadding: CGFloat = 3
     static let barTopPadding: CGFloat = 8
-    static let barBottomPadding: CGFloat = 6
+    /// Side inset. Wider than the page margin so the mode cluster and the
+    /// create/mic pair sit closer to the middle of the bar.
+    static let barHorizontalPadding: CGFloat = 40
+    /// Bottom padding when the dock is not drawing over a home indicator.
+    static let compactBarBottomPadding: CGFloat = 8
+    /// Distance kept between the tools and the physical bottom edge once the
+    /// dock extends into the home-indicator inset. Replaces the tall empty
+    /// band (system inset + padding) under the tools.
+    static let barBottomClearance: CGFloat = 20
     /// Gap between the floating day/week/month/year picker and the mode cluster.
     static let rangePickerGap: CGFloat = 10
 
     static var rangePickerOffsetY: CGFloat {
         -(controlDiameter + clusterPadding * 2 + rangePickerGap)
+    }
+
+    /// Padding from the physical bottom. The dock ignores the container safe
+    /// area, so this value is not added on top of the system inset.
+    static func barBottomPadding(safeAreaBottom: CGFloat) -> CGFloat {
+        guard safeAreaBottom > compactBarBottomPadding else {
+            return compactBarBottomPadding
+        }
+        return min(barBottomClearance, safeAreaBottom)
+    }
+}
+
+@MainActor
+private enum WindowSafeArea {
+    /// Nil when no key window is available yet.
+    static var bottom: CGFloat? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.keyWindow?.safeAreaInsets.bottom
     }
 }
 
@@ -107,6 +134,8 @@ struct ScheduleHomeView: View {
     @StateObject private var mapPlaceTitle = ScheduleMapPlaceTitle()
     @StateObject private var voiceDock = VoiceDockModel()
     @State private var mapRefreshNonce = 0
+    /// Face ID phones reserve ~34pt. Used until the key window reports a real inset.
+    @State private var bottomSafeInset: CGFloat = 34
 
     var body: some View {
         ZStack {
@@ -205,10 +234,24 @@ struct ScheduleHomeView: View {
                     .zIndex(10)
             }
         }
-        // Background as modifier (not a ZStack child) so ignoresSafeArea does not
-        // expand the content layout under the bottom bar / home indicator.
+        // Background stays a modifier so its ignoresSafeArea does not become a
+        // ZStack child and stretch the layout on its own.
         .background(TimiaTheme.surface.ignoresSafeArea())
+        // The dock itself draws into the home-indicator band so the tools sit
+        // lower. safeAreaInset is avoided: that inset plus the range-picker /
+        // voice overlays can float the bar mid-screen.
+        .ignoresSafeArea(.container, edges: .bottom)
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { refreshBottomSafeInset() }
+                    .onChange(of: proxy.size) { _, _ in
+                        refreshBottomSafeInset()
+                    }
+            }
+        }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { refreshBottomSafeInset() }
         .task { await loadVisibleContent() }
         .onChange(of: user.weekStartsOn) { _, _ in
             TimiaWeekCalendar.adopt(user.weekStartsOn)
@@ -599,8 +642,11 @@ struct ScheduleHomeView: View {
     private var bottomControls: some View {
         Group {
             if voiceDock.isActive {
-                VoiceRecordingDock(dock: voiceDock)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                VoiceRecordingDock(
+                    dock: voiceDock,
+                    bottomPadding: ScheduleDockMetrics.barBottomPadding(safeAreaBottom: bottomSafeInset)
+                )
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             } else {
                 idleBottomControls
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -688,11 +734,15 @@ struct ScheduleHomeView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, ScheduleDockMetrics.barHorizontalPadding)
         .padding(.top, ScheduleDockMetrics.barTopPadding)
-        .padding(.bottom, ScheduleDockMetrics.barBottomPadding)
-        // Page surface already covers the home-indicator zone via .background(...).
+        .padding(.bottom, ScheduleDockMetrics.barBottomPadding(safeAreaBottom: bottomSafeInset))
         .background(.ultraThinMaterial)
+    }
+
+    private func refreshBottomSafeInset() {
+        guard let measured = WindowSafeArea.bottom else { return }
+        bottomSafeInset = measured
     }
 
     private var calendarRangePicker: some View {

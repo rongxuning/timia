@@ -270,6 +270,7 @@ struct VoiceMicButton: View {
 /// Grok-style recording chrome: cancel · live waveform · confirm.
 struct VoiceRecordingDock: View {
     @ObservedObject var dock: VoiceDockModel
+    var bottomPadding: CGFloat = ScheduleDockMetrics.compactBarBottomPadding
 
     var body: some View {
         HStack(spacing: 14) {
@@ -329,7 +330,7 @@ struct VoiceRecordingDock: View {
         .shadow(color: TimiaTheme.shadow, radius: 16, y: 6)
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .padding(.bottom, 8)
+        .padding(.bottom, bottomPadding)
         .accessibilityIdentifier("voice-recording-dock")
     }
 }
