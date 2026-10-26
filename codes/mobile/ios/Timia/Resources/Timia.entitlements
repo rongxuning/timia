@@ -7,6 +7,6 @@
 	<key>com.apple.developer.healthkit.background-delivery</key>
 	<true/>
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>production</string>
 </dict>
 </plist>

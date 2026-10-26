@@ -106,7 +106,7 @@
 
 ### P2
 
-- [x] **APNs 真实发送：** iOS 申请远程通知权限、`registerForRemoteNotifications`、上报 token；entitlements `aps-environment` 默认 `development`（对应 sandbox）。服务端即时投递与 `delay` / `scheduled` 展开后都尝试推送。无效 token（`Unregistered` / `BadDeviceToken`）标记 `invalidated_at`。本环境无 Xcode，需在 Mac / 真机验证弹窗。
+- [x] **APNs 真实发送：** iOS 申请远程通知权限、`registerForRemoteNotifications`、上报 token；entitlements `aps-environment` 为 `production`（`APNsDeviceToken.environment` = `production`；TestFlight / App Store 服务器 `APNS_USE_SANDBOX=false`）。服务端即时投递与 `delay` / `scheduled` 展开后都尝试推送。无效 token（`Unregistered` / `BadDeviceToken`）标记 `invalidated_at`。本环境无 Xcode，需在 Mac / 真机验证弹窗。
 - [x] **管理端发送：** `POST /v1/admin/notifications`（管理员 JWT）。受众 `broadcast` | `user_ids` | `project_id` | `workspace_id`，时间 `immediate` | `delay` | `scheduled`。Web `/admin/notifications` 在场景卡外有发送表单。发送者本人不收。
 - [x] **文档：** `docs/deploy/cloud.md` 与 `.env.example` / `.env.prod.example` / `.env.docker` 写上 APNs 变量；无密钥时行为与真机弹窗前提见该节与 iOS README。
 - [ ] 用户级偏好：按场景静音，覆盖全局 `enabled`。本轮不做。

@@ -111,13 +111,9 @@ Mac 的局域网 IP 可能在重新连接 Wi-Fi 后变化。如果真机突然�
 
 ## 远程推送（APNs）
 
-`Timia/Resources/Timia.entitlements` 的 `aps-environment` 默认是 **`development`**。`APNsDeviceToken.environment` 因此是 `sandbox`，要和服务器 `APNS_USE_SANDBOX=true` 一起用。
+`Timia/Resources/Timia.entitlements` 的 `aps-environment` 是 **`production`**。`APNsDeviceToken.environment` 因此是 `production`。Debug 与 Release、TestFlight 与 App Store 都走这条路径。
 
-TestFlight 或 App Store 要改两处，并让服务器走生产环境：
-
-1. entitlements 的 `aps-environment` 改为 `production`
-2. `Timia/Core/Notifications/APNsDeviceToken.swift` 的 `environment` 改为 `production`
-3. 服务器 `APNS_USE_SANDBOX=false`，并配齐 `APNS_KEY_ID`、`APNS_TEAM_ID`、`APNS_BUNDLE_ID=online.timia.ios`、`APNS_KEY_P8`
+服务器要对齐生产 APNs：`APNS_USE_SANDBOX=false`，并配齐 `APNS_KEY_ID`、`APNS_TEAM_ID`、`APNS_BUNDLE_ID=online.timia.ios`、`APNS_KEY_P8`（APNs Auth Key）。本地 notification-service 的默认 `APNS_USE_SANDBOX=true` 仍指向 sandbox API，只适合用 sandbox token 做服务端测试；这套 iOS 客户端上报的是 production token。
 
 `Info.plist` 的 `NSUserNotificationsUsageDescription` 写明用途。系统权限弹窗文案由 iOS 生成，不能自定义句子。模拟器通常拿不到 device token，收件箱不依赖推送。真机弹窗还需要 Apple Developer 的 Push Notifications 能力，以及 APNs Auth Key（`.p8`）。没有密钥时 App 仍会尝试注册，通知只出现在收件箱。
 
