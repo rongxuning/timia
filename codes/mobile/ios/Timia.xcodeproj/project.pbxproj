@@ -98,6 +98,8 @@
 		CC2DDEA8032D997DE66FD327 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FD26119578B087A0E46AC5E /* APIClient.swift */; };
 		CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07EE730E9A8DE17EE02F0FC /* AttachmentChip.swift */; };
 		D1B68BDA58BE3E0CBDF7ABC5 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 851DA05472136D3FAB083B33 /* HealthKit.framework */; };
+		B5F9D28C3E016704B2C7D915 /* MonthDayLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4E8C17B2D9056F3A1B6C804 /* MonthDayLayout.swift */; };
+		D712F40E50338926D4E9FB37 /* MonthDayLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C601E39D4F127815C3D8EA26 /* MonthDayLayoutTests.swift */; };
 		D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */; };
 		D8F2B01C5E3A7B29C6D4F158 /* PlaceValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */; };
 		D9065BFE9D1D0A23FE7C7457 /* ScreenNotificationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4118A6CA9F3D8AD476A0C6 /* ScreenNotificationPrompt.swift */; };
@@ -170,6 +172,8 @@
 		0FD26119578B087A0E46AC5E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTagsTests.swift; sourceTree = "<group>"; };
 		17D9F94E61F9F59C3A02A1AE /* YearMonthGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGrid.swift; sourceTree = "<group>"; };
+		A4E8C17B2D9056F3A1B6C804 /* MonthDayLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDayLayout.swift; sourceTree = "<group>"; };
+		C601E39D4F127815C3D8EA26 /* MonthDayLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDayLayoutTests.swift; sourceTree = "<group>"; };
 		1E47A83D778195D960B3C530 /* StickyNoteVoiceLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteVoiceLauncher.swift; sourceTree = "<group>"; };
 		21F36DD0BC55F1BD4820FBD9 /* TimiaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaUITests.swift; sourceTree = "<group>"; };
 		222DA87AAAB082DBD889E905 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -372,6 +376,7 @@
 				A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */,
 				6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */,
 				49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */,
+				C601E39D4F127815C3D8EA26 /* MonthDayLayoutTests.swift */,
 				B57F52762C0AE9DC40A0571A /* GzipTests.swift */,
 				D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */,
 				3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */,
@@ -424,6 +429,7 @@
 				C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */,
 				87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */,
 				640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */,
+				A4E8C17B2D9056F3A1B6C804 /* MonthDayLayout.swift */,
 				BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */,
 				551366E9D4BE5EEF10C296C2 /* RescheduleMath.swift */,
 				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
@@ -780,6 +786,7 @@
 				878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */,
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
 				896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */,
+				B5F9D28C3E016704B2C7D915 /* MonthDayLayout.swift in Sources */,
 				E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */,
 				9A544027B29ABF019DBFCEB4 /* FilesAPI.swift in Sources */,
 				A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */,
@@ -880,6 +887,7 @@
 				B2D6F4509C7E1F63A0B8D592 /* PlaceValueTests.swift in Sources */,
 				BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */,
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
+				D712F40E50338926D4E9FB37 /* MonthDayLayoutTests.swift in Sources */,
 				F786EDECDCE2710DF59156D8 /* GzipTests.swift in Sources */,
 				57E0500382EFD5E2AD4A528A /* HealthSyncQueueTests.swift in Sources */,
 				F736E66DA14ACC5BBDA1D78B /* IdleCollapsePlannerTests.swift in Sources */,
