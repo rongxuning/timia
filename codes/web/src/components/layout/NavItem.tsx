@@ -30,7 +30,7 @@ export function NavItem({ href, icon, label, active, hidden, badge }: NavItemPro
     >
       <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
         <span
-          className="material-symbols-outlined flex h-6 w-6 items-center justify-center text-indigo-600"
+          className="material-symbols-outlined flex h-6 w-6 items-center justify-center text-[24px] text-indigo-600"
           style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
         >
           {icon}
