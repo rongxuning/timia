@@ -4,7 +4,9 @@
 <dict>
     <key>com.apple.developer.healthkit</key>
     <true/>
-    <key>com.apple.developer.healthkit.background-delivery</key>
-    <true/>
+	<key>com.apple.developer.healthkit.background-delivery</key>
+	<true/>
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

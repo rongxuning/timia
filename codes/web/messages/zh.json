@@ -34,12 +34,54 @@
   },
   "notificationAdmin": {
     "title": "通知管理",
-    "intro": "关闭场景后，新的事件不再投递。已经收到的通知仍留在收件箱。移动推送尚未接入。",
+    "intro": "关闭场景后，新的事件不再投递。已经收到的通知仍留在收件箱。移动推送只在该场景打开推送、且服务器配置了 APNs 密钥时发出；没有密钥时通知仍进收件箱。",
     "loading": "加载中…",
     "loadFailed": "加载失败",
     "saveFailed": "保存失败",
     "enabled": "已开启",
     "disabled": "已关闭",
+    "pushEnabled": "移动推送",
+    "pushHint": "需要 APNs 密钥。未配置时只记为待发送，不影响收件箱。",
+    "send": {
+      "title": "发送通知",
+      "intro": "发给所选用户。你自己不会收到这条。延时和定时会先排队，到点再投递。",
+      "titleLabel": "标题",
+      "bodyLabel": "正文",
+      "linkLabel": "链接",
+      "linkPlaceholder": "/my/notifications",
+      "linkHint": "站内路径以 / 开头，或填写 http(s) 链接。可以留空。",
+      "audienceLabel": "受众",
+      "audience": {
+        "broadcast": "全部用户",
+        "user_ids": "指定用户",
+        "project_id": "项目成员",
+        "workspace_id": "空间成员"
+      },
+      "userIdsLabel": "用户 ID",
+      "userIdsHint": "多个 ID 用逗号、空格或换行分隔。",
+      "projectIdLabel": "项目 ID",
+      "workspaceIdLabel": "空间 ID",
+      "timingLabel": "发送时间",
+      "timing": {
+        "immediate": "立即",
+        "delay": "延时",
+        "scheduled": "定时"
+      },
+      "delayMinutes": "延迟分钟",
+      "scheduledAt": "发送时间",
+      "submit": "发送",
+      "submitting": "发送中…",
+      "sent": "已投递给 {count} 人",
+      "scheduled": "已排期，到点再投递",
+      "failed": "发送失败",
+      "errors": {
+        "invalid_audience": "受众无效",
+        "invalid_link": "链接无效",
+        "missing_title": "请填写标题",
+        "missing_scheduled_at": "请填写发送时间",
+        "admin_required": "需要管理员权限"
+      }
+    },
     "scenarios": {
       "task_self_join": {
         "title": "自己加入参与人",

@@ -171,6 +171,18 @@ sudo chmod 600 /etc/timia/.env.prod
 | `NOTIFICATION_DISPATCH_INTERVAL_SECONDS` | 通知服务扫描到期 `delay` / `scheduled` 的间隔，默认 `30`。设为 `0` 关闭进程内循环，再手动执行 `python -m app.jobs.dispatch_scheduled` |
 | `MINIO_ROOT_PASSWORD` | MinIO 根密码；`MEDIA_S3_SECRET_KEY` 须与此一致 |
 
+APNs 与运营发送（可选。留空则收件箱照常，推送保持 `pending`，`POST /internal/push/dispatch` 返回 `push_not_configured`，不把通知接口打成 500）：
+
+| 变量 | 说明 |
+|------|------|
+| `APNS_KEY_ID` | Apple Developer 里 APNs Auth Key 的 Key ID |
+| `APNS_TEAM_ID` | Apple Developer Team ID |
+| `APNS_BUNDLE_ID` | `online.timia.ios` |
+| `APNS_KEY_P8` | `.p8` 全文。可写成一行，把换行换成 `\n`，或把 PEM 做 base64。不要提交到 git |
+| `APNS_USE_SANDBOX` | `true` 走 `api.sandbox.push.apple.com`（Xcode development）。TestFlight / App Store 用 `false` |
+
+真机要弹出系统通知，还需要：Apple 账号开通 Push Notifications，并下载 APNs Auth Key（`.p8`，不是证书密码）。iOS 的 `aps-environment` 当前默认 `development`，`APNsDeviceToken.environment` 为 `sandbox`，与 `APNS_USE_SANDBOX=true` 配对。上 TestFlight / App Store 时把 entitlements 改成 `production`，Swift 常量改成 `production`，服务器设 `APNS_USE_SANDBOX=false`。场景的「移动推送」要打开（`push_enabled`）。没有密钥时 App 仍可注册 token，通知只出现在收件箱。管理端「发送通知」不走场景推送开关，只写入收件箱。
+
 示例 `DATABASE_URL`：
 
 ```text

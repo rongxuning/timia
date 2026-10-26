@@ -105,8 +105,23 @@ Mac 的局域网 IP 可能在重新连接 Wi-Fi 后变化。如果真机突然�
 - 工作空间/项目成员添加、角色调整、移除与只读权限
 - 工作空间活动时间线、最近讨论筛选、分页、完成状态和删除
 - 日程首页铃铛与通知收件箱（notification-service `/v1/inbox`）
+- 登录后申请远程通知权限，`registerForRemoteNotifications`，并把 APNs device token 上报到 `POST /v1/devices/apns`（退出登录时删除）
 
 数据分析不进入 iOS 范围。
+
+## 远程推送（APNs）
+
+`Timia/Resources/Timia.entitlements` 的 `aps-environment` 默认是 **`development`**。`APNsDeviceToken.environment` 因此是 `sandbox`，要和服务器 `APNS_USE_SANDBOX=true` 一起用。
+
+TestFlight 或 App Store 要改两处，并让服务器走生产环境：
+
+1. entitlements 的 `aps-environment` 改为 `production`
+2. `Timia/Core/Notifications/APNsDeviceToken.swift` 的 `environment` 改为 `production`
+3. 服务器 `APNS_USE_SANDBOX=false`，并配齐 `APNS_KEY_ID`、`APNS_TEAM_ID`、`APNS_BUNDLE_ID=online.timia.ios`、`APNS_KEY_P8`
+
+`Info.plist` 的 `NSUserNotificationsUsageDescription` 写明用途。系统权限弹窗文案由 iOS 生成，不能自定义句子。模拟器通常拿不到 device token，收件箱不依赖推送。真机弹窗还需要 Apple Developer 的 Push Notifications 能力，以及 APNs Auth Key（`.p8`）。没有密钥时 App 仍会尝试注册，通知只出现在收件箱。
+
+本仓库的自动化环境没有 Xcode，这条注册链路需要在 Mac 上编译，并用真机验证弹窗。
 
 ## 命令行验证
 

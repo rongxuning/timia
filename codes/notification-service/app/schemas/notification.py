@@ -67,3 +67,23 @@ class ScenarioPatch(BaseModel):
     title_template: str | None = None
     body_template: str | None = None
     push_enabled: bool | None = None
+
+
+class AdminNotificationCreate(BaseModel):
+    title: str
+    body: str = ""
+    link: str | None = None
+    audience: AudienceIn
+    timing: Literal["immediate", "delay", "scheduled"] = "immediate"
+    scheduled_at: datetime | None = None
+
+
+class DeviceTokenIn(BaseModel):
+    token: str = Field(min_length=1, max_length=400)
+    environment: Literal["sandbox", "production"] | None = None
+
+
+class DeviceTokenOut(BaseModel):
+    id: str
+    environment: str
+    platform: str

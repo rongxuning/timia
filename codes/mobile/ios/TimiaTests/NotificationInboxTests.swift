@@ -2,6 +2,12 @@ import XCTest
 @testable import Timia
 
 final class NotificationInboxTests: XCTestCase {
+    func testFormatsAPNsDeviceTokenAsLowercaseHex() {
+        XCTAssertEqual(APNsDeviceToken.hexString(from: Data([0x0A, 0xFF, 0x10])), "0aff10")
+        XCTAssertEqual(APNsDeviceToken.hexString(from: Data()), "")
+        XCTAssertEqual(APNsDeviceToken.environment, "sandbox")
+    }
+
     func testParsesWebTaskProjectAndWorkspaceLinks() {
         XCTAssertEqual(
             NotificationLinkParser.parse("/workspace/ws/projects/proj/items/item"),

@@ -8,10 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.routes.admin import router as admin_router
+from app.routes.devices import router as devices_router
 from app.routes.inbox import router as inbox_router
 from app.routes.internal import router as internal_router
 from app.routes.notifications import router as notifications_router
 from app.services.dispatch import dispatch_due_notifications
+from app.services.push import flush_pending_pushes
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,11 @@ logger = logging.getLogger(__name__)
 def run_dispatch_once() -> dict[str, int]:
     db = SessionLocal()
     try:
-        return dispatch_due_notifications(db)
+        result = dispatch_due_notifications(db)
+        flushed = flush_pending_pushes(db)
+        if flushed.get("sent") or flushed.get("failed") or flushed.get("skipped"):
+            logger.info("pending push flush %s", flushed)
+        return result
     except Exception:
         db.rollback()
         raise
@@ -69,6 +75,7 @@ app.add_middleware(
 app.include_router(notifications_router)
 app.include_router(inbox_router)
 app.include_router(admin_router)
+app.include_router(devices_router)
 app.include_router(internal_router)
 
 
