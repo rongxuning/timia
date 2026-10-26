@@ -3828,21 +3828,6 @@ private struct CurrentTimeLine: View {
     }
 }
 
-private enum MonthDayMetrics {
-    static let visibleTaskCount = 5
-    static let dateSize: CGFloat = 28
-    static let taskHeight: CGFloat = 15
-    static let spacing: CGFloat = 3
-    static let tapBuffer: CGFloat = 12
-
-    static var rowHeight: CGFloat {
-        dateSize
-            + spacing
-            + CGFloat(visibleTaskCount) * taskHeight
-            + CGFloat(max(visibleTaskCount - 1, 0)) * spacing
-    }
-}
-
 private struct MonthScheduleView: View {
     let selectedDate: Date
     let weeksByMonth: [String: [CalendarWeek]]
@@ -3852,7 +3837,10 @@ private struct MonthScheduleView: View {
     let onTaskTap: (ScheduleTask) -> Void
     let onAnchorReset: () -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: MonthDayMetrics.columnSpacing),
+        count: 7
+    )
     @State private var anchorMonth: Date
     @State private var reportedMonthKey: String
     @State private var hasPositionedInitialMonth = false
@@ -3885,12 +3873,12 @@ private struct MonthScheduleView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            HStack(spacing: MonthDayMetrics.columnSpacing) {
                 ForEach(Array(weekdayHeaderLabels().enumerated()), id: \.offset) { _, label in
                     Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, MonthDayMetrics.horizontalInset)
             .padding(.bottom, 8)
 
             ScrollViewReader { proxy in
@@ -3902,7 +3890,7 @@ private struct MonthScheduleView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, MonthDayMetrics.horizontalInset)
                     .padding(.vertical, 8)
                 }
                 .coordinateSpace(name: "calendar-month-scroll")
@@ -3984,7 +3972,7 @@ private struct MonthScheduleView: View {
                 .padding(.leading, 4)
                 .accessibilityIdentifier("calendar-month-label-\(key)")
 
-            LazyVGrid(columns: columns, spacing: 2) {
+            LazyVGrid(columns: columns, spacing: MonthDayMetrics.rowSpacing) {
                 ForEach(0..<leadingBlanks, id: \.self) { index in
                     Color.clear
                         .frame(height: MonthDayMetrics.rowHeight)
@@ -4092,7 +4080,7 @@ private struct MonthDayCell: View {
                 let style = SchedulePriorityStyle(task: task, colorScheme: colorScheme)
                 let isCompleted = isCalendarTaskCompleted(task.status)
                 Button { onTaskTap(task) } label: {
-                    Text(task.title)
+                    Text(monthTaskTitle(task.title))
                         .font(.system(size: 9, weight: .medium))
                         .lineLimit(1)
                         .thickStrikethrough(isCompleted)
@@ -4109,17 +4097,25 @@ private struct MonthDayCell: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(task.title)
             }
 
             if tasks.count > MonthDayMetrics.visibleTaskCount {
                 Text("+\(tasks.count - MonthDayMetrics.visibleTaskCount)")
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                     .padding(.leading, 3)
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: MonthDayMetrics.overflowHeight,
+                        maxHeight: MonthDayMetrics.overflowHeight,
+                        alignment: .leading
+                    )
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 2)
+        .padding(.horizontal, MonthDayMetrics.cellHorizontalPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .opacity(day.inMonth ? 1 : 0.42)
         .background {
