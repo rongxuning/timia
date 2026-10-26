@@ -36,6 +36,128 @@ func dateStripMarkedDayKeys(from months: [CalendarMonthSummary]) -> Set<String> 
     )
 }
 
+/// How many tasks of each priority fall on one date-strip day.
+struct DateStripDayPriorityCounts: Equatable, Sendable {
+    var high = 0
+    var medium = 0
+    var low = 0
+    var other = 0
+
+    var total: Int { high + medium + low + other }
+
+    mutating func add(priority: String?) {
+        switch SchedulePriorityAccent.band(for: priority) {
+        case .high: high += 1
+        case .medium: medium += 1
+        case .low: low += 1
+        case .other: other += 1
+        }
+    }
+
+    func count(for band: SchedulePriorityBand) -> Int {
+        switch band {
+        case .high: high
+        case .medium: medium
+        case .low: low
+        case .other: other
+        }
+    }
+
+    /// Top-to-bottom shares. Priorities with no tasks are omitted.
+    var shares: [DateStripPriorityShare] {
+        let total = total
+        guard total > 0 else { return [] }
+        return SchedulePriorityBand.topToBottom.compactMap { band in
+            let count = count(for: band)
+            guard count > 0 else { return nil }
+            return DateStripPriorityShare(band: band, fraction: Double(count) / Double(total))
+        }
+    }
+}
+
+struct DateStripPriorityShare: Equatable, Identifiable, Sendable {
+    let band: SchedulePriorityBand
+    let fraction: Double
+    var id: SchedulePriorityBand { band }
+}
+
+/// Per-day priority counts for calendar weeks. Column indexes are 1-based, matching the schedule API.
+/// A task that appears in more than one week is counted once per day.
+func dateStripPriorityCounts(from weeks: [CalendarWeek]) -> [String: DateStripDayPriorityCounts] {
+    var accumulator = DateStripPriorityAccumulator()
+    for week in weeks {
+        let days = week.days
+        guard !days.isEmpty else { continue }
+        for segment in week.segments {
+            let start = segment.colStart - 1
+            guard segment.colSpan > 0, start >= 0, start < days.count else { continue }
+            let end = min(start + segment.colSpan - 1, days.count - 1)
+            for index in start...end {
+                accumulator.add(
+                    itemID: segment.item.id,
+                    priority: segment.item.priority,
+                    dayKey: days[index].key
+                )
+            }
+        }
+    }
+    return accumulator.counts
+}
+
+private struct DateStripPriorityAccumulator {
+    private(set) var counts: [String: DateStripDayPriorityCounts] = [:]
+    private var seenItemIDs: [String: Set<String>] = [:]
+
+    mutating func add(itemID: String, priority: String?, dayKey: String) {
+        var seen = seenItemIDs[dayKey, default: []]
+        guard seen.insert(itemID).inserted else { return }
+        seenItemIDs[dayKey] = seen
+        var dayCounts = counts[dayKey, default: DateStripDayPriorityCounts()]
+        dayCounts.add(priority: priority)
+        counts[dayKey] = dayCounts
+    }
+}
+
+/// Months to load so the visible Todo date strip can paint priority shares,
+/// including the neighboring months a short scroll would reveal.
+func todoDateStripMonthAnchorsToPrefetch(
+    around stripStart: Date,
+    selectedDate: Date,
+    calendar: Calendar = .current
+) -> [Date] {
+    let visibleDays = dateStripDays(starting: stripStart, calendar: calendar)
+    var monthStarts: [Date] = []
+
+    func appendMonth(containing date: Date, offset: Int = 0) {
+        guard let monthStart = startOfMonth(containing: date, offset: offset, calendar: calendar) else { return }
+        if monthStarts.contains(where: { calendar.isDate($0, equalTo: monthStart, toGranularity: .month) }) {
+            return
+        }
+        monthStarts.append(monthStart)
+    }
+
+    for day in visibleDays {
+        appendMonth(containing: day)
+    }
+    appendMonth(containing: selectedDate)
+    if let first = visibleDays.first {
+        appendMonth(containing: first, offset: -1)
+    }
+    if let last = visibleDays.last {
+        appendMonth(containing: last, offset: 1)
+    }
+    return monthStarts.sorted()
+}
+
+private func startOfMonth(containing date: Date, offset: Int, calendar: Calendar) -> Date? {
+    guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date)) else {
+        return nil
+    }
+    guard offset != 0 else { return monthStart }
+    guard let shifted = calendar.date(byAdding: .month, value: offset, to: monthStart) else { return nil }
+    return calendar.date(from: calendar.dateComponents([.year, .month], from: shifted))
+}
+
 /// Calendar years whose heatmaps should be loaded for the visible Todo date strip.
 func todoDateStripYearsToPrefetch(
     around stripStart: Date,

@@ -97,6 +97,132 @@ final class TodoDayCoverageTests: XCTestCase {
         )
     }
 
+    func testPriorityBandsMatchTaskCardBackgrounds() {
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "4"), .high)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "urgent"), .high)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: " HIGH "), .high)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "3"), .medium)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "medium"), .medium)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "2"), .low)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "low"), .low)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "1"), .other)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: nil), .other)
+        XCTAssertEqual(SchedulePriorityAccent.band(for: "later"), .other)
+
+        XCTAssertEqual(SchedulePriorityBand.high.priorityToken, "4")
+        XCTAssertEqual(SchedulePriorityBand.medium.priorityToken, "3")
+        XCTAssertEqual(SchedulePriorityBand.low.priorityToken, "2")
+        XCTAssertEqual(SchedulePriorityBand.other.priorityToken, "1")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: .high).background, "#FEE2E2")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: .medium).background, "#FEF9C3")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: .low).background, "#DCFCE7")
+        XCTAssertEqual(SchedulePriorityAccent.palette(for: .other).background, "#DBEAFE")
+        XCTAssertEqual(
+            SchedulePriorityAccent.palette(for: .high).background,
+            SchedulePriorityAccent.palette(for: "4").background
+        )
+        XCTAssertEqual(
+            SchedulePriorityAccent.palette(for: .low).background,
+            SchedulePriorityAccent.palette(for: "low").background
+        )
+    }
+
+    func testDateStripSharesStackHighToOtherAndSkipEmptyBuckets() {
+        var counts = DateStripDayPriorityCounts()
+        counts.add(priority: "1")
+        counts.add(priority: "2")
+        counts.add(priority: "low")
+        counts.add(priority: "3")
+        counts.add(priority: "4")
+        counts.add(priority: "urgent")
+        counts.add(priority: nil)
+        counts.add(priority: "nope")
+
+        XCTAssertEqual(counts.high, 2)
+        XCTAssertEqual(counts.medium, 1)
+        XCTAssertEqual(counts.low, 2)
+        XCTAssertEqual(counts.other, 3)
+        XCTAssertEqual(counts.shares.map(\.band), [.high, .medium, .low, .other])
+        XCTAssertEqual(counts.shares.map(\.fraction), [0.25, 0.125, 0.25, 0.375])
+        XCTAssertEqual(counts.shares.map(\.fraction).reduce(0.0, +), 1, accuracy: 0.0001)
+
+        var partial = DateStripDayPriorityCounts()
+        partial.add(priority: "4")
+        partial.add(priority: "2")
+        XCTAssertEqual(partial.shares.map(\.band), [.high, .low])
+        XCTAssertTrue(DateStripDayPriorityCounts().shares.isEmpty)
+    }
+
+    func testDateStripPriorityCountsUsesColumnSpanAndSkipsEmptyDays() throws {
+        let days = (2...8).map { dayNumber in
+            CalendarDay(key: String(format: "2026-11-%02d", dayNumber), day: dayNumber, inMonth: true)
+        }
+        let week = CalendarWeek(
+            days: days,
+            segments: [
+                segment(id: "high", priority: "4", colStart: 1, colSpan: 1),
+                segment(id: "med", priority: "medium", colStart: 1, colSpan: 2),
+                segment(id: "low", priority: "2", colStart: 3, colSpan: 1)
+            ]
+        )
+
+        let counts = dateStripPriorityCounts(from: [week])
+
+        let nov2 = try XCTUnwrap(counts["2026-11-02"])
+        let nov3 = try XCTUnwrap(counts["2026-11-03"])
+        let nov4 = try XCTUnwrap(counts["2026-11-04"])
+        XCTAssertEqual(nov2, DateStripDayPriorityCounts(high: 1, medium: 1))
+        XCTAssertEqual(nov3, DateStripDayPriorityCounts(medium: 1))
+        XCTAssertEqual(nov4, DateStripDayPriorityCounts(low: 1))
+        XCTAssertNil(counts["2026-11-05"])
+        XCTAssertEqual(nov2.shares.map(\.band), [.high, .medium])
+        XCTAssertEqual(nov2.shares.map(\.fraction), [0.5, 0.5])
+    }
+
+    func testDateStripPriorityCountsEachTaskOnceAndClipsToTheWeek() throws {
+        let day = CalendarDay(key: "2026-11-06", day: 6, inMonth: true)
+        let repeated = CalendarWeek(
+            days: [day],
+            segments: [segment(id: "same", priority: "urgent", colStart: 1, colSpan: 1)]
+        )
+        let clippedDays = [
+            CalendarDay(key: "2026-11-07", day: 7, inMonth: true),
+            CalendarDay(key: "2026-11-08", day: 8, inMonth: true)
+        ]
+        let clipped = CalendarWeek(
+            days: clippedDays,
+            segments: [
+                segment(id: "span", priority: "3", colStart: 2, colSpan: 5),
+                segment(id: "bad", priority: "4", colStart: 0, colSpan: 1)
+            ]
+        )
+
+        let counts = dateStripPriorityCounts(from: [repeated, repeated, clipped])
+
+        let nov6 = try XCTUnwrap(counts["2026-11-06"])
+        let nov8 = try XCTUnwrap(counts["2026-11-08"])
+        XCTAssertEqual(nov6, DateStripDayPriorityCounts(high: 1))
+        XCTAssertEqual(nov6.shares.map(\.fraction), [1])
+        XCTAssertNil(counts["2026-11-07"])
+        XCTAssertEqual(nov8, DateStripDayPriorityCounts(medium: 1))
+    }
+
+    func testTodoDateStripMonthAnchorsCoverVisibleRangeNeighborsAndSelectedMonth() {
+        let inside = todoDateStripMonthAnchorsToPrefetch(
+            around: date(2026, 3, 10),
+            selectedDate: date(2026, 3, 12),
+            calendar: calendar
+        )
+        XCTAssertEqual(monthKeys(inside), ["2026-02", "2026-03", "2026-04"])
+
+        let crossing = todoDateStripMonthAnchorsToPrefetch(
+            around: date(2025, 12, 28),
+            selectedDate: date(2026, 1, 2),
+            calendar: calendar
+        )
+        XCTAssertEqual(monthKeys(crossing), ["2025-11", "2025-12", "2026-01", "2026-02"])
+    }
+
     func testExcludesTaskWithoutStartOrEnd() {
         let task = task(id: "untimed", startAt: nil, endAt: nil)
 
@@ -463,11 +589,30 @@ final class TodoDayCoverageTests: XCTestCase {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
     }
 
+    private func monthKeys(_ dates: [Date]) -> [String] {
+        dates.map { date in
+            let parts = calendar.dateComponents([.year, .month], from: date)
+            return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
+        }
+    }
+
+    private func segment(id: String, priority: String?, colStart: Int, colSpan: Int) -> CalendarSegment {
+        CalendarSegment(
+            item: task(id: id, startAt: nil, endAt: nil, priority: priority),
+            colStart: colStart,
+            colSpan: colSpan,
+            lane: 0,
+            roundLeft: true,
+            roundRight: true
+        )
+    }
+
     private func task(
         id: String,
         status: String = "todo",
         startAt: String?,
         endAt: String?,
+        priority: String? = nil,
         createdBy: String? = nil,
         assignee: String? = nil,
         participants: [String] = []
@@ -478,7 +623,7 @@ final class TodoDayCoverageTests: XCTestCase {
             body: nil,
             color: "#FFFFFF",
             status: status,
-            priority: nil,
+            priority: priority,
             startAt: startAt,
             endAt: endAt,
             completedAt: nil,
