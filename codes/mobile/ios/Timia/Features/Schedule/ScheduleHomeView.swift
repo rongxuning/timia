@@ -55,6 +55,52 @@ enum ScheduleDockMetrics {
         }
         return min(barBottomClearance, safeAreaBottom)
     }
+
+    /// Height of the idle floating dock, from the physical bottom through the
+    /// capsules. Scroll views use it as a fixed content inset — not a measured
+    /// `safeAreaInset` — so the last row can rest above the capsules while
+    /// calendar content still draws through the gap between them.
+    static func idleContentClearance(safeAreaBottom: CGFloat) -> CGFloat {
+        barTopPadding
+            + controlDiameter
+            + clusterPadding * 2
+            + barBottomPadding(safeAreaBottom: safeAreaBottom)
+    }
+}
+
+/// Dark frosted capsule shared by the idle dock modules and the range picker.
+private struct ScheduleFloatingCapsule: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        Capsule().fill(
+                            colorScheme == .dark
+                                ? Color.black.opacity(0.42)
+                                : Color.white.opacity(0.22)
+                        )
+                    }
+                    .overlay {
+                        Capsule().strokeBorder(
+                            colorScheme == .dark
+                                ? Color.white.opacity(0.16)
+                                : Color.black.opacity(0.08),
+                            lineWidth: 0.6
+                        )
+                    }
+                    .shadow(color: TimiaTheme.shadow, radius: 14, y: 6)
+            }
+    }
+}
+
+private extension View {
+    func scheduleDockCapsule() -> some View {
+        modifier(ScheduleFloatingCapsule())
+    }
 }
 
 @MainActor
@@ -212,12 +258,19 @@ struct ScheduleHomeView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Fixed clearance, not a measured safeAreaInset. Inset plus the
+                // range-picker / voice overlays can leave the bar mid-screen.
+                .safeAreaPadding(
+                    .bottom,
+                    ScheduleDockMetrics.idleContentClearance(safeAreaBottom: bottomSafeInset)
+                )
                 .contentShape(Rectangle())
-
-                // Dock the action bar in the layout flow instead of safeAreaInset.
-                // Inset + bar-internal overlays (range picker / voice HUD) can enter a
-                // layout feedback loop that leaves the bar floating mid-screen.
-                bottomControls
+                // Capsules float over the page. The full-width material used to
+                // mask this band; the gap between modules stays empty so the
+                // calendar can show through.
+                .overlay(alignment: .bottom) {
+                    bottomControls
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
@@ -662,82 +715,91 @@ struct ScheduleHomeView: View {
     }
 
     private var idleBottomControls: some View {
-        HStack(alignment: .center, spacing: 8) {
-            HStack(spacing: 2) {
-                modeButton(.todo, symbol: "checklist")
-                modeButton(.calendar, symbol: "calendar")
-                modeButton(.map, symbol: "map")
-                modeButton(.stickyNote, symbol: "highlighter")
-            }
-            .padding(ScheduleDockMetrics.clusterPadding)
-            .background(TimiaTheme.field, in: Capsule())
-            .overlay(alignment: .topLeading) {
-                if contentMode == .calendar, isRangePickerExpanded {
-                    calendarRangePicker
-                        // Keep both axes intrinsic so the popover never feeds
-                        // flexible height back into the docked bar.
-                        .fixedSize()
-                        .offset(y: ScheduleDockMetrics.rangePickerOffsetY)
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: .bottom).combined(with: .opacity),
-                                removal: .move(edge: .bottom).combined(with: .opacity)
-                            )
-                        )
-                        .zIndex(2)
-                }
-            }
-            .zIndex(2)
+        HStack(alignment: .center, spacing: 0) {
+            modeCluster
+                .padding(.leading, ScheduleDockMetrics.barHorizontalPadding)
+                .padding(.top, ScheduleDockMetrics.barTopPadding)
+                .padding(.bottom, ScheduleDockMetrics.barBottomPadding(safeAreaBottom: bottomSafeInset))
 
-            HStack(spacing: 8) {
-                if contentMode == .stickyNote {
-                    HStack(spacing: 8) {
-                        Spacer(minLength: 0)
-                        plusCircleButton(accessibilityLabel: "添加便利贴") {
-                            isStickyNoteEditorPresented = true
-                        }
+            // The gap is not a bar. Leave it out of hit testing so scrolls and
+            // day cells under the dock still receive touches.
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
 
-                        StickyNoteVoiceLauncher(draft: stickyDraft, dock: voiceDock)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                } else {
-                    HStack(spacing: 8) {
-                        Spacer(minLength: 0)
-                        plusCircleButton(accessibilityLabel: "新建任务") {
-                            withAnimation(.snappy(duration: 0.2)) {
-                                isRangePickerExpanded = false
-                            }
-                            createSelection = ScheduleCreateSelection(
-                                date: selectedDate,
-                                hasExactTime: false
-                            )
-                        }
-
-                        ScheduleVoiceLauncher(
-                            dock: voiceDock,
-                            isParsing: isParsing,
-                            onRecognized: { text in
-                                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !trimmed.isEmpty else {
-                                    showTip("未识别到有效内容")
-                                    return
-                                }
-                                Task { await parseNaturalLanguage(from: trimmed) }
-                            },
-                            onFailed: { message in
-                                showTip(message)
-                            }
-                        )
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-            }
-            .frame(maxWidth: .infinity)
+            toolCluster
+                .padding(.trailing, ScheduleDockMetrics.barHorizontalPadding)
+                .padding(.top, ScheduleDockMetrics.barTopPadding)
+                .padding(.bottom, ScheduleDockMetrics.barBottomPadding(safeAreaBottom: bottomSafeInset))
         }
-        .padding(.horizontal, ScheduleDockMetrics.barHorizontalPadding)
-        .padding(.top, ScheduleDockMetrics.barTopPadding)
-        .padding(.bottom, ScheduleDockMetrics.barBottomPadding(safeAreaBottom: bottomSafeInset))
-        .background(.ultraThinMaterial)
+    }
+
+    private var modeCluster: some View {
+        HStack(spacing: 2) {
+            modeButton(.todo, symbol: "checklist")
+            modeButton(.calendar, symbol: "calendar")
+            modeButton(.map, symbol: "map")
+            modeButton(.stickyNote, symbol: "highlighter")
+        }
+        .padding(ScheduleDockMetrics.clusterPadding)
+        .scheduleDockCapsule()
+        .fixedSize()
+        .overlay(alignment: .topLeading) {
+            if contentMode == .calendar, isRangePickerExpanded {
+                calendarRangePicker
+                    // Keep both axes intrinsic so the popover never feeds
+                    // flexible height back into the docked bar.
+                    .fixedSize()
+                    .offset(y: ScheduleDockMetrics.rangePickerOffsetY)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        )
+                    )
+                    .zIndex(2)
+            }
+        }
+        .zIndex(2)
+    }
+
+    private var toolCluster: some View {
+        HStack(spacing: 2) {
+            if contentMode == .stickyNote {
+                dockPlusButton(accessibilityLabel: "添加便利贴") {
+                    isStickyNoteEditorPresented = true
+                }
+                StickyNoteVoiceLauncher(draft: stickyDraft, dock: voiceDock)
+            } else {
+                dockPlusButton(accessibilityLabel: "新建任务") {
+                    withAnimation(.snappy(duration: 0.2)) {
+                        isRangePickerExpanded = false
+                    }
+                    createSelection = ScheduleCreateSelection(
+                        date: selectedDate,
+                        hasExactTime: false
+                    )
+                }
+                ScheduleVoiceLauncher(
+                    dock: voiceDock,
+                    isParsing: isParsing,
+                    onRecognized: { text in
+                        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else {
+                            showTip("未识别到有效内容")
+                            return
+                        }
+                        Task { await parseNaturalLanguage(from: trimmed) }
+                    },
+                    onFailed: { message in
+                        showTip(message)
+                    }
+                )
+            }
+        }
+        .padding(ScheduleDockMetrics.clusterPadding)
+        .scheduleDockCapsule()
+        .fixedSize()
     }
 
     private func refreshBottomSafeInset() {
@@ -765,24 +827,22 @@ struct ScheduleHomeView: View {
             }
         }
         .padding(ScheduleDockMetrics.clusterPadding)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(TimiaTheme.border.opacity(0.7)))
-        .shadow(color: TimiaTheme.shadow, radius: 12, y: 5)
+        .scheduleDockCapsule()
     }
 
-    private func plusCircleButton(
+    private func dockPlusButton(
         accessibilityLabel: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: "plus")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .frame(
                     width: ScheduleDockMetrics.controlDiameter,
                     height: ScheduleDockMetrics.controlDiameter
                 )
-                .background(TimiaTheme.primary, in: Circle())
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)

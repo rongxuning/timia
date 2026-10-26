@@ -115,4 +115,25 @@ final class ScheduleDockMetricsTests: XCTestCase {
     func testModeClusterSitsInboardOfThePageMargin() {
         XCTAssertGreaterThan(ScheduleDockMetrics.barHorizontalPadding, 16)
     }
+
+    func testIdleContentClearanceCoversTheFloatingCapsules() {
+        let phone = ScheduleDockMetrics.idleContentClearance(safeAreaBottom: 34)
+        XCTAssertEqual(
+            phone,
+            ScheduleDockMetrics.barTopPadding
+                + ScheduleDockMetrics.controlDiameter
+                + ScheduleDockMetrics.clusterPadding * 2
+                + ScheduleDockMetrics.barBottomClearance
+        )
+
+        let compact = ScheduleDockMetrics.idleContentClearance(safeAreaBottom: 0)
+        XCTAssertEqual(
+            compact,
+            ScheduleDockMetrics.barTopPadding
+                + ScheduleDockMetrics.controlDiameter
+                + ScheduleDockMetrics.clusterPadding * 2
+                + ScheduleDockMetrics.compactBarBottomPadding
+        )
+        XCTAssertLessThan(compact, phone)
+    }
 }

@@ -245,18 +245,18 @@ struct VoiceMicButton: View {
                 if isBusy {
                     ProgressView()
                         .controlSize(.small)
-                        .tint(.white)
+                        .tint(.primary)
                 } else {
                     Image(systemName: "mic")
                         .font(.body.weight(.semibold))
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
             .frame(
                 width: ScheduleDockMetrics.controlDiameter,
                 height: ScheduleDockMetrics.controlDiameter
             )
-            .background(TimiaTheme.primary, in: Circle())
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(isBusy)
