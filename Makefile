@@ -1,4 +1,4 @@
-.PHONY: dev db core-service file-service web core-service-install file-service-install web-install verify local codegen kill-port-8000 kill-port-8003 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http docker-up docker-down docker-ps docker-logs docker-verify
+.PHONY: dev db core-service file-service notification-service web core-service-install file-service-install notification-service-install web-install verify local codegen kill-port-8000 kill-port-8001 kill-port-8003 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http docker-up docker-down docker-ps docker-logs docker-verify
 
 # Kill whatever is holding port 8000 (uvicorn / fastapi). No-op if free.
 # 1s grace period, then SIGKILL if still alive.
@@ -37,13 +37,25 @@ kill-port-8003:
 		echo "Port 8003 free"; \
 	fi
 
-kill-ports: kill-port-8000 kill-port-8003 kill-port-3000
+kill-port-8001:
+	@PID=$$(lsof -ti :8001 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		echo "Port 8001 busy, killing PID $$PID"; \
+		kill $$PID 2>/dev/null; sleep 1; \
+		PID=$$(lsof -ti :8001 2>/dev/null); \
+		if [ -n "$$PID" ]; then echo "  force-kill $$PID"; kill -9 $$PID 2>/dev/null; sleep 1; fi; \
+	else \
+		echo "Port 8001 free"; \
+	fi
+
+kill-ports: kill-port-8000 kill-port-8001 kill-port-8003 kill-port-3000
 	@true
 
 dev: db
 	@echo "Run in separate terminals:"
 	@echo "  make core-service-install && make core-service"
 	@echo "  make file-service-install && make file-service"
+	@echo "  make notification-service-install && make notification-service"
 	@echo "  make web-install && make web"
 
 DOCKER_COMPOSE_LOCAL = docker compose -f docker-compose.local.yml --env-file .env.docker
@@ -75,6 +87,11 @@ docker-verify:
 	  echo "OK  File http://127.0.0.1:8080/file-service/health"; \
 	else \
 	  echo "FAIL File http://127.0.0.1:8080/file-service/health"; fail=1; \
+	fi; \
+	if curl -sf http://127.0.0.1:8080/notification-service/health | grep -q '"ok"'; then \
+	  echo "OK  Notify http://127.0.0.1:8080/notification-service/health"; \
+	else \
+	  echo "FAIL Notify http://127.0.0.1:8080/notification-service/health"; fail=1; \
 	fi; \
 	if curl -sf http://127.0.0.1:8080/mcp-health | grep -q '"ok"'; then \
 	  echo "OK  MCP  http://127.0.0.1:8080/mcp-health"; \
@@ -115,7 +132,17 @@ file-service: file-service-install kill-port-8003
 	  MEDIA_S3_ENDPOINT=$${MEDIA_S3_ENDPOINT:-http://127.0.0.1:9000} \
 	  uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8003
 
-# Future: notification-service-install / notification-service (port 8001), etc.
+notification-service-install:
+	cd codes/notification-service && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
+
+notification-service: notification-service-install kill-port-8001
+	set -a; \
+	[ -f codes/core-service/.env ] && . codes/core-service/.env; \
+	[ -f codes/notification-service/.env ] && . codes/notification-service/.env; \
+	set +a; \
+	cd codes/notification-service && PYTHONPATH=. \
+	  uv run python -m alembic upgrade head && \
+	  PYTHONPATH=. uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 web-install:
 	cd codes/web && npm install
@@ -128,6 +155,7 @@ local: db
 	@echo "Next (separate terminals):"
 	@echo "  make core-service-install && make core-service"
 	@echo "  make file-service-install && make file-service"
+	@echo "  make notification-service-install && make notification-service"
 	@echo "  make web-install && make web"
 	@echo ""
 	@echo "Verify: make verify"
@@ -144,6 +172,11 @@ verify:
 	else \
 	  echo "WARN File API not reachable (start with: make file-service)"; \
 	fi; \
+	if curl -sf http://127.0.0.1:8001/health | grep -q '"ok"'; then \
+	  echo "OK  Notification API health http://127.0.0.1:8001/health"; \
+	else \
+	  echo "WARN Notification API not reachable (start with: make notification-service)"; \
+	fi; \
 	if curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:3000 | grep -qE '^(200|307|308)$$'; then \
 	  echo "OK  Web http://127.0.0.1:3000"; \
 	else \
@@ -154,6 +187,7 @@ verify:
 codegen:
 	cd codes/core-service && PYTHONPATH=. uv run python scripts/export_openapi.py
 	cd codes/file-service && PYTHONPATH=. uv run python scripts/export_openapi.py
+	cd codes/notification-service && PYTHONPATH=. uv run python scripts/export_openapi.py
 	cd codes/web && npm run codegen:types && npm run codegen:file-types
 
 mcp-server-install:

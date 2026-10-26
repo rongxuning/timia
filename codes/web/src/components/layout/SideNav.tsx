@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCurrentMe } from "@/lib/use-current-me";
 import { isSystemAdmin } from "@/lib/system-role";
 import { NavItem } from "./NavItem";
+import { NotificationEntry } from "./NotificationEntry";
 
 export function SideNav() {
   const pathname = usePathname();
@@ -72,6 +73,13 @@ export function SideNav() {
             hidden={!isAdmin}
           />
           <NavItem
+            href="/admin/notifications"
+            icon="notifications"
+            label={t("notificationAdmin")}
+            active={pathname.startsWith("/admin/notifications")}
+            hidden={!isAdmin}
+          />
+          <NavItem
             href="/documents/code"
             icon="code"
             label={t("codeDocs")}
@@ -95,7 +103,8 @@ export function SideNav() {
         </nav>
       </div>
 
-      <div className="shrink-0 border-t border-gray-200 px-2 py-3">
+      <div className="shrink-0 space-y-1 border-t border-gray-200 px-2 py-3">
+        <NotificationEntry variant="sidenav" />
         <Link
           href="/my/account"
           aria-label={t("account")}

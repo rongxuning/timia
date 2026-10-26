@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace import MemberAdd, MemberOut, MemberRoleUpdate
 from app.services.activity import log_activity
+from app.services.notification_hooks import notify_workspace_member_added
 from app.services.permissions import require_workspace_member, require_workspace_owner
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/members", tags=["members"])
@@ -108,6 +109,7 @@ def add_member(
         metadata={"user_id": str(target_user.id), "role": effective_role},
     )
     db.commit()
+    notify_workspace_member_added(db, ws, user, target_user.id)
     return MemberOut(
         id=str(member_row.id),
         user_id=str(target_user.id),

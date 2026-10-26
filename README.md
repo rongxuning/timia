@@ -6,21 +6,22 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 - `codes/web`: Next.js web
 - `codes/core-service`: FastAPI core API (uv) — `make core-service`
 - `codes/file-service`: FastAPI file API (uv, port 8003) — `make file-service`; bytes go to private MinIO
+- `codes/notification-service`: FastAPI notification API (uv, port 8001) — `make notification-service`; inbox, scenario switches, core hooks
 - `codes/app`: native client placeholder (iOS, future)
-- Future backends (e.g. `notification-service`, `finance-service`): each under `codes/<name>/`, own Makefile target, Docker service, and nginx `/<name>/` route
+- Future backends (e.g. `finance-service`): each under `codes/<name>/`, own Makefile target, Docker service, and nginx `/<name>/` route
 
 ### Local dev
 
 #### All services in Docker
 
 ```bash
-make docker-up       # build + start db/minio/core/file/web/mcp/nginx
+make docker-up       # build + start db/minio/core/file/notification/web/mcp/nginx
 make docker-verify   # http://localhost:8080
 make docker-ps
 make docker-down
 ```
 
-Open **http://localhost:8080**. APIs: `/core-service/health`, `/file-service/health`, `/mcp-health`.
+Open **http://localhost:8080**. APIs: `/core-service/health`, `/file-service/health`, `/notification-service/health`, `/mcp-health`.
 
 #### Quick start (apps on the host)
 
@@ -28,7 +29,8 @@ Open **http://localhost:8080**. APIs: `/core-service/health`, `/file-service/hea
 make local          # Postgres + MinIO in Docker
 make core-service-install && make core-service   # terminal 1
 make file-service-install && make file-service   # terminal 2
-make web-install && make web   # terminal 3
+make notification-service-install && make notification-service   # terminal 3
+make web-install && make web   # terminal 4
 make verify         # smoke check API (+ File API / Web if running)
 make codegen        # export OpenAPI → web generated types (after API changes)
 ```
@@ -77,9 +79,10 @@ make mcp-server-http   # local Streamable HTTP on :8100
 
 ### Env
 - Copy values from `.env.example` into:
-  - `codes/core-service/.env` (include `FILE_SERVICE_BASE` / `FILE_INTERNAL_TOKEN` so transfer/delete notify file-service)
+  - `codes/core-service/.env` (include `FILE_SERVICE_BASE` / `FILE_INTERNAL_TOKEN` so transfer/delete notify file-service, and `NOTIFICATION_SERVICE_BASE` / `NOTIFICATION_INTERNAL_TOKEN` so member and task hooks notify notification-service)
   - `codes/file-service/.env` optional; `make file-service` also sources core-service `.env`
-  - `codes/web/.env.local` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_FILE_API_BASE_URL`)
+  - `codes/notification-service/.env` optional; `make notification-service` also sources core-service `.env`
+  - `codes/web/.env.local` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_FILE_API_BASE_URL`, `NEXT_PUBLIC_NOTIFICATION_API_BASE_URL`)
 
 ### Production deploy (timia.online)
 

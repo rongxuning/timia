@@ -38,6 +38,10 @@ const nextConfig = {
         source: "/file-service/:path*",
         destination: "http://localhost:8003/:path*",
       },
+      {
+        source: "/notification-service/:path*",
+        destination: "http://localhost:8001/:path*",
+      },
     ];
   },
 };

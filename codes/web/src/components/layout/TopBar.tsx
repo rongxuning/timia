@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { NotificationEntry } from "@/components/layout/NotificationEntry";
 import { useCurrentMe } from "@/lib/use-current-me";
 
 export function TopBar() {
@@ -23,6 +24,8 @@ export function TopBar() {
           <Breadcrumbs className="hidden min-w-0 sm:block" />
         </div>
 
+        <div className="flex items-center gap-1">
+          <NotificationEntry variant="topbar" />
         <Link
           href="/my/account"
           aria-label={t("account")}
@@ -36,6 +39,7 @@ export function TopBar() {
         >
           {userInitial}
         </Link>
+        </div>
       </div>
     </header>
   );

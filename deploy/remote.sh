@@ -8,7 +8,7 @@
 #   bash deploy/remote.sh upload       # upload packed service tarballs
 #
 # Env:
-#   PACK_SERVICES=smart|all|web|core-service|file-service|mcp-server|comma-list
+#   PACK_SERVICES=smart|all|web|core-service|file-service|notification-service|mcp-server|comma-list
 #                  (default: smart — compare against server HEAD / DEPLOY_BASE)
 #   DEPLOY_BASE=<sha>   — base revision for smart detect (skip SSH probe)
 #   SKIP_BUILD=1        — pack existing local prod images (no compose build)
@@ -242,6 +242,12 @@ timia_build_one() {
         export FILE_SERVICE_REVISION="$revision"
         timia_pull_image python:3.12-slim
         echo "Building file-service (revision=${revision}) ..."
+        ;;
+      notification-service)
+        revision="$(git rev-parse HEAD:codes/notification-service 2>/dev/null || echo local)"
+        export NOTIFICATION_SERVICE_REVISION="$revision"
+        timia_pull_image python:3.12-slim
+        echo "Building notification-service (revision=${revision}) ..."
         ;;
       web)
         revision="$(git rev-parse HEAD:codes/web 2>/dev/null || echo local)-api-${NEXT_PUBLIC_API_BASE_URL}"

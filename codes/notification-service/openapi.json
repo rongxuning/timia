@@ -1,0 +1,833 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Timia Notification Service",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/notifications": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Post Notification",
+        "operationId": "post_notification_v1_notifications_post",
+        "parameters": [
+          {
+            "name": "X-Internal-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationCreatedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inbox": {
+      "get": {
+        "tags": [
+          "inbox"
+        ],
+        "summary": "Get Inbox",
+        "operationId": "get_inbox_v1_inbox_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inbox/read-all": {
+      "post": {
+        "tags": [
+          "inbox"
+        ],
+        "summary": "Post Read All",
+        "operationId": "post_read_all_v1_inbox_read_all_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadAllOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inbox/{delivery_id}/read": {
+      "post": {
+        "tags": [
+          "inbox"
+        ],
+        "summary": "Post Read",
+        "operationId": "post_read_v1_inbox__delivery_id__read_post",
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Delivery Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxItemOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/scenarios": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Scenarios",
+        "operationId": "get_scenarios_v1_admin_scenarios_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScenarioOut"
+                  },
+                  "title": "Response Get Scenarios V1 Admin Scenarios Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/scenarios/{key}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update Scenario",
+        "operationId": "update_scenario_v1_admin_scenarios__key__patch",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AudienceIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "broadcast",
+              "user_ids",
+              "project_id",
+              "workspace_id"
+            ],
+            "title": "Type"
+          },
+          "user_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "User Ids"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          },
+          "exclude_user_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Exclude User Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "AudienceIn"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InboxItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "notification_id": {
+            "type": "string",
+            "title": "Notification Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "sender_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender User Id"
+          },
+          "sender_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender Display Name"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "scenario_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Key"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "push_status": {
+            "type": "string",
+            "title": "Push Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "notification_id",
+          "title",
+          "body",
+          "sender_user_id",
+          "sender_display_name",
+          "link",
+          "scenario_key",
+          "read_at",
+          "created_at",
+          "push_status"
+        ],
+        "title": "InboxItemOut"
+      },
+      "InboxOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "unread_count"
+        ],
+        "title": "InboxOut"
+      },
+      "NotificationCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "sender_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender User Id"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "audience": {
+            "$ref": "#/components/schemas/AudienceIn"
+          },
+          "timing": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "delay",
+              "scheduled"
+            ],
+            "title": "Timing",
+            "default": "immediate"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          },
+          "scenario_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Key"
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audience"
+        ],
+        "title": "NotificationCreate"
+      },
+      "NotificationCreatedOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "delivery_count": {
+            "type": "integer",
+            "title": "Delivery Count"
+          },
+          "scenario_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "delivery_count"
+        ],
+        "title": "NotificationCreatedOut"
+      },
+      "ReadAllOut": {
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updated"
+        ],
+        "title": "ReadAllOut"
+      },
+      "ScenarioOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "title_template": {
+            "type": "string",
+            "title": "Title Template"
+          },
+          "body_template": {
+            "type": "string",
+            "title": "Body Template"
+          },
+          "push_enabled": {
+            "type": "boolean",
+            "title": "Push Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "enabled",
+          "title_template",
+          "body_template",
+          "push_enabled"
+        ],
+        "title": "ScenarioOut"
+      },
+      "ScenarioPatch": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "title_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Template"
+          },
+          "body_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Template"
+          },
+          "push_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Push Enabled"
+          }
+        },
+        "type": "object",
+        "title": "ScenarioPatch"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

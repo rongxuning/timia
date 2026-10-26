@@ -27,6 +27,7 @@ from app.services.item_api import (
     validate_item_schedule_range,
     validate_undated_item_status,
 )
+from app.services.notification_hooks import notify_item_created, notify_item_participants_changed
 from app.services.permissions import require_project_content_access
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/projects/{project_id}/items", tags=["items"])
@@ -206,6 +207,7 @@ def create_item(
         },
     )
     db.commit()
+    notify_item_created(db, i, user)
     return build_item_out(db, i)
 
 
@@ -448,6 +450,14 @@ def update_item(
     db.commit()
     if transferred and transfer_target:
         notify_item_rehomed(i.id, transfer_target[0], transfer_target[1])
+    if "participant_user_ids" in fields_set:
+        notify_item_participants_changed(
+            db,
+            i,
+            user,
+            before["participant_user_ids"],
+            i.participant_user_ids,
+        )
     return build_item_out(db, i)
 
 

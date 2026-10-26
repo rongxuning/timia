@@ -22,6 +22,7 @@ services:
     environment:
       PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       FILE_SERVICE_BASE: http://file-service:8003
+      NOTIFICATION_SERVICE_BASE: http://notification-service:8001
     command:
       [
         "sh",
@@ -84,9 +85,34 @@ services:
     expose:
       - "8003"
 
-  # notification-service:
-  #   build: { context: ./codes/notification-service }
-  #   expose: ["8001"]
+  notification-service:
+    image: timia-notification-service:prod
+    build:
+      context: ./codes/notification-service
+      args:
+        BUILD_REVISION: ${NOTIFICATION_SERVICE_REVISION:-local}
+    restart: unless-stopped
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc.sh}
+    environment:
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8001",
+      ]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      db:
+        condition: service_healthy
+      core-service:
+        condition: service_healthy
+    expose:
+      - "8001"
 
   web:
     image: timia-web:prod
@@ -96,6 +122,7 @@ services:
         BUILD_REVISION: ${WEB_REVISION:-local}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
         NEXT_PUBLIC_FILE_API_BASE_URL: ${NEXT_PUBLIC_FILE_API_BASE_URL}
+        NEXT_PUBLIC_NOTIFICATION_API_BASE_URL: ${NEXT_PUBLIC_NOTIFICATION_API_BASE_URL}
     restart: unless-stopped
     expose:
       - "3000"
@@ -133,6 +160,7 @@ services:
     depends_on:
       - core-service
       - file-service
+      - notification-service
       - web
       - mcp-server
 

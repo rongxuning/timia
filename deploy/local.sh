@@ -5,7 +5,7 @@
 #   bash deploy/local.sh poll                    # cron: deploy if origin/main changed
 #   sudo bash deploy/local.sh install-cron       # install poll cron (every 3 min)
 #
-# Env: DEPLOY_MODE=smart|quick|full|core-service|file-service|web|mcp-server  SKIP_GIT_PULL=1  GIT_REF=main
+# Env: DEPLOY_MODE=smart|quick|full|core-service|file-service|notification-service|web|mcp-server  SKIP_GIT_PULL=1  GIT_REF=main
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -57,9 +57,9 @@ cmd_deploy() {
   local -a selected=() app_services=()
 
   case "$deploy_mode" in
-    full|all|quick|none|smart|core-service|file-service|web|mcp-server) ;;
+    full|all|quick|none|smart|core-service|file-service|notification-service|web|mcp-server) ;;
     *)
-      echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|file-service|web|mcp-server)" >&2
+      echo "Unknown DEPLOY_MODE=$deploy_mode (use smart|quick|full|core-service|file-service|notification-service|web|mcp-server)" >&2
       exit 2
       ;;
   esac
