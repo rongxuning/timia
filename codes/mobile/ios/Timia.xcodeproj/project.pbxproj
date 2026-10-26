@@ -3,19 +3,19 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		00E00DC5CAF2FD719CF365CD /* LocationChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46CA9C31948E4DEB3BF26FB9 /* LocationChip.swift */; };
 		02D08393103E9800F2643DE8 /* ScreenNotificationContentBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */; };
+		04B9DAE8AA1EEBAD69F3168E /* NotificationInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28C6DDE6EBF349675104986 /* NotificationInboxView.swift */; };
+		096B1D4DFC73BC3B8C122407 /* MonthDayLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6710B399D2FE342F1E1D68AC /* MonthDayLayout.swift */; };
 		0ACE6547A4695DCA4B985316 /* TimiaScreenActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */; };
 		0B391933F19696163938B8FA /* StickyNoteListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419D2B4E06958ADBD1463496 /* StickyNoteListModel.swift */; };
 		0E0C625DE464E5780B6C56F1 /* PinnedTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */; };
 		0F7C6FDD9A2E0F2C878933F1 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E78D75AE9DCBB7A7D65F154 /* MainTabView.swift */; };
 		10BBEA98AF180F5487590C22 /* SchedulePriorityAccent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */; };
-		B1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */; };
-		B1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift */; };
 		10FF9010D99AB4A7E42926A5 /* WorkoutSyncRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */; };
 		13E73DFB1F9D5E24028B5548 /* UserDirectoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */; };
 		14ACCBB6B6F8A34391230101 /* HealthSyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75E957781609437059641828 /* HealthSyncAPI.swift */; };
@@ -26,6 +26,7 @@
 		1F2FA8B4FF950568DFCEDABE /* TitleBodyTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */; };
 		216AC22F2D76EF19DA43F82C /* ScreenNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886152E46EA86A4005A5B3AA /* ScreenNotificationManager.swift */; };
 		295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */; };
+		2ADF1A107FC9758605135B0B /* APNsDeviceToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E8F3FEBF0A83F96E1DB812 /* APNsDeviceToken.swift */; };
 		2B046FB62E0822FA3D838F2A /* StickyNoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C481250694F9070FC3FF7CD5 /* StickyNoteView.swift */; };
 		3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */; };
 		329D2CDFA1E24531A8B48B16 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */; };
@@ -35,6 +36,7 @@
 		3FEEFBB29A21FAD280CCA173 /* ScreenNotificationContentBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53260393E4237A9CADE36955 /* ScreenNotificationContentBuilder.swift */; };
 		434167F200A949466A0576AA /* ScreenNotificationSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9515251F961F990A5022ABF /* ScreenNotificationSettingsSection.swift */; };
 		43DFBAA1DE184FBBBC2AFC93 /* ScheduleMapPlaceTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAB9CAF6D9B95739090B528 /* ScheduleMapPlaceTitle.swift */; };
+		457EEF8F43C64C60C24F906C /* ScheduleMapFan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D7C0BDEBB9A5AA54A2EE35 /* ScheduleMapFan.swift */; };
 		48B7B9EAE5EE1276084FA1FA /* MembersManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED6C2C43F4BC0703D2F3243 /* MembersManagementView.swift */; };
 		49513DD35E5C0C2BBB74B46C /* TimelineIdleChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59D1513258836079792A7B7 /* TimelineIdleChrome.swift */; };
 		4AB667730AE22CE12515095D /* TodoDayCoverage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */; };
@@ -42,10 +44,13 @@
 		50F9300FF795C6658B254510 /* TimiaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21F36DD0BC55F1BD4820FBD9 /* TimiaUITests.swift */; };
 		5199082DBC269D01F3621E7F /* StickyNoteDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF33F57000AEAE8C19E55B8C /* StickyNoteDraftStore.swift */; };
 		51D5DA889805C0A221723698 /* TimiaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7662263C83C52FE6296C3F7 /* TimiaApp.swift */; };
+		522EB899E4DB69386F834D41 /* PlaceValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A290085203182BFA7F27E50E /* PlaceValue.swift */; };
+		5273B4B751F462D017669978 /* NotificationLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EEAD4D7C4831F5C98E78471 /* NotificationLink.swift */; };
 		52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */; };
 		54A4CA3BA105DFC7C1762494 /* ScreenNotificationPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */; };
 		55AE29F0FC265551628E74F7 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A6B230FF2917C7BFCEDE3D /* KeychainStore.swift */; };
 		56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */; };
+		576F58C9473A93637D52A9FB /* ScheduleMapChestLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA851519333C33BB96F3BC10 /* ScheduleMapChestLabel.swift */; };
 		57E0500382EFD5E2AD4A528A /* HealthSyncQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */; };
 		5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 358364DC9FBB2361030EFF90 /* HealthKitStore.swift */; };
 		5E5C3FAAF85F2DE1A437C7BF /* StickyNoteVoiceLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E47A83D778195D960B3C530 /* StickyNoteVoiceLauncher.swift */; };
@@ -53,20 +58,22 @@
 		652493CA7C0D5FA5B31298C2 /* PinnedTagSelect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */; };
 		6676E9A83EFAA4BAB128A376 /* TimiaLiveActivityPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */; };
 		6A12C520F778E1973C4F6CF3 /* ScheduleMapFilters.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */; };
-		C7E4A91B2D0F4A6E81B3C511 /* ScheduleMapClusters.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7E4A91B2D0F4A6E81B3C501 /* ScheduleMapClusters.swift */; };
-		D8F5B02C3E1A5B7F92C4D612 /* ScheduleMapFan.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F5B02C3E1A5B7F92C4D602 /* ScheduleMapFan.swift */; };
-		E906C13D4F2B6C8093D5E713 /* ScheduleMapChestLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E906C13D4F2B6C8093D5E703 /* ScheduleMapChestLabel.swift */; };
-		FA17D24E503C7D91A4E6F814 /* ScheduleMapFanOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA17D24E503C7D91A4E6F804 /* ScheduleMapFanOverlay.swift */; };
-		0B28E35F614D8E02B5F70915 /* ScheduleMapClustersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B28E35F614D8E02B5F70905 /* ScheduleMapClustersTests.swift */; };
 		6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */; };
+		6B3FDEAFC8EAE8BB74166CE1 /* ScheduleMapClusters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BFEC1EA52039FCB52055134 /* ScheduleMapClusters.swift */; };
+		7071F19AD240C79FA2F894B9 /* ChinaCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E710EC18CDC42BC6E394E734 /* ChinaCoordinate.swift */; };
+		719D4B61D1F151F9B4C5CB1D /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 849AAEF8FA2E6934A70B8DC9 /* UserNotifications.framework */; };
 		74DFBF7C4B7D3C7B889D79A9 /* StickyNoteListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016C053A9F4E98EC45B77450 /* StickyNoteListView.swift */; };
+		77408660FC17DAB6973A8A75 /* RemotePushRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A57C809E2D7FF089AF319730 /* RemotePushRegistration.swift */; };
 		77FAA4BA7DA83B93C6DD5D1B /* TimiaLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05341B780216C57EBBF7BD95 /* TimiaLiveActivityWidget.swift */; };
 		7936A0BB23E42FA7EB7112D6 /* StickyNotesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081976E5E404E3456C456D54 /* StickyNotesAPI.swift */; };
+		7EA6B7F7142654A157206DFC /* NotificationServiceURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6141462EA47869C512F858AD /* NotificationServiceURL.swift */; };
 		84B8598F1654854A9B2E7310 /* YearMonthGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */; };
 		85AD3FAE562455FC1A1E535D /* ScheduleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804AAB705371F022C6211B6 /* ScheduleMapView.swift */; };
+		85F60119F63454EA19F95053 /* NotificationInboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F765E7CB8A1F30BE9E0DA38 /* NotificationInboxTests.swift */; };
 		878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DD19186DC70910982C8C46 /* AuthenticationView.swift */; };
 		896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */; };
 		8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */; };
+		9283B4D9C6BF4E90074DF566 /* PlaceValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8EE4AA6978B95D39ADD11BF /* PlaceValueTests.swift */; };
 		99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */; };
 		9A544027B29ABF019DBFCEB4 /* FilesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 310A6AD7632431A7BCD789A7 /* FilesAPI.swift */; };
 		9B9382E7383A861B30961442 /* StickyNoteHandleBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ABB1D72902E40767B961B9 /* StickyNoteHandleBar.swift */; };
@@ -76,14 +83,16 @@
 		A22C4012FFE7BFEF716C84CD /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */; };
 		A542917AE1DC25AC30137163 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0E37E4198B3D9197E70666E0 /* Assets.xcassets */; };
 		A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */; };
+		A9C60C484E180BA5198C212F /* ScheduleMapClustersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DA22012F7C8127E6D5908A /* ScheduleMapClustersTests.swift */; };
+		AA95165565C031687174633B /* ObjCExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 9BBDAB762716DD873CE03A5E /* ObjCExceptionCatcher.m */; };
 		AA95B28B73214B3E8FCF8F92 /* StickyNoteInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */; };
 		AAB8EE3FDFB7671AB0A72B7A /* TimiaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86E0CD09843CADCDA60D838F /* TimiaTheme.swift */; };
 		AAE4EB9F6BA6EB057A3F4022 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */; };
 		AE76BC2BBEDCCB328BDE27E9 /* WorkspaceDiscussionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2965DAAE7EE6D180ED42C7CB /* WorkspaceDiscussionsView.swift */; };
 		B267B536A67D29DEF35763C5 /* HealthSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */; };
-		B2D6F4509C7E1F63A0B8D592 /* PlaceValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */; };
 		B815953B627371B090232172 /* HealthSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34781A49682D42B8CDCA4233 /* HealthSyncService.swift */; };
 		BBB32054EDA720D6E72C3DCC /* TimiaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5CEB0A7EC41E9C7030933C23 /* TimiaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BD12C18252784469ED2ABB3C /* PlaceSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106EE5FDF2E52B037E1F856B /* PlaceSearchField.swift */; };
 		BD309EA09158F16FD56B5355 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */; };
 		BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */; };
 		BEB976AA7D65A297D68640DA /* HealthKitAnchorStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 416920BC708A66D4F8DC959E /* HealthKitAnchorStore.swift */; };
@@ -93,15 +102,13 @@
 		C507B13C8D0215F1047ABD88 /* SpeechPermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874748456061425CD0A7F885 /* SpeechPermissionManager.swift */; };
 		C5CA1F18B20A238D656014AE /* TimiaScreenActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */; };
 		CA73C680278A8EF6FF5C6664 /* WorkspaceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */; };
+		CB1536ED6700A4AB6A432824 /* MonthDayLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B9CF906490C31C5F7C6D13 /* MonthDayLayoutTests.swift */; };
 		CB8D57D599FD3278068D54C1 /* StickyNoteLocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6C27357CC0CCEE2A7CCF66B /* StickyNoteLocalStore.swift */; };
 		CBAA0C70FFD72E2A6316B660 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A8422E298A383A62006950 /* AppSession.swift */; };
 		CC2DDEA8032D997DE66FD327 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FD26119578B087A0E46AC5E /* APIClient.swift */; };
 		CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07EE730E9A8DE17EE02F0FC /* AttachmentChip.swift */; };
 		D1B68BDA58BE3E0CBDF7ABC5 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 851DA05472136D3FAB083B33 /* HealthKit.framework */; };
-		B5F9D28C3E016704B2C7D915 /* MonthDayLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4E8C17B2D9056F3A1B6C804 /* MonthDayLayout.swift */; };
-		D712F40E50338926D4E9FB37 /* MonthDayLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C601E39D4F127815C3D8EA26 /* MonthDayLayoutTests.swift */; };
 		D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */; };
-		D8F2B01C5E3A7B29C6D4F158 /* PlaceValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */; };
 		D9065BFE9D1D0A23FE7C7457 /* ScreenNotificationPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4118A6CA9F3D8AD476A0C6 /* ScreenNotificationPrompt.swift */; };
 		DD3A7CF92ED67A3FDCF2B208 /* HealthSyncDrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DA66892B881DA84ECB62A8 /* HealthSyncDrain.swift */; };
 		E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 817045A30702570209E9D7F0 /* Data+Gzip.swift */; };
@@ -113,13 +120,14 @@
 		EBAF6BB8B5CB37F360A49DB2 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */; };
 		EC591944C6197C47A2A79052 /* IdleCollapsePlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */; };
 		EF73394B6AC5E310284AE649 /* StickyNoteSpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */; };
-		F0B4D23E7A5C9D41E8F6B370 /* PlaceSearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3C12D6F4B8C30D7E5A269 /* PlaceSearchField.swift */; };
-		7781389E0121244215D97B8B /* ObjCExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = DD96CCFF7FA668BD8944FE7B /* ObjCExceptionCatcher.m */; };
 		F1AC7B362F91A0AAD65D5773 /* HealthSyncQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAFC8AC913269CDEC75D2917 /* HealthSyncQueue.swift */; };
+		F247C550E632603CDF336867 /* ScheduleMapFanOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EC77D5357320910E980110 /* ScheduleMapFanOverlay.swift */; };
 		F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */; };
 		F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25793DC2D71167F0541FC926 /* TimelineGeometry.swift */; };
 		F736E66DA14ACC5BBDA1D78B /* IdleCollapsePlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */; };
 		F786EDECDCE2710DF59156D8 /* GzipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B57F52762C0AE9DC40A0571A /* GzipTests.swift */; };
+		FA1AA94523A37B455AF73BFD /* ChinaCoordinateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9985EB8302A6BB077BD738 /* ChinaCoordinateTests.swift */; };
+		FC55B81A623D62D9A0A91989 /* NotificationAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0408B4A065FD9960BD0640 /* NotificationAPI.swift */; };
 		FE624B315DEE143BDECDC152 /* YearMonthGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17D9F94E61F9F59C3A02A1AE /* YearMonthGrid.swift */; };
 /* End PBXBuildFile section */
 
@@ -170,11 +178,12 @@
 		0AA2057ACAFF89FB63DD99C7 /* ProjectTasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectTasksView.swift; sourceTree = "<group>"; };
 		0E37E4198B3D9197E70666E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0FD26119578B087A0E46AC5E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		106EE5FDF2E52B037E1F856B /* PlaceSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchField.swift; sourceTree = "<group>"; };
+		13B9CF906490C31C5F7C6D13 /* MonthDayLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDayLayoutTests.swift; sourceTree = "<group>"; };
 		14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTagsTests.swift; sourceTree = "<group>"; };
 		17D9F94E61F9F59C3A02A1AE /* YearMonthGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGrid.swift; sourceTree = "<group>"; };
-		A4E8C17B2D9056F3A1B6C804 /* MonthDayLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDayLayout.swift; sourceTree = "<group>"; };
-		C601E39D4F127815C3D8EA26 /* MonthDayLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDayLayoutTests.swift; sourceTree = "<group>"; };
 		1E47A83D778195D960B3C530 /* StickyNoteVoiceLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteVoiceLauncher.swift; sourceTree = "<group>"; };
+		1F765E7CB8A1F30BE9E0DA38 /* NotificationInboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationInboxTests.swift; sourceTree = "<group>"; };
 		21F36DD0BC55F1BD4820FBD9 /* TimiaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaUITests.swift; sourceTree = "<group>"; };
 		222DA87AAAB082DBD889E905 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		25793DC2D71167F0541FC926 /* TimelineGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometry.swift; sourceTree = "<group>"; };
@@ -189,6 +198,7 @@
 		3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlannerTests.swift; sourceTree = "<group>"; };
 		32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
 		34781A49682D42B8CDCA4233 /* HealthSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncService.swift; sourceTree = "<group>"; };
+		34E8F3FEBF0A83F96E1DB812 /* APNsDeviceToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APNsDeviceToken.swift; sourceTree = "<group>"; };
 		358364DC9FBB2361030EFF90 /* HealthKitStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitStore.swift; sourceTree = "<group>"; };
 		36064289994AF342E6FF1725 /* WorkoutSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncView.swift; sourceTree = "<group>"; };
 		3A74ECA9573EA85DE8159DC6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -205,59 +215,61 @@
 		4AECC260CD920B2DFDC5E4B0 /* WorkspaceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceDetailView.swift; sourceTree = "<group>"; };
 		4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YearMonthGridTests.swift; sourceTree = "<group>"; };
 		4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteSpeechRecognizer.swift; sourceTree = "<group>"; };
-		DD96CCFF7FA668BD8944FE7B /* ObjCExceptionCatcher.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ObjCExceptionCatcher.m; sourceTree = "<group>"; };
-		86F92E36A355F013FC7D8552 /* ObjCExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ObjCExceptionCatcher.h; sourceTree = "<group>"; };
-		D776DC6AEB689A2D31CBFC37 /* Timia-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Timia-Bridging-Header.h"; sourceTree = "<group>"; };
 		4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackgroundDelivery.swift; sourceTree = "<group>"; };
 		4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineGeometryTests.swift; sourceTree = "<group>"; };
 		53260393E4237A9CADE36955 /* ScreenNotificationContentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationContentBuilder.swift; sourceTree = "<group>"; };
 		551366E9D4BE5EEF10C296C2 /* RescheduleMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RescheduleMath.swift; sourceTree = "<group>"; };
 		5AD00047FCA7500D64CC814D /* Timia.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Timia.entitlements; sourceTree = "<group>"; };
 		5CEB0A7EC41E9C7030933C23 /* TimiaWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TimiaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6141462EA47869C512F858AD /* NotificationServiceURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationServiceURL.swift; sourceTree = "<group>"; };
 		6178EB25C6FCE14C5AA633CE /* TimiaUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimiaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarWeekTitle.swift; sourceTree = "<group>"; };
+		6710B399D2FE342F1E1D68AC /* MonthDayLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthDayLayout.swift; sourceTree = "<group>"; };
 		6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarCompletedCardStyleTests.swift; sourceTree = "<group>"; };
 		73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleHomeView.swift; sourceTree = "<group>"; };
 		75E957781609437059641828 /* HealthSyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncAPI.swift; sourceTree = "<group>"; };
 		7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditorView.swift; sourceTree = "<group>"; };
 		78ABB1D72902E40767B961B9 /* StickyNoteHandleBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteHandleBar.swift; sourceTree = "<group>"; };
-		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79A8422E298A383A62006950 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		7A0408B4A065FD9960BD0640 /* NotificationAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationAPI.swift; sourceTree = "<group>"; };
 		7A4118A6CA9F3D8AD476A0C6 /* ScreenNotificationPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationPrompt.swift; sourceTree = "<group>"; };
 		7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		7EEAD4D7C4831F5C98E78471 /* NotificationLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationLink.swift; sourceTree = "<group>"; };
 		7F800658B280EF8B017DF643 /* TitleBodyTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleBodyTextEditor.swift; sourceTree = "<group>"; };
 		8142F517E69CA1077F6259A1 /* UserDirectoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDirectoryView.swift; sourceTree = "<group>"; };
 		817045A30702570209E9D7F0 /* Data+Gzip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Data+Gzip.swift"; sourceTree = "<group>"; };
+		81D7C0BDEBB9A5AA54A2EE35 /* ScheduleMapFan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFan.swift; sourceTree = "<group>"; };
+		837BB4B0EAF2FB2B70CCEFCE /* Timia-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Timia-Bridging-Header.h"; sourceTree = "<group>"; };
+		849AAEF8FA2E6934A70B8DC9 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		851DA05472136D3FAB083B33 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		86E0CD09843CADCDA60D838F /* TimiaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaTheme.swift; sourceTree = "<group>"; };
 		874748456061425CD0A7F885 /* SpeechPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPermissionManager.swift; sourceTree = "<group>"; };
 		87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarCompletedCardStyle.swift; sourceTree = "<group>"; };
 		8804AAB705371F022C6211B6 /* ScheduleMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapView.swift; sourceTree = "<group>"; };
-		C7E4A91B2D0F4A6E81B3C501 /* ScheduleMapClusters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapClusters.swift; sourceTree = "<group>"; };
-		D8F5B02C3E1A5B7F92C4D602 /* ScheduleMapFan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFan.swift; sourceTree = "<group>"; };
-		E906C13D4F2B6C8093D5E703 /* ScheduleMapChestLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapChestLabel.swift; sourceTree = "<group>"; };
-		FA17D24E503C7D91A4E6F804 /* ScheduleMapFanOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFanOverlay.swift; sourceTree = "<group>"; };
-		0B28E35F614D8E02B5F70905 /* ScheduleMapClustersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapClustersTests.swift; sourceTree = "<group>"; };
 		886152E46EA86A4005A5B3AA /* ScreenNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationManager.swift; sourceTree = "<group>"; };
 		8A9EDD178F9B801538C85586 /* TimiaTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TimiaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncRunTests.swift; sourceTree = "<group>"; };
 		922589B2FC33AEC4EEFAB7EF /* TimelineInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineInteractionState.swift; sourceTree = "<group>"; };
+		9BBDAB762716DD873CE03A5E /* ObjCExceptionCatcher.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ObjCExceptionCatcher.m; sourceTree = "<group>"; };
+		9BFEC1EA52039FCB52055134 /* ScheduleMapClusters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapClusters.swift; sourceTree = "<group>"; };
 		9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTagSelect.swift; sourceTree = "<group>"; };
 		9E78D75AE9DCBB7A7D65F154 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		9ED6C2C43F4BC0703D2F3243 /* MembersManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MembersManagementView.swift; sourceTree = "<group>"; };
-		A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceValueTests.swift; sourceTree = "<group>"; };
+		A1EC77D5357320910E980110 /* ScheduleMapFanOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFanOverlay.swift; sourceTree = "<group>"; };
 		A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthPermissionManager.swift; sourceTree = "<group>"; };
+		A290085203182BFA7F27E50E /* PlaceValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceValue.swift; sourceTree = "<group>"; };
+		A57C809E2D7FF089AF319730 /* RemotePushRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotePushRegistration.swift; sourceTree = "<group>"; };
 		A59D1513258836079792A7B7 /* TimelineIdleChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineIdleChrome.swift; sourceTree = "<group>"; };
 		A6B38F2D42F4F2E52310227A /* HealthSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncView.swift; sourceTree = "<group>"; };
 		A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinnedTags.swift; sourceTree = "<group>"; };
 		AB78A7BD31C4812B3CE16ED3 /* StickyNoteCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteCard.swift; sourceTree = "<group>"; };
 		B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapFilters.swift; sourceTree = "<group>"; };
-		C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChinaCoordinate.swift; sourceTree = "<group>"; };
-		C1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChinaCoordinateTests.swift; sourceTree = "<group>"; };
 		B2F7EFDE3D96E0BB7D77867B /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulePriorityAccent.swift; sourceTree = "<group>"; };
 		B57F52762C0AE9DC40A0571A /* GzipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GzipTests.swift; sourceTree = "<group>"; };
 		B68963D3E9E9A5EB743B0E22 /* TimiaWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TimiaWidget.entitlements; sourceTree = "<group>"; };
+		B8EE4AA6978B95D39ADD11BF /* PlaceValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceValueTests.swift; sourceTree = "<group>"; };
 		BC9A43DB2DC381753D9A2830 /* TodoDayCoverage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoDayCoverage.swift; sourceTree = "<group>"; };
 		BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlanner.swift; sourceTree = "<group>"; };
 		C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoDayCoverageTests.swift; sourceTree = "<group>"; };
@@ -265,21 +277,25 @@
 		C4A6B230FF2917C7BFCEDE3D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		C6C27357CC0CCEE2A7CCF66B /* StickyNoteLocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteLocalStore.swift; sourceTree = "<group>"; };
 		C7662263C83C52FE6296C3F7 /* TimiaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaApp.swift; sourceTree = "<group>"; };
-		C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceValue.swift; sourceTree = "<group>"; };
+		CA851519333C33BB96F3BC10 /* ScheduleMapChestLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapChestLabel.swift; sourceTree = "<group>"; };
 		CC5995265FE526424EF95E8F /* WorkoutSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSyncService.swift; sourceTree = "<group>"; };
 		CD38F9E831FF4FA469537A7C /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
 		CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		CF5A230EDB4DA70BD395B802 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		D0ABB198A4F8D3363DB0B2FC /* StickyNoteDraftPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteDraftPreview.swift; sourceTree = "<group>"; };
+		D6DA22012F7C8127E6D5908A /* ScheduleMapClustersTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapClustersTests.swift; sourceTree = "<group>"; };
 		D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueueTests.swift; sourceTree = "<group>"; };
 		D8A94B8AC39EBAD216CBFB35 /* IdleCollapseToggleStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapseToggleStyleTests.swift; sourceTree = "<group>"; };
 		DAFC8AC913269CDEC75D2917 /* HealthSyncQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncQueue.swift; sourceTree = "<group>"; };
 		DB43C4FAECFCAA7B8311A6B3 /* RecordingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingOverlay.swift; sourceTree = "<group>"; };
+		DF3673ADB964BBF7C0BD839D /* ObjCExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ObjCExceptionCatcher.h; sourceTree = "<group>"; };
+		DF9985EB8302A6BB077BD738 /* ChinaCoordinateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChinaCoordinateTests.swift; sourceTree = "<group>"; };
 		E07EE730E9A8DE17EE02F0FC /* AttachmentChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChip.swift; sourceTree = "<group>"; };
 		E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ActivityKit.framework; path = System/Library/Frameworks/ActivityKit.framework; sourceTree = SDKROOT; };
+		E28C6DDE6EBF349675104986 /* NotificationInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationInboxView.swift; sourceTree = "<group>"; };
 		E2D4A10062DC5881E81F4958 /* TimiaScreenActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaScreenActivityAttributes.swift; sourceTree = "<group>"; };
+		E710EC18CDC42BC6E394E734 /* ChinaCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChinaCoordinate.swift; sourceTree = "<group>"; };
 		E9515251F961F990A5022ABF /* ScreenNotificationSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationSettingsSection.swift; sourceTree = "<group>"; };
-		E9A3C12D6F4B8C30D7E5A269 /* PlaceSearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearchField.swift; sourceTree = "<group>"; };
 		EBAB9CAF6D9B95739090B528 /* ScheduleMapPlaceTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleMapPlaceTitle.swift; sourceTree = "<group>"; };
 		ED6EC5B3DD2ADE0411F3B67C /* TimiaLiveActivityPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPalette.swift; sourceTree = "<group>"; };
 		F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RescheduleMathTests.swift; sourceTree = "<group>"; };
@@ -293,6 +309,7 @@
 			files = (
 				D1B68BDA58BE3E0CBDF7ABC5 /* HealthKit.framework in Frameworks */,
 				33053505AA150018921084D0 /* ActivityKit.framework in Frameworks */,
+				719D4B61D1F151F9B4C5CB1D /* UserNotifications.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -314,10 +331,12 @@
 			children = (
 				0FD26119578B087A0E46AC5E /* APIClient.swift */,
 				CD993CD1F7AA85BF1AF832F2 /* APIModels.swift */,
-				C7E1A90B4D2F6A18B5C3E047 /* PlaceValue.swift */,
 				817045A30702570209E9D7F0 /* Data+Gzip.swift */,
 				310A6AD7632431A7BCD789A7 /* FilesAPI.swift */,
 				75E957781609437059641828 /* HealthSyncAPI.swift */,
+				7A0408B4A065FD9960BD0640 /* NotificationAPI.swift */,
+				6141462EA47869C512F858AD /* NotificationServiceURL.swift */,
+				A290085203182BFA7F27E50E /* PlaceValue.swift */,
 				081976E5E404E3456C456D54 /* StickyNotesAPI.swift */,
 			);
 			path = API;
@@ -359,33 +378,43 @@
 		282DB5792DC847E6654AA3D5 /* Speech */ = {
 			isa = PBXGroup;
 			children = (
+				DF3673ADB964BBF7C0BD839D /* ObjCExceptionCatcher.h */,
+				9BBDAB762716DD873CE03A5E /* ObjCExceptionCatcher.m */,
 				45489BAC5F6AF7B3B48C7B7C /* OnDeviceSupportChecker.swift */,
-				86F92E36A355F013FC7D8552 /* ObjCExceptionCatcher.h */,
-				DD96CCFF7FA668BD8944FE7B /* ObjCExceptionCatcher.m */,
 				874748456061425CD0A7F885 /* SpeechPermissionManager.swift */,
 				4B5F0384FDD92AA40F6A7C63 /* StickyNoteSpeechRecognizer.swift */,
-				D776DC6AEB689A2D31CBFC37 /* Timia-Bridging-Header.h */,
+				837BB4B0EAF2FB2B70CCEFCE /* Timia-Bridging-Header.h */,
 			);
 			path = Speech;
+			sourceTree = "<group>";
+		};
+		315D3B5676A09C78C7F7DA35 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				34E8F3FEBF0A83F96E1DB812 /* APNsDeviceToken.swift */,
+				A57C809E2D7FF089AF319730 /* RemotePushRegistration.swift */,
+			);
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		396DA8935B380864C650711A /* TimiaTests */ = {
 			isa = PBXGroup;
 			children = (
 				4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */,
-				A1C5E34F8B6D0E52F9A7C481 /* PlaceValueTests.swift */,
 				6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */,
 				49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */,
-				C601E39D4F127815C3D8EA26 /* MonthDayLayoutTests.swift */,
+				DF9985EB8302A6BB077BD738 /* ChinaCoordinateTests.swift */,
 				B57F52762C0AE9DC40A0571A /* GzipTests.swift */,
 				D6FC2B4F641610FACD931A7D /* HealthSyncQueueTests.swift */,
 				3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */,
 				D8A94B8AC39EBAD216CBFB35 /* IdleCollapseToggleStyleTests.swift */,
+				13B9CF906490C31C5F7C6D13 /* MonthDayLayoutTests.swift */,
+				1F765E7CB8A1F30BE9E0DA38 /* NotificationInboxTests.swift */,
 				14C3095A46C0CB2126481D31 /* PinnedTagsTests.swift */,
+				B8EE4AA6978B95D39ADD11BF /* PlaceValueTests.swift */,
 				F122AA9EED8AB23C48E9AD4E /* RescheduleMathTests.swift */,
-				C1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift */,
+				D6DA22012F7C8127E6D5908A /* ScheduleMapClustersTests.swift */,
 				3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */,
-				0B28E35F614D8E02B5F70905 /* ScheduleMapClustersTests.swift */,
 				088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */,
 				4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */,
 				408911DAC1F4ABFBCF736DB2 /* TimelineIdleChromeTests.swift */,
@@ -415,6 +444,7 @@
 				E0241A91D4E1013E0F1FCCAA /* Account */,
 				0E89E618D8A014E7CED37F5F /* Authentication */,
 				A9EA2CAD9C48829EFA808515 /* Health */,
+				9FE3922C975F9C1DB23F3FA8 /* Notifications */,
 				66F25BF3663196DC46717FC2 /* Schedule */,
 				84131AFB7932DC4D8EA75C38 /* StickyNotes */,
 				8E21CFFDF24872557950DC6E /* Tasks */,
@@ -426,18 +456,18 @@
 		66F25BF3663196DC46717FC2 /* Schedule */ = {
 			isa = PBXGroup;
 			children = (
-				C1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift */,
 				87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */,
 				640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */,
-				A4E8C17B2D9056F3A1B6C804 /* MonthDayLayout.swift */,
+				E710EC18CDC42BC6E394E734 /* ChinaCoordinate.swift */,
 				BEC7223CE29790AC5D9FCF83 /* IdleCollapsePlanner.swift */,
+				6710B399D2FE342F1E1D68AC /* MonthDayLayout.swift */,
 				551366E9D4BE5EEF10C296C2 /* RescheduleMath.swift */,
 				73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */,
+				CA851519333C33BB96F3BC10 /* ScheduleMapChestLabel.swift */,
+				9BFEC1EA52039FCB52055134 /* ScheduleMapClusters.swift */,
+				81D7C0BDEBB9A5AA54A2EE35 /* ScheduleMapFan.swift */,
+				A1EC77D5357320910E980110 /* ScheduleMapFanOverlay.swift */,
 				B0D88B6BE430731A5BCAE2BB /* ScheduleMapFilters.swift */,
-				C7E4A91B2D0F4A6E81B3C501 /* ScheduleMapClusters.swift */,
-				E906C13D4F2B6C8093D5E703 /* ScheduleMapChestLabel.swift */,
-				D8F5B02C3E1A5B7F92C4D602 /* ScheduleMapFan.swift */,
-				FA17D24E503C7D91A4E6F804 /* ScheduleMapFanOverlay.swift */,
 				EBAB9CAF6D9B95739090B528 /* ScheduleMapPlaceTitle.swift */,
 				8804AAB705371F022C6211B6 /* ScheduleMapView.swift */,
 				B30BEAB90530B6D5971DBFCB /* SchedulePriorityAccent.swift */,
@@ -467,6 +497,7 @@
 				E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */,
 				851DA05472136D3FAB083B33 /* HealthKit.framework */,
 				7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */,
+				849AAEF8FA2E6934A70B8DC9 /* UserNotifications.framework */,
 				3A74ECA9573EA85DE8159DC6 /* WidgetKit.framework */,
 			);
 			name = Frameworks;
@@ -516,7 +547,7 @@
 			children = (
 				A8F452D1F10E7D26F22FAF74 /* PinnedTags.swift */,
 				9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */,
-				E9A3C12D6F4B8C30D7E5A269 /* PlaceSearchField.swift */,
+				106EE5FDF2E52B037E1F856B /* PlaceSearchField.swift */,
 				7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */,
 			);
 			path = Tasks;
@@ -579,6 +610,15 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		9FE3922C975F9C1DB23F3FA8 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				E28C6DDE6EBF349675104986 /* NotificationInboxView.swift */,
+				7EEAD4D7C4831F5C98E78471 /* NotificationLink.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
 		A8264E382298A554F7753551 /* Core */ = {
 			isa = PBXGroup;
 			children = (
@@ -586,6 +626,7 @@
 				877BA2E75E79B7A3CB73DB38 /* Auth */,
 				0AD4D0DD8F2DAD93E18E4002 /* DesignSystem */,
 				ACC4B62CA936C2F1F0918896 /* Health */,
+				315D3B5676A09C78C7F7DA35 /* Notifications */,
 				97CD8CA0F4E5E6F77CA6B6EC /* ScreenNotification */,
 				282DB5792DC847E6654AA3D5 /* Speech */,
 				94AC048AD3AED589EC3DC25F /* Storage */,
@@ -736,12 +777,12 @@
 						TestTargetID = F7EBDEFB1EE636D5FF3B122D;
 					};
 					F7EBDEFB1EE636D5FF3B122D = {
+						DevelopmentTeam = QTV9DUCAY7;
 						ProvisioningStyle = Automatic;
 					};
 				};
 			};
 			buildConfigurationList = 3A2F0E711B1ADE2D9560476F /* Build configuration list for PBXProject "Timia" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -750,13 +791,15 @@
 			);
 			mainGroup = 8E35241435C554F9A4DAA6A6;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 88C52E3D8340879F17BC94A8 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				F7EBDEFB1EE636D5FF3B122D /* Timia */,
+				4CB3C0AFCCE78F70F5E3BC8F /* TimiaWidget */,
 				B4ED4B0FC9674A9C558A0334 /* TimiaTests */,
 				E34B1BE45E712013422F5E84 /* TimiaUITests */,
-				4CB3C0AFCCE78F70F5E3BC8F /* TimiaWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -779,14 +822,14 @@
 			files = (
 				CC2DDEA8032D997DE66FD327 /* APIClient.swift in Sources */,
 				AAE4EB9F6BA6EB057A3F4022 /* APIModels.swift in Sources */,
-				D8F2B01C5E3A7B29C6D4F158 /* PlaceValue.swift in Sources */,
+				2ADF1A107FC9758605135B0B /* APNsDeviceToken.swift in Sources */,
 				172948F3E2131FEAD88ADBBD /* AccountView.swift in Sources */,
 				CBAA0C70FFD72E2A6316B660 /* AppSession.swift in Sources */,
 				CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */,
 				878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */,
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
 				896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */,
-				B5F9D28C3E016704B2C7D915 /* MonthDayLayout.swift in Sources */,
+				7071F19AD240C79FA2F894B9 /* ChinaCoordinate.swift in Sources */,
 				E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */,
 				9A544027B29ABF019DBFCEB4 /* FilesAPI.swift in Sources */,
 				A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */,
@@ -803,20 +846,27 @@
 				00E00DC5CAF2FD719CF365CD /* LocationChip.swift in Sources */,
 				0F7C6FDD9A2E0F2C878933F1 /* MainTabView.swift in Sources */,
 				48B7B9EAE5EE1276084FA1FA /* MembersManagementView.swift in Sources */,
+				096B1D4DFC73BC3B8C122407 /* MonthDayLayout.swift in Sources */,
+				FC55B81A623D62D9A0A91989 /* NotificationAPI.swift in Sources */,
+				04B9DAE8AA1EEBAD69F3168E /* NotificationInboxView.swift in Sources */,
+				5273B4B751F462D017669978 /* NotificationLink.swift in Sources */,
+				7EA6B7F7142654A157206DFC /* NotificationServiceURL.swift in Sources */,
+				AA95165565C031687174633B /* ObjCExceptionCatcher.m in Sources */,
 				C3E57282DF6525E6373C2213 /* OnDeviceSupportChecker.swift in Sources */,
 				652493CA7C0D5FA5B31298C2 /* PinnedTagSelect.swift in Sources */,
-				F0B4D23E7A5C9D41E8F6B370 /* PlaceSearchField.swift in Sources */,
 				0E0C625DE464E5780B6C56F1 /* PinnedTags.swift in Sources */,
+				BD12C18252784469ED2ABB3C /* PlaceSearchField.swift in Sources */,
+				522EB899E4DB69386F834D41 /* PlaceValue.swift in Sources */,
 				3103238669B06D5A8AD56DD3 /* ProjectTasksView.swift in Sources */,
 				E54C818CA4B7690E0DA7563E /* RecordingOverlay.swift in Sources */,
+				77408660FC17DAB6973A8A75 /* RemotePushRegistration.swift in Sources */,
 				EB6604DB9C7DAE8979E52149 /* RescheduleMath.swift in Sources */,
 				D8A23258ED251D79D14EDCD6 /* ScheduleHomeView.swift in Sources */,
-				B1A4C00D1A7E0001C00D0001 /* ChinaCoordinate.swift in Sources */,
+				576F58C9473A93637D52A9FB /* ScheduleMapChestLabel.swift in Sources */,
+				6B3FDEAFC8EAE8BB74166CE1 /* ScheduleMapClusters.swift in Sources */,
+				457EEF8F43C64C60C24F906C /* ScheduleMapFan.swift in Sources */,
+				F247C550E632603CDF336867 /* ScheduleMapFanOverlay.swift in Sources */,
 				6A12C520F778E1973C4F6CF3 /* ScheduleMapFilters.swift in Sources */,
-				C7E4A91B2D0F4A6E81B3C511 /* ScheduleMapClusters.swift in Sources */,
-				E906C13D4F2B6C8093D5E713 /* ScheduleMapChestLabel.swift in Sources */,
-				D8F5B02C3E1A5B7F92C4D612 /* ScheduleMapFan.swift in Sources */,
-				FA17D24E503C7D91A4E6F814 /* ScheduleMapFanOverlay.swift in Sources */,
 				43DFBAA1DE184FBBBC2AFC93 /* ScheduleMapPlaceTitle.swift in Sources */,
 				85AD3FAE562455FC1A1E535D /* ScheduleMapView.swift in Sources */,
 				10BBEA98AF180F5487590C22 /* SchedulePriorityAccent.swift in Sources */,
@@ -827,7 +877,6 @@
 				D9065BFE9D1D0A23FE7C7457 /* ScreenNotificationPrompt.swift in Sources */,
 				434167F200A949466A0576AA /* ScreenNotificationSettingsSection.swift in Sources */,
 				C507B13C8D0215F1047ABD88 /* SpeechPermissionManager.swift in Sources */,
-				7781389E0121244215D97B8B /* ObjCExceptionCatcher.m in Sources */,
 				5EFE85144584E529F2E31E63 /* StickyNoteCard.swift in Sources */,
 				9F243BCD0F832C92549F39CD /* StickyNoteDraftPreview.swift in Sources */,
 				5199082DBC269D01F3621E7F /* StickyNoteDraftStore.swift in Sources */,
@@ -884,19 +933,20 @@
 			buildActionMask = 2147483647;
 			files = (
 				6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */,
-				B2D6F4509C7E1F63A0B8D592 /* PlaceValueTests.swift in Sources */,
 				BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */,
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
-				D712F40E50338926D4E9FB37 /* MonthDayLayoutTests.swift in Sources */,
+				FA1AA94523A37B455AF73BFD /* ChinaCoordinateTests.swift in Sources */,
 				F786EDECDCE2710DF59156D8 /* GzipTests.swift in Sources */,
 				57E0500382EFD5E2AD4A528A /* HealthSyncQueueTests.swift in Sources */,
 				F736E66DA14ACC5BBDA1D78B /* IdleCollapsePlannerTests.swift in Sources */,
 				C3432F9FC53990C5CEC49E49 /* IdleCollapseToggleStyleTests.swift in Sources */,
+				CB1536ED6700A4AB6A432824 /* MonthDayLayoutTests.swift in Sources */,
+				85F60119F63454EA19F95053 /* NotificationInboxTests.swift in Sources */,
 				F50F97535304D2980264012B /* PinnedTagsTests.swift in Sources */,
+				9283B4D9C6BF4E90074DF566 /* PlaceValueTests.swift in Sources */,
 				C23A2097840049B995E280F0 /* RescheduleMathTests.swift in Sources */,
-				B1A4C00D1A7E0001C00D0002 /* ChinaCoordinateTests.swift in Sources */,
+				A9C60C484E180BA5198C212F /* ScheduleMapClustersTests.swift in Sources */,
 				8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */,
-				0B28E35F614D8E02B5F70915 /* ScheduleMapClustersTests.swift in Sources */,
 				02D08393103E9800F2643DE8 /* ScreenNotificationContentBuilderTests.swift in Sources */,
 				295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */,
 				E4FB9BD6008C3B2ADA0B94B9 /* TimelineIdleChromeTests.swift in Sources */,
@@ -1112,11 +1162,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = TimiaWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios.widget;
 				PRODUCT_NAME = TimiaWidget;
 				SDKROOT = iphoneos;
@@ -1132,11 +1178,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = QTV9DUCAY7;
 				INFOPLIST_FILE = TimiaWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios.widget;
 				PRODUCT_NAME = TimiaWidget;
 				SDKROOT = iphoneos;
