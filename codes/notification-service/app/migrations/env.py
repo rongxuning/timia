@@ -8,6 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.db.base import Base
 from app.models import (  # noqa: F401
+    DevicePushToken,
     MobileSession,
     Notification,
     NotificationDelivery,
@@ -27,7 +28,12 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-NOTIF_TABLES = {"notif_notifications", "notif_deliveries", "notif_scenarios"}
+NOTIF_TABLES = {
+    "notif_notifications",
+    "notif_deliveries",
+    "notif_scenarios",
+    "notif_device_push_tokens",
+}
 
 
 def include_object(object_, name, type_, reflected, compare_to):

@@ -22,6 +22,7 @@ from app.models.notification import Notification, NotificationDelivery, Notifica
 from app.schemas.notification import AudienceIn
 from app.services.audience import resolve_recipients
 from app.services.notifications import write_deliveries
+from app.services.push import try_push_notification
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,8 @@ def _dispatch_one(db: Session, notification_id, moment: datetime) -> tuple[str, 
     try:
         outcome, count = _expand_due(db, row)
         db.commit()
+        if outcome == "delivered" and count:
+            try_push_notification(db, notification_id)
         return outcome, count
     except IntegrityError:
         logger.info("notification %s already expanded", notification_id)

@@ -39,6 +39,8 @@
 	<string>Timia 需要使用麦克风录制您说的便利贴内容。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Timia 用本地语音识别把您说的话转成便利贴文字，识别在设备上完成，不会上传到任何服务器。</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Timia 用通知提醒你任务、项目和空间里的更新。</string>
 	<key>TIMIA_API_BASE_URL</key>
 	<string>$(TIMIA_API_BASE_URL)</string>
 	<key>TIMIA_FILE_API_BASE_URL</key>

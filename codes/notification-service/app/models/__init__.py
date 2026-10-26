@@ -7,9 +7,15 @@ from app.models.identity import (
     Workspace,
     WorkspaceMember,
 )
-from app.models.notification import Notification, NotificationDelivery, NotificationScenario
+from app.models.notification import (
+    DevicePushToken,
+    Notification,
+    NotificationDelivery,
+    NotificationScenario,
+)
 
 __all__ = [
+    "DevicePushToken",
     "MobileSession",
     "Notification",
     "NotificationDelivery",

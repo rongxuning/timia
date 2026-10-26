@@ -10,6 +10,7 @@ from app.models._mixins import utcnow
 from app.models.identity import User
 from app.models.notification import Notification, NotificationDelivery, NotificationScenario
 from app.schemas.notification import (
+    AdminNotificationCreate,
     InboxItemOut,
     InboxOut,
     NotificationCreate,
@@ -18,7 +19,7 @@ from app.schemas.notification import (
     ScenarioPatch,
 )
 from app.services.audience import parse_uuid, resolve_recipients
-from app.services.push import push_status_for
+from app.services.push import push_status_for, try_push_notification
 from app.services.scenarios import SCENARIO_ORDER, ensure_default_scenarios, render_template
 
 
@@ -70,6 +71,8 @@ def create_notification(db: Session, payload: NotificationCreate) -> Notificatio
             body = render_template(scenario.body_template, variables)
     if not title:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="missing_title")
+    if payload.timing != "immediate" and payload.scheduled_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="missing_scheduled_at")
 
     status_value = "delivered"
     recipients: list[uuid.UUID] = []
@@ -97,11 +100,39 @@ def create_notification(db: Session, payload: NotificationCreate) -> Notificatio
     if recipients:
         write_deliveries(db, row, scenario, recipients)
     db.commit()
+    if recipients:
+        try_push_notification(db, row.id)
     return NotificationCreatedOut(
         id=str(row.id),
         status=status_value,
         delivery_count=len(recipients),
         scenario_key=payload.scenario_key,
+    )
+
+
+def create_admin_notification(
+    db: Session,
+    admin: User,
+    payload: AdminNotificationCreate,
+) -> NotificationCreatedOut:
+    audience = payload.audience
+    if audience.type == "user_ids" and not any(item.strip() for item in audience.user_ids):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_audience")
+    if audience.type == "project_id" and not (audience.project_id or "").strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_audience")
+    if audience.type == "workspace_id" and not (audience.workspace_id or "").strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_audience")
+    return create_notification(
+        db,
+        NotificationCreate(
+            title=payload.title,
+            body=payload.body,
+            sender_user_id=str(admin.id),
+            link=payload.link,
+            audience=audience,
+            timing=payload.timing,
+            scheduled_at=payload.scheduled_at,
+        ),
     )
 
 

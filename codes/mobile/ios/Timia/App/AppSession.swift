@@ -105,8 +105,14 @@ final class AppSession: ObservableObject {
     }
 
     func signOut() {
+        let pushToken = PushTokenStore.shared.latestToken
+        let notifications = notificationApi
         state = .signedOut
         Task { @MainActor in
+            if let pushToken {
+                try? await NotificationAPI(client: notifications).unregisterDeviceToken(pushToken)
+            }
+            PushTokenStore.shared.clear()
             await ScreenNotificationManager.shared.endActivity()
             guard let token = await credentials.takeAccessTokenAndClearSession() else { return }
             var request = URLRequest(url: baseURL.appending(path: "/auth/mobile/logout"))

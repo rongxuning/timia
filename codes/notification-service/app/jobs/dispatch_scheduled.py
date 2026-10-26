@@ -12,6 +12,7 @@ import logging
 
 from app.db.session import SessionLocal
 from app.services.dispatch import dispatch_due_notifications
+from app.services.push import flush_pending_pushes
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,13 @@ def main() -> None:
     db = SessionLocal()
     try:
         result = dispatch_due_notifications(db)
+        flushed = flush_pending_pushes(db)
         logger.info(
-            "dispatch_scheduled delivered=%s skipped=%s delivery_count=%s",
+            "dispatch_scheduled delivered=%s skipped=%s delivery_count=%s push_sent=%s",
             result["delivered"],
             result["skipped"],
             result["delivery_count"],
+            flushed.get("sent", 0),
         )
     finally:
         db.close()

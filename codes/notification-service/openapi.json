@@ -233,6 +233,65 @@
         }
       }
     },
+    "/v1/admin/notifications": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Post Admin Notification",
+        "operationId": "post_admin_notification_v1_admin_notifications_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminNotificationCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationCreatedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/scenarios": {
       "get": {
         "tags": [
@@ -354,6 +413,116 @@
         }
       }
     },
+    "/v1/devices/apns": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Post Apns Token",
+        "operationId": "post_apns_token_v1_devices_apns_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceTokenIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/devices/apns/{token}": {
+      "delete": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Delete Apns Token",
+        "operationId": "delete_apns_token_v1_devices_apns__token__delete",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -373,6 +542,61 @@
   },
   "components": {
     "schemas": {
+      "AdminNotificationCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "audience": {
+            "$ref": "#/components/schemas/AudienceIn"
+          },
+          "timing": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "delay",
+              "scheduled"
+            ],
+            "title": "Timing",
+            "default": "immediate"
+          },
+          "scheduled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "audience"
+        ],
+        "title": "AdminNotificationCreate"
+      },
       "AudienceIn": {
         "properties": {
           "type": {
@@ -427,6 +651,59 @@
           "type"
         ],
         "title": "AudienceIn"
+      },
+      "DeviceTokenIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Token"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sandbox",
+                  "production"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "DeviceTokenIn"
+      },
+      "DeviceTokenOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "environment": {
+            "type": "string",
+            "title": "Environment"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "environment",
+          "platform"
+        ],
+        "title": "DeviceTokenOut"
       },
       "HTTPValidationError": {
         "properties": {

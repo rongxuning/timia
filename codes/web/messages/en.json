@@ -34,12 +34,54 @@
   },
   "notificationAdmin": {
     "title": "Notification admin",
-    "intro": "Turning a scenario off stops new deliveries. Notifications already received stay in the inbox. Mobile push is not connected yet.",
+    "intro": "Turning a scenario off stops new deliveries. Notifications already received stay in the inbox. Mobile push is sent only when that scenario has push on and the server has an APNs key; without a key, notifications still land in the inbox.",
     "loading": "Loading…",
     "loadFailed": "Could not load scenarios",
     "saveFailed": "Could not save",
     "enabled": "On",
     "disabled": "Off",
+    "pushEnabled": "Mobile push",
+    "pushHint": "Requires an APNs key. Without one, the push stays pending and the inbox is unchanged.",
+    "send": {
+      "title": "Send a notification",
+      "intro": "Goes to the people you pick. You will not receive your own message. Delay and schedule wait until the time arrives.",
+      "titleLabel": "Title",
+      "bodyLabel": "Body",
+      "linkLabel": "Link",
+      "linkPlaceholder": "/my/notifications",
+      "linkHint": "An in-app path starting with /, or an http(s) URL. Optional.",
+      "audienceLabel": "Audience",
+      "audience": {
+        "broadcast": "Everyone",
+        "user_ids": "Specific users",
+        "project_id": "Project members",
+        "workspace_id": "Workspace members"
+      },
+      "userIdsLabel": "User IDs",
+      "userIdsHint": "Separate multiple IDs with commas, spaces, or new lines.",
+      "projectIdLabel": "Project ID",
+      "workspaceIdLabel": "Workspace ID",
+      "timingLabel": "When",
+      "timing": {
+        "immediate": "Now",
+        "delay": "Delay",
+        "scheduled": "Schedule"
+      },
+      "delayMinutes": "Delay (minutes)",
+      "scheduledAt": "Send at",
+      "submit": "Send",
+      "submitting": "Sending…",
+      "sent": "Delivered to {count}",
+      "scheduled": "Scheduled. It will be delivered when due.",
+      "failed": "Could not send",
+      "errors": {
+        "invalid_audience": "That audience is not valid",
+        "invalid_link": "That link is not valid",
+        "missing_title": "Enter a title",
+        "missing_scheduled_at": "Choose when to send",
+        "admin_required": "Admin access is required"
+      }
+    },
     "scenarios": {
       "task_self_join": {
         "title": "You joined a task",

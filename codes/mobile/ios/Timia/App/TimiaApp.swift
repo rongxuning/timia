@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct TimiaApp: App {
+    @UIApplicationDelegateAdaptor(TimiaAppDelegate.self) private var appDelegate
     @StateObject private var session = AppSession()
 
     var body: some Scene {
@@ -39,10 +40,16 @@ private struct RootView: View {
             MainTabView(user: user)
                 .screenNotificationPrompt()
                 .task { await HealthBackgroundDelivery.shared.start(api: session.api) }
+                .task {
+                    PushTokenStore.shared.bind(client: session.notificationApi)
+                    await RemotePushPermission.register()
+                }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {
                         await ScreenNotificationManager.shared.refreshIfStale(api: session.api)
+                        PushTokenStore.shared.bind(client: session.notificationApi)
+                        await RemotePushPermission.register()
                     }
                 }
         }

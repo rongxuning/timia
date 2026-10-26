@@ -25,6 +25,17 @@ export type NotificationScenario = {
   push_enabled: boolean;
 };
 
+export type NotificationAudienceType = "broadcast" | "user_ids" | "project_id" | "workspace_id";
+
+export type NotificationTiming = "immediate" | "delay" | "scheduled";
+
+export type NotificationCreated = {
+  id: string;
+  status: string;
+  delivery_count: number;
+  scenario_key: string | null;
+};
+
 export function isAppNotificationLink(link: string | null | undefined): link is string {
   return typeof link === "string" && link.startsWith("/") && !link.startsWith("//");
 }

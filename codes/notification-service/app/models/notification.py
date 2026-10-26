@@ -53,3 +53,18 @@ class NotificationDelivery(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     push_status: Mapped[str] = mapped_column(String(20), nullable=False, default="skipped")
+
+
+class DevicePushToken(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """APNs device token bound to a user. Invalid tokens stay for audit until re-registered."""
+
+    __tablename__ = "notif_device_push_tokens"
+    __table_args__ = (UniqueConstraint("token", name="uq_notif_device_push_tokens_token"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    token: Mapped[str] = mapped_column(String(200), nullable=False)
+    platform: Mapped[str] = mapped_column(String(16), nullable=False, default="apns")
+    environment: Mapped[str] = mapped_column(String(16), nullable=False)
+    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

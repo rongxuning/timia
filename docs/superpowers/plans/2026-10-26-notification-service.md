@@ -100,13 +100,15 @@
 
 - [x] **调度器：** 扫描 `status=scheduled` 且 `timing` 为 `delay` 或 `scheduled`、`scheduled_at <= now` 的通知，按当时场景开关展开 deliveries（不通知自己、去重）。`delay` 与 `scheduled` 都把到期时间放在 `scheduled_at`（delay 即 now + delay）。服务进程按 `NOTIFICATION_DISPATCH_INTERVAL_SECONDS`（默认 30，设为 0 关闭）跑后台循环；同一逻辑可单次执行 `python -m app.jobs.dispatch_scheduled`。
 - [x] **iOS 铃铛与收件箱 UI**（调用已有 `/v1/inbox`，audience `timia-ios` 已可鉴权）。日程首页铃铛在空间按钮和头像之间，带未读角标。本环境无 Xcode，需在 Mac 上编译验证。
-- [ ] **APNs：** 设备 token 表、`push_enabled` 为真时把 `pending` 发给 APNs，回写 `sent|failed`。证书只来自环境变量。本轮不做。
+- [x] **APNs：** 设备 token 表 `notif_device_push_tokens`、`POST /v1/devices/apns`、`push_enabled` 为真时用 APNs HTTP/2（JWT + `.p8`）发送，回写 `sent|failed|skipped`。密钥只来自 `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_BUNDLE_ID` / `APNS_KEY_P8` / `APNS_USE_SANDBOX`。未配置时保持 `push_not_configured`，主流程不失败。见 P2。
 - [ ] **幂等键：** `POST /v1/notifications` 接受 `idempotency_key`，core 重试不重复投递。
-- [ ] **管理端编辑** `title_template` / `body_template`（API 已接受 PATCH，P0 页面不暴露）。
+- [ ] **管理端编辑** `title_template` / `body_template`（API 已接受 PATCH，页面不暴露富编辑器）。场景卡可切换 `push_enabled`。
 
-### P2（本 PR 不做）
+### P2
 
-- [ ] 用户级偏好：按场景静音，覆盖全局 `enabled`。
-- [ ] 邮件与每日摘要。
-- [ ] 管理端编写 `broadcast` / 指定用户的通知。
-- [ ] 未读数的实时通道（SSE 或 websocket）；P0 用进入页面、窗口 focus、本地 `timia:notifications-changed` 事件刷新。
+- [x] **APNs 真实发送：** iOS 申请远程通知权限、`registerForRemoteNotifications`、上报 token；entitlements `aps-environment` 默认 `development`（对应 sandbox）。服务端即时投递与 `delay` / `scheduled` 展开后都尝试推送。无效 token（`Unregistered` / `BadDeviceToken`）标记 `invalidated_at`。本环境无 Xcode，需在 Mac / 真机验证弹窗。
+- [x] **管理端发送：** `POST /v1/admin/notifications`（管理员 JWT）。受众 `broadcast` | `user_ids` | `project_id` | `workspace_id`，时间 `immediate` | `delay` | `scheduled`。Web `/admin/notifications` 在场景卡外有发送表单。发送者本人不收。
+- [x] **文档：** `docs/deploy/cloud.md` 与 `.env.example` / `.env.prod.example` / `.env.docker` 写上 APNs 变量；无密钥时行为与真机弹窗前提见该节与 iOS README。
+- [ ] 用户级偏好：按场景静音，覆盖全局 `enabled`。本轮不做。
+- [ ] 邮件与每日摘要。本轮不做。
+- [ ] 未读数的实时通道（SSE 或 websocket）；仍用进入页面、窗口 focus、本地 `timia:notifications-changed` 事件刷新。本轮不做。

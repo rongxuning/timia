@@ -1,5 +1,8 @@
 from app.schemas.notification import (
+    AdminNotificationCreate,
     AudienceIn,
+    DeviceTokenIn,
+    DeviceTokenOut,
     InboxItemOut,
     InboxOut,
     NotificationCreate,
@@ -10,7 +13,10 @@ from app.schemas.notification import (
 )
 
 __all__ = [
+    "AdminNotificationCreate",
     "AudienceIn",
+    "DeviceTokenIn",
+    "DeviceTokenOut",
     "InboxItemOut",
     "InboxOut",
     "NotificationCreate",

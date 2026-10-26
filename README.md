@@ -6,7 +6,7 @@ Daily management web app (MVP-1): login, workspaces, members (manual), projects,
 - `codes/web`: Next.js web
 - `codes/core-service`: FastAPI core API (uv) — `make core-service`
 - `codes/file-service`: FastAPI file API (uv, port 8003) — `make file-service`; bytes go to private MinIO
-- `codes/notification-service`: FastAPI notification API (uv, port 8001) — `make notification-service`; inbox, scenario switches, core hooks, delay/scheduled dispatch
+- `codes/notification-service`: FastAPI notification API (uv, port 8001) — `make notification-service`; inbox, scenario switches, admin send, optional APNs, core hooks, delay/scheduled dispatch
 - `codes/app`: native client placeholder (iOS, future)
 - Future backends (e.g. `finance-service`): each under `codes/<name>/`, own Makefile target, Docker service, and nginx `/<name>/` route
 

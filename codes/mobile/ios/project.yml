@@ -38,6 +38,7 @@ targets:
     dependencies:
       - sdk: HealthKit.framework
       - sdk: ActivityKit.framework
+      - sdk: UserNotifications.framework
       - target: TimiaWidget
         embed: true
     scheme:

@@ -1,12 +1,12 @@
 # 通知服务设计（P0–P2）
 
 **日期：** 2026-10-26  
-**状态：** 已确认。本轮只实现并合并 P0。  
+**状态：** P0–P1 已合并。P2 已落地 APNs 可配置发送与管理端手动发；用户静音、邮件摘要、未读实时通道仍未做。  
 **不在范围内：** 不改造 `plan_notifications`、iOS `ScreenNotification`、`file_notify`。它们仍是规划提醒、系统横幅和文件绑定同步，不是通用通知。
 
 ## 目标
 
-用户在任务参与人、空间成员、项目成员、项目内新建任务这几件事发生后，能在 Web 收件箱看到中文通知。系统管理员可以按场景关闭投递。推送只预留字段和空接口，本轮不发 APNs。
+用户在任务参与人、空间成员、项目成员、项目内新建任务这几件事发生后，能在 Web 收件箱看到中文通知。系统管理员可以按场景关闭投递，也可以手动发通知。APNs 在密钥配齐且场景 `push_enabled` 时发送；密钥缺失时不发推送，收件箱照常。
 
 ## 架构
 
@@ -28,7 +28,7 @@
 | `key` | 主键 |
 | `enabled` | 关闭则不展开投递 |
 | `title_template` / `body_template` | `str.format` 占位符，缺变量当空串 |
-| `push_enabled` | P0 只决定 `push_status` 是 `pending` 还是 `skipped`，不真正推送 |
+| `push_enabled` | 为真时 delivery 先记 `pending` 并尝试 APNs；密钥未配置则保持 `pending`。为假时 `push_status=skipped` |
 
 种子（默认 `enabled=true`，`push_enabled=false`）：
 
@@ -56,7 +56,11 @@
 
 ### `notif_deliveries`
 
-`notification_id`、`user_id`、`read_at`、`push_status`（`skipped|pending`）。同一通知对同一用户唯一。
+`notification_id`、`user_id`、`read_at`、`push_status`（`skipped|pending|sent|failed`）。同一通知对同一用户唯一。
+
+### `notif_device_push_tokens`
+
+`user_id`、`token`（唯一）、`platform=apns`、`environment`（`sandbox|production`）、`invalidated_at`。同一 token 再次注册会改绑到当前用户并清掉失效标记。只向与 `APNS_USE_SANDBOX` 匹配的 environment 发送。
 
 ## 规则
 
@@ -85,8 +89,11 @@ Link 与现有 Web 路由一致：
 | `POST` | `/v1/inbox/{delivery_id}/read` | 用户 JWT。他人的投递 `404 not_found` |
 | `POST` | `/v1/inbox/read-all` | 用户 JWT |
 | `GET` | `/v1/admin/scenarios` | JWT 且 `system_role=admin`，否则 `403 admin_required` |
-| `PATCH` | `/v1/admin/scenarios/{key}` | 同上。P0 UI 只改 `enabled` |
-| `POST` | `/internal/push/dispatch` | 内网 token。P0 固定 `push_not_configured`，不发送 |
+| `PATCH` | `/v1/admin/scenarios/{key}` | 同上。页面可改 `enabled` 与 `push_enabled`，不编辑模板 |
+| `POST` | `/v1/admin/notifications` | JWT 且 `system_role=admin`。自定义标题/正文。受众 `broadcast` / `user_ids` / `project_id` / `workspace_id`。`201` |
+| `POST` | `/v1/devices/apns` | 用户 JWT。上报 APNs device token |
+| `DELETE` | `/v1/devices/apns/{token}` | 用户 JWT。只能删自己的 token，否则 `404 not_found` |
+| `POST` | `/internal/push/dispatch` | 内网 token。密钥未配置时 `push_not_configured` 且不改 `pending`；配齐后发送并回写状态 |
 | `GET` | `/health` | 无 |
 
 `POST /v1/notifications` 立即展开 `immediate` 投递，响应 `201`：`id`、`status`、`delivery_count`、`scenario_key`。
@@ -110,7 +117,8 @@ Link 与现有 Web 路由一致：
 - 收件箱：标题、正文、发送人、时间、未读/已读、点击跳转。无发送人显示「系统」。
 - 管理入口与 `/member` 同级，路由 `/admin/notifications`，`system_role=admin` 门控与 `/member` 相同（`isAdminOnlyPath`）。
 - 文案走 `next-intl`（`zh.json` / `en.json`）。
-- 浏览器请求基址 `NEXT_PUBLIC_NOTIFICATION_API_BASE_URL`。未设置时开发默认 `http://localhost:8001`，生产默认 `https://timia.online/notification-service`。`apiFetch` 对 `/v1/inbox` 与 `/v1/admin/scenarios` 走该基址，401 仍走现有 refresh。
+- 浏览器请求基址 `NEXT_PUBLIC_NOTIFICATION_API_BASE_URL`。未设置时开发默认 `http://localhost:8001`，生产默认 `https://timia.online/notification-service`。`apiFetch` 对 `/v1/inbox`、`/v1/admin/scenarios` 与 `/v1/admin/notifications` 走该基址，401 仍走现有 refresh。
+- `/admin/notifications` 在场景卡之外有发送表单（标题、正文、链接、受众、即时/延时/定时），并可勾选场景的移动推送。不提供模板富编辑器。
 
 ## 部署
 
@@ -123,8 +131,8 @@ Link 与现有 Web 路由一致：
 | 阶段 | 内容 |
 |------|------|
 | **P0（本轮）** | 服务、表、五场景、即时投递、收件箱、管理开关、core 钩子、Web 铃铛与两页、基础测试 |
-| **P1** | `delay` / `scheduled` 调度器（已实现）；iOS 铃铛与收件箱（已实现）。仍未做：APNs 设备 token 与真实推送、失败重试与幂等键、管理端改模板 |
-| **P2** | 按用户关场景、邮件/摘要、管理端写广播、未读实时通道 |
+| **P1** | `delay` / `scheduled` 调度器；iOS 铃铛与收件箱。幂等键与模板富编辑器仍未做 |
+| **P2** | APNs 设备 token 与可配置 HTTP/2 发送；管理端 `broadcast` / `user_ids` / `project_id` / `workspace_id`。仍未做：按用户关场景、邮件/摘要、未读实时通道 |
 
 ## 测试
 
