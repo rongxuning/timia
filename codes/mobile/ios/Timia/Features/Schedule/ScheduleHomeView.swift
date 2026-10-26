@@ -529,9 +529,13 @@ struct ScheduleHomeView: View {
         return result
     }
 
-    /// Days with at least one task — drives the Todo date-strip lavender markers.
-    private var todoDateStripMarkedDayKeys: Set<String> {
-        dateStripMarkedDayKeys(from: cachedYearMonths.values.flatMap { $0 })
+    /// Per-day priority mix for the Todo date strip, from cached month calendars.
+    private var todoDateStripPriorityCounts: [String: DateStripDayPriorityCounts] {
+        let weeks = calendarCache.compactMap { key, value -> [CalendarWeek]? in
+            guard key.hasPrefix("\(CalendarRange.month.apiValue):") else { return nil }
+            return value.weeks
+        }.flatMap { $0 }
+        return dateStripPriorityCounts(from: weeks)
     }
 
     private var cachedMonthWeeks: [String: [CalendarWeek]] {
@@ -775,7 +779,7 @@ struct ScheduleHomeView: View {
                 onSelect: selectDate,
                 visibleStart: dateStripStart,
                 onVisibleStartChange: { dateStripStart = $0 },
-                markedDayKeys: todoDateStripMarkedDayKeys
+                dayPriorityCounts: todoDateStripPriorityCounts
             )
             .padding(.horizontal, 12)
 
@@ -954,21 +958,30 @@ struct ScheduleHomeView: View {
         }
     }
 
-    /// Prefetch year heatmaps so the Todo date strip can mark days that have tasks.
+    /// Prefetch year heatmaps and the months covering the visible strip.
+    /// Month payloads carry each task's priority so the strip can paint share bands.
     private func loadTodoDateStripMarks(force: Bool = false) async {
         let years = todoDateStripYearsToPrefetch(around: dateStripStart, selectedDate: selectedDate)
         for year in years {
             let anchor = Calendar.current.date(from: DateComponents(year: year, month: 1, day: 1)) ?? selectedDate
-            let key = calendarCacheKey(for: anchor, range: .year)
-            if !force, calendarCache[key] != nil { continue }
-            guard force || !loadingCalendarKeys.contains(key) else { continue }
-            loadingCalendarKeys.insert(key)
-            defer { loadingCalendarKeys.remove(key) }
-            do {
-                calendarCache[key] = try await requestCalendar(for: anchor, range: .year)
-            } catch {
-                // Markers are decorative; keep the strip usable if year heat fails.
-            }
+            await cacheCalendarIfNeeded(anchor: anchor, range: .year, force: force)
+        }
+        let months = todoDateStripMonthAnchorsToPrefetch(around: dateStripStart, selectedDate: selectedDate)
+        for anchor in months {
+            await cacheCalendarIfNeeded(anchor: anchor, range: .month, force: force)
+        }
+    }
+
+    private func cacheCalendarIfNeeded(anchor: Date, range: CalendarRange, force: Bool) async {
+        let key = calendarCacheKey(for: anchor, range: range)
+        if !force, calendarCache[key] != nil { return }
+        guard force || !loadingCalendarKeys.contains(key) else { return }
+        loadingCalendarKeys.insert(key)
+        defer { loadingCalendarKeys.remove(key) }
+        do {
+            calendarCache[key] = try await requestCalendar(for: anchor, range: range)
+        } catch {
+            // Markers are decorative; keep the strip usable if the calendar request fails.
         }
     }
 
@@ -2200,7 +2213,7 @@ private struct DateStrip: View {
     let onSelect: (Date) -> Void
     var visibleStart: Date? = nil
     var onVisibleStartChange: ((Date) -> Void)? = nil
-    var markedDayKeys: Set<String> = []
+    var dayPriorityCounts: [String: DateStripDayPriorityCounts] = [:]
 
     var body: some View {
         if let visibleStart, let onVisibleStartChange {
@@ -2209,14 +2222,14 @@ private struct DateStrip: View {
                 visibleStart: visibleStart,
                 onSelect: onSelect,
                 onVisibleStartChange: onVisibleStartChange,
-                markedDayKeys: markedDayKeys
+                dayPriorityCounts: dayPriorityCounts
             )
         } else {
             DateStripRow(
                 days: weekDaysContaining(selectedDate),
                 selectedDate: selectedDate,
                 onSelect: onSelect,
-                markedDayKeys: markedDayKeys
+                dayPriorityCounts: dayPriorityCounts
             )
         }
     }
@@ -2227,7 +2240,7 @@ private struct SlidingDateStrip: View {
     let visibleStart: Date
     let onSelect: (Date) -> Void
     let onVisibleStartChange: (Date) -> Void
-    var markedDayKeys: Set<String> = []
+    var dayPriorityCounts: [String: DateStripDayPriorityCounts] = [:]
 
     private let radius = 180
 
@@ -2241,13 +2254,13 @@ private struct SlidingDateStrip: View {
         visibleStart: Date,
         onSelect: @escaping (Date) -> Void,
         onVisibleStartChange: @escaping (Date) -> Void,
-        markedDayKeys: Set<String> = []
+        dayPriorityCounts: [String: DateStripDayPriorityCounts] = [:]
     ) {
         self.selectedDate = selectedDate
         self.visibleStart = visibleStart
         self.onSelect = onSelect
         self.onVisibleStartChange = onVisibleStartChange
-        self.markedDayKeys = markedDayKeys
+        self.dayPriorityCounts = dayPriorityCounts
         let start = Calendar.current.startOfDay(for: visibleStart)
         _origin = State(initialValue: start)
         _settledStart = State(initialValue: start)
@@ -2267,7 +2280,7 @@ private struct SlidingDateStrip: View {
                             date: date,
                             selectedDate: selectedDate,
                             onSelect: onSelect,
-                            hasTasks: markedDayKeys.contains(key)
+                            priorityCounts: dayPriorityCounts[key] ?? DateStripDayPriorityCounts()
                         )
                             .containerRelativeFrame(.horizontal, count: 7, span: 1, spacing: 7)
                             .frame(height: 54)
@@ -2335,7 +2348,7 @@ private struct DateStripRow: View {
     let days: [Date]
     let selectedDate: Date
     let onSelect: (Date) -> Void
-    var markedDayKeys: Set<String> = []
+    var dayPriorityCounts: [String: DateStripDayPriorityCounts] = [:]
 
     var body: some View {
         HStack(spacing: 7) {
@@ -2344,7 +2357,7 @@ private struct DateStripRow: View {
                     date: date,
                     selectedDate: selectedDate,
                     onSelect: onSelect,
-                    hasTasks: markedDayKeys.contains(ScheduleFormat.dayKey(date))
+                    priorityCounts: dayPriorityCounts[ScheduleFormat.dayKey(date)] ?? DateStripDayPriorityCounts()
                 )
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
@@ -2357,7 +2370,14 @@ private struct DateStripDayCell: View {
     let date: Date
     let selectedDate: Date
     let onSelect: (Date) -> Void
-    var hasTasks: Bool = false
+    var priorityCounts: DateStripDayPriorityCounts = DateStripDayPriorityCounts()
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let cornerRadius: CGFloat = 14
+    private let selectedBorderWidth: CGFloat = 3.5
+
+    private var shares: [DateStripPriorityShare] { priorityCounts.shares }
 
     var body: some View {
         let selected = Calendar.current.isDate(date, inSameDayAs: selectedDate)
@@ -2365,30 +2385,15 @@ private struct DateStripDayCell: View {
             VStack(spacing: 5) {
                 Text(ScheduleFormat.weekdayLetter(date))
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
+                    .foregroundStyle(.primary)
                 Text(date, format: .dateTime.day())
                     .font(.headline.weight(.semibold))
-                    .foregroundStyle(selected ? .white : .primary)
+                    .foregroundStyle(.primary)
             }
             .padding(.top, 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(selected ? Color.primary.opacity(0.78) : TimiaTheme.field)
-                if hasTasks {
-                    VStack(spacing: 0) {
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 14,
-                            bottomLeadingRadius: 0,
-                            bottomTrailingRadius: 0,
-                            topTrailingRadius: 14,
-                            style: .continuous
-                        )
-                        .fill(TimiaTheme.primary.opacity(0.28))
-                        .frame(height: 9)
-                        Spacer(minLength: 0)
-                    }
-                }
+                dateStripDayBackground(selected: selected)
             }
         }
         .buttonStyle(.plain)
@@ -2396,7 +2401,93 @@ private struct DateStripDayCell: View {
             selected ? "calendar-selected-date" : "calendar-date-\(ScheduleFormat.dayKey(date))"
         )
         .accessibilityValue(ScheduleFormat.dayKey(date))
-        .accessibilityHint(hasTasks ? "有任务" : "")
+        .accessibilityHint(priorityCounts.total > 0 ? "有任务" : "")
+    }
+
+    private func dateStripDayBackground(selected: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius)
+        return ZStack {
+            shape.fill(TimiaTheme.field)
+            if !shares.isEmpty {
+                DateStripPriorityBands(shares: shares, colorScheme: colorScheme)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipShape(shape)
+                shape.fill(dateStripGlassSheen)
+                    .allowsHitTesting(false)
+            }
+            if selected {
+                shape.strokeBorder(selectionStroke, lineWidth: selectedBorderWidth)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Light-mode mock uses a black frame. Dark mode uses white so the ring stays visible.
+    private var selectionStroke: Color {
+        colorScheme == .dark ? .white : .black
+    }
+
+    private var dateStripGlassSheen: LinearGradient {
+        let highlight = colorScheme == .dark ? 0.16 : 0.28
+        let mid = colorScheme == .dark ? 0.05 : 0.08
+        return LinearGradient(
+            stops: [
+                .init(color: Color.white.opacity(highlight), location: 0),
+                .init(color: Color.white.opacity(mid), location: 0.34),
+                .init(color: Color.white.opacity(0), location: 0.78)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+}
+
+/// Full-card vertical bands. Heights are each priority's share of that day's tasks.
+private struct DateStripPriorityBands: View {
+    let shares: [DateStripPriorityShare]
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        DateStripPriorityBandLayout(fractions: shares.map(\.fraction)) {
+            ForEach(shares) { share in
+                Rectangle().fill(bandColor(share.band))
+            }
+        }
+    }
+
+    private func bandColor(_ band: SchedulePriorityBand) -> Color {
+        Color(
+            hex: SchedulePriorityAccent.palette(
+                for: band,
+                isDark: colorScheme == .dark
+            ).background
+        )
+    }
+}
+
+private struct DateStripPriorityBandLayout: Layout {
+    let fractions: [Double]
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: proposal.width ?? 0, height: proposal.height ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for index in subviews.indices {
+            let height: CGFloat
+            if index == subviews.count - 1 {
+                height = max(bounds.maxY - y, 0)
+            } else {
+                let fraction = index < fractions.count ? fractions[index] : 0
+                height = max(bounds.height * CGFloat(fraction), 0)
+            }
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX, y: y),
+                proposal: ProposedViewSize(width: bounds.width, height: height)
+            )
+            y += height
+        }
     }
 }
 
