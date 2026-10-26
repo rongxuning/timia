@@ -574,6 +574,143 @@ final class TimiaUITests: XCTestCase {
         attachScreenshot(named: "schedule-week-idle-collapse", app: app)
     }
 
+    func testTodoDateStripChevronOpensSelectedMonth() {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ui-testing")
+        app.launch()
+
+        let login = app.buttons["登录"]
+        XCTAssertTrue(login.waitForExistence(timeout: 5))
+        login.tap()
+
+        let chevron = app.buttons["todo-date-strip-expand-month"]
+        XCTAssertTrue(chevron.waitForExistence(timeout: 8))
+        XCTAssertEqual(chevron.label, "打开月视图")
+
+        let strip = element("week-date-strip", in: app)
+        let filter = element("todo-people-filter", in: app)
+        XCTAssertTrue(strip.waitForExistence(timeout: 2))
+        XCTAssertTrue(filter.waitForExistence(timeout: 2))
+        XCTAssertGreaterThanOrEqual(chevron.frame.minY, strip.frame.maxY - 1)
+        XCTAssertLessThanOrEqual(chevron.frame.maxY, filter.frame.minY + 1)
+        XCTAssertEqual(chevron.frame.midX, strip.frame.midX, accuracy: 12)
+        XCTAssertEqual(chevron.frame.height, 44, accuracy: 2)
+
+        guard let selectedKey = selectTodoDayOutsideCurrentMonth(in: app) else {
+            XCTFail("Could not select a Todo date outside the current month")
+            return
+        }
+        let selected = app.buttons["calendar-selected-date"]
+        XCTAssertTrue(waitForValue(selectedKey, on: selected, timeout: 3))
+
+        chevron.tap()
+
+        let monthHeader = monthTitle(forDayKey: selectedKey)
+        let header = app.staticTexts["calendar-header-title"]
+        XCTAssertTrue(waitForValue(monthHeader, on: header, timeout: 4))
+        XCTAssertNotEqual(monthHeader, monthTitle(for: Date()))
+        XCTAssertTrue(element("calendar-month-grid", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(
+            element("calendar-month-label-\(monthKey(forDayKey: selectedKey))", in: app)
+                .waitForExistence(timeout: 6)
+        )
+        XCTAssertTrue(app.buttons["schedule-return-to-today"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["日"].exists)
+        XCTAssertFalse(app.buttons["周"].exists)
+        XCTAssertFalse(app.buttons["月"].exists)
+        XCTAssertFalse(app.buttons["年"].exists)
+        XCTAssertTrue(waitUntilGone(chevron, timeout: 3))
+
+        app.buttons["Todo 模式"].tap()
+        XCTAssertTrue(chevron.waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForValue(selectedKey, on: app.buttons["calendar-selected-date"], timeout: 3))
+
+        app.buttons["日历模式"].tap()
+        XCTAssertTrue(app.buttons["日"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["todo-date-strip-expand-month"].exists)
+        app.buttons["日"].tap()
+        XCTAssertTrue(element("week-date-strip", in: app).waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["todo-date-strip-expand-month"].exists)
+    }
+
+    /// Select a Todo day in a month other than today's, so opening the month cannot pass by jumping to today.
+    private func selectTodoDayOutsideCurrentMonth(in app: XCUIApplication) -> String? {
+        let strip = element("week-date-strip", in: app)
+        let calendar = Calendar.current
+        let today = Date()
+        for attempt in 0..<8 {
+            if let key = tapVisibleTodoDay(in: app, outsideMonthOf: today) {
+                return key
+            }
+            if attempt < 7 {
+                dragDateStrip(strip, byDays: 6)
+                Thread.sleep(forTimeInterval: 0.45)
+            }
+        }
+        return advanceTodoSelectionToNextMonth(in: app)
+    }
+
+    private func tapVisibleTodoDay(in app: XCUIApplication, outsideMonthOf today: Date) -> String? {
+        let calendar = Calendar.current
+        let buttons = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "calendar-date-")
+        )
+        for index in 0..<buttons.count {
+            let button = buttons.element(boundBy: index)
+            guard button.exists, button.isHittable else { continue }
+            let key = (button.value as? String)
+                ?? String(button.identifier.dropFirst("calendar-date-".count))
+            guard let date = dateFromDayKey(key),
+                  !calendar.isDate(date, equalTo: today, toGranularity: .month) else {
+                continue
+            }
+            button.tap()
+            return key
+        }
+        return nil
+    }
+
+    /// People-filter swipe moves the selection one day later. Used when the strip drag does not reveal another month.
+    private func advanceTodoSelectionToNextMonth(in app: XCUIApplication) -> String? {
+        let filter = element("todo-people-filter", in: app)
+        let selected = app.buttons["calendar-selected-date"]
+        let calendar = Calendar.current
+        guard let startKey = selected.value as? String, let start = dateFromDayKey(startKey) else {
+            return nil
+        }
+        if !calendar.isDate(start, equalTo: Date(), toGranularity: .month) {
+            return startKey
+        }
+        var current = calendar.startOfDay(for: start)
+        for _ in 0..<40 {
+            guard let next = calendar.date(byAdding: .day, value: 1, to: current) else { return nil }
+            filter.swipeLeft()
+            let nextKey = dayKey(next)
+            guard waitForValue(nextKey, on: selected, timeout: 3) else { return nil }
+            if !calendar.isDate(next, equalTo: Date(), toGranularity: .month) {
+                return nextKey
+            }
+            current = next
+        }
+        return nil
+    }
+
+    private func monthTitle(for date: Date) -> String {
+        let components = Calendar.current.dateComponents([.year, .month], from: date)
+        return String(format: "%04d年%02d月", components.year ?? 0, components.month ?? 0)
+    }
+
+    private func monthTitle(forDayKey key: String) -> String {
+        guard let date = dateFromDayKey(key) else { return "" }
+        return monthTitle(for: date)
+    }
+
+    private func monthKey(forDayKey key: String) -> String {
+        guard let date = dateFromDayKey(key) else { return "" }
+        let components = Calendar.current.dateComponents([.year, .month], from: date)
+        return String(format: "%04d-%02d", components.year ?? 0, components.month ?? 0)
+    }
+
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
@@ -615,6 +752,12 @@ final class TimiaUITests: XCTestCase {
             self.isVisibleInContainer(identifier, container: container, app: app)
         }
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
