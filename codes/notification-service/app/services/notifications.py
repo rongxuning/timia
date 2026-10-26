@@ -95,15 +95,7 @@ def create_notification(db: Session, payload: NotificationCreate) -> Notificatio
     db.add(row)
     db.flush()
     if recipients:
-        push_status = push_status_for(scenario)
-        for user_id in recipients:
-            db.add(
-                NotificationDelivery(
-                    notification_id=row.id,
-                    user_id=user_id,
-                    push_status=push_status,
-                )
-            )
+        write_deliveries(db, row, scenario, recipients)
     db.commit()
     return NotificationCreatedOut(
         id=str(row.id),
@@ -111,6 +103,23 @@ def create_notification(db: Session, payload: NotificationCreate) -> Notificatio
         delivery_count=len(recipients),
         scenario_key=payload.scenario_key,
     )
+
+
+def write_deliveries(
+    db: Session,
+    notification: Notification,
+    scenario: NotificationScenario | None,
+    recipients: list[uuid.UUID],
+) -> None:
+    push_status = push_status_for(scenario)
+    for user_id in recipients:
+        db.add(
+            NotificationDelivery(
+                notification_id=notification.id,
+                user_id=user_id,
+                push_status=push_status,
+            )
+        )
 
 
 def _item_out(

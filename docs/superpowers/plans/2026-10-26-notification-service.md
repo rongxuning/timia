@@ -96,11 +96,11 @@
 
 ---
 
-### P1（本 PR 不做）
+### P1
 
-- [ ] **调度器：** 扫描 `status=scheduled` 且 `scheduled_at <= now` 的通知，按当时场景开关展开 deliveries。`delay` 用 `scheduled_at = now + delay`。
-- [ ] **APNs：** 设备 token 表、`push_enabled` 为真时把 `pending` 发给 APNs，回写 `sent|failed`。证书只来自环境变量。
-- [ ] **iOS 铃铛与收件箱 UI**（调用已有 `/v1/inbox`，audience `timia-ios` 已可鉴权）。
+- [x] **调度器：** 扫描 `status=scheduled` 且 `timing` 为 `delay` 或 `scheduled`、`scheduled_at <= now` 的通知，按当时场景开关展开 deliveries（不通知自己、去重）。`delay` 与 `scheduled` 都把到期时间放在 `scheduled_at`（delay 即 now + delay）。服务进程按 `NOTIFICATION_DISPATCH_INTERVAL_SECONDS`（默认 30，设为 0 关闭）跑后台循环；同一逻辑可单次执行 `python -m app.jobs.dispatch_scheduled`。
+- [x] **iOS 铃铛与收件箱 UI**（调用已有 `/v1/inbox`，audience `timia-ios` 已可鉴权）。日程首页铃铛在空间按钮和头像之间，带未读角标。本环境无 Xcode，需在 Mac 上编译验证。
+- [ ] **APNs：** 设备 token 表、`push_enabled` 为真时把 `pending` 发给 APNs，回写 `sent|failed`。证书只来自环境变量。本轮不做。
 - [ ] **幂等键：** `POST /v1/notifications` 接受 `idempotency_key`，core 重试不重复投递。
 - [ ] **管理端编辑** `title_template` / `body_template`（API 已接受 PATCH，P0 页面不暴露）。
 

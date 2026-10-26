@@ -43,6 +43,8 @@
 	<string>$(TIMIA_API_BASE_URL)</string>
 	<key>TIMIA_FILE_API_BASE_URL</key>
 	<string>$(TIMIA_FILE_API_BASE_URL)</string>
+	<key>TIMIA_NOTIFICATION_API_BASE_URL</key>
+	<string>$(TIMIA_NOTIFICATION_API_BASE_URL)</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UILaunchScreen</key>

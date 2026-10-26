@@ -3,4 +3,5 @@
 // `$()` keeps `//` from being treated as an xcconfig comment.
 TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8080/core-service
 TIMIA_FILE_API_BASE_URL = http:/$()/127.0.0.1:8080/file-service
+TIMIA_NOTIFICATION_API_BASE_URL = http:/$()/127.0.0.1:8080/notification-service
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG

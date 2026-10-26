@@ -20,7 +20,7 @@ open Timia.xcodeproj
 
 在 Xcode 中选择一个 iPhone Simulator，运行 `Timia` Scheme。
 
-Debug API 地址在 `Config/Debug.xcconfig` 中配置。本地全套服务是 `make docker-up`，入口为 **8080** 上的 `/core-service` 与 `/file-service`（不再直连 8000/8003）。模拟器可用 `127.0.0.1`；真机或要走同一局域网时，把主机改成 Mac 的局域网 IP。Release 默认使用 `https://timia.online/core-service`。
+Debug API 地址在 `Config/Debug.xcconfig` 中配置。本地全套服务是 `make docker-up`，入口为 **8080** 上的 `/core-service`、`/file-service` 与 `/notification-service`（不再直连 8000/8003）。模拟器可用 `127.0.0.1`；真机或要走同一局域网时，把主机改成 Mac 的局域网 IP。Release 默认使用 `https://timia.online/core-service`，通知收件箱使用 `https://timia.online/notification-service`。
 
 ## 连接真机调试
 
@@ -51,6 +51,7 @@ ipconfig getifaddr en0
 ```text
 TIMIA_API_BASE_URL = http:/$()/192.168.1.23:8080/core-service
 TIMIA_FILE_API_BASE_URL = http:/$()/192.168.1.23:8080/file-service
+TIMIA_NOTIFICATION_API_BASE_URL = http:/$()/192.168.1.23:8080/notification-service
 ```
 
 `$()` 用于避免 Xcode 将 URL 中的 `//` 解析为配置文件注释，请勿删除。改完后需要 **Clean + 重新 Run**，xcconfig 才会打进 App。
@@ -86,6 +87,7 @@ http://192.168.1.23:8080/core-service/health
 ```text
 TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8080/core-service
 TIMIA_FILE_API_BASE_URL = http:/$()/127.0.0.1:8080/file-service
+TIMIA_NOTIFICATION_API_BASE_URL = http:/$()/127.0.0.1:8080/notification-service
 ```
 
 Mac 的局域网 IP 可能在重新连接 Wi-Fi 后变化。如果真机突然无法连接 API，应先重新检查 IP 地址和 `/health` 页面。
@@ -102,6 +104,7 @@ Mac 的局域网 IP 可能在重新连接 Wi-Fi 后变化。如果真机突然�
 - 系统管理员成员目录与成员归属详情
 - 工作空间/项目成员添加、角色调整、移除与只读权限
 - 工作空间活动时间线、最近讨论筛选、分页、完成状态和删除
+- 日程首页铃铛与通知收件箱（notification-service `/v1/inbox`）
 
 数据分析不进入 iOS 范围。
 

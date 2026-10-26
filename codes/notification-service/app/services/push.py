@@ -1,4 +1,4 @@
-"""P0 push is a status flag only. P1 sends APNs."""
+"""Push stays a status flag. Device tokens and APNs delivery are not implemented."""
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session

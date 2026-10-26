@@ -926,3 +926,33 @@ struct StickyNoteConvertResponse: Decodable, Sendable {
     let stickyNote: StickyNote
     let parse: StickyNoteAIParse
 }
+
+struct InboxNotification: Decodable, Identifiable, Equatable, Sendable {
+    let id: String
+    let notificationId: String
+    let title: String
+    let body: String
+    let senderUserId: String?
+    let senderDisplayName: String?
+    let link: String?
+    let scenarioKey: String?
+    let readAt: String?
+    let createdAt: String
+    let pushStatus: String
+
+    var isUnread: Bool { readAt == nil }
+
+    var senderLabel: String {
+        let name = senderDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "系统" : name
+    }
+}
+
+struct NotificationInboxPage: Decodable, Sendable {
+    let items: [InboxNotification]
+    let unreadCount: Int
+}
+
+struct NotificationReadAllResult: Decodable, Sendable {
+    let updated: Int
+}
