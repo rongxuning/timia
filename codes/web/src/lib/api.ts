@@ -23,6 +23,7 @@ import {
   takeSessionExpiredFrom401,
 } from "./auth";
 import { isFileServicePath } from "./fileServicePath";
+import { isNotificationServicePath } from "./notificationServicePath";
 import { publishSessionEvent } from "./session-sync";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -31,6 +32,11 @@ const FILE_API_BASE_URL =
   (process.env.NODE_ENV === "production"
     ? "https://timia.online/file-service"
     : "http://localhost:8003");
+const NOTIFICATION_API_BASE_URL =
+  process.env.NEXT_PUBLIC_NOTIFICATION_API_BASE_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://timia.online/notification-service"
+    : "http://localhost:8001");
 
 /**
  * Auth requests (`/auth/*`) are proxied through Next.js (dev) or the reverse
@@ -42,6 +48,7 @@ const FILE_API_BASE_URL =
 function baseUrlFor(path: string): string {
   if (path.startsWith("/auth/")) return "";
   if (isFileServicePath(path)) return FILE_API_BASE_URL;
+  if (isNotificationServicePath(path)) return NOTIFICATION_API_BASE_URL;
   return API_BASE_URL;
 }
 

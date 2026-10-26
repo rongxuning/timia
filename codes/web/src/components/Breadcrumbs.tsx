@@ -232,6 +232,8 @@ function BreadcrumbsInner({
       settings: t("settings"),
       "llm-keys": t("llm-keys"),
       members: t("members"),
+      notifications: t("notifications"),
+      admin: t("admin"),
       documents: t("documents"),
       code: t("code"),
       guide: t("guide"),

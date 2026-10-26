@@ -1,5 +1,5 @@
 {
-  "sha256": "a35078cb7d82002209e8fca9d2e4be2a8d487d0158ec134aa840f3b6260c34b7",
+  "sha256": "9e431b8b4d5cdda0cc7272ff33ff3553614780c2d4fc9dbcb2fb91e879e2547f",
   "icons": [
     "accessibility_new",
     "accessible",
@@ -45,6 +45,7 @@
     "menu_book",
     "monitor_heart",
     "nightlife",
+    "notifications",
     "person_add",
     "pool",
     "progress_activity",

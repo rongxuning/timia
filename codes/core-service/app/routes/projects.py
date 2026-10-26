@@ -20,6 +20,7 @@ from app.schemas.project import (
 from app.schemas.project_member import ProjectMemberAdd, ProjectMemberOut, ProjectMemberRoleUpdate
 from app.services.activity import log_activity
 from app.services.file_notify import notify_project_rehomed
+from app.services.notification_hooks import notify_project_member_added
 from app.services.project_api import apply_project_transfer, parse_project_transfer_target
 from app.services.project_sort import sort_projects_favorite_then_created
 from app.services.permissions import (
@@ -323,6 +324,7 @@ def add_project_member(
 
     u = db.get(User, target_user_id)
     db.commit()
+    notify_project_member_added(db, p, user, target_user_id)
     is_creator = bool(p.created_by_user_id and target_user_id == p.created_by_user_id)
     return ProjectMemberOut(
         id=str(member_row.id),

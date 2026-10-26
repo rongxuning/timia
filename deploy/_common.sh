@@ -26,12 +26,13 @@ timia_log() {
 }
 
 # App services that have Docker images built by Timia.
-TIMIA_APP_SERVICES=(core-service file-service web mcp-server)
+TIMIA_APP_SERVICES=(core-service file-service notification-service web mcp-server)
 
 timia_service_image() {
   case "$1" in
     core-service) echo timia-core-service:prod ;;
     file-service) echo timia-file-service:prod ;;
+    notification-service) echo timia-notification-service:prod ;;
     web) echo timia-web:prod ;;
     mcp-server) echo timia-mcp-server:prod ;;
     *)
@@ -45,6 +46,7 @@ timia_service_src_path() {
   case "$1" in
     core-service) echo codes/core-service ;;
     file-service) echo codes/file-service ;;
+    notification-service) echo codes/notification-service ;;
     web) echo codes/web ;;
     mcp-server) echo codes/mcp-server ;;
     *)
@@ -55,7 +57,7 @@ timia_service_src_path() {
 }
 
 # Map a git name-only diff to deploy targets.
-# Prints unique tokens among: core-service file-service web mcp-server nginx
+# Prints unique tokens among: core-service file-service notification-service web mcp-server nginx
 # Usage: timia_services_from_changed_files "$changed_file_list"
 timia_services_from_changed_files() {
   local changed="$1"
@@ -67,10 +69,11 @@ timia_services_from_changed_files() {
   fi
 
   if [[ "$all" -eq 1 ]]; then
-    out=(core-service file-service web mcp-server nginx)
+    out=(core-service file-service notification-service web mcp-server nginx)
   else
     echo "$changed" | grep -qE '^codes/core-service/' && out+=(core-service) || true
     echo "$changed" | grep -qE '^codes/file-service/' && out+=(file-service) || true
+    echo "$changed" | grep -qE '^codes/notification-service/' && out+=(notification-service) || true
     echo "$changed" | grep -qE '^codes/web/' && out+=(web) || true
     echo "$changed" | grep -qE '^codes/mcp-server/' && out+=(mcp-server) || true
     echo "$changed" | grep -qE '^deploy/nginx\.conf$' && out+=(nginx) || true
@@ -111,7 +114,7 @@ timia_resolve_services() {
       timia_services_from_changed_files "$changed"
       return 0
       ;;
-    core-service|file-service|web|mcp-server|nginx)
+    core-service|file-service|notification-service|web|mcp-server|nginx)
       echo "$selector"
       return 0
       ;;
@@ -121,7 +124,7 @@ timia_resolve_services() {
       # shellcheck disable=SC2086
       for token in ${selector//,/ }; do
         case "$token" in
-          core-service|file-service|web|mcp-server|nginx|all)
+          core-service|file-service|notification-service|web|mcp-server|nginx|all)
             if [[ "$token" == all ]]; then
               printf '%s\n' "${TIMIA_APP_SERVICES[@]}" nginx
               return 0
@@ -144,7 +147,7 @@ timia_app_services_only() {
   local svc
   for svc in "$@"; do
     case "$svc" in
-      core-service|file-service|web|mcp-server) echo "$svc" ;;
+      core-service|file-service|notification-service|web|mcp-server) echo "$svc" ;;
     esac
   done
 }

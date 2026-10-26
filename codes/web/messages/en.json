@@ -8,6 +8,8 @@
     "plans": "Plans",
     "analytics": "Analytics",
     "members": "Members",
+    "notifications": "Notifications",
+    "notificationAdmin": "Notification admin",
     "codeDocs": "Code docs",
     "guide": "Guide",
     "newTask": "New task",
@@ -18,6 +20,49 @@
     "userFallback": "User",
     "badgeAria": "{label}, {count, plural, one {# alert} other {# alerts}}"
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "loading": "Loading…",
+    "loadFailed": "Could not load notifications",
+    "markAllRead": "Mark all read",
+    "marking": "Working…",
+    "unread": "Unread",
+    "read": "Read",
+    "systemSender": "System",
+    "open": "Open"
+  },
+  "notificationAdmin": {
+    "title": "Notification admin",
+    "intro": "Turning a scenario off stops new deliveries. Notifications already received stay in the inbox. Mobile push is not connected yet.",
+    "loading": "Loading…",
+    "loadFailed": "Could not load scenarios",
+    "saveFailed": "Could not save",
+    "enabled": "On",
+    "disabled": "Off",
+    "scenarios": {
+      "task_self_join": {
+        "title": "You joined a task",
+        "description": "When someone adds themselves as a participant, notify the assignee, or the creator if there is no assignee."
+      },
+      "task_member_added": {
+        "title": "Someone else was added",
+        "description": "When other people are added as participants, notify those people."
+      },
+      "workspace_member_added": {
+        "title": "Added to a workspace",
+        "description": "When a user is added to a workspace, notify that user."
+      },
+      "project_member_added": {
+        "title": "Added to a project",
+        "description": "When a user is added to a project, notify that user."
+      },
+      "task_created_in_project": {
+        "title": "New task in a project",
+        "description": "When a task is created in a project, notify the other project members."
+      }
+    }
+  },
   "crumb": {
     "navAria": "Breadcrumb",
     "refreshAria": "Refresh {label}",
@@ -27,6 +72,8 @@
     "activity": "Activity",
     "settings": "Settings",
     "members": "Members",
+    "notifications": "Notifications",
+    "admin": "Admin",
     "documents": "Docs",
     "code": "Code docs",
     "guide": "Guide",

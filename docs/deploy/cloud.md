@@ -9,7 +9,7 @@
 1. **轮询部署（主路径，推荐）**：服务器 cron 每 3 分钟 `git fetch`，`main` 有新提交则执行 `local.sh`（`install-cron` / `poll`）。**不需要** GitHub 连 SSH 进来。
 2. **GitHub Actions SSH（辅助）**：仅当 push 命中服务端 **paths** 时，由 Actions SSH 执行 `local.sh`。从 GitHub 连国内轻量云常被 **`connection reset by peer`** 重置，失败不代表轮询没在发版。
 
-**paths 过滤**（`.github/workflows/deploy.yml`）：只有 `codes/core-service`、`codes/file-service`、`codes/web`、`codes/mcp-server`、`deploy/nginx.conf`、`deploy/local.sh`、`deploy/_common.sh`、`deploy/dc.sh`、`docker-compose.prod.yml` 的变更才启动 **Deploy to Lighthouse**。`codes/mobile/**` 与 `docs/**` 不触发这条 workflow（iOS 仍走独立的 TestFlight workflow）。手动运行用 **workflow_dispatch**，可选 `deploy_mode`。
+**paths 过滤**（`.github/workflows/deploy.yml`）：只有 `codes/core-service`、`codes/file-service`、`codes/notification-service`、`codes/web`、`codes/mcp-server`、`deploy/nginx.conf`、`deploy/local.sh`、`deploy/_common.sh`、`deploy/dc.sh`、`docker-compose.prod.yml` 的变更才启动 **Deploy to Lighthouse**。`codes/mobile/**` 与 `docs/**` 不触发这条 workflow（iOS 仍走独立的 TestFlight workflow）。手动运行用 **workflow_dispatch**，可选 `deploy_mode`。
 
 ## 架构
 
@@ -35,7 +35,7 @@ flowchart LR
 
 | 组件 | 说明 |
 |------|------|
-| `core-service` / `file-service` / `web` / `mcp-server` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
+| `core-service` / `file-service` / `notification-service` / `web` / `mcp-server` | 在轻量云上 `docker compose build`（见 `codes/*/Dockerfile`） |
 | `db` | 官方 `postgres:16` 镜像，数据卷持久化 |
 | `minio` | 私有对象存储，仅 docker 内网，nginx 不暴露 |
 | `nginx` | 反代 + HTTPS（证书在宿主机 `/etc/letsencrypt`）；对外暴露 `/mcp` 与 `/mcp-health` |
@@ -164,7 +164,10 @@ sudo chmod 600 /etc/timia/.env.prod
 | `CORS_ORIGINS` | `https://timia.online` |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://timia.online/core-service` |
 | `NEXT_PUBLIC_FILE_API_BASE_URL` | `https://timia.online/file-service` |
+| `NEXT_PUBLIC_NOTIFICATION_API_BASE_URL` | `https://timia.online/notification-service` |
 | `FILE_INTERNAL_TOKEN` | core 调 file-service `/internal`；与 file-service 相同 |
+| `NOTIFICATION_INTERNAL_TOKEN` | core 调 notification-service `POST /v1/notifications`；与 notification-service 相同 |
+| `NOTIFICATION_SERVICE_BASE` | 生产为 `http://notification-service:8001`（compose 也会覆盖） |
 | `MINIO_ROOT_PASSWORD` | MinIO 根密码；`MEDIA_S3_SECRET_KEY` 须与此一致 |
 
 示例 `DATABASE_URL`：
@@ -259,19 +262,21 @@ bash deploy/local.sh poll
 |----------|------------|
 | `codes/core-service/**` | `core-service` |
 | `codes/file-service/**` | `file-service` |
+| `codes/notification-service/**` | `notification-service` |
 | `codes/web/**` | `web` |
 | `codes/mcp-server/**` | `mcp-server` |
 | `deploy/nginx.conf` | `nginx`（重建容器，不 build 业务镜像） |
-| `docker-compose.prod.yml` | `core-service`、`file-service`、`web`、`mcp-server` 与 `nginx` |
+| `docker-compose.prod.yml` | `core-service`、`file-service`、`notification-service`、`web`、`mcp-server` 与 `nginx` |
 | `codes/mobile/**`、`docs/**` 及其它未映射路径 | 不 build 镜像 |
 
 | 命令 | 适用 |
 |------|------|
 | `bash deploy/local.sh` | 日常（默认 smart；只 build 清单里的服务，**并行**） |
 | `DEPLOY_MODE=quick bash deploy/local.sh` | 只重启，或镜像已是最新（不 build） |
-| `DEPLOY_MODE=full bash deploy/local.sh` | 依赖升级、构建异常、首次部署（四个应用服务 + nginx） |
+| `DEPLOY_MODE=full bash deploy/local.sh` | 依赖升级、构建异常、首次部署（五个应用服务 + nginx） |
 | `DEPLOY_MODE=core-service bash deploy/local.sh` | 只构建 core-service |
 | `DEPLOY_MODE=file-service bash deploy/local.sh` | 只构建 file-service |
+| `DEPLOY_MODE=notification-service bash deploy/local.sh` | 只构建 notification-service |
 | `DEPLOY_MODE=web bash deploy/local.sh` | 只构建 web |
 | `DEPLOY_MODE=mcp-server bash deploy/local.sh` | 只构建 mcp-server |
 
@@ -281,6 +286,7 @@ bash deploy/local.sh poll
 
 - `codes/core-service/**`
 - `codes/file-service/**`
+- `codes/notification-service/**`
 - `codes/web/**`
 - `codes/mcp-server/**`
 - `deploy/nginx.conf`
@@ -289,7 +295,7 @@ bash deploy/local.sh poll
 - `deploy/dc.sh`
 - `docker-compose.prod.yml`
 
-不包含 `codes/mobile/**`、`docs/**`。因此 **只改 iOS 的 push 不会启动 Deploy to Lighthouse**（TestFlight workflow 有自己的 paths）。`workflow_dispatch` 不受 paths 限制。可选输入 `deploy_mode`：`smart` | `full` | `core-service` | `file-service` | `web` | `mcp-server`，经 SSH 设为服务器上的 `DEPLOY_MODE`。普通 push 没有该输入，固定 `smart`。
+不包含 `codes/mobile/**`、`docs/**`。因此 **只改 iOS 的 push 不会启动 Deploy to Lighthouse**（TestFlight workflow 有自己的 paths）。`workflow_dispatch` 不受 paths 限制。可选输入 `deploy_mode`：`smart` | `full` | `core-service` | `file-service` | `notification-service` | `web` | `mcp-server`，经 SSH 设为服务器上的 `DEPLOY_MODE`。普通 push 没有该输入，固定 `smart`。
 
 本机 `deploy/remote.sh`（轻量云 SSH 上传镜像）同样默认 **smart**：
 
@@ -402,7 +408,7 @@ cd /opt/timia
 
 | 状态 | 含义 |
 |------|------|
-| `core-service`、`file-service`、`web`、`mcp-server`、`db`、`nginx` 均为 `Up` | 部署很可能已成功 |
+| `core-service`、`file-service`、`notification-service`、`web`、`mcp-server`、`db`、`nginx` 均为 `Up` | 部署很可能已成功 |
 | 缺少上述应用服务或状态 `Exit` | build 未完成或 `up` 失败 |
 | 仅有 `db` 在跑 | 可能卡在 build 或脚本已退出 |
 
@@ -583,7 +589,7 @@ export SKIP_GIT_PULL=1
 | Actions `chmod: Operation not permitted` | `SSH_USER` 对 `/opt/timia` 无写权限时用 `bash deploy/local.sh`（已修复）；或把目录属主改为该用户 |
 | `No .git` | 未 clone 仓库，按「一、3」操作 |
 | `git pull` 失败（私有库） | 配置 Deploy Key 或检查 `git remote` |
-| `build` 很慢或 OOM | 用默认 **`smart`** 或 `DEPLOY_MODE=quick`；只重建一个服务时用 `DEPLOY_MODE=core-service`（或 `file-service` / `web` / `mcp-server`）；升级内存 |
+| `build` 很慢或 OOM | 用默认 **`smart`** 或 `DEPLOY_MODE=quick`；只重建一个服务时用 `DEPLOY_MODE=core-service`（或 `file-service` / `notification-service` / `web` / `mcp-server`）；升级内存 |
 | 每次部署都要 build web | 确认用默认 `smart`；全量才用 `DEPLOY_MODE=full`。只改 iOS/文档不应 build web |
 | Actions 在只改 iOS 时仍启动 Deploy | 确认 `main` 上的 `deploy.yml` 已带 **paths**，且该 push 没有同时改服务端路径 |
 | CORS 错误 | `.env.prod` 中 `CORS_ORIGINS=https://timia.online` |

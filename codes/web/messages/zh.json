@@ -8,6 +8,8 @@
     "plans": "规划",
     "analytics": "数据分析",
     "members": "成员",
+    "notifications": "通知",
+    "notificationAdmin": "通知管理",
     "codeDocs": "代码文档",
     "guide": "使用指南",
     "newTask": "新建任务",
@@ -18,6 +20,49 @@
     "userFallback": "用户",
     "badgeAria": "{label}，{count} 条提醒"
   },
+  "notifications": {
+    "title": "通知",
+    "empty": "还没有通知",
+    "loading": "加载中…",
+    "loadFailed": "加载失败",
+    "markAllRead": "全部已读",
+    "marking": "处理中…",
+    "unread": "未读",
+    "read": "已读",
+    "systemSender": "系统",
+    "open": "查看"
+  },
+  "notificationAdmin": {
+    "title": "通知管理",
+    "intro": "关闭场景后，新的事件不再投递。已经收到的通知仍留在收件箱。移动推送尚未接入。",
+    "loading": "加载中…",
+    "loadFailed": "加载失败",
+    "saveFailed": "保存失败",
+    "enabled": "已开启",
+    "disabled": "已关闭",
+    "scenarios": {
+      "task_self_join": {
+        "title": "自己加入参与人",
+        "description": "用户把自己加入任务参与人时，通知负责人；没有负责人则通知创建人。"
+      },
+      "task_member_added": {
+        "title": "他人被加为参与人",
+        "description": "有人把其他用户加为任务参与人时，通知被加入的人。"
+      },
+      "workspace_member_added": {
+        "title": "被加入空间",
+        "description": "用户被加入工作空间时，通知被加入的人。"
+      },
+      "project_member_added": {
+        "title": "被加入项目",
+        "description": "用户被加入项目时，通知被加入的人。"
+      },
+      "task_created_in_project": {
+        "title": "项目内新建任务",
+        "description": "项目里新建任务时，通知该项目的其他成员。"
+      }
+    }
+  },
   "crumb": {
     "navAria": "面包屑导航",
     "refreshAria": "刷新 {label}",
@@ -27,6 +72,8 @@
     "activity": "活动",
     "settings": "设置",
     "members": "成员",
+    "notifications": "通知",
+    "admin": "管理",
     "documents": "文档",
     "code": "代码文档",
     "guide": "使用指南",
