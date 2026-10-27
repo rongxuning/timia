@@ -59,14 +59,21 @@ def test_disabled_scenario_does_not_deliver(client, db):
     auth = {"Authorization": f"Bearer {token_for(admin)}"}
     listed = client.get("/v1/admin/scenarios", headers=auth)
     assert listed.status_code == 200, listed.text
-    keys = [row["key"] for row in listed.json()]
-    assert keys[:5] == [
+    rows = listed.json()
+    keys = [row["key"] for row in rows]
+    assert keys[:6] == [
         "task_self_join",
         "task_member_added",
         "workspace_member_added",
         "project_member_added",
         "task_created_in_project",
+        "task_commented",
     ]
+    commented = next(row for row in rows if row["key"] == "task_commented")
+    assert commented["enabled"] is True
+    assert commented["push_enabled"] is False
+    assert commented["title_template"] == "任务有新评论"
+    assert commented["body_template"] == "{actor_name} 评论了「{task_title}」：{comment_excerpt}"
 
     patched = client.patch(
         "/v1/admin/scenarios/task_member_added",

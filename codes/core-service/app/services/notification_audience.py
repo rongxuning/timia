@@ -1,4 +1,4 @@
-"""Pure recipient selection for the five P0 notification scenarios."""
+"""Pure recipient selection for notification scenarios."""
 
 from __future__ import annotations
 
@@ -129,6 +129,42 @@ def plan_task_created(
         )
     )
     return intents
+
+
+_COMMENT_EXCERPT_LIMIT = 80
+
+
+def comment_excerpt(body: str, *, limit: int = _COMMENT_EXCERPT_LIMIT) -> str:
+    text = (body or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "…"
+
+
+def plan_task_commented(
+    *,
+    actor_id: uuid.UUID,
+    actor_name: str,
+    task_title: str,
+    comment_body: str,
+    link: str,
+    assignee_id: uuid.UUID | None,
+) -> list[NotificationIntent]:
+    if assignee_id is None or assignee_id == actor_id:
+        return []
+    return [
+        NotificationIntent(
+            scenario_key="task_commented",
+            sender_user_id=actor_id,
+            user_ids=[assignee_id],
+            link=link,
+            variables={
+                "actor_name": actor_name,
+                "task_title": task_title,
+                "comment_excerpt": comment_excerpt(comment_body),
+            },
+        )
+    ]
 
 
 def plan_membership_added(

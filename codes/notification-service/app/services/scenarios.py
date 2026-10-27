@@ -42,6 +42,13 @@ DEFAULT_SCENARIOS: list[dict[str, object]] = [
         "title_template": "项目有新任务",
         "body_template": "{actor_name} 在「{project_name}」创建了任务「{task_title}」",
     },
+    {
+        "key": "task_commented",
+        "enabled": True,
+        "push_enabled": False,
+        "title_template": "任务有新评论",
+        "body_template": "{actor_name} 评论了「{task_title}」：{comment_excerpt}",
+    },
 ]
 
 SCENARIO_ORDER = [str(row["key"]) for row in DEFAULT_SCENARIOS]

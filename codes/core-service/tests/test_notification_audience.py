@@ -3,6 +3,7 @@ import uuid
 from app.services.notification_audience import (
     plan_membership_added,
     plan_participant_changes,
+    plan_task_commented,
     plan_task_created,
 )
 
@@ -99,6 +100,79 @@ def test_task_created_excludes_actor_and_includes_initial_participants():
     assert created.variables["project_name"] == "项目"
     assert intents[1].user_ids == [assignee]
     assert intents[2].user_ids == [member]
+
+
+def test_task_commented_notifies_assignee_with_stripped_excerpt():
+    actor = uuid.uuid4()
+    assignee = uuid.uuid4()
+    intents = plan_task_commented(
+        actor_id=actor,
+        actor_name="评论人",
+        task_title="方案",
+        comment_body="  看起来可以  ",
+        link="/workspace/w/projects/p/items/i",
+        assignee_id=assignee,
+    )
+    assert len(intents) == 1
+    intent = intents[0]
+    assert intent.scenario_key == "task_commented"
+    assert intent.sender_user_id == actor
+    assert intent.user_ids == [assignee]
+    assert intent.link == "/workspace/w/projects/p/items/i"
+    assert intent.variables == {
+        "actor_name": "评论人",
+        "task_title": "方案",
+        "comment_excerpt": "看起来可以",
+    }
+
+
+def test_task_commented_skips_when_commenter_is_assignee():
+    actor = uuid.uuid4()
+    intents = plan_task_commented(
+        actor_id=actor,
+        actor_name="我",
+        task_title="方案",
+        comment_body="自己写的",
+        link="/t",
+        assignee_id=actor,
+    )
+    assert intents == []
+
+
+def test_task_commented_skips_when_no_assignee():
+    intents = plan_task_commented(
+        actor_id=uuid.uuid4(),
+        actor_name="我",
+        task_title="方案",
+        comment_body="没人负责",
+        link="/t",
+        assignee_id=None,
+    )
+    assert intents == []
+
+
+def test_task_commented_truncates_excerpt_at_80():
+    assignee = uuid.uuid4()
+    exact = "评" * 80
+    longer = "评" * 81
+    exact_intents = plan_task_commented(
+        actor_id=uuid.uuid4(),
+        actor_name="我",
+        task_title="方案",
+        comment_body=f"  {exact}  ",
+        link="/t",
+        assignee_id=assignee,
+    )
+    long_intents = plan_task_commented(
+        actor_id=uuid.uuid4(),
+        actor_name="我",
+        task_title="方案",
+        comment_body=longer,
+        link="/t",
+        assignee_id=assignee,
+    )
+    assert exact_intents[0].variables["comment_excerpt"] == exact
+    assert long_intents[0].variables["comment_excerpt"] == exact + "…"
 
 
 def test_membership_added_skips_self():
