@@ -70,6 +70,8 @@ struct TaskEditorView: View {
     @State private var isDeleting = false
     @State private var isShowingDeleteConfirmation = false
     @State private var isPrepared = false
+    /// Once the user edits负责人/成员, async detail/member reloads must not clobber them.
+    @State private var peopleTouched = false
     /// Workspace chosen from the voice draft. A later reload must not drop it.
     @State private var parsedWorkspaceId: String?
     /// Project chosen from the voice draft. A later reload must not drop it.
@@ -124,8 +126,7 @@ struct TaskEditorView: View {
                     parsedWorkspaceId = nil
                     projectId = ""
                     memberOptions = []
-                    assigneeUserId = ""
-                    participantUserIds = []
+                    resetPeopleSelection()
                 }
                 Task { await loadProjects() }
             }
@@ -147,8 +148,7 @@ struct TaskEditorView: View {
                 }
                 lockedParsedProjectId = nil
                 memberOptions = []
-                assigneeUserId = ""
-                participantUserIds = []
+                resetPeopleSelection()
                 Task { await loadMemberOptions() }
             }
 
@@ -326,7 +326,7 @@ struct TaskEditorView: View {
                         .lineLimit(1)
                 }
             }
-            .disabled(projectId.isEmpty || (isEditing && !isPrepared))
+            .disabled(projectId.isEmpty || !isPrepared)
 
             NavigationLink {
                 TaskParticipantsSelectionView(
@@ -340,9 +340,17 @@ struct TaskEditorView: View {
                         .lineLimit(1)
                 }
             }
-            .disabled(projectId.isEmpty || (isEditing && !isPrepared))
-            .onChange(of: assigneeUserId) { _, newValue in
+            .disabled(projectId.isEmpty || !isPrepared)
+            .onChange(of: assigneeUserId) { oldValue, newValue in
+                if isPrepared, oldValue != newValue {
+                    peopleTouched = true
+                }
                 participantUserIds.remove(newValue)
+            }
+            .onChange(of: participantUserIds) { oldValue, newValue in
+                if isPrepared, oldValue != newValue {
+                    peopleTouched = true
+                }
             }
 
             if isEditing {
@@ -482,10 +490,10 @@ struct TaskEditorView: View {
             }
         }
         .overlay {
-            if isEditing && !isPrepared {
+            if !isPrepared {
                 ZStack {
                     Color(.systemBackground).opacity(0.92)
-                    ProgressView("加载任务…")
+                    ProgressView(isEditing ? "加载任务…" : "加载中…")
                 }
                 .allowsHitTesting(true)
                 .ignoresSafeArea()
@@ -612,12 +620,20 @@ struct TaskEditorView: View {
         }
     }
 
+    private func resetPeopleSelection() {
+        assigneeUserId = ""
+        participantUserIds = []
+        peopleTouched = false
+    }
+
     private func fill(_ task: ScheduleTask) {
         title = task.title; bodyText = task.body ?? ""; details = task.details ?? ""
         place = PlaceValue.fromItem(location: task.location, lat: task.locationLat, lng: task.locationLng)
         color = task.color; status = task.status; priority = task.priority ?? "1"; version = task.version
-        assigneeUserId = task.assignee?.id ?? task.createdBy?.id ?? ""
-        participantUserIds = Set((task.participants ?? []).map(\.id))
+        if !peopleTouched {
+            assigneeUserId = task.assignee?.id ?? task.createdBy?.id ?? ""
+            participantUserIds = Set((task.participants ?? []).map(\.id))
+        }
         mergeMemberBriefs([task.assignee, task.createdBy].compactMap { $0 } + (task.participants ?? []))
         creatorDisplayName = task.createdBy?.displayName ?? ""
         if let date = Self.parse(task.startAt) { startDate = date }
@@ -666,8 +682,9 @@ struct TaskEditorView: View {
             if workspaceId != matchedWorkspace.id {
                 projectId = ""
                 memberOptions = []
-                assigneeUserId = ""
-                participantUserIds = []
+                if !peopleTouched {
+                    resetPeopleSelection()
+                }
                 workspaceId = matchedWorkspace.id
             }
         }
@@ -686,14 +703,17 @@ struct TaskEditorView: View {
             lockedParsedProjectId = matchedProject.id
             if projectId != matchedProject.id {
                 memberOptions = []
-                assigneeUserId = ""
-                participantUserIds = []
+                if !peopleTouched {
+                    resetPeopleSelection()
+                }
                 projectId = matchedProject.id
             }
             await loadMemberOptions()
         }
 
-        applyNaturalLanguagePeople(draft)
+        if !peopleTouched {
+            applyNaturalLanguagePeople(draft)
+        }
     }
 
     // MARK: - Sticky note parse info section
@@ -831,6 +851,11 @@ struct TaskEditorView: View {
             )
             let contextOptions = mergeMemberOptions(context.memberOptions, preserving: [currentUser])
             memberOptions = mergeMemberOptions(contextOptions, preserving: selectedFallbacks)
+            // After the form is ready (or the user already picked people), only refresh
+            // options — never prune or auto-fill assignee/participants.
+            guard shouldApplyRemoteTaskPeople(peopleTouched: peopleTouched, isPrepared: isPrepared) else {
+                return
+            }
             if assigneeUserId.isEmpty,
                memberOptions.contains(where: { $0.userId == context.currentUserId }) {
                 assigneeUserId = context.currentUserId
@@ -870,8 +895,10 @@ struct TaskEditorView: View {
             if let date = Self.parse(detail.startAt) { startDate = date }
             if let date = Self.parse(detail.endAt) { endDate = date }
             if let date = Self.parse(detail.completedAt) { completedDate = date }
-            assigneeUserId = detail.assignee?.id ?? detail.createdBy?.id ?? ""
-            participantUserIds = Set((detail.participants ?? []).map(\.id))
+            if !peopleTouched {
+                assigneeUserId = detail.assignee?.id ?? detail.createdBy?.id ?? ""
+                participantUserIds = Set((detail.participants ?? []).map(\.id))
+            }
             mergeMemberBriefs([detail.assignee, detail.createdBy].compactMap { $0 } + (detail.participants ?? []))
             creatorDisplayName = detail.createdBy?.displayName ?? creatorDisplayName
             await loadAttachments(
@@ -1155,21 +1182,24 @@ private struct TaskParticipantsSelectionView: View {
     @Environment(\.dismissSearch) private var dismissSearch
     let users: [AssignableUser]
     @Binding var selection: Set<String>
+    /// Draft locally so Form + NavigationLink does not re-render/pop on every toggle.
+    @State private var localSelection: Set<String> = []
+    @State private var didHydrate = false
     @State private var searchText = ""
 
     var body: some View {
         List(filteredUsers) { user in
             Button {
-                if selection.contains(user.userId) {
-                    selection.remove(user.userId)
+                if localSelection.contains(user.userId) {
+                    localSelection.remove(user.userId)
                 } else {
-                    selection.insert(user.userId)
+                    localSelection.insert(user.userId)
                 }
             } label: {
-                TaskMemberOptionRow(user: user, isSelected: selection.contains(user.userId))
+                TaskMemberOptionRow(user: user, isSelected: localSelection.contains(user.userId))
             }
             .buttonStyle(.plain)
-            .accessibilityAddTraits(selection.contains(user.userId) ? .isSelected : [])
+            .accessibilityAddTraits(localSelection.contains(user.userId) ? .isSelected : [])
         }
         .navigationTitle("选择成员")
         .navigationBarTitleDisplayMode(.inline)
@@ -1178,7 +1208,10 @@ private struct TaskParticipantsSelectionView: View {
         .keyboardDoneToolbar { dismissSearch() }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("完成") { dismiss() }
+                Button("完成") {
+                    commitSelection()
+                    dismiss()
+                }
             }
         }
         .overlay {
@@ -1190,15 +1223,37 @@ private struct TaskParticipantsSelectionView: View {
                 )
             }
         }
+        .onAppear {
+            guard !didHydrate else { return }
+            localSelection = selection
+            didHydrate = true
+        }
+        .onDisappear {
+            // Swipe-back / system dismiss should still keep the picks.
+            guard didHydrate else { return }
+            commitSelection()
+        }
     }
 
     private var filteredUsers: [AssignableUser] {
         filterTaskMembers(users, query: searchText)
     }
+
+    private func commitSelection() {
+        if selection != localSelection {
+            selection = localSelection
+        }
+    }
 }
 
 func taskParticipantIdsForSave(selected: Set<String>, assigneeUserId: String) -> [String] {
     selected.filter { !$0.isEmpty && $0 != assigneeUserId }.sorted()
+}
+
+/// Remote member/detail payloads may overwrite people only before the form is ready
+/// and before the user has edited负责人/成员.
+func shouldApplyRemoteTaskPeople(peopleTouched: Bool, isPrepared: Bool) -> Bool {
+    !peopleTouched && !isPrepared
 }
 
 private struct TaskMemberOptionRow: View {

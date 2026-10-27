@@ -573,4 +573,11 @@ final class NaturalLanguagePlacementTests: XCTestCase {
             []
         )
     }
+
+    func testRemoteTaskPeopleApplyOnlyBeforeReadyAndUntouched() {
+        XCTAssertTrue(shouldApplyRemoteTaskPeople(peopleTouched: false, isPrepared: false))
+        XCTAssertFalse(shouldApplyRemoteTaskPeople(peopleTouched: true, isPrepared: false))
+        XCTAssertFalse(shouldApplyRemoteTaskPeople(peopleTouched: false, isPrepared: true))
+        XCTAssertFalse(shouldApplyRemoteTaskPeople(peopleTouched: true, isPrepared: true))
+    }
 }
