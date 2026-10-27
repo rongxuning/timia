@@ -16,6 +16,7 @@ from app.services.notification_audience import (
     coerce_user_ids,
     plan_membership_added,
     plan_participant_changes,
+    plan_task_commented,
     plan_task_created,
 )
 from app.services.notification_notify import dispatch_notifications
@@ -76,6 +77,21 @@ def notify_item_participants_changed(
         dispatch_notifications(intents)
     except Exception:
         logger.exception("notify_item_participants_changed failed item=%s", getattr(item, "id", None))
+
+
+def notify_item_commented(db: Session, item: Item, actor: User, comment_body: str) -> None:
+    try:
+        intents = plan_task_commented(
+            actor_id=actor.id,
+            actor_name=actor.display_name,
+            task_title=item.title,
+            comment_body=comment_body,
+            link=_task_link(item),
+            assignee_id=item.assignee_user_id,
+        )
+        dispatch_notifications(intents)
+    except Exception:
+        logger.exception("notify_item_commented failed item=%s", getattr(item, "id", None))
 
 
 def notify_workspace_member_added(

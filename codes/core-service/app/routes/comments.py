@@ -11,6 +11,7 @@ from app.models.item import Item
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentOut, CommentUpdate
 from app.services.activity import log_activity
+from app.services.notification_hooks import notify_item_commented
 from app.services.permissions import can_moderate_comments, require_project_content_access
 
 router = APIRouter(
@@ -119,6 +120,7 @@ def add_comment(
         metadata={"item_id": str(item_id), "project_id": str(project_id)},
     )
     db.commit()
+    notify_item_commented(db, i, user, body)
     db.refresh(c)
     author_name = db.scalar(select(User.display_name).where(User.id == user.id)) or ""
     return _comment_out(c, author_name)
