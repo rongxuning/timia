@@ -38,7 +38,7 @@ def test_create_expands_deliveries_dedupes_and_skips_sender(client, db):
     assert len(rows) == 1
     assert rows[0].user_id == bob.id
     assert rows[0].read_at is None
-    assert rows[0].push_status == "skipped"
+    assert rows[0].push_status == "pending"
 
     inbox = client.get("/v1/inbox", headers={"Authorization": f"Bearer {token_for(bob)}"})
     assert inbox.status_code == 200, inbox.text
@@ -71,7 +71,8 @@ def test_disabled_scenario_does_not_deliver(client, db):
     ]
     commented = next(row for row in rows if row["key"] == "task_commented")
     assert commented["enabled"] is True
-    assert commented["push_enabled"] is False
+    assert commented["push_enabled"] is True
+    assert "__default_push_backfill_v1" not in keys
     assert commented["title_template"] == "任务有新评论"
     assert commented["body_template"] == "{actor_name} 评论了「{task_title}」：{comment_excerpt}"
 
@@ -194,15 +195,8 @@ def test_missing_tokens_are_rejected(client, db):
 
 
 def test_push_stub_counts_pending(client, db):
-    admin = make_user(db, "admin", role="admin")
     alice = make_user(db, "alice")
     bob = make_user(db, "bob")
-    patched = client.patch(
-        "/v1/admin/scenarios/task_member_added",
-        json={"push_enabled": True},
-        headers={"Authorization": f"Bearer {token_for(admin)}"},
-    )
-    assert patched.status_code == 200
     created = _create(client, sender_user_id=str(alice.id), user_ids=[str(bob.id)])
     assert created.json()["delivery_count"] == 1
     row = db.query(NotificationDelivery).one()

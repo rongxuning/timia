@@ -31,7 +31,12 @@ _TOKEN_RE = re.compile(r"^[0-9a-f]{64,200}$")
 
 
 def push_status_for(scenario: NotificationScenario | None) -> str:
-    if scenario is not None and scenario.push_enabled:
+    """Delivery push state for one recipient.
+
+    Admin broadcasts have no scenario and still go to APNs. A scenario sends
+    when its own ``push_enabled`` flag is on, and stays in the inbox otherwise.
+    """
+    if scenario is None or scenario.push_enabled:
         return "pending"
     return "skipped"
 

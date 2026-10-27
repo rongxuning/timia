@@ -20,7 +20,12 @@ from app.schemas.notification import (
 )
 from app.services.audience import parse_uuid, resolve_recipients
 from app.services.push import push_status_for, try_push_notification
-from app.services.scenarios import SCENARIO_ORDER, ensure_default_scenarios, render_template
+from app.services.scenarios import (
+    PUSH_BACKFILL_KEY,
+    SCENARIO_ORDER,
+    ensure_default_scenarios,
+    render_template,
+)
 
 
 def _clean_link(link: str | None) -> str | None:
@@ -229,7 +234,7 @@ def list_scenarios(db: Session) -> list[ScenarioOut]:
     rows = db.scalars(select(NotificationScenario)).all()
     by_key = {row.key: row for row in rows}
     ordered = [by_key[key] for key in SCENARIO_ORDER if key in by_key]
-    extras = [row for row in rows if row.key not in SCENARIO_ORDER]
+    extras = [row for row in rows if row.key not in SCENARIO_ORDER and row.key != PUSH_BACKFILL_KEY]
     return [
         ScenarioOut(
             key=row.key,
@@ -243,6 +248,8 @@ def list_scenarios(db: Session) -> list[ScenarioOut]:
 
 
 def patch_scenario(db: Session, key: str, payload: ScenarioPatch) -> ScenarioOut:
+    if key == PUSH_BACKFILL_KEY:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not_found")
     ensure_default_scenarios(db)
     row = db.get(NotificationScenario, key)
     if row is None:

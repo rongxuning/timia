@@ -15,7 +15,7 @@ class NotificationScenario(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     title_template: Mapped[str] = mapped_column(Text, nullable=False)
     body_template: Mapped[str] = mapped_column(Text, nullable=False)
-    push_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    push_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
