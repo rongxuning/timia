@@ -21,10 +21,10 @@ struct WorkspaceDetailView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
                 GeometryReader { proxy in
-                    let cardWidth = max(154, (proxy.size.width - 44) / 2)
+                    let cardWidth = WorkspaceProjectCardLayout.width(for: proxy.size.width)
 
                     ScrollView(.horizontal) {
-                        LazyHStack(spacing: 12) {
+                        LazyHStack(spacing: WorkspaceProjectCardLayout.spacing) {
                             ForEach(projects) { project in
                                 WorkspaceProjectCardSection(
                                     workspace: workspace,
@@ -64,12 +64,12 @@ struct WorkspaceDetailView: View {
                             .buttonStyle(.plain)
                         }
                         .scrollTargetLayout()
-                        .padding(.horizontal)
+                        .padding(.horizontal, WorkspaceProjectCardLayout.horizontalInset)
                     }
                     .scrollTargetBehavior(.viewAligned)
                     .scrollIndicators(.hidden)
                 }
-                .frame(height: 228)
+                .frame(height: WorkspaceProjectCardLayout.viewportHeight)
             }
             .padding(.top, 12)
             .padding(.bottom, 10)
@@ -281,6 +281,32 @@ struct WorkspaceDetailView: View {
     }
 }
 
+private enum WorkspaceProjectCardLayout {
+    static let horizontalInset: CGFloat = 16
+    static let spacing: CGFloat = 12
+    /// Enough of the next card stays on screen that the row reads as a carousel.
+    static let peek: CGFloat = 52
+    static let minimumWidth: CGFloat = 128
+    static let topHeight: CGFloat = 118
+    static let bottomHeight: CGFloat = 97
+    static let height: CGFloat = topHeight + bottomHeight + 1
+    static let viewportHeight: CGFloat = height + 12
+    static let bottomInset: CGFloat = 12
+    static let maxActionSide: CGFloat = 26
+
+    static func width(for viewport: CGFloat) -> CGFloat {
+        let raw = (viewport - horizontalInset * 2 - spacing - peek) / 2
+        return max(minimumWidth, raw)
+    }
+
+    /// Side length that keeps four actions on one row inside `bottomInset`.
+    static func actionSide(for cardWidth: CGFloat) -> CGFloat {
+        let inner = max(0, cardWidth - bottomInset * 2)
+        let slot = inner / 4
+        return min(maxActionSide, max(CGFloat(22), (slot - 3).rounded(.down)))
+    }
+}
+
 private struct WorkspaceProjectCardSection: View {
     let workspace: WorkspaceCard
     let project: WorkspaceProjectCard
@@ -289,62 +315,85 @@ private struct WorkspaceProjectCardSection: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    private var actionSide: CGFloat { WorkspaceProjectCardLayout.actionSide(for: width) }
+
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             NavigationLink {
                 ProjectTasksView(
                     workspace: workspace,
                     project: project.asProject(workspaceId: workspace.id)
                 )
             } label: {
-                WorkspaceProjectCardTile(project: project, width: width)
+                WorkspaceProjectCardTile(
+                    project: project,
+                    width: width,
+                    actionSlotHeight: actionSide
+                )
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 4) {
-                Button(action: onFavorite) {
-                    ProjectCardActionIcon(
-                        systemName: project.isFavorite ? "heart.fill" : "heart",
-                        accessibilityLabel: project.isFavorite ? "取消收藏" : "收藏项目"
-                    )
-                }
-                .buttonStyle(.plain)
+            actionRow
+                .padding(.horizontal, WorkspaceProjectCardLayout.bottomInset)
+                .padding(.bottom, WorkspaceProjectCardLayout.bottomInset)
+                .frame(width: width, alignment: .bottom)
+        }
+        .frame(width: width)
+    }
 
-                if project.canManage {
-                    Button(action: onEdit) {
-                        ProjectCardActionIcon(systemName: "pencil", accessibilityLabel: "编辑项目")
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                NavigationLink {
-                    MembersManagementView(
-                        scope: .project(
-                            workspace: workspace,
-                            project: project.asProject(workspaceId: workspace.id)
-                        )
-                    )
-                } label: {
-                    ProjectCardActionIcon(
-                        systemName: project.canManage ? "person.badge.plus" : "person.2",
-                        accessibilityLabel: project.canManage ? "管理项目成员" : "查看项目成员"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                if project.canManage {
-                    Button(action: onDelete) {
-                        ProjectCardActionIcon(
-                            systemName: "trash",
-                            accessibilityLabel: "删除项目",
-                            isDestructive: true
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+    private var actionRow: some View {
+        HStack(spacing: 0) {
+            Button(action: onFavorite) {
+                ProjectCardActionIcon(
+                    systemName: project.isFavorite ? "heart.fill" : "heart",
+                    accessibilityLabel: project.isFavorite ? "取消收藏" : "收藏项目",
+                    side: actionSide
+                )
+                .frame(maxWidth: .infinity)
             }
-            .padding(.trailing, 10)
-            .padding(.bottom, 10)
+            .buttonStyle(.plain)
+
+            if project.canManage {
+                Button(action: onEdit) {
+                    ProjectCardActionIcon(
+                        systemName: "pencil",
+                        accessibilityLabel: "编辑项目",
+                        side: actionSide
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+            }
+
+            NavigationLink {
+                MembersManagementView(
+                    scope: .project(
+                        workspace: workspace,
+                        project: project.asProject(workspaceId: workspace.id)
+                    )
+                )
+            } label: {
+                ProjectCardActionIcon(
+                    systemName: project.canManage ? "person.badge.plus" : "person.2",
+                    accessibilityLabel: project.canManage ? "管理项目成员" : "查看项目成员",
+                    side: actionSide
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+
+            if project.canManage {
+                Button(action: onDelete) {
+                    ProjectCardActionIcon(
+                        systemName: "trash",
+                        accessibilityLabel: "删除项目",
+                        isDestructive: true,
+                        side: actionSide
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
@@ -352,6 +401,7 @@ private struct WorkspaceProjectCardSection: View {
 private struct WorkspaceProjectCardTile: View {
     let project: WorkspaceProjectCard
     let width: CGFloat
+    let actionSlotHeight: CGFloat
 
     private var total: Int { project.todoDoing + project.doneArchived }
     private var progress: Double {
@@ -361,50 +411,63 @@ private struct WorkspaceProjectCardTile: View {
 
     var body: some View {
         let cardForeground = TimiaTheme.foreground(on: project.color)
+        let inset = WorkspaceProjectCardLayout.bottomInset
 
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(project.name)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(cardForeground)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.8)
 
                 Text(projectDescription)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .font(.system(size: 12, weight: .regular, design: .rounded))
                     .foregroundStyle(cardForeground.opacity(0.78))
                     .lineLimit(3)
+                    .minimumScaleFactor(0.85)
             }
-            .padding(14)
-            .frame(width: width, height: 120, alignment: .topLeading)
+            .padding(12)
+            .frame(width: width, height: WorkspaceProjectCardLayout.topHeight, alignment: .topLeading)
             .background(TimiaTheme.customSurface(project.color))
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("项目进度")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary)
-                    Spacer(minLength: 2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 4)
                     Text("\(project.doneArchived)/\(total)（\(project.progressPercent)%）")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(TimiaTheme.primary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                        .minimumScaleFactor(0.55)
                         .monospacedDigit()
+                        .layoutPriority(1)
                 }
 
                 ProgressView(value: progress)
                     .tint(TimiaTheme.primary)
-                    .scaleEffect(x: 1, y: 1.25, anchor: .center)
+                    .frame(maxWidth: .infinity, maxHeight: 6)
 
-                Color.clear.frame(height: 32)
+                Spacer(minLength: 8)
+
+                Color.clear
+                    .frame(height: actionSlotHeight)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
             }
-            .padding(10)
-            .frame(width: width, height: 96, alignment: .topLeading)
+            .padding(.horizontal, inset)
+            .padding(.top, inset)
+            .padding(.bottom, inset)
+            .frame(width: width, height: WorkspaceProjectCardLayout.bottomHeight, alignment: .top)
             .background(TimiaTheme.card)
         }
-        .frame(width: width, height: 216)
+        .frame(width: width, height: WorkspaceProjectCardLayout.height)
         .background(TimiaTheme.card)
         .clipShape(RoundedRectangle(cornerRadius: 15))
         .overlay {
@@ -428,18 +491,19 @@ private struct ProjectCardActionIcon: View {
     let systemName: String
     let accessibilityLabel: String
     var isDestructive = false
+    var side: CGFloat = 26
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: max(CGFloat(11), side * 0.46), weight: .semibold))
             .foregroundStyle(isDestructive ? Color.red : TimiaTheme.primary)
-            .frame(width: 30, height: 30)
+            .frame(width: side, height: side)
             .background(
                 (isDestructive ? Color.red : TimiaTheme.primary).opacity(0.045),
-                in: RoundedRectangle(cornerRadius: 7)
+                in: RoundedRectangle(cornerRadius: 6)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 7)
+                RoundedRectangle(cornerRadius: 6)
                     .stroke(
                         (isDestructive ? Color.red : TimiaTheme.primary).opacity(0.28),
                         lineWidth: 1
@@ -457,7 +521,7 @@ private struct AddProjectCard: View {
             Image(systemName: "plus.circle.fill").font(.system(size: 32)).foregroundStyle(TimiaTheme.primary)
             Text("添加项目").font(.subheadline.weight(.semibold))
         }
-        .frame(width: width, height: 216)
+        .frame(width: width, height: WorkspaceProjectCardLayout.height)
         .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 17))
         .overlay {
             RoundedRectangle(cornerRadius: 17)

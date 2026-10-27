@@ -10,7 +10,13 @@ struct WorkspacesView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 12, alignment: .top),
+                    GridItem(.flexible(), spacing: 12, alignment: .top)
+                ],
+                spacing: 12
+            ) {
                 ForEach(workspaces) { workspace in
                     WorkspaceCardSection(
                         workspace: workspace,
@@ -31,9 +37,11 @@ struct WorkspacesView: View {
 
                 Button { formMode = .create } label: { AddWorkspaceCard() }
                     .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
-            .padding()
+            .padding(12)
         }
+        .scrollIndicators(.hidden, axes: .vertical)
         .background(TimiaTheme.canvas)
         .overlay {
             if isLoading && workspaces.isEmpty { ProgressView("正在加载空间…") }
@@ -104,10 +112,8 @@ private struct WorkspaceCardSection: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
-    private var isOwner: Bool { workspace.myWorkspaceRole == "owner" }
-
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        VStack(spacing: 0) {
             NavigationLink {
                 WorkspaceDetailView(workspace: workspace)
             } label: {
@@ -116,45 +122,102 @@ private struct WorkspaceCardSection: View {
             .buttonStyle(.plain)
             .accessibilityLabel("打开空间：\(workspace.name)")
 
-            HStack(spacing: 8) {
-                Button(action: onFavorite) {
-                    WorkspaceCardActionIcon(
-                        systemName: workspace.isFavorite ? "heart.fill" : "heart",
-                        accessibilityLabel: workspace.isFavorite ? "取消收藏" : "收藏空间"
-                    )
-                }
-                .buttonStyle(.plain)
+            WorkspaceCardActionBar(
+                workspace: workspace,
+                onFavorite: onFavorite,
+                onEdit: onEdit,
+                onDelete: onDelete
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+        .background(TimiaTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color(uiColor: .separator).opacity(0.32), lineWidth: 1)
+        }
+        .shadow(color: TimiaTheme.shadow.opacity(0.35), radius: 8, y: 3)
+    }
+}
 
-                if isOwner {
-                    Button(action: onEdit) {
-                        WorkspaceCardActionIcon(systemName: "pencil", accessibilityLabel: "编辑空间")
-                    }
-                    .buttonStyle(.plain)
-                }
+private struct WorkspaceCardActionBar: View {
+    let workspace: WorkspaceCard
+    let onFavorite: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
 
-                NavigationLink {
-                    MembersManagementView(scope: .workspace(workspace))
-                } label: {
-                    WorkspaceCardActionIcon(
-                        systemName: isOwner ? "person.badge.plus" : "person.2",
-                        accessibilityLabel: isOwner ? "管理成员" : "查看成员"
-                    )
-                }
-                .buttonStyle(.plain)
+    private var isOwner: Bool { workspace.myWorkspaceRole == "owner" }
 
-                if isOwner {
-                    Button(action: onDelete) {
-                        WorkspaceCardActionIcon(
-                            systemName: "trash",
-                            accessibilityLabel: "删除空间",
-                            isDestructive: true
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+    var body: some View {
+        GeometryReader { proxy in
+            let metrics = fitted(buttonCount: isOwner ? 4 : 2, width: proxy.size.width)
+            actionRow(side: metrics.side, spacing: metrics.spacing)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
+        }
+        .frame(height: 36)
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+        .background(TimiaTheme.card)
+    }
+
+    /// Prefer a 36pt target. On a narrow column, shrink the side just enough to keep a 4pt gap.
+    private func fitted(buttonCount: Int, width: CGFloat) -> (side: CGFloat, spacing: CGFloat) {
+        guard width > 8 else { return (36, 4) }
+        let count = CGFloat(max(buttonCount, 1))
+        let gaps = max(count - 1, 0)
+        let minSpacing: CGFloat = 4
+        let maxSide: CGFloat = 36
+        let available = max(0, width - minSpacing * gaps)
+        var side = min(maxSide, available / count).rounded(.down)
+        if gaps > 0, side * count + minSpacing * gaps > width {
+            side = max(0, ((width - minSpacing * gaps) / count).rounded(.down))
+        }
+        let spacing = gaps > 0 ? min(8, max(0, (width - side * count) / gaps)) : 0
+        return (side, spacing)
+    }
+
+    @ViewBuilder
+    private func actionRow(side: CGFloat, spacing: CGFloat) -> some View {
+        HStack(spacing: spacing) {
+            Button(action: onFavorite) {
+                WorkspaceCardActionIcon(
+                    systemName: workspace.isFavorite ? "heart.fill" : "heart",
+                    accessibilityLabel: workspace.isFavorite ? "取消收藏" : "收藏空间",
+                    side: side
+                )
             }
-            .padding(.trailing, 12)
-            .padding(.bottom, 12)
+            .buttonStyle(.plain)
+
+            if isOwner {
+                Button(action: onEdit) {
+                    WorkspaceCardActionIcon(systemName: "pencil", accessibilityLabel: "编辑空间", side: side)
+                }
+                .buttonStyle(.plain)
+            }
+
+            NavigationLink {
+                MembersManagementView(scope: .workspace(workspace))
+            } label: {
+                WorkspaceCardActionIcon(
+                    systemName: isOwner ? "person.badge.plus" : "person.2",
+                    accessibilityLabel: isOwner ? "管理成员" : "查看成员",
+                    side: side
+                )
+            }
+            .buttonStyle(.plain)
+
+            if isOwner {
+                Button(action: onDelete) {
+                    WorkspaceCardActionIcon(
+                        systemName: "trash",
+                        accessibilityLabel: "删除空间",
+                        isDestructive: true,
+                        side: side
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }
@@ -166,69 +229,64 @@ private struct WorkspaceCardTile: View {
         let cardForeground = TimiaTheme.foreground(on: workspace.color)
 
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(workspace.name)
-                        .font(.title2.bold())
+            VStack(alignment: .leading, spacing: 8) {
+                Text(workspace.name)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(cardForeground)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+
+                Text(workspaceDescription)
+                    .font(.system(size: 12))
+                    .foregroundStyle(cardForeground.opacity(0.82))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+
+                WorkspaceMetadataRow(label: "负责人", foreground: cardForeground) {
+                    WorkspacePeoplePreview(people: workspace.owners, foreground: cardForeground)
+                }
+
+                WorkspaceMetadataRow(label: "成员", foreground: cardForeground) {
+                    WorkspacePeoplePreview(people: workspace.members, foreground: cardForeground)
+                }
+
+                WorkspaceMetadataRow(label: "项目", foreground: cardForeground) {
+                    Text("\(workspace.projectCount) 个")
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(cardForeground)
-                        .lineLimit(2)
-
-                    Text(workspaceDescription)
-                        .font(.body)
-                        .foregroundStyle(cardForeground.opacity(0.82))
-                        .lineLimit(3)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    WorkspaceMetadataRow(label: "负责人", foreground: cardForeground) {
-                        WorkspacePeoplePreview(people: workspace.owners, foreground: cardForeground)
-                    }
-
-                    WorkspaceMetadataRow(label: "成员", foreground: cardForeground) {
-                        WorkspacePeoplePreview(people: workspace.members, foreground: cardForeground)
-                    }
-
-                    WorkspaceMetadataRow(label: "项目", foreground: cardForeground) {
-                        Text("\(workspace.projectCount) 个")
-                            .font(.headline)
-                            .foregroundStyle(cardForeground)
-                            .monospacedDigit()
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(TimiaTheme.customSurface(workspace.color))
 
             Divider()
 
-            HStack(spacing: 10) {
-                HStack(spacing: 5) {
-                    WorkspaceStatusMetric(label: "待", count: workspace.todoCount, color: Color(hex: "#94A3B8"))
-                    WorkspaceStatusMetric(label: "进", count: workspace.doingCount, color: Color(hex: "#3B82F6"))
-                    WorkspaceStatusMetric(label: "完", count: workspace.doneCount, color: Color(hex: "#10B981"))
-                    WorkspaceStatusMetric(label: "归", count: workspace.archivedCount, color: Color(hex: "#71717A"))
-                }
-
-                Spacer(minLength: 0)
-
-                Color.clear
-                    .frame(width: workspace.myWorkspaceRole == "owner" ? 184 : 88, height: 40)
+            ViewThatFits(in: .horizontal) {
+                statusRow(spacing: 6, fontSize: 11)
+                statusRow(spacing: 3, fontSize: 10)
+                statusRow(spacing: 2, fontSize: 9)
             }
-            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
             .background(TimiaTheme.card)
         }
-        .frame(maxWidth: .infinity)
-        .background(TimiaTheme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color(uiColor: .separator).opacity(0.32), lineWidth: 1)
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+
+    private func statusRow(spacing: CGFloat, fontSize: CGFloat) -> some View {
+        HStack(spacing: spacing) {
+            WorkspaceStatusMetric(label: "待", count: workspace.todoCount, color: Color(hex: "#94A3B8"), fontSize: fontSize)
+            WorkspaceStatusMetric(label: "进", count: workspace.doingCount, color: Color(hex: "#3B82F6"), fontSize: fontSize)
+            WorkspaceStatusMetric(label: "完", count: workspace.doneCount, color: Color(hex: "#10B981"), fontSize: fontSize)
+            WorkspaceStatusMetric(label: "归", count: workspace.archivedCount, color: Color(hex: "#71717A"), fontSize: fontSize)
         }
-        .shadow(color: TimiaTheme.shadow.opacity(0.35), radius: 8, y: 3)
-        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var workspaceDescription: String {
@@ -247,15 +305,17 @@ private struct WorkspaceMetadataRow<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Text(label)
-                .font(.subheadline)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(foreground)
-                .frame(width: 48, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(width: 36, alignment: .leading)
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(minHeight: 34)
+        .frame(minHeight: 28)
     }
 }
 
@@ -269,12 +329,14 @@ private struct WorkspacePeoplePreview: View {
                 .font(.caption)
                 .foregroundStyle(foreground.opacity(0.52))
         } else {
-            HStack(spacing: -8) {
+            HStack(spacing: -6) {
                 ForEach(Array(people.prefix(2)), id: \.id) { person in
                     Text(personInitial(person))
-                        .font(.subheadline.bold())
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(TimiaTheme.primary)
-                        .frame(width: 34, height: 34)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(width: 28, height: 28)
                         .background(TimiaTheme.surface, in: Circle())
                         .overlay { Circle().stroke(TimiaTheme.surface, lineWidth: 2) }
                         .accessibilityLabel(person.displayName)
@@ -282,9 +344,11 @@ private struct WorkspacePeoplePreview: View {
 
                 if people.count > 2 {
                     Text("+\(people.count - 2)")
-                        .font(.caption.bold())
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 34, height: 34)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(width: 28, height: 28)
                         .background(Color(uiColor: .systemGray6), in: Circle())
                         .overlay { Circle().stroke(TimiaTheme.surface, lineWidth: 2) }
                 }
@@ -303,14 +367,15 @@ private struct WorkspaceStatusMetric: View {
     let label: String
     let count: Int
     let color: Color
+    var fontSize: CGFloat = 11
 
     var body: some View {
         HStack(spacing: 2) {
             Circle()
                 .fill(color)
-                .frame(width: 7, height: 7)
+                .frame(width: 6, height: 6)
             Text("\(label) \(count)")
-                .font(.caption.bold())
+                .font(.system(size: fontSize, weight: .bold))
                 .foregroundStyle(color)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -323,18 +388,19 @@ private struct WorkspaceCardActionIcon: View {
     let systemName: String
     let accessibilityLabel: String
     var isDestructive = false
+    var side: CGFloat = 36
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.title3.bold())
+            .font(.system(size: side * 0.44, weight: .bold))
             .foregroundStyle(isDestructive ? Color.red : TimiaTheme.primary)
-            .frame(width: 40, height: 40)
+            .frame(width: side, height: side)
             .background(
                 (isDestructive ? Color.red : TimiaTheme.primary).opacity(0.035),
-                in: RoundedRectangle(cornerRadius: 8)
+                in: RoundedRectangle(cornerRadius: 7)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 7)
                     .stroke(
                         (isDestructive ? Color.red : TimiaTheme.primary).opacity(0.28),
                         lineWidth: 1
@@ -346,14 +412,17 @@ private struct WorkspaceCardActionIcon: View {
 
 private struct AddWorkspaceCard: View {
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Image(systemName: "plus.circle.fill")
-                .font(.system(size: 34))
+                .font(.system(size: 28))
                 .foregroundStyle(TimiaTheme.primary)
-            Text("添加空间").font(.subheadline.weight(.semibold))
+            Text("添加空间")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, minHeight: 242)
-        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 248)
+        .padding(12)
         .background(TimiaTheme.card, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             RoundedRectangle(cornerRadius: 18)
