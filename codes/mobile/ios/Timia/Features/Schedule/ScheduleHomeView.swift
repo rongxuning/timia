@@ -27,19 +27,23 @@ struct SchedulePriorityStyle {
 
 /// Shared sizes for the schedule idle dock (mode cluster, create, mic, range picker).
 enum ScheduleDockMetrics {
-    /// Square control. 30pt is about 20% under the previous 38pt target.
-    static let controlDiameter: CGFloat = 30
-    static let clusterPadding: CGFloat = 3
-    static let barTopPadding: CGFloat = 8
+    /// Square control shared by the mode, add, and voice icons. 36pt is +20% from 30pt.
+    static let controlDiameter: CGFloat = 36
+    /// Dock tool glyph. Tracks the control (+20% from a 17pt body mark in the old 30pt frame).
+    static var toolIconFont: Font {
+        .system(size: controlDiameter * CGFloat(17) / 30, weight: .semibold)
+    }
+    static let clusterPadding: CGFloat = 4
+    static let barTopPadding: CGFloat = 10
     /// Side inset. Wider than the page margin so the mode cluster and the
     /// create/mic pair sit closer to the middle of the bar.
     static let barHorizontalPadding: CGFloat = 40
     /// Bottom padding when the dock is not drawing over a home indicator.
-    static let compactBarBottomPadding: CGFloat = 8
+    static let compactBarBottomPadding: CGFloat = 10
     /// Distance kept between the tools and the physical bottom edge once the
     /// dock extends into the home-indicator inset. Replaces the tall empty
     /// band (system inset + padding) under the tools.
-    static let barBottomClearance: CGFloat = 20
+    static let barBottomClearance: CGFloat = 24
     /// Gap between the floating day/week/month/year picker and the mode cluster.
     static let rangePickerGap: CGFloat = 10
 
@@ -884,13 +888,14 @@ struct ScheduleHomeView: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: "plus")
-                .font(.body.weight(.semibold))
+                .font(ScheduleDockMetrics.toolIconFont)
                 .foregroundStyle(.primary)
                 .frame(
                     width: ScheduleDockMetrics.controlDiameter,
                     height: ScheduleDockMetrics.controlDiameter
                 )
-                .contentShape(Rectangle())
+                .background(TimiaTheme.primary.opacity(0.22), in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
@@ -914,7 +919,7 @@ struct ScheduleHomeView: View {
             }
         } label: {
             Image(systemName: symbol)
-                .font(.body.weight(.semibold))
+                .font(ScheduleDockMetrics.toolIconFont)
                 .foregroundStyle(contentMode == value ? .white : .secondary)
                 .frame(
                     width: ScheduleDockMetrics.controlDiameter,
