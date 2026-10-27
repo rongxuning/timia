@@ -100,15 +100,25 @@ final class TimelineGeometryTests: XCTestCase {
 }
 
 final class ScheduleDockMetricsTests: XCTestCase {
+    func testDockMetricsAreTwentyPercentLarger() {
+        XCTAssertEqual(ScheduleDockMetrics.controlDiameter, 36)
+        XCTAssertEqual(ScheduleDockMetrics.clusterPadding, 4)
+        XCTAssertEqual(ScheduleDockMetrics.barTopPadding, 10)
+        XCTAssertEqual(ScheduleDockMetrics.compactBarBottomPadding, 10)
+        XCTAssertEqual(ScheduleDockMetrics.barBottomClearance, 24)
+    }
+
     func testHomeIndicatorPhoneShortensTheBandUnderTheTools() {
         let padding = ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 34)
         XCTAssertEqual(padding, ScheduleDockMetrics.barBottomClearance)
+        XCTAssertEqual(padding, 24)
         XCTAssertLessThan(padding, 34)
     }
 
     func testSmallerInsetsStayClearOfTheSystemBand() {
-        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 0), 8)
-        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 8), 8)
+        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 0), 10)
+        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 8), 10)
+        XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 10), 10)
         XCTAssertEqual(ScheduleDockMetrics.barBottomPadding(safeAreaBottom: 12), 12)
     }
 
@@ -118,6 +128,7 @@ final class ScheduleDockMetricsTests: XCTestCase {
 
     func testIdleContentClearanceCoversTheFloatingCapsules() {
         let phone = ScheduleDockMetrics.idleContentClearance(safeAreaBottom: 34)
+        XCTAssertEqual(phone, 78)
         XCTAssertEqual(
             phone,
             ScheduleDockMetrics.barTopPadding
@@ -127,6 +138,7 @@ final class ScheduleDockMetricsTests: XCTestCase {
         )
 
         let compact = ScheduleDockMetrics.idleContentClearance(safeAreaBottom: 0)
+        XCTAssertEqual(compact, 64)
         XCTAssertEqual(
             compact,
             ScheduleDockMetrics.barTopPadding

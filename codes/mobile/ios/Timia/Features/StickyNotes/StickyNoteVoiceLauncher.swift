@@ -248,7 +248,7 @@ struct VoiceMicButton: View {
                         .tint(.primary)
                 } else {
                     Image(systemName: "mic")
-                        .font(.body.weight(.semibold))
+                        .font(ScheduleDockMetrics.toolIconFont)
                 }
             }
             .foregroundStyle(.primary)
@@ -256,7 +256,8 @@ struct VoiceMicButton: View {
                 width: ScheduleDockMetrics.controlDiameter,
                 height: ScheduleDockMetrics.controlDiameter
             )
-            .contentShape(Rectangle())
+            .background(TimiaTheme.primary.opacity(0.22), in: Circle())
+            .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .disabled(isBusy)
