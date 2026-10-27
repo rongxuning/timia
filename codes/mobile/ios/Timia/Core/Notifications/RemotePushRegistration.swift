@@ -88,7 +88,9 @@ final class TimiaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         // Expected on the simulator and on builds without the push capability.
     }
 
-    func userNotificationCenter(
+    /// The center calls this off the main actor. The class is main-actor isolated
+    /// through `UIApplicationDelegate`, so the witness has to opt out.
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void

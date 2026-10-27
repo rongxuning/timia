@@ -45,6 +45,6 @@ enum NotificationTimeText {
 
     static func string(from iso: String) -> String {
         guard let date = parse(iso) else { return iso }
-        return date.formatted(date: .abbreviated, time: .short)
+        return date.formatted(date: .abbreviated, time: .shortened)
     }
 }
