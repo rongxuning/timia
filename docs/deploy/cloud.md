@@ -181,7 +181,7 @@ APNs 与运营发送（可选。留空则收件箱照常，推送保持 `pending
 | `APNS_KEY_P8` | `.p8` 全文。可写成一行，把换行换成 `\n`，或把 PEM 做 base64。不要提交到 git |
 | `APNS_USE_SANDBOX` | `true` 走 `api.sandbox.push.apple.com`（仅 sandbox token 的服务端测试）。当前 iOS 客户端是 production，TestFlight / App Store 用 `false` |
 
-真机要弹出系统通知，还需要：Apple 账号开通 Push Notifications，并下载 APNs Auth Key（`.p8`，不是证书密码）。iOS 的 `aps-environment` 是 `production`，`APNsDeviceToken.environment` 为 `production`（TestFlight / App Store，没有 Debug/Release 分叉）。服务器设 `APNS_USE_SANDBOX=false`。场景的「移动推送」要打开（`push_enabled`）。没有密钥时 App 仍可注册 token，通知只出现在收件箱。管理端「发送通知」不走场景推送开关，只写入收件箱。
+真机要弹出系统通知，还需要：Apple 账号开通 Push Notifications，并下载 APNs Auth Key（`.p8`，不是证书密码）。iOS 的 `aps-environment` 是 `production`，`APNsDeviceToken.environment` 为 `production`（TestFlight / App Store，没有 Debug/Release 分叉）。服务器设 `APNS_USE_SANDBOX=false`。内置场景默认打开「移动推送」（`push_enabled=true`）。升级会把仍关闭的内置场景回填为打开；之后管理员仍可在场景卡关掉单个场景。没有密钥时 App 仍可注册 token，通知只出现在收件箱，投递保持 `pending`。管理端「发送通知」没有场景，同样记为 `pending` 并走 APNs。
 
 示例 `DATABASE_URL`：
 

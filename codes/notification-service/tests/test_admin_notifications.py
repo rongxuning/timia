@@ -36,7 +36,7 @@ def test_admin_broadcast_excludes_sender_and_inactive(client, db):
     rows = db.query(NotificationDelivery).all()
     assert len(rows) == 1
     assert rows[0].user_id == bob.id
-    assert rows[0].push_status == "skipped"
+    assert rows[0].push_status == "pending"
     inbox = client.get("/v1/inbox", headers=_auth(bob)).json()
     assert inbox["items"][0]["title"] == "维护通知"
     assert inbox["items"][0]["sender_display_name"] == "admin"
