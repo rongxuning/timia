@@ -41,6 +41,37 @@ struct MobileDeviceResponse: Decodable, Sendable {
     let deviceId: String
 }
 
+struct PhoneCodeRequest: Encodable, Sendable {
+    let phone: String
+    let installationId: String
+}
+
+struct PhoneCodeResponse: Decodable, Sendable {
+    let challengeId: String
+    let nonce: String
+    let devCode: String?
+}
+
+struct PhoneLoginRequest: Encodable, Sendable {
+    let phone: String
+    let code: String
+    let installationId: String
+    let challengeId: String
+    let nonce: String
+    let signature: String
+}
+
+struct OAuthLoginRequest: Encodable, Sendable {
+    let installationId: String
+    let challengeId: String
+    let nonce: String
+    let signature: String
+    let idToken: String?
+    let code: String?
+    let redirectUri: String?
+    let codeVerifier: String?
+}
+
 struct MobilePasswordLoginRequest: Encodable, Sendable {
     let email: String
     let password: String

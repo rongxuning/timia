@@ -1,3 +1,7 @@
 TIMIA_API_BASE_URL = https:/$()/timia.online/core-service
 TIMIA_FILE_API_BASE_URL = https:/$()/timia.online/file-service
 TIMIA_NOTIFICATION_API_BASE_URL = https:/$()/timia.online/notification-service
+TIMIA_GOOGLE_CLIENT_ID =
+TIMIA_GOOGLE_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/google/callback
+TIMIA_WECHAT_APP_ID =
+TIMIA_WECHAT_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/wechat/callback

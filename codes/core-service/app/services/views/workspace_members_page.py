@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.members_page import AssignableUserOut, MembershipRowOut, WorkspaceMembersPageOut
 from app.services.permissions import WORKSPACE_OWNER, require_workspace_member
@@ -35,7 +35,7 @@ def build_workspace_members_page(db: Session, workspace_id: uuid.UUID, user: Use
             MembershipRowOut(
                 id=str(m.id),
                 user_id=str(u.id),
-                email=u.email,
+                email=public_email(u.email),
                 display_name=u.display_name,
                 role=m.role,
                 status=m.status,
@@ -47,7 +47,7 @@ def build_workspace_members_page(db: Session, workspace_id: uuid.UUID, user: Use
         select(User).where(User.status == "active").order_by(User.display_name.asc(), User.email.asc())
     ).all()
     assignable_users = [
-        AssignableUserOut(user_id=str(u.id), email=u.email, display_name=u.display_name) for u in assignable
+        AssignableUserOut(user_id=str(u.id), email=public_email(u.email), display_name=u.display_name) for u in assignable
     ]
 
     return WorkspaceMembersPageOut(

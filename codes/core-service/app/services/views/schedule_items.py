@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.item import Item
 from app.models.project import Project, ProjectMember
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.schedule import ScheduleTaskItemOut
 from app.services.item_api import build_item_out
@@ -230,7 +230,7 @@ def build_my_schedule_dashboard(db: Session, user: User, items: list[ScheduleTas
         **base,
         **quick,
         "display_name": user.display_name,
-        "email": user.email,
+        "email": public_email(user.email),
         "workspace_count": len(workspace_ids),
         "project_count": len(project_keys),
     }

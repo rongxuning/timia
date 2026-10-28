@@ -8,7 +8,7 @@ from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.item import Item
 from app.models.project import Project, ProjectFavorite, ProjectMember
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import WorkspaceMember
 from app.schemas.project import (
     ProjectCreate,
@@ -257,7 +257,7 @@ def list_project_members(
             ProjectMemberOut(
                 id=str(m.id),
                 user_id=str(u.id),
-                email=u.email,
+                email=public_email(u.email),
                 display_name=u.display_name,
                 role=m.role,
                 status=m.status,
@@ -329,7 +329,7 @@ def add_project_member(
     return ProjectMemberOut(
         id=str(member_row.id),
         user_id=str(target_user_id),
-        email=u.email if u else "unknown@example.com",
+        email=public_email(u.email) if u else "unknown@example.com",
         display_name=u.display_name if u else "Unknown",
         role=member_row.role,
         status=member_row.status,
@@ -377,7 +377,7 @@ def update_project_member_role(
     return ProjectMemberOut(
         id=str(m.id),
         user_id=str(user_id),
-        email=u.email if u else "unknown@example.com",
+        email=public_email(u.email) if u else "unknown@example.com",
         display_name=u.display_name if u else "Unknown",
         role=m.role,
         status=m.status,

@@ -4,4 +4,8 @@
 TIMIA_API_BASE_URL = http:/$()/127.0.0.1:8080/core-service
 TIMIA_FILE_API_BASE_URL = http:/$()/127.0.0.1:8080/file-service
 TIMIA_NOTIFICATION_API_BASE_URL = http:/$()/127.0.0.1:8080/notification-service
+TIMIA_GOOGLE_CLIENT_ID =
+TIMIA_GOOGLE_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/google/callback
+TIMIA_WECHAT_APP_ID =
+TIMIA_WECHAT_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/wechat/callback
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG

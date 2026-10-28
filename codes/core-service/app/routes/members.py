@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.deps import get_db
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace import MemberAdd, MemberOut, MemberRoleUpdate
 from app.services.activity import log_activity
@@ -40,7 +40,7 @@ def list_members(
             MemberOut(
                 id=str(m.id),
                 user_id=str(u.id),
-                email=u.email,
+                email=public_email(u.email),
                 display_name=u.display_name,
                 role=m.role,
                 status=m.status,
@@ -113,7 +113,7 @@ def add_member(
     return MemberOut(
         id=str(member_row.id),
         user_id=str(target_user.id),
-        email=target_user.email,
+        email=public_email(target_user.email),
         display_name=target_user.display_name,
         role=member_row.role,
         status=member_row.status,
@@ -165,7 +165,7 @@ def update_member_role(
     return MemberOut(
         id=str(m.id),
         user_id=str(m.user_id),
-        email=u.email if u else "unknown@example.com",
+        email=public_email(u.email) if u else "unknown@example.com",
         display_name=u.display_name if u else "Unknown",
         role=m.role,
         status=m.status,

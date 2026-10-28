@@ -41,7 +41,7 @@ class WorkspaceOut(BaseModel):
 class MemberOut(BaseModel):
     id: str
     user_id: str
-    email: EmailStr
+    email: str
     display_name: str
     role: str
     status: str

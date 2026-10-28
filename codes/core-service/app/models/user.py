@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import CheckConstraint, Integer, String
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -19,10 +20,17 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
     )
 
-    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(320), unique=True, index=True, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     display_name: Mapped[str] = mapped_column(String(120), unique=True, index=True, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")  # active/disabled
+    # active / disabled / merged. merged accounts are deactivated after link-merge.
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    merged_into_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     system_role: Mapped[str] = mapped_column(
         String(20), nullable=False, default=SYSTEM_ROLE_USER
     )  # admin: 系统管理员; user: 普通账户
@@ -36,4 +44,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 def user_id(subject: str) -> uuid.UUID:
     return uuid.UUID(subject)
+
+
+def public_email(email: str | None) -> str:
+    """API responses stay a string so existing clients keep decoding email."""
+    return email or ""
 

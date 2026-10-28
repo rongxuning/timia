@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.comment import Comment
 from app.models.item import Item
 from app.models.project import Project, ProjectMember
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace
 from app.schemas.views.task_drawer import (
     ItemDetailCommentOut,
@@ -58,7 +58,7 @@ def build_task_drawer_context(
         current_user_id=str(user.id),
         current_user_display_name=user.display_name,
         member_options=[
-            TaskDrawerMemberOptionOut(user_id=str(u.id), email=u.email, display_name=u.display_name) for _m, u in rows
+            TaskDrawerMemberOptionOut(user_id=str(u.id), email=public_email(u.email), display_name=u.display_name) for _m, u in rows
         ],
     )
 

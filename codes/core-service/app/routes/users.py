@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_system_admin
 from app.db.deps import get_db
 from app.models.project import Project
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.user import (
     MembershipBrief,
@@ -38,7 +38,7 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(require_system_a
         out.append(
             UserOut(
                 id=str(u.id),
-                email=u.email,
+                email=public_email(u.email),
                 display_name=u.display_name,
                 status=u.status,
                 system_role=u.system_role,
@@ -61,7 +61,7 @@ def list_assignable_users(
     return [
         UserAssignableOut(
             id=str(u.id),
-            email=u.email,
+            email=public_email(u.email),
             display_name=u.display_name,
             status=u.status,
         )

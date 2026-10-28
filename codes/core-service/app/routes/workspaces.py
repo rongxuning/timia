@@ -10,7 +10,7 @@ from app.models.activity import ActivityLog
 from app.models.comment import Comment
 from app.models.item import Item
 from app.models.project import Project
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspace_cards import WorkspaceCardOut, WorkspaceCardUser
 from app.schemas.workspace import (
@@ -104,7 +104,7 @@ def list_workspace_cards(db: Session = Depends(get_db), user: User = Depends(get
     for m, u in member_rows:
         card_user = WorkspaceCardUser(
             id=str(u.id),
-            email=u.email,
+            email=public_email(u.email),
             display_name=u.display_name,
             role=m.role,
             status=m.status,

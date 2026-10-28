@@ -58,6 +58,32 @@ def login_message(
     ).encode()
 
 
+def phone_login_message(
+    challenge_id: uuid.UUID,
+    nonce: str,
+    installation_id: str,
+    phone: str,
+    code: str,
+) -> bytes:
+    return (
+        f"timia-mobile-phone\n{challenge_id}\n{nonce}\n{installation_id}\n"
+        f"{secret_hash(phone)}\n{secret_hash(code)}"
+    ).encode()
+
+
+def oauth_login_message(
+    challenge_id: uuid.UUID,
+    nonce: str,
+    installation_id: str,
+    provider: str,
+    credential: str,
+) -> bytes:
+    return (
+        f"timia-mobile-oauth\n{challenge_id}\n{nonce}\n{installation_id}\n"
+        f"{provider}\n{secret_hash(credential)}"
+    ).encode()
+
+
 def exchange_message(
     challenge_id: uuid.UUID,
     nonce: str,

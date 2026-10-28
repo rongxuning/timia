@@ -782,6 +782,407 @@
         }
       }
     },
+    "/auth/mobile/login/phone/code": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Send Phone Code",
+        "operationId": "send_phone_code_auth_mobile_login_phone_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneCodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/login/phone/verify": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Verify Phone Login",
+        "operationId": "verify_phone_login_auth_mobile_login_phone_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/login/google": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Google Login",
+        "operationId": "google_login_auth_mobile_login_google_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/login/wechat": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Wechat Login",
+        "operationId": "wechat_login_auth_mobile_login_wechat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/identities/phone": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Link Phone Identity",
+        "operationId": "link_phone_identity_auth_mobile_identities_phone_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/identities/google": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Link Google Identity",
+        "operationId": "link_google_identity_auth_mobile_identities_google_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/identities/wechat": {
+      "post": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Link Wechat Identity",
+        "operationId": "link_wechat_identity_auth_mobile_identities_wechat_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MobileTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/oauth/{provider}/callback": {
+      "get": {
+        "tags": [
+          "mobile-auth"
+        ],
+        "summary": "Oauth App Callback",
+        "operationId": "oauth_app_callback_auth_mobile_oauth__provider__callback_get",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/mobile/token/exchange": {
       "post": {
         "tags": [
@@ -12224,7 +12625,6 @@
           },
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email"
           },
           "display_name": {
@@ -17413,7 +17813,6 @@
           },
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email"
           },
           "display_name": {
@@ -17536,7 +17935,6 @@
           },
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email"
           },
           "display_name": {
@@ -17643,7 +18041,6 @@
           },
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email"
           },
           "display_name": {
@@ -17713,7 +18110,8 @@
             "enum": [
               "register",
               "login",
-              "exchange"
+              "exchange",
+              "oauth"
             ],
             "title": "Purpose"
           }
@@ -18607,6 +19005,89 @@
         ],
         "title": "NetWorthPointOut"
       },
+      "OAuthLoginRequest": {
+        "properties": {
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 64,
+            "title": "Signature"
+          },
+          "id_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Token"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Uri"
+          },
+          "code_verifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Verifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "challenge_id",
+          "nonce",
+          "signature"
+        ],
+        "title": "OAuthLoginRequest"
+      },
       "PartyViewOut": {
         "properties": {
           "id": {
@@ -18651,6 +19132,112 @@
           "fx_incomplete"
         ],
         "title": "PartyViewOut"
+      },
+      "PhoneCodeOut": {
+        "properties": {
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "title": "Nonce"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "dev_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dev Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "nonce",
+          "expires_at"
+        ],
+        "title": "PhoneCodeOut"
+      },
+      "PhoneCodeRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 8,
+            "title": "Phone"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "installation_id"
+        ],
+        "title": "PhoneCodeRequest"
+      },
+      "PhoneLoginRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 8,
+            "title": "Phone"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "title": "Code"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Installation Id"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 64,
+            "title": "Signature"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "code",
+          "installation_id",
+          "challenge_id",
+          "nonce",
+          "signature"
+        ],
+        "title": "PhoneLoginRequest"
       },
       "PlanApplyRequest": {
         "properties": {

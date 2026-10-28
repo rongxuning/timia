@@ -83,6 +83,37 @@ final class AppSession: ObservableObject {
         state = .signedIn(me)
     }
 
+    func sendPhoneCode(_ phone: String) async throws -> PhoneCodeResponse {
+        try await credentials.sendPhoneCode(phone)
+    }
+
+    func loginWithPhone(phone: String, code: String, challengeId: String, nonce: String) async throws {
+        try await credentials.verifyPhoneLogin(
+            phone: phone,
+            code: code,
+            challengeId: challengeId,
+            nonce: nonce
+        )
+        let me = try await api.request("/auth/me", response: CurrentUser.self)
+        state = .signedIn(me)
+    }
+
+    func loginWithOAuth(
+        provider: String,
+        code: String,
+        redirectURI: String?,
+        codeVerifier: String?
+    ) async throws {
+        try await credentials.oauthLogin(
+            provider: provider,
+            code: code,
+            redirectURI: redirectURI,
+            codeVerifier: codeVerifier
+        )
+        let me = try await api.request("/auth/me", response: CurrentUser.self)
+        state = .signedIn(me)
+    }
+
     func register(email: String, displayName: String, password: String) async throws {
         _ = try await api.request(
             "/auth/register",

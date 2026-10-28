@@ -40,6 +40,24 @@ enum APIError: LocalizedError, Equatable {
             return "所选负责人无效，请重新选择"
         case "version_conflict":
             return "任务已被他人更新，请关闭后重试"
+        case "invalid_code":
+            return "验证码不正确"
+        case "invalid_phone":
+            return "请输入有效手机号"
+        case "resend_too_soon":
+            return "请稍后再获取验证码"
+        case "phone_rate_limited":
+            return "今天获取验证码的次数已用完"
+        case "provider_not_configured":
+            #if DEBUG
+            return "未配置"
+            #else
+            return "暂不可用"
+            #endif
+        case "provider_unavailable", "sms_unavailable", "sms_not_configured":
+            return "登录服务暂时不可用"
+        case "invalid_provider_token", "invalid_provider_audience":
+            return "第三方登录失败，请重试"
         default:
             if status == 404 { return "未找到" }
             return message

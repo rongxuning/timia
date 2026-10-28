@@ -75,6 +75,14 @@ resolve_identity → resolve_or_create_user → validate_device → issue_device
 POST   /auth/mobile/devices/challenge
 POST   /auth/mobile/devices/register
 POST   /auth/mobile/login/password
+POST   /auth/mobile/login/phone/code
+POST   /auth/mobile/login/phone/verify
+POST   /auth/mobile/login/google
+POST   /auth/mobile/login/wechat
+POST   /auth/mobile/identities/phone
+POST   /auth/mobile/identities/google
+POST   /auth/mobile/identities/wechat
+GET    /auth/mobile/oauth/{provider}/callback
 POST   /auth/mobile/token/exchange
 POST   /auth/mobile/token/refresh/challenge
 POST   /auth/mobile/token/refresh
@@ -109,18 +117,19 @@ DELETE /auth/mobile/sessions/{session_id}
 
 ### 微信
 
-- iOS 使用微信 OpenSDK 与 Universal Links 获取授权 Code。
-- AppSecret 只保存在后端，由后端交换微信 Token。
+- 当前 iOS 使用 `ASWebAuthenticationSession` 打开微信网站授权，服务端用 code 换票。微信 OpenSDK 可以以后替换客户端，服务端接口不变。
+- AppSecret 只保存在后端。
 - 优先使用 `unionid`，不可用时使用 `(appid, openid)` 作为身份主键。
-- 登录 State 必须与设备和一次性 Challenge 绑定。
+- 登录 State 与设备签名绑定。
 
 ## 7. 账号绑定规则
 
-- 不因 Apple/Google 返回相同邮箱而自动合并账号。
-- 已登录用户绑定新身份时要求近期重新认证。
-- 第三方身份已绑定其他用户时拒绝重复绑定。
-- 解绑后至少保留一种可登录方式。
-- 手机号更换、账号合并和全部设备退出属于高风险操作，需要独立确认和审计。
+绑定与合并以 [ios-multi-provider-auth.md](ios-multi-provider-auth.md) 为准：
+
+- 不因 Apple/Google/微信返回相同邮箱而自动合并。OAuth 邮箱不写入 `users.email`。
+- 已登录用户绑定空闲身份时，身份挂到当前用户。
+- 该身份已属于另一用户时合并：`created_at` 更早的账号留下，数据迁过去，较新账号标记 `merged`。
+- 被合并账号的会话撤销，并为留下的账号重新签发当前设备会话。
 
 ## 8. 第一阶段范围
 
@@ -135,11 +144,11 @@ DELETE /auth/mobile/sessions/{session_id}
 7. 旧 Access Token 一次性交换设备会话。
 8. 网络失败不误退出、确认会话无效才清理 Keychain。
 
-手机验证码、Apple、Google、微信和 App Attest 在后续阶段接入，共享本方案的身份解析和设备会话签发基础。
+手机验证码、Google、微信已按 [ios-multi-provider-auth.md](ios-multi-provider-auth.md) 接入。Apple 与 App Attest 仍未做。
 
 ## 9. 安全与验证要求
 
-- 全链路 TLS，Token、验证码、设备签名和密码不得进入日志。
+- 全链路 TLS。生产环境不得把 Token、验证码、设备签名和密码写入日志。本地短信桩（`SMS_PROVIDER` 为空）会记录验证码。
 - Refresh Token 使用高熵随机值，数据库仅保存 SHA-256 哈希。
 - Refresh Token 每次成功使用后轮换；刷新请求支持幂等请求 ID，避免网络丢包造成误撤销。
 - Access Token 使用移动端 Audience，不与 Web Token 混用。
