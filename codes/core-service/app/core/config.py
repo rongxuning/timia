@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     google_redirect_uri: str = ""
     wechat_app_id: str = ""
     wechat_app_secret: str = ""
+    # Website app (QR connect) and mobile app (OpenSDK). Empty client-specific
+    # id falls back to WECHAT_APP_ID / WECHAT_APP_SECRET.
+    wechat_web_app_id: str = ""
+    wechat_web_app_secret: str = ""
+    wechat_mobile_app_id: str = ""
+    wechat_mobile_app_secret: str = ""
+    wechat_web_redirect_uri: str = ""
+    # user-service front door. Core still exchanges mobile codes in this phase.
+    # USER_INTERNAL_TOKEN matches user-service. Do not commit a real token.
+    user_service_base: str = ""
+    user_internal_token: str = ""
     # Dev only. Accepts unsigned dev:google / dev:wechat credentials. Keep false in production.
     oauth_dev_mode: bool = False
 

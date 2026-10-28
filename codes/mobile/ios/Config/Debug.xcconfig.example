@@ -8,4 +8,7 @@ TIMIA_GOOGLE_CLIENT_ID =
 TIMIA_GOOGLE_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/google/callback
 TIMIA_WECHAT_APP_ID =
 TIMIA_WECHAT_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/wechat/callback
+TIMIA_WECHAT_UNIVERSAL_LINK = https:/$()/timia.online/wechat/
+# Must be the mobile app id itself, for example wx0123456789abcdef.
+TIMIA_WECHAT_URL_SCHEME =
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG

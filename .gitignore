@@ -21,6 +21,7 @@ codes/file-service/.mypy_cache/
 codes/file-service/.env
 
 codes/notification-service/.venv/
+codes/user-service/.venv/
 codes/notification-service/.pytest_cache/
 codes/notification-service/.ruff_cache/
 codes/notification-service/.mypy_cache/

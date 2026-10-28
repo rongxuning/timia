@@ -68,7 +68,31 @@ final class TimiaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        WeChatSDKBridge.setAuthCompletion { errCode, code, state in
+            let codeText = code
+            let stateText = state
+            Task { @MainActor in
+                WeChatAuthInbox.store(errCode: errCode, code: codeText, state: stateText)
+            }
+        }
         return true
+    }
+
+    func application(
+        _ app: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+    ) -> Bool {
+        WeChatSDKBridge.handleOpenURL(url)
+    }
+
+    func application(
+        _ application: UIApplication,
+        continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+    ) -> Bool {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb else { return false }
+        return WeChatSDKBridge.handleUniversalLink(userActivity)
     }
 
     func application(

@@ -10,6 +10,14 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+      {
+        source: "/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+      {
         source: "/fonts/:path*",
         headers: [
           {
@@ -24,7 +32,7 @@ const nextConfig = {
     return [
       {
         source: "/auth/:path*",
-        destination: "http://localhost:8000/auth/:path*",
+        destination: "http://localhost:8004/auth/:path*",
       },
       {
         source: "/sticky-notes/:path*",

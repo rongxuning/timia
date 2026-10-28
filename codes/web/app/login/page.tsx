@@ -41,10 +41,43 @@ export default function LoginPage() {
     }
     if (emailParam) params.delete("email");
 
-    if (sessionExpired || emailParam) {
+    const wechatReturn = params.get("wechat") === "1";
+    const wechatError = params.get("wechat_error");
+    if (wechatReturn) params.delete("wechat");
+    if (wechatError) {
+      setError(t("wechatFailed"));
+      params.delete("wechat_error");
+    }
+
+    if (sessionExpired || emailParam || wechatReturn || wechatError) {
       const next = params.toString();
       const path = next ? `${window.location.pathname}?${next}` : window.location.pathname;
       window.history.replaceState(null, "", path);
+    }
+    if (wechatReturn) {
+      const requestId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID().replace(/-/g, "")
+          : `${Date.now().toString(16)}aaaaaaaaaaaaaaaa`.slice(0, 32);
+      void apiFetch<LoginResponse>("/auth/refresh", {
+        method: "POST",
+        skipRefresh: true,
+        body: JSON.stringify({ request_id: requestId }),
+      })
+        .then((res) => {
+          publishAuth({
+            token: res.access_token,
+            sessionId: res.session_id,
+            expiresAt: Date.now() + res.expires_in * 1000,
+          });
+          publishSessionEvent({
+            type: "auth-updated",
+            at: res.access_token,
+            sessionId: res.session_id,
+          });
+          router.push("/my/schedule");
+        })
+        .catch(() => setError(t("wechatFailed")));
     }
 
     if (process.env.NODE_ENV === "development") {
@@ -56,7 +89,7 @@ export default function LoginPage() {
           setPassword(login.password);
         });
     }
-  }, [t]);
+  }, [router, t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,6 +145,13 @@ export default function LoginPage() {
               {t("tagline")}
             </p>
           </div>
+
+          <a
+            href="/auth/wechat/web/start"
+            className="mb-lg flex w-full items-center justify-center rounded-xl border border-border-subtle bg-surface-bright py-sm font-section-heading text-body text-on-surface transition-colors hover:bg-surface"
+          >
+            {t("wechatLogin")}
+          </a>
 
           <form onSubmit={onSubmit} className="space-y-lg" noValidate>
             <div className="group relative">

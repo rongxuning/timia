@@ -71,6 +71,11 @@
 		85AD3FAE562455FC1A1E535D /* ScheduleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804AAB705371F022C6211B6 /* ScheduleMapView.swift */; };
 		85F60119F63454EA19F95053 /* NotificationInboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F765E7CB8A1F30BE9E0DA38 /* NotificationInboxTests.swift */; };
 		878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DD19186DC70910982C8C46 /* AuthenticationView.swift */; };
+		F1A1B001A001A001A001A002 /* PhoneDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B001A001A001A001A001 /* PhoneDisplay.swift */; };
+		F1A1B002A002A002A002A002 /* PhoneDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B002A002A002A002A001 /* PhoneDisplayTests.swift */; };
+		F1A1B003A003A003A003A003 /* WeChatSDKBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */; };
+		F1A1B004A004A004A004A002 /* WeChatOpenSDKLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B004A004A004A004A001 /* WeChatOpenSDKLogin.swift */; };
+		F1A1B005A005A005A005A002 /* WeChatOpenSDKLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B005A005A005A005A001 /* WeChatOpenSDKLoginTests.swift */; };
 		896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */; };
 		8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */; };
 		9283B4D9C6BF4E90074DF566 /* PlaceValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8EE4AA6978B95D39ADD11BF /* PlaceValueTests.swift */; };
@@ -194,6 +199,12 @@
 		2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteInputView.swift; sourceTree = "<group>"; };
 		2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationPreference.swift; sourceTree = "<group>"; };
 		30DD19186DC70910982C8C46 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
+		F1A1B001A001A001A001A001 /* PhoneDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneDisplay.swift; sourceTree = "<group>"; };
+		F1A1B002A002A002A002A001 /* PhoneDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneDisplayTests.swift; sourceTree = "<group>"; };
+		F1A1B003A003A003A003A001 /* WeChatSDKBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WeChatSDKBridge.h; sourceTree = "<group>"; };
+		F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WeChatSDKBridge.m; sourceTree = "<group>"; };
+		F1A1B004A004A004A004A001 /* WeChatOpenSDKLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatOpenSDKLogin.swift; sourceTree = "<group>"; };
+		F1A1B005A005A005A005A001 /* WeChatOpenSDKLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatOpenSDKLoginTests.swift; sourceTree = "<group>"; };
 		310A6AD7632431A7BCD789A7 /* FilesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesAPI.swift; sourceTree = "<group>"; };
 		3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlannerTests.swift; sourceTree = "<group>"; };
 		32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
@@ -354,6 +365,7 @@
 			isa = PBXGroup;
 			children = (
 				30DD19186DC70910982C8C46 /* AuthenticationView.swift */,
+				F1A1B001A001A001A001A001 /* PhoneDisplay.swift */,
 			);
 			path = Authentication;
 			sourceTree = "<group>";
@@ -423,6 +435,8 @@
 				C25BA599AEBFFD9D857E6D84 /* TodoDayCoverageTests.swift */,
 				8C220B3A14481E048DEA1EAC /* WorkoutSyncRunTests.swift */,
 				4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */,
+				F1A1B002A002A002A002A001 /* PhoneDisplayTests.swift */,
+				F1A1B005A005A005A005A001 /* WeChatOpenSDKLoginTests.swift */,
 			);
 			path = TimiaTests;
 			sourceTree = "<group>";
@@ -527,6 +541,9 @@
 			isa = PBXGroup;
 			children = (
 				C4A6B230FF2917C7BFCEDE3D /* KeychainStore.swift */,
+				F1A1B004A004A004A004A001 /* WeChatOpenSDKLogin.swift */,
+				F1A1B003A003A003A003A001 /* WeChatSDKBridge.h */,
+				F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -827,6 +844,9 @@
 				CBAA0C70FFD72E2A6316B660 /* AppSession.swift in Sources */,
 				CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */,
 				878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */,
+				F1A1B001A001A001A001A002 /* PhoneDisplay.swift in Sources */,
+				F1A1B004A004A004A004A002 /* WeChatOpenSDKLogin.swift in Sources */,
+				F1A1B003A003A003A003A003 /* WeChatSDKBridge.m in Sources */,
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
 				896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */,
 				7071F19AD240C79FA2F894B9 /* ChinaCoordinate.swift in Sources */,
@@ -933,6 +953,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */,
+				F1A1B002A002A002A002A002 /* PhoneDisplayTests.swift in Sources */,
+				F1A1B005A005A005A005A002 /* WeChatOpenSDKLoginTests.swift in Sources */,
 				BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */,
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
 				FA1AA94523A37B455AF73BFD /* ChinaCoordinateTests.swift in Sources */,
@@ -1203,6 +1225,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios;
 				PRODUCT_NAME = Timia;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Timia/Core/Auth $(inherited)";
 				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "Timia/Core/Speech/Timia-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1242,6 +1265,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios;
 				PRODUCT_NAME = Timia;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Timia/Core/Auth $(inherited)";
 				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "Timia/Core/Speech/Timia-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";

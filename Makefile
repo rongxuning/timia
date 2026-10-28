@@ -1,4 +1,4 @@
-.PHONY: dev db core-service file-service notification-service web core-service-install file-service-install notification-service-install web-install verify local codegen kill-port-8000 kill-port-8001 kill-port-8003 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http docker-up docker-down docker-ps docker-logs docker-verify
+.PHONY: dev db core-service file-service notification-service user-service web core-service-install file-service-install notification-service-install user-service-install web-install verify local codegen kill-port-8000 kill-port-8001 kill-port-8003 kill-port-8004 kill-port-3000 mcp-server-install mcp-server-test mcp-server-http docker-up docker-down docker-ps docker-logs docker-verify
 
 # Kill whatever is holding port 8000 (uvicorn / fastapi). No-op if free.
 # 1s grace period, then SIGKILL if still alive.
@@ -48,7 +48,18 @@ kill-port-8001:
 		echo "Port 8001 free"; \
 	fi
 
-kill-ports: kill-port-8000 kill-port-8001 kill-port-8003 kill-port-3000
+kill-port-8004:
+	@PID=$$(lsof -ti :8004 2>/dev/null); \
+	if [ -n "$$PID" ]; then \
+		echo "Port 8004 busy, killing PID $$PID"; \
+		kill $$PID 2>/dev/null; sleep 1; \
+		PID=$$(lsof -ti :8004 2>/dev/null); \
+		if [ -n "$$PID" ]; then echo "  force-kill $$PID"; kill -9 $$PID 2>/dev/null; sleep 1; fi; \
+	else \
+		echo "Port 8004 free"; \
+	fi
+
+kill-ports: kill-port-8000 kill-port-8001 kill-port-8003 kill-port-8004 kill-port-3000
 	@true
 
 dev: db
@@ -56,6 +67,7 @@ dev: db
 	@echo "  make core-service-install && make core-service"
 	@echo "  make file-service-install && make file-service"
 	@echo "  make notification-service-install && make notification-service"
+	@echo "  make user-service-install && make user-service"
 	@echo "  make web-install && make web"
 
 DOCKER_COMPOSE_LOCAL = docker compose -f docker-compose.local.yml --env-file .env.docker
@@ -92,6 +104,11 @@ docker-verify:
 	  echo "OK  Notify http://127.0.0.1:8080/notification-service/health"; \
 	else \
 	  echo "FAIL Notify http://127.0.0.1:8080/notification-service/health"; fail=1; \
+	fi; \
+	if curl -sf http://127.0.0.1:8080/user-service/health | grep -q '"ok"'; then \
+	  echo "OK  User  http://127.0.0.1:8080/user-service/health"; \
+	else \
+	  echo "FAIL User  http://127.0.0.1:8080/user-service/health"; fail=1; \
 	fi; \
 	if curl -sf http://127.0.0.1:8080/mcp-health | grep -q '"ok"'; then \
 	  echo "OK  MCP  http://127.0.0.1:8080/mcp-health"; \
@@ -144,6 +161,20 @@ notification-service: notification-service-install kill-port-8001
 	  uv run python -m alembic upgrade head && \
 	  PYTHONPATH=. uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
+user-service-install:
+	cd codes/user-service && UV_HTTP_TIMEOUT=$(UV_HTTP_TIMEOUT) uv sync
+
+user-service: user-service-install kill-port-8004
+	set -a; \
+	[ -f codes/core-service/.env ] && . codes/core-service/.env; \
+	[ -f codes/user-service/.env ] && . codes/user-service/.env; \
+	set +a; \
+	cd codes/user-service && PYTHONPATH=. \
+	  CORE_SERVICE_BASE=$${CORE_SERVICE_BASE:-http://127.0.0.1:8000} \
+	  uv run python -m alembic upgrade head && \
+	  PYTHONPATH=. CORE_SERVICE_BASE=$${CORE_SERVICE_BASE:-http://127.0.0.1:8000} \
+	  uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8004
+
 web-install:
 	cd codes/web && npm install
 
@@ -156,6 +187,7 @@ local: db
 	@echo "  make core-service-install && make core-service"
 	@echo "  make file-service-install && make file-service"
 	@echo "  make notification-service-install && make notification-service"
+	@echo "  make user-service-install && make user-service"
 	@echo "  make web-install && make web"
 	@echo ""
 	@echo "Verify: make verify"
@@ -177,6 +209,11 @@ verify:
 	else \
 	  echo "WARN Notification API not reachable (start with: make notification-service)"; \
 	fi; \
+	if curl -sf http://127.0.0.1:8004/health | grep -q '"ok"'; then \
+	  echo "OK  User API health http://127.0.0.1:8004/health"; \
+	else \
+	  echo "WARN User API not reachable (start with: make user-service)"; \
+	fi; \
 	if curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:3000 | grep -qE '^(200|307|308)$$'; then \
 	  echo "OK  Web http://127.0.0.1:3000"; \
 	else \
@@ -188,6 +225,7 @@ codegen:
 	cd codes/core-service && PYTHONPATH=. uv run python scripts/export_openapi.py
 	cd codes/file-service && PYTHONPATH=. uv run python scripts/export_openapi.py
 	cd codes/notification-service && PYTHONPATH=. uv run python scripts/export_openapi.py
+	cd codes/user-service && PYTHONPATH=. uv run python scripts/export_openapi.py
 	cd codes/web && npm run codegen:types && npm run codegen:file-types
 
 mcp-server-install:

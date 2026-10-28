@@ -16,6 +16,7 @@ on:
       - "codes/core-service/**"
       - "codes/file-service/**"
       - "codes/notification-service/**"
+      - "codes/user-service/**"
       - "codes/web/**"
       - "codes/mcp-server/**"
       - "deploy/nginx.conf"
@@ -36,6 +37,7 @@ on:
           - core-service
           - file-service
           - notification-service
+          - user-service
           - web
           - mcp-server
 
