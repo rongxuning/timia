@@ -53,7 +53,7 @@ struct AuthenticationView: View {
                         )
                         Spacer(minLength: 16)
                     }
-                    .frame(minHeight: proxy.size.height)
+                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height)
                 }
                 .scrollIndicators(.hidden)
             }
@@ -230,6 +230,7 @@ struct AuthenticationView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 22)
         .frame(width: cardWidth)
+        .preferredColorScheme(.dark)
         .background(LoginPalette.card, in: RoundedRectangle(cornerRadius: 22))
         .overlay {
             RoundedRectangle(cornerRadius: 22)
@@ -492,6 +493,7 @@ private struct LoginField: View {
         .padding(.horizontal, 14)
         .frame(height: 44)
         .background(LoginPalette.field, in: RoundedRectangle(cornerRadius: 12))
+        .preferredColorScheme(.dark)
     }
 }
 

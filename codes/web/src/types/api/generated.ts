@@ -4989,6 +4989,22 @@ export interface components {
         };
         /** OAuthLoginRequest */
         OAuthLoginRequest: {
+            /** Step Up Password */
+            step_up_password?: string | null;
+            /** Step Up Provider */
+            step_up_provider?: ("phone" | "google" | "wechat") | null;
+            /** Step Up Phone */
+            step_up_phone?: string | null;
+            /** Step Up Code */
+            step_up_code?: string | null;
+            /** Step Up Challenge Id */
+            step_up_challenge_id?: string | null;
+            /** Step Up Nonce */
+            step_up_nonce?: string | null;
+            /** Step Up Id Token */
+            step_up_id_token?: string | null;
+            /** Step Up Oauth Code */
+            step_up_oauth_code?: string | null;
             /** Installation Id */
             installation_id: string;
             /**
@@ -5052,6 +5068,22 @@ export interface components {
         };
         /** PhoneLoginRequest */
         PhoneLoginRequest: {
+            /** Step Up Password */
+            step_up_password?: string | null;
+            /** Step Up Provider */
+            step_up_provider?: ("phone" | "google" | "wechat") | null;
+            /** Step Up Phone */
+            step_up_phone?: string | null;
+            /** Step Up Code */
+            step_up_code?: string | null;
+            /** Step Up Challenge Id */
+            step_up_challenge_id?: string | null;
+            /** Step Up Nonce */
+            step_up_nonce?: string | null;
+            /** Step Up Id Token */
+            step_up_id_token?: string | null;
+            /** Step Up Oauth Code */
+            step_up_oauth_code?: string | null;
             /** Phone */
             phone: string;
             /** Code */

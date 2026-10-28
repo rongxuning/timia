@@ -41,9 +41,14 @@ class Settings(BaseSettings):
     file_internal_token: str = ""
     notification_service_base: str = ""
     notification_internal_token: str = ""
-    # Phone SMS. Empty SMS_PROVIDER logs the code and returns it as dev_code.
-    # Production must set SMS_PROVIDER=http plus SMS_HTTP_URL. Do not commit secrets.
+    # development | production | test. Default is production so a missing env file
+    # fails closed. dev_code is returned only when this is "development" or
+    # SMS_DEV_RETURN_CODE is true. An empty SMS_PROVIDER never returns a code by itself.
+    environment: str = "production"
+    # Phone SMS. Production sets SMS_PROVIDER=http plus SMS_HTTP_URL.
+    # Do not commit secrets. Do not set SMS_DEV_RETURN_CODE in production.
     sms_provider: str = ""
+    sms_dev_return_code: bool = False
     sms_http_url: str = ""
     sms_http_token: str = ""
     sms_sign_name: str = ""

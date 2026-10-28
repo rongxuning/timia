@@ -148,7 +148,7 @@ DELETE /auth/mobile/sessions/{session_id}
 
 ## 9. 安全与验证要求
 
-- 全链路 TLS。生产环境不得把 Token、验证码、设备签名和密码写入日志。本地短信桩（`SMS_PROVIDER` 为空）会记录验证码。
+- 全链路 TLS。生产环境不得把 Token、验证码、设备签名和密码写入日志。短信开发桩只在 `ENVIRONMENT=development` 或 `SMS_DEV_RETURN_CODE=true` 时记录验证码。空的 `SMS_PROVIDER` 本身不会返回验证码。
 - Refresh Token 使用高熵随机值，数据库仅保存 SHA-256 哈希。
 - Refresh Token 每次成功使用后轮换；刷新请求支持幂等请求 ID，避免网络丢包造成误撤销。
 - Access Token 使用移动端 Audience，不与 Web Token 混用。
