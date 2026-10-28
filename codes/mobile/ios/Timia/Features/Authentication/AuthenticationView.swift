@@ -2,13 +2,35 @@ import AuthenticationServices
 import CryptoKit
 import SwiftUI
 
+private enum AuthMode { case login, register }
+
+private enum AuthField: Hashable {
+    case email, displayName, password, confirmPassword
+}
+
+private enum DevelopmentLogin {
+    #if DEBUG
+    static let email = "admin@gmail.com"
+    static let password = "admin1234"
+    #else
+    static let email = ""
+    static let password = ""
+    #endif
+}
+
 struct AuthenticationView: View {
     @EnvironmentObject private var session: AppSession
     @StateObject private var oauth = OAuthBrowser()
     @State private var phoneMask = PhoneDisplay.storedMask()
+    @State private var mode: AuthMode = .login
+    @State private var email = DevelopmentLogin.email
+    @State private var displayName = ""
+    @State private var password = DevelopmentLogin.password
+    @State private var confirmPassword = ""
     @State private var errorMessage: String?
     @State private var isSubmitting = false
     @State private var showPhoneSheet = false
+    @FocusState private var focusedField: AuthField?
 
     var body: some View {
         ZStack {
@@ -19,36 +41,49 @@ struct AuthenticationView: View {
 
             GeometryReader { proxy in
                 let cardWidth = proxy.size.width * 0.58
-                let buttonWidth = (cardWidth - 36) * 0.70
-                authenticationCard(cardWidth: cardWidth, buttonWidth: buttonWidth)
+                let contentWidth = cardWidth - 36
+                let buttonWidth = contentWidth * 0.70
+                ScrollView {
+                    VStack {
+                        Spacer(minLength: 16)
+                        authenticationCard(
+                            cardWidth: cardWidth,
+                            contentWidth: contentWidth,
+                            buttonWidth: buttonWidth
+                        )
+                        Spacer(minLength: 16)
+                    }
+                    .frame(minHeight: proxy.size.height)
+                }
+                .scrollIndicators(.hidden)
             }
         }
+        .keyboardDoneToolbar { focusedField = nil }
         .sheet(isPresented: $showPhoneSheet) {
             PhoneLoginSheet(mask: $phoneMask)
                 .environmentObject(session)
         }
     }
 
-    private func authenticationCard(cardWidth: CGFloat, buttonWidth: CGFloat) -> some View {
+    private func authenticationCard(
+        cardWidth: CGFloat,
+        contentWidth: CGFloat,
+        buttonWidth: CGFloat
+    ) -> some View {
         VStack(spacing: 0) {
             Text("Timia")
                 .font(.system(size: 40, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
 
-            Text("欢迎回来")
-                .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.top, 12)
-
             Text("合抱之木，生于毫末")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(LoginPalette.caption)
-                .padding(.top, 8)
+                .padding(.top, 10)
 
             Text(phoneMask)
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(LoginPalette.phone)
-                .padding(.top, 16)
+                .padding(.top, 12)
                 .accessibilityIdentifier("login.phoneNumber")
 
             VStack(spacing: 10) {
@@ -60,6 +95,7 @@ struct AuthenticationView: View {
                     identifier: "login.phone"
                 ) {
                     errorMessage = nil
+                    focusedField = nil
                     showPhoneSheet = true
                 }
 
@@ -85,17 +121,111 @@ struct AuthenticationView: View {
                     startGoogle()
                 }
             }
-            .padding(.top, 18)
+            .padding(.top, 16)
             .disabled(isSubmitting)
             .opacity(isSubmitting ? 0.72 : 1)
+
+            orDivider
+                .frame(width: contentWidth)
+                .padding(.top, 14)
+
+            VStack(spacing: 10) {
+                LoginField(
+                    placeholder: "邮箱",
+                    text: $email,
+                    icon: "envelope",
+                    contentType: .emailAddress,
+                    keyboard: .emailAddress,
+                    field: .email,
+                    focused: $focusedField
+                )
+                .onSubmit { focusedField = mode == .login ? .password : .displayName }
+
+                if mode == .register {
+                    LoginField(
+                        placeholder: "显示名称",
+                        text: $displayName,
+                        icon: "person",
+                        contentType: .name,
+                        field: .displayName,
+                        focused: $focusedField
+                    )
+                    .onSubmit { focusedField = .password }
+                }
+
+                LoginField(
+                    placeholder: "密码",
+                    text: $password,
+                    icon: "lock",
+                    isSecure: true,
+                    contentType: mode == .login ? .password : .newPassword,
+                    field: .password,
+                    focused: $focusedField
+                )
+                .onSubmit { focusedField = mode == .login ? nil : .confirmPassword }
+
+                if mode == .register {
+                    LoginField(
+                        placeholder: "确认密码",
+                        text: $confirmPassword,
+                        icon: "lock",
+                        isSecure: true,
+                        contentType: .newPassword,
+                        field: .confirmPassword,
+                        focused: $focusedField
+                    )
+                    .onSubmit { focusedField = nil }
+                }
+            }
+            .frame(width: contentWidth)
+            .padding(.top, 12)
+            .onChange(of: email) { _, _ in errorMessage = nil }
+            .onChange(of: displayName) { _, _ in errorMessage = nil }
+            .onChange(of: password) { _, _ in errorMessage = nil }
+            .onChange(of: confirmPassword) { _, _ in errorMessage = nil }
 
             if let errorMessage {
                 Text(errorMessage)
                     .font(.footnote.weight(.medium))
-                    .foregroundStyle(Color(red: 1, green: 0.45, blue: 0.42))
+                    .foregroundStyle(errorMessage == "注册成功，请登录" ? LoginPalette.green : Color(red: 1, green: 0.45, blue: 0.42))
                     .multilineTextAlignment(.center)
+                    .frame(width: contentWidth)
                     .padding(.top, 10)
             }
+
+            Button(action: submitPassword) {
+                Text(mode == .login ? "登录" : "创建账号")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: contentWidth, height: 44)
+                    .foregroundStyle(.white)
+                    .background(LoginPalette.green, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .disabled(isSubmitting)
+            .opacity(isSubmitting ? 0.72 : 1)
+            .padding(.top, 12)
+            .accessibilityIdentifier("login.email")
+
+            HStack {
+                if mode == .login {
+                    Button("忘记密码？") {
+                        focusedField = nil
+                        errorMessage = "暂不支持在线重置密码"
+                    }
+                    .foregroundStyle(LoginPalette.caption)
+                    .accessibilityIdentifier("login.forgot")
+                    Spacer(minLength: 8)
+                }
+                Button(mode == .login ? "注册账号" : "返回登录") {
+                    switchMode()
+                }
+                .foregroundStyle(.white)
+                .accessibilityIdentifier("login.register")
+            }
+            .font(.caption)
+            .frame(width: contentWidth)
+            .padding(.top, 10)
+            .disabled(isSubmitting)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 22)
@@ -106,7 +236,22 @@ struct AuthenticationView: View {
                 .stroke(.white, lineWidth: 4)
         }
         .shadow(color: .black.opacity(0.28), radius: 16, y: 7)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var orDivider: some View {
+        HStack(spacing: 12) {
+            Rectangle()
+                .fill(Color.white.opacity(0.22))
+                .frame(height: 1)
+            Text("or")
+                .font(.caption)
+                .foregroundStyle(Color.white.opacity(0.55))
+            Rectangle()
+                .fill(Color.white.opacity(0.22))
+                .frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("or")
     }
 
     private func compactButton(
@@ -255,6 +400,98 @@ struct AuthenticationView: View {
         #else
         errorMessage = "暂不可用"
         #endif
+    }
+
+    private func switchMode() {
+        focusedField = nil
+        withAnimation(.easeInOut(duration: 0.2)) {
+            let next: AuthMode = mode == .login ? .register : .login
+            if next == .register {
+                if email == DevelopmentLogin.email {
+                    email = ""
+                }
+                password = ""
+            } else {
+                if email.isEmpty {
+                    email = DevelopmentLogin.email
+                }
+                password = DevelopmentLogin.password
+            }
+            mode = next
+            errorMessage = nil
+            confirmPassword = ""
+            displayName = ""
+        }
+    }
+
+    private func submitPassword() {
+        focusedField = nil
+        errorMessage = nil
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedName = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedEmail.isEmpty else { errorMessage = "请输入邮箱"; return }
+        guard password.count >= 8 else { errorMessage = "密码至少 8 位"; return }
+        if mode == .register {
+            guard !normalizedName.isEmpty else { errorMessage = "请输入显示名称"; return }
+            guard password == confirmPassword else { errorMessage = "两次输入的密码不一致"; return }
+        }
+        isSubmitting = true
+        Task {
+            do {
+                if mode == .login {
+                    try await session.login(email: normalizedEmail, password: password)
+                } else {
+                    try await session.register(
+                        email: normalizedEmail,
+                        displayName: normalizedName,
+                        password: password
+                    )
+                    mode = .login
+                    password = ""
+                    confirmPassword = ""
+                    errorMessage = "注册成功，请登录"
+                }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isSubmitting = false
+        }
+    }
+}
+
+private struct LoginField: View {
+    let placeholder: String
+    @Binding var text: String
+    let icon: String
+    var isSecure = false
+    var contentType: UITextContentType?
+    var keyboard: UIKeyboardType = .default
+    let field: AuthField
+    let focused: FocusState<AuthField?>.Binding
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: $text)
+                } else {
+                    TextField(placeholder, text: $text)
+                }
+            }
+            .textContentType(contentType)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(keyboard)
+            .focused(focused, equals: field)
+            .foregroundStyle(.white)
+
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(LoginPalette.caption)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 44)
+        .background(LoginPalette.field, in: RoundedRectangle(cornerRadius: 12))
     }
 }
 

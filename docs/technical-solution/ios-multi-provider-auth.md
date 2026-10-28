@@ -1,6 +1,6 @@
 # iOS 多身份登录与账号合并
 
-登录页只保留三条入口：本手机号、微信、Google。邮箱密码接口仍留给 Web，iOS 登录页不再展示。
+登录页在三条入口（本手机号、微信、Google）下面保留邮箱密码登录和注册。Web 的邮箱密码接口不变。
 
 身份继续落在已有的 `auth_identities`。唯一键是 `(provider, provider_tenant, provider_subject)`。`users.email` 与 `users.password_hash` 改为可空，手机号用户和纯 OAuth 用户可以没有邮箱、没有密码。
 
