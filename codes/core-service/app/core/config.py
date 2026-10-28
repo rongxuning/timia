@@ -41,6 +41,25 @@ class Settings(BaseSettings):
     file_internal_token: str = ""
     notification_service_base: str = ""
     notification_internal_token: str = ""
+    # Phone SMS. Empty SMS_PROVIDER logs the code and returns it as dev_code.
+    # Production must set SMS_PROVIDER=http plus SMS_HTTP_URL. Do not commit secrets.
+    sms_provider: str = ""
+    sms_http_url: str = ""
+    sms_http_token: str = ""
+    sms_sign_name: str = ""
+    sms_template_code: str = ""
+    # Comma-separated Google OAuth client ids (audiences). Secret stays server-side.
+    google_client_ids: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = ""
+    wechat_app_id: str = ""
+    wechat_app_secret: str = ""
+    # Dev only. Accepts unsigned dev:google / dev:wechat credentials. Keep false in production.
+    oauth_dev_mode: bool = False
+
+    @property
+    def google_client_id_list(self) -> list[str]:
+        return [item.strip() for item in self.google_client_ids.split(",") if item.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:

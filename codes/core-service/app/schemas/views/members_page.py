@@ -1,16 +1,16 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class AssignableUserOut(BaseModel):
     user_id: str
-    email: EmailStr
+    email: str
     display_name: str
 
 
 class MembershipRowOut(BaseModel):
     id: str
     user_id: str
-    email: EmailStr
+    email: str
     display_name: str
     role: str
     status: str

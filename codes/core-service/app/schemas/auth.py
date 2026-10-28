@@ -9,7 +9,7 @@ class RegisterRequest(BaseModel):
 
 class MeResponse(BaseModel):
     id: str
-    email: EmailStr
+    email: str
     display_name: str
     system_role: str
     week_starts_on: int

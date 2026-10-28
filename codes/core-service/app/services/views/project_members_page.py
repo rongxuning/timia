@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.project import Project, ProjectMember
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import WorkspaceMember
 from app.schemas.views.members_page import AssignableUserOut, MembershipRowOut, ProjectMembersPageOut
 from app.services.permissions import require_project_content_access, user_can_manage_project
@@ -73,7 +73,7 @@ def build_project_members_page(
             MembershipRowOut(
                 id=str(m.id),
                 user_id=str(u.id),
-                email=u.email,
+                email=public_email(u.email),
                 display_name=u.display_name,
                 role=m.role,
                 status=m.status,
@@ -91,7 +91,7 @@ def build_project_members_page(
         .order_by(User.display_name.asc(), User.email.asc())
     ).all()
     workspace_member_pool = [
-        AssignableUserOut(user_id=str(u.id), email=u.email, display_name=u.display_name) for _m, u in wm_rows
+        AssignableUserOut(user_id=str(u.id), email=public_email(u.email), display_name=u.display_name) for _m, u in wm_rows
     ]
 
     return ProjectMembersPageOut(

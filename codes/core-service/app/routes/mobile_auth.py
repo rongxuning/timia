@@ -1,6 +1,8 @@
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -22,18 +24,36 @@ from app.schemas.mobile_auth import (
     MobileSessionOut,
     MobileTokenExchangeRequest,
     MobileTokenOut,
+    OAuthLoginRequest,
+    PhoneCodeOut,
+    PhoneCodeRequest,
+    PhoneLoginRequest,
 )
+from app.services.account_merge import AccountMergeError
+from app.services.phone_numbers import PhoneNumberError, normalize_phone
 from app.services.mobile_auth import (
     MobileAuthError,
     create_mobile_session,
     exchange_message,
     issue_challenge,
     login_message,
+    oauth_login_message,
+    phone_login_message,
     refresh_mobile_session,
     registration_message,
     require_device,
     verify_challenge,
     verify_device_signature,
+)
+from app.services.provider_auth import (
+    ProviderAuthError,
+    consume_phone_code,
+    issue_phone_code,
+    link_profile,
+    login_with_profile,
+    phone_profile,
+    verify_google_login,
+    verify_wechat_login,
 )
 
 router = APIRouter(prefix="/auth/mobile", tags=["mobile-auth"])
@@ -192,6 +212,110 @@ def mobile_password_login(
     return _handle(login, db)
 
 
+@router.post("/login/phone/code", response_model=PhoneCodeOut, response_model_exclude_none=True)
+def send_phone_code(payload: PhoneCodeRequest, db: Session = Depends(get_db)):
+    def send() -> PhoneCodeOut:
+        challenge_id, nonce, expires_at, dev_code = issue_phone_code(
+            db, raw_phone=payload.phone, installation_id=payload.installation_id
+        )
+        return PhoneCodeOut(
+            challenge_id=challenge_id,
+            nonce=nonce,
+            expires_at=expires_at,
+            dev_code=dev_code,
+        )
+
+    return _handle(send, db)
+
+
+@router.post("/login/phone/verify", response_model=MobileTokenOut)
+def verify_phone_login(
+    payload: PhoneLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    def verify() -> MobileTokenOut:
+        return _finish_phone_login(db, request, payload, current=None)
+
+    return _handle(verify, db)
+
+
+@router.post("/login/google", response_model=MobileTokenOut)
+def google_login(
+    payload: OAuthLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    def login() -> MobileTokenOut:
+        return _finish_oauth_login(db, request, payload, provider="google", current=None)
+
+    return _handle(login, db)
+
+
+@router.post("/login/wechat", response_model=MobileTokenOut)
+def wechat_login(
+    payload: OAuthLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    def login() -> MobileTokenOut:
+        return _finish_oauth_login(db, request, payload, provider="wechat", current=None)
+
+    return _handle(login, db)
+
+
+@router.post("/identities/phone", response_model=MobileTokenOut)
+def link_phone_identity(
+    payload: PhoneLoginRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    def link() -> MobileTokenOut:
+        return _finish_phone_login(db, request, payload, current=user)
+
+    return _handle(link, db)
+
+
+@router.post("/identities/google", response_model=MobileTokenOut)
+def link_google_identity(
+    payload: OAuthLoginRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    def link() -> MobileTokenOut:
+        return _finish_oauth_login(db, request, payload, provider="google", current=user)
+
+    return _handle(link, db)
+
+
+@router.post("/identities/wechat", response_model=MobileTokenOut)
+def link_wechat_identity(
+    payload: OAuthLoginRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    def link() -> MobileTokenOut:
+        return _finish_oauth_login(db, request, payload, provider="wechat", current=user)
+
+    return _handle(link, db)
+
+
+@router.get("/oauth/{provider}/callback")
+def oauth_app_callback(provider: str, code: str = "", state: str = ""):
+    targets = {
+        "google": "timia://oauth/google",
+        "wechat": "timia://oauth/wechat",
+    }
+    base = targets.get(provider)
+    if base is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    target = f"{base}?code={quote(code, safe='')}&state={quote(state, safe='')}"
+    return RedirectResponse(url=target, status_code=302)
+
+
 @router.post("/token/exchange", response_model=MobileTokenOut)
 def exchange_legacy_access_token(
     payload: MobileTokenExchangeRequest,
@@ -347,10 +471,113 @@ def _session_out(value: MobileSession, current_id: uuid.UUID) -> MobileSessionOu
     )
 
 
+def _finish_phone_login(
+    db: Session,
+    request: Request,
+    payload: PhoneLoginRequest,
+    *,
+    current: User | None,
+) -> MobileTokenOut:
+    try:
+        phone = normalize_phone(payload.phone)
+    except PhoneNumberError as exc:
+        raise ProviderAuthError("invalid_phone", 400) from exc
+    device = require_device(db, payload.installation_id)
+    verify_device_signature(
+        device.public_key,
+        payload.signature,
+        phone_login_message(
+            payload.challenge_id,
+            payload.nonce,
+            payload.installation_id,
+            phone,
+            payload.code,
+        ),
+    )
+    verified = consume_phone_code(
+        db,
+        challenge_id=payload.challenge_id,
+        nonce=payload.nonce,
+        raw_phone=phone,
+        code=payload.code,
+        installation_id=payload.installation_id,
+    )
+    profile = phone_profile(verified)
+    user = link_profile(db, current, profile) if current else login_with_profile(db, profile)
+    return create_mobile_session(
+        db,
+        user=user,
+        device=device,
+        login_provider="phone",
+        last_ip=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+def _finish_oauth_login(
+    db: Session,
+    request: Request,
+    payload: OAuthLoginRequest,
+    *,
+    provider: str,
+    current: User | None,
+) -> MobileTokenOut:
+    credential = _oauth_credential(payload)
+    device = require_device(db, payload.installation_id)
+    verify_challenge(
+        db,
+        challenge_id=payload.challenge_id,
+        nonce=payload.nonce,
+        purpose="oauth",
+        installation_id=payload.installation_id,
+    )
+    verify_device_signature(
+        device.public_key,
+        payload.signature,
+        oauth_login_message(
+            payload.challenge_id,
+            payload.nonce,
+            payload.installation_id,
+            provider,
+            credential,
+        ),
+    )
+    if provider == "google":
+        profile = verify_google_login(
+            id_token=payload.id_token,
+            code=payload.code,
+            redirect_uri=payload.redirect_uri,
+            code_verifier=payload.code_verifier,
+        )
+    elif provider == "wechat":
+        profile = verify_wechat_login(code=payload.code)
+    else:
+        raise ProviderAuthError("provider_not_configured", 503)
+    user = link_profile(db, current, profile) if current else login_with_profile(db, profile)
+    return create_mobile_session(
+        db,
+        user=user,
+        device=device,
+        login_provider=provider,
+        last_ip=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+
+def _oauth_credential(payload: OAuthLoginRequest) -> str:
+    if payload.id_token and payload.code:
+        raise ProviderAuthError("invalid_provider_token", 400)
+    if payload.id_token:
+        return payload.id_token
+    if payload.code:
+        return payload.code
+    raise ProviderAuthError("invalid_provider_token", 400)
+
+
 def _handle(operation, db: Session):
     try:
         return operation()
-    except MobileAuthError as error:
+    except (MobileAuthError, ProviderAuthError, AccountMergeError) as error:
         db.rollback()
         raise HTTPException(status_code=error.status_code, detail=error.detail)
 

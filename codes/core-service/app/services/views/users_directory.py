@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.project import Project
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.users import (
     UserDirectoryRowOut,
@@ -42,7 +42,7 @@ def build_user_directory(db: Session) -> UserDirectoryViewOut:
         users.append(
             UserDirectoryRowOut(
                 id=str(u.id),
-                email=u.email,
+                email=public_email(u.email),
                 display_name=u.display_name,
                 status=u.status,
                 system_role=u.system_role,

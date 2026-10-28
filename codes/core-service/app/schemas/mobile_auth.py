@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class MobileChallengeRequest(BaseModel):
     installation_id: str = Field(min_length=16, max_length=64)
-    purpose: Literal["register", "login", "exchange"]
+    purpose: Literal["register", "login", "exchange", "oauth"]
 
 
 class MobileRefreshChallengeRequest(BaseModel):
@@ -44,6 +44,38 @@ class MobilePasswordLoginRequest(BaseModel):
     challenge_id: uuid.UUID
     nonce: str = Field(min_length=32, max_length=256)
     signature: str = Field(min_length=64, max_length=256)
+
+
+class PhoneCodeRequest(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+    installation_id: str = Field(min_length=16, max_length=64)
+
+
+class PhoneCodeOut(BaseModel):
+    challenge_id: uuid.UUID
+    nonce: str
+    expires_at: datetime
+    dev_code: str | None = None
+
+
+class PhoneLoginRequest(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+    code: str = Field(pattern=r"^\d{6}$")
+    installation_id: str = Field(min_length=16, max_length=64)
+    challenge_id: uuid.UUID
+    nonce: str = Field(min_length=32, max_length=256)
+    signature: str = Field(min_length=64, max_length=256)
+
+
+class OAuthLoginRequest(BaseModel):
+    installation_id: str = Field(min_length=16, max_length=64)
+    challenge_id: uuid.UUID
+    nonce: str = Field(min_length=32, max_length=256)
+    signature: str = Field(min_length=64, max_length=256)
+    id_token: str | None = Field(default=None, max_length=8192)
+    code: str | None = Field(default=None, max_length=2048)
+    redirect_uri: str | None = Field(default=None, max_length=512)
+    code_verifier: str | None = Field(default=None, max_length=256)
 
 
 class MobileTokenExchangeRequest(BaseModel):

@@ -204,6 +204,83 @@ actor CredentialManager {
         try install(response)
     }
 
+    func sendPhoneCode(_ rawPhone: String) async throws -> PhoneCodeResponse {
+        try requireReady()
+        try await registerDeviceIfNeeded()
+        let phone = try PhoneDisplay.normalize(rawPhone)
+        return try await post(
+            "/auth/mobile/login/phone/code",
+            body: PhoneCodeRequest(phone: phone, installationId: installationID)
+        )
+    }
+
+    func verifyPhoneLogin(
+        phone: String,
+        code: String,
+        challengeId: String,
+        nonce: String
+    ) async throws {
+        try requireReady()
+        try await registerDeviceIfNeeded()
+        let normalized = try PhoneDisplay.normalize(phone)
+        let message = [
+            "timia-mobile-phone",
+            challengeId,
+            nonce,
+            installationID,
+            Self.sha256(normalized),
+            Self.sha256(code)
+        ].joined(separator: "\n")
+        let response: MobileTokenResponse = try await post(
+            "/auth/mobile/login/phone/verify",
+            body: PhoneLoginRequest(
+                phone: normalized,
+                code: code,
+                installationId: installationID,
+                challengeId: challengeId,
+                nonce: nonce,
+                signature: try signature(for: message)
+            )
+        )
+        try install(response)
+    }
+
+    func oauthLogin(
+        provider: String,
+        code: String,
+        redirectURI: String?,
+        codeVerifier: String?
+    ) async throws {
+        try requireReady()
+        guard provider == "google" || provider == "wechat" else {
+            throw APIError.transport("不支持的登录方式")
+        }
+        try await registerDeviceIfNeeded()
+        let challenge = try await challenge(purpose: "oauth")
+        let message = [
+            "timia-mobile-oauth",
+            challenge.challengeId,
+            challenge.nonce,
+            installationID,
+            provider,
+            Self.sha256(code)
+        ].joined(separator: "\n")
+        let response: MobileTokenResponse = try await post(
+            "/auth/mobile/login/\(provider)",
+            body: OAuthLoginRequest(
+                installationId: installationID,
+                challengeId: challenge.challengeId,
+                nonce: challenge.nonce,
+                signature: try signature(for: message),
+                idToken: nil,
+                code: code,
+                redirectUri: redirectURI,
+                codeVerifier: codeVerifier
+            )
+        )
+        try install(response)
+    }
+
     func exchangeLegacyToken(userID: String) async throws {
         try requireReady()
         guard let legacyAccessToken else { throw APIError.unauthorized }

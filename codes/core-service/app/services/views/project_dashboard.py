@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.project import Project, ProjectMember
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace
 from app.schemas.views.project import MemberAvatarPreviewOut, ProjectDashboardOut, ProjectMembersSummaryOut
 from app.schemas.views.schedule import ScheduleDashboardOut
@@ -18,8 +18,8 @@ from app.services.views.project_members_page import _ensure_project_creator_as_o
 from app.services.views.schedule_items import ScheduleScope, _count_dashboard, list_schedule_items
 
 
-def _member_initial(display_name: str, email: str) -> str:
-    source = display_name.strip() or email.strip()
+def _member_initial(display_name: str, email: str | None) -> str:
+    source = display_name.strip() or (email or "").strip()
     return source[:1].upper() if source else "?"
 
 
@@ -27,7 +27,7 @@ def _avatar_preview(u: User, role: str) -> MemberAvatarPreviewOut:
     return MemberAvatarPreviewOut(
         user_id=str(u.id),
         display_name=u.display_name,
-        email=u.email,
+        email=public_email(u.email),
         initial=_member_initial(u.display_name, u.email),
     )
 

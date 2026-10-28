@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.security import hash_password
 from app.db.deps import get_db
-from app.models.user import SYSTEM_ROLE_USER, User
+from app.models.user import SYSTEM_ROLE_USER, User, public_email
 from app.schemas.auth import MeResponse, MeUpdate, RegisterRequest
 from app.services.week_calendar import WEEK_START_DAYS
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def _me_response(user: User) -> MeResponse:
     return MeResponse(
         id=str(user.id),
-        email=user.email,
+        email=public_email(user.email),
         display_name=user.display_name,
         system_role=user.system_role,
         week_starts_on=user.week_starts_on,

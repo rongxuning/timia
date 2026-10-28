@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.comment import Comment
 from app.models.item import Item
 from app.models.project import Project, ProjectFavorite
-from app.models.user import User
+from app.models.user import User, public_email
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.views.workspace import (
     DiscussionViewItemOut,
@@ -58,7 +58,7 @@ def _format_discussion_ago(iso: datetime) -> str:
 
 
 def _member_preview(m: WorkspaceMember, u: User) -> MemberPreviewOut:
-    return MemberPreviewOut(id=str(m.id), display_name=u.display_name, email=u.email)
+    return MemberPreviewOut(id=str(m.id), display_name=u.display_name, email=public_email(u.email))
 
 
 def build_workspace_dashboard(db: Session, workspace_id: uuid.UUID, user: User) -> WorkspaceDashboardOut:

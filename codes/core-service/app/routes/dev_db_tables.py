@@ -107,7 +107,7 @@ def _orm_row_dict(model_cls: type, row: Any) -> dict[str, Any]:
             out[key] = "***"
         elif model_cls is MobileDevice and key == "public_key":
             out[key] = "***"
-        elif model_cls is AuthChallenge and key == "nonce_hash":
+        elif model_cls is AuthChallenge and key in {"nonce_hash", "code_hash"}:
             out[key] = "***"
         elif model_cls is AgentToken and key == "token_hash":
             out[key] = "***"

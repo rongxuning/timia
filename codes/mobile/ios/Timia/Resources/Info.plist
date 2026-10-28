@@ -47,6 +47,25 @@
 	<string>$(TIMIA_FILE_API_BASE_URL)</string>
 	<key>TIMIA_NOTIFICATION_API_BASE_URL</key>
 	<string>$(TIMIA_NOTIFICATION_API_BASE_URL)</string>
+	<key>TIMIA_GOOGLE_CLIENT_ID</key>
+	<string>$(TIMIA_GOOGLE_CLIENT_ID)</string>
+	<key>TIMIA_GOOGLE_REDIRECT_URI</key>
+	<string>$(TIMIA_GOOGLE_REDIRECT_URI)</string>
+	<key>TIMIA_WECHAT_APP_ID</key>
+	<string>$(TIMIA_WECHAT_APP_ID)</string>
+	<key>TIMIA_WECHAT_REDIRECT_URI</key>
+	<string>$(TIMIA_WECHAT_REDIRECT_URI)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>online.timia.ios.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>timia</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UILaunchScreen</key>

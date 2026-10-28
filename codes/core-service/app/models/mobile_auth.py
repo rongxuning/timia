@@ -95,7 +95,10 @@ class AuthChallenge(Base, UUIDPrimaryKeyMixin):
     purpose: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
     installation_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     session_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    # Phone E.164 or other challenge subject. Not a secret.
+    subject: Mapped[str | None] = mapped_column(String(320), nullable=True)
     nonce_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    code_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
