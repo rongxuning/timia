@@ -33,8 +33,11 @@ from app.services.mobile_auth import (
     registration_message,
 )
 from app.services.phone_numbers import mask_phone, normalize_phone
+from app.routes.mobile_auth import _step_up_proof
+from app.schemas.mobile_auth import OAuthLoginRequest
 from app.services.provider_auth import (
     ProviderAuthError,
+    ProviderProfile,
     StepUpProof,
     login_with_profile,
     phone_profile,
@@ -706,6 +709,289 @@ def test_first_login_retries_after_identity_conflict(monkeypatch):
         db.execute(delete(AuthIdentity).where(AuthIdentity.provider_subject == phone))
         db.execute(delete(User).where(User.id == user.id))
         db.commit()
+
+
+def test_first_login_recovers_when_display_name_conflicts(monkeypatch):
+    from app.services import provider_auth
+
+    db = next(get_db())
+    suffix = f"{uuid.uuid4().int % 100000000:08d}"
+    phone = f"+86137{suffix}"
+    display = f"手机{suffix[-4:]}"
+    user = User(
+        id=uuid.uuid4(),
+        email=None,
+        display_name=display,
+        password_hash=None,
+        status="active",
+        system_role="user",
+    )
+    db.add(user)
+    db.flush()
+    db.add(
+        AuthIdentity(
+            user_id=user.id,
+            provider="phone",
+            provider_tenant="timia",
+            provider_subject=phone,
+            normalized_phone=phone,
+            phone_verified=True,
+            email_verified=False,
+        )
+    )
+    db.commit()
+    original = provider_auth._lock_identity
+    calls = {"n": 0}
+
+    def miss_once(session, profile):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return original(session, profile)
+
+    monkeypatch.setattr(provider_auth, "_lock_identity", miss_once)
+    monkeypatch.setattr(provider_auth, "_allocate_display_name", lambda _db, _profile: display)
+    try:
+        logged_in = login_with_profile(db, phone_profile(phone))
+        assert logged_in.id == user.id
+        assert calls["n"] >= 2
+        rows = list(
+            db.scalars(select(AuthIdentity).where(AuthIdentity.provider_subject == phone)).all()
+        )
+        assert len(rows) == 1
+    finally:
+        db.rollback()
+        db.execute(delete(AuthIdentity).where(AuthIdentity.provider_subject == phone))
+        db.execute(delete(User).where(User.id == user.id))
+        db.commit()
+
+
+def test_first_login_picks_another_display_name_after_a_clash(monkeypatch):
+    from app.services import provider_auth
+
+    db = next(get_db())
+    suffix = f"{uuid.uuid4().int % 100000000:08d}"
+    phone = f"+86136{suffix}"
+    taken = f"手机{suffix[-4:]}"
+    other = User(
+        id=uuid.uuid4(),
+        email=None,
+        display_name=taken,
+        password_hash=None,
+        status="active",
+        system_role="user",
+    )
+    db.add(other)
+    db.commit()
+    real = provider_auth._allocate_display_name
+    calls = {"n": 0}
+
+    def collide_once(session, profile):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return taken
+        return real(session, profile)
+
+    monkeypatch.setattr(provider_auth, "_allocate_display_name", collide_once)
+    created_id: uuid.UUID | None = None
+    try:
+        logged_in = login_with_profile(db, phone_profile(phone))
+        created_id = logged_in.id
+        assert logged_in.id != other.id
+        identity = db.scalar(select(AuthIdentity).where(AuthIdentity.provider_subject == phone))
+        assert identity is not None
+        assert identity.user_id == logged_in.id
+        assert logged_in.display_name != taken
+    finally:
+        db.rollback()
+        if created_id is not None:
+            db.execute(delete(AuthIdentity).where(AuthIdentity.user_id == created_id))
+            db.execute(delete(User).where(User.id == created_id))
+        db.execute(delete(User).where(User.id == other.id))
+        db.commit()
+
+
+def test_step_up_request_keeps_google_pkce_fields():
+    payload = OAuthLoginRequest(
+        installation_id="installation-id-01",
+        challenge_id=uuid.uuid4(),
+        nonce="n" * 32,
+        signature="s" * 64,
+        code="link-code",
+        step_up_provider="google",
+        step_up_oauth_code="auth-code",
+        step_up_redirect_uri="https://timia.online/core-service/auth/mobile/oauth/google/callback",
+        step_up_code_verifier="verifier-123",
+    )
+    proof = _step_up_proof(payload)
+    assert proof.provider == "google"
+    assert proof.oauth_code == "auth-code"
+    assert proof.redirect_uri == payload.step_up_redirect_uri
+    assert proof.code_verifier == "verifier-123"
+
+
+def test_google_code_step_up_forwards_pkce(monkeypatch):
+    db = next(get_db())
+    suffix = uuid.uuid4().hex[:8]
+    subject = f"sub-{suffix}"
+    user = User(
+        id=uuid.uuid4(),
+        display_name=f"pkce-{suffix}",
+        status="active",
+        system_role="user",
+    )
+    db.add(user)
+    db.flush()
+    db.add(
+        AuthIdentity(
+            user_id=user.id,
+            provider="google",
+            provider_tenant="google",
+            provider_subject=subject,
+            email_verified=True,
+            phone_verified=False,
+        )
+    )
+    db.commit()
+    captured: dict[str, str | None] = {}
+
+    def fake_verify(*, id_token, code, redirect_uri, code_verifier):
+        captured["id_token"] = id_token
+        captured["code"] = code
+        captured["redirect_uri"] = redirect_uri
+        captured["code_verifier"] = code_verifier
+        return ProviderProfile(
+            provider="google",
+            provider_tenant="google",
+            subject=subject,
+            email_verified=True,
+        )
+
+    monkeypatch.setattr("app.services.provider_auth.verify_google_login", fake_verify)
+    redirect = "https://timia.online/core-service/auth/mobile/oauth/google/callback"
+    try:
+        require_current_account_step_up(
+            db,
+            user,
+            StepUpProof(
+                provider="google",
+                oauth_code="auth-code",
+                redirect_uri=redirect,
+                code_verifier="verifier-123",
+            ),
+        )
+        assert captured == {
+            "id_token": None,
+            "code": "auth-code",
+            "redirect_uri": redirect,
+            "code_verifier": "verifier-123",
+        }
+    finally:
+        db.rollback()
+        db.execute(delete(AuthIdentity).where(AuthIdentity.user_id == user.id))
+        db.execute(delete(User).where(User.id == user.id))
+        db.commit()
+
+
+def test_wrong_phone_step_up_does_not_burn_binding_code(monkeypatch):
+    _allow_sms_dev_stub(monkeypatch)
+    client = TestClient(app)
+    installation, private_key = _register_device(client)
+    db = next(get_db())
+    suffix = f"{uuid.uuid4().int % 100000000:08d}"
+    older_raw = f"139{suffix}"
+    newer_raw = f"138{suffix}"
+    user_ids: list[uuid.UUID] = []
+    try:
+        _older_token, older_id = _phone_token(client, private_key, installation, older_raw)
+        newer_token, newer_id = _phone_token(client, private_key, installation, newer_raw)
+        user_ids.extend([older_id, newer_id])
+        _age_phone_codes(db, installation)
+        binding = _send_code(client, installation, older_raw)
+        step = _send_code(client, installation, newer_raw)
+        older_phone = normalize_phone(older_raw)
+        newer_phone = normalize_phone(newer_raw)
+        signature = _sign(
+            private_key,
+            phone_login_message(
+                uuid.UUID(binding["challenge_id"]),
+                binding["nonce"],
+                installation,
+                older_phone,
+                binding["dev_code"],
+            ),
+        )
+        wrong = "000000" if binding["dev_code"] != "000000" else "111111"
+        if wrong == step["dev_code"]:
+            wrong = "222222"
+        body = {
+            "phone": older_phone,
+            "code": binding["dev_code"],
+            "installation_id": installation,
+            "challenge_id": binding["challenge_id"],
+            "nonce": binding["nonce"],
+            "signature": signature,
+            "step_up_provider": "phone",
+            "step_up_phone": newer_phone,
+            "step_up_code": wrong,
+            "step_up_challenge_id": step["challenge_id"],
+            "step_up_nonce": step["nonce"],
+        }
+        failed = client.post(
+            "/auth/mobile/identities/phone",
+            headers={"Authorization": f"Bearer {newer_token}"},
+            json=body,
+        )
+        assert failed.status_code == 403, failed.text
+        assert failed.json()["detail"] == "step_up_failed"
+        db.expire_all()
+        binding_row = db.get(AuthChallenge, uuid.UUID(binding["challenge_id"]))
+        step_row = db.get(AuthChallenge, uuid.UUID(step["challenge_id"]))
+        assert binding_row is not None and binding_row.consumed_at is None
+        assert binding_row.attempt_count == 0
+        assert step_row is not None and step_row.attempt_count == 1
+        assert step_row.consumed_at is None
+
+        retried = client.post(
+            "/auth/mobile/identities/phone",
+            headers={"Authorization": f"Bearer {newer_token}"},
+            json={**body, "step_up_code": step["dev_code"]},
+        )
+        assert retried.status_code == 200, retried.text
+        db.expire_all()
+        binding_row = db.get(AuthChallenge, uuid.UUID(binding["challenge_id"]))
+        assert binding_row is not None and binding_row.consumed_at is not None
+    finally:
+        _cleanup_device(db, installation, user_ids)
+
+
+def _phone_token(client, private_key, installation: str, raw_phone: str) -> tuple[str, uuid.UUID]:
+    sent = _send_code(client, installation, raw_phone)
+    phone = normalize_phone(raw_phone)
+    signature = _sign(
+        private_key,
+        phone_login_message(
+            uuid.UUID(sent["challenge_id"]),
+            sent["nonce"],
+            installation,
+            phone,
+            sent["dev_code"],
+        ),
+    )
+    verified = client.post(
+        "/auth/mobile/login/phone/verify",
+        json={
+            "phone": phone,
+            "code": sent["dev_code"],
+            "installation_id": installation,
+            "challenge_id": sent["challenge_id"],
+            "nonce": sent["nonce"],
+            "signature": signature,
+        },
+    )
+    assert verified.status_code == 200, verified.text
+    token = verified.json()["access_token"]
+    return token, uuid.UUID(decode_access_token(token)["sub"])
 
 
 def _allow_sms_dev_stub(monkeypatch) -> None:

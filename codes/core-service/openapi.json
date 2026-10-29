@@ -19107,6 +19107,30 @@
             ],
             "title": "Step Up Oauth Code"
           },
+          "step_up_redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Redirect Uri"
+          },
+          "step_up_code_verifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Code Verifier"
+          },
           "installation_id": {
             "type": "string",
             "maxLength": 64,
@@ -19392,6 +19416,30 @@
               }
             ],
             "title": "Step Up Oauth Code"
+          },
+          "step_up_redirect_uri": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Redirect Uri"
+          },
+          "step_up_code_verifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Code Verifier"
           },
           "phone": {
             "type": "string",

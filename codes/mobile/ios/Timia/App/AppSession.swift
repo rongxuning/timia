@@ -87,12 +87,37 @@ final class AppSession: ObservableObject {
         try await credentials.sendPhoneCode(phone)
     }
 
-    func loginWithPhone(phone: String, code: String, challengeId: String, nonce: String) async throws {
+    func loginWithPhone(
+        phone: String,
+        code: String,
+        challengeId: String,
+        nonce: String,
+        stepUp: IdentityStepUp? = nil
+    ) async throws {
         try await credentials.verifyPhoneLogin(
             phone: phone,
             code: code,
             challengeId: challengeId,
-            nonce: nonce
+            nonce: nonce,
+            stepUp: stepUp
+        )
+        let me = try await api.request("/auth/me", response: CurrentUser.self)
+        state = .signedIn(me)
+    }
+
+    func linkPhone(
+        phone: String,
+        code: String,
+        challengeId: String,
+        nonce: String,
+        stepUp: IdentityStepUp
+    ) async throws {
+        try await credentials.linkPhoneIdentity(
+            phone: phone,
+            code: code,
+            challengeId: challengeId,
+            nonce: nonce,
+            stepUp: stepUp
         )
         let me = try await api.request("/auth/me", response: CurrentUser.self)
         state = .signedIn(me)
@@ -102,13 +127,33 @@ final class AppSession: ObservableObject {
         provider: String,
         code: String,
         redirectURI: String?,
-        codeVerifier: String?
+        codeVerifier: String?,
+        stepUp: IdentityStepUp? = nil
     ) async throws {
         try await credentials.oauthLogin(
             provider: provider,
             code: code,
             redirectURI: redirectURI,
-            codeVerifier: codeVerifier
+            codeVerifier: codeVerifier,
+            stepUp: stepUp
+        )
+        let me = try await api.request("/auth/me", response: CurrentUser.self)
+        state = .signedIn(me)
+    }
+
+    func linkOAuth(
+        provider: String,
+        code: String,
+        redirectURI: String?,
+        codeVerifier: String?,
+        stepUp: IdentityStepUp
+    ) async throws {
+        try await credentials.linkOAuthIdentity(
+            provider: provider,
+            code: code,
+            redirectURI: redirectURI,
+            codeVerifier: codeVerifier,
+            stepUp: stepUp
         )
         let me = try await api.request("/auth/me", response: CurrentUser.self)
         state = .signedIn(me)

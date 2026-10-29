@@ -69,6 +69,8 @@ class IdentityStepUpRequest(BaseModel):
     step_up_nonce: str | None = Field(default=None, max_length=256)
     step_up_id_token: str | None = Field(default=None, max_length=8192)
     step_up_oauth_code: str | None = Field(default=None, max_length=2048)
+    step_up_redirect_uri: str | None = Field(default=None, max_length=512)
+    step_up_code_verifier: str | None = Field(default=None, max_length=256)
 
 
 class PhoneLoginRequest(IdentityStepUpRequest):

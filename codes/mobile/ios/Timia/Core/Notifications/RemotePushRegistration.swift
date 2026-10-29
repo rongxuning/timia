@@ -75,6 +75,7 @@ final class TimiaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
                 WeChatAuthInbox.store(errCode: errCode, code: codeText, state: stateText)
             }
         }
+        WeChatOpenSDKLogin.registerIfConfigured()
         return true
     }
 
@@ -83,7 +84,7 @@ final class TimiaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         open url: URL,
         options: [UIApplication.OpenURLOptionsKey: Any] = [:]
     ) -> Bool {
-        WeChatSDKBridge.handleOpenURL(url)
+        WeChatSceneRouter.open(url: url)
     }
 
     func application(
@@ -91,8 +92,7 @@ final class TimiaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         continue userActivity: NSUserActivity,
         restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
     ) -> Bool {
-        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb else { return false }
-        return WeChatSDKBridge.handleUniversalLink(userActivity)
+        WeChatSceneRouter.continueActivity(userActivity)
     }
 
     func application(

@@ -19,6 +19,17 @@ static WeChatSDKBridge *_delegate = nil;
     _authCompletion = [completion copy];
 }
 
++ (BOOL)registerAppID:(NSString *)appID universalLink:(NSString *)universalLink {
+    Class api = NSClassFromString(@"WXApi");
+    if (api == Nil || appID.length == 0 || universalLink.length == 0) {
+        return NO;
+    }
+    return [self invokeBoolOnClass:api
+                          selector:@"registerApp:universalLink:"
+                             first:appID
+                            second:universalLink];
+}
+
 + (BOOL)sendAuthAppID:(NSString *)appID
         universalLink:(NSString *)universalLink
                 state:(NSString *)state {
@@ -27,10 +38,7 @@ static WeChatSDKBridge *_delegate = nil;
     if (api == Nil || reqClass == Nil || appID.length == 0) {
         return NO;
     }
-    if (![self invokeBoolOnClass:api
-                        selector:@"registerApp:universalLink:"
-                           first:appID
-                          second:universalLink]) {
+    if (![self registerAppID:appID universalLink:universalLink]) {
         return NO;
     }
     id req = [[reqClass alloc] init];

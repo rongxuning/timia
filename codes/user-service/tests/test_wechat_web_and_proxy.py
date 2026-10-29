@@ -1,11 +1,13 @@
+import uuid
 from urllib.parse import parse_qs, urlparse
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.config import settings
-from app.models.identity import AuthIdentity, WebSession
+from app.models.identity import AuthIdentity, User, WebSession
 from app.services.core_proxy import set_transport
+from app.services.web_session import login_wechat_web
 
 
 def test_start_redirects_to_qrconnect_with_website_app(monkeypatch, client):
@@ -105,6 +107,143 @@ def test_callback_openid_fallback_uses_website_app_id(monkeypatch, client, db):
     identity = db.scalar(select(AuthIdentity).where(AuthIdentity.provider_subject == "open-only"))
     assert identity is not None
     assert identity.provider_tenant == "wxweb"
+
+
+def test_repeated_callback_for_the_same_unionid_sets_a_session(monkeypatch, client, db):
+    monkeypatch.setattr(settings, "wechat_web_app_id", "wxweb")
+    monkeypatch.setattr(settings, "wechat_web_app_secret", "web-secret")
+    monkeypatch.setattr(settings, "oauth_dev_mode", False)
+    monkeypatch.setattr(settings, "wechat_web_redirect_uri", "https://timia.online/cb")
+
+    def fake_get(url, params=None, timeout=None):
+        class Response:
+            def json(self):
+                return {"openid": "open-web", "unionid": "union-retry", "access_token": "tok"}
+
+        return Response()
+
+    monkeypatch.setattr("app.services.wechat_web.httpx.get", fake_get)
+    for _ in range(2):
+        start = client.get("/auth/wechat/web/start", follow_redirects=False)
+        state = parse_qs(urlparse(start.headers["location"]).query)["state"][0]
+        callback = client.get(
+            "/auth/wechat/web/callback",
+            params={"code": "auth-code", "state": state},
+            follow_redirects=False,
+        )
+        assert callback.status_code == 302, callback.text
+        assert callback.headers["location"].endswith("/login?wechat=1")
+        assert f"{settings.web_cookie_name}=" in callback.headers["set-cookie"]
+    db.expire_all()
+    identities = list(
+        db.scalars(select(AuthIdentity).where(AuthIdentity.provider_subject == "union-retry")).all()
+    )
+    assert len(identities) == 1
+    sessions = db.scalar(
+        select(func.count()).select_from(WebSession).where(WebSession.user_id == identities[0].user_id)
+    )
+    assert sessions == 2
+
+
+def test_identity_insert_race_returns_a_session(monkeypatch, db):
+    from app.services import web_session as mod
+
+    user = User(
+        display_name=f"wx-{uuid.uuid4().hex[:8]}",
+        status="active",
+        system_role="user",
+        week_starts_on=1,
+    )
+    db.add(user)
+    db.flush()
+    db.add(
+        AuthIdentity(
+            user_id=user.id,
+            provider="wechat",
+            provider_tenant="wechat",
+            provider_subject="union-race",
+            email_verified=False,
+            phone_verified=False,
+        )
+    )
+    db.commit()
+    original = mod._lock_identity
+    calls = {"n": 0}
+
+    def miss_once(session, tenant, subject):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return original(session, tenant, subject)
+
+    monkeypatch.setattr(mod, "_lock_identity", miss_once)
+    token, _expires = login_wechat_web(
+        db,
+        provider_tenant="wechat",
+        provider_subject="union-race",
+        last_ip=None,
+        user_agent="pytest",
+    )
+    assert token
+    assert calls["n"] >= 2
+    db.expire_all()
+    rows = list(
+        db.scalars(select(AuthIdentity).where(AuthIdentity.provider_subject == "union-race")).all()
+    )
+    assert len(rows) == 1
+    assert rows[0].user_id == user.id
+
+
+def test_display_name_race_returns_the_existing_wechat_session(monkeypatch, db):
+    from app.services import web_session as mod
+
+    user = User(
+        display_name="微信用户",
+        status="active",
+        system_role="user",
+        week_starts_on=1,
+    )
+    db.add(user)
+    db.flush()
+    db.add(
+        AuthIdentity(
+            user_id=user.id,
+            provider="wechat",
+            provider_tenant="wechat",
+            provider_subject="union-name",
+            email_verified=False,
+            phone_verified=False,
+        )
+    )
+    db.commit()
+    original = mod._lock_identity
+    calls = {"n": 0}
+
+    def miss_once(session, tenant, subject):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return original(session, tenant, subject)
+
+    monkeypatch.setattr(mod, "_lock_identity", miss_once)
+    monkeypatch.setattr(mod, "_allocate_display_name", lambda _db: "微信用户")
+    token, _expires = login_wechat_web(
+        db,
+        provider_tenant="wechat",
+        provider_subject="union-name",
+        last_ip=None,
+        user_agent="pytest",
+    )
+    assert token
+    assert calls["n"] >= 2
+    db.expire_all()
+    rows = list(
+        db.scalars(select(AuthIdentity).where(AuthIdentity.provider_subject == "union-name")).all()
+    )
+    assert len(rows) == 1
+    assert rows[0].user_id == user.id
+    names = list(db.scalars(select(User.display_name).where(User.display_name == "微信用户")).all())
+    assert names == ["微信用户"]
 
 
 def test_callback_rejects_a_mismatched_state(client):

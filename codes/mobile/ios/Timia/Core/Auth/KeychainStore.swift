@@ -218,7 +218,8 @@ actor CredentialManager {
         phone: String,
         code: String,
         challengeId: String,
-        nonce: String
+        nonce: String,
+        stepUp: IdentityStepUp? = nil
     ) async throws {
         try requireReady()
         try await registerDeviceIfNeeded()
@@ -240,7 +241,41 @@ actor CredentialManager {
                 challengeId: challengeId,
                 nonce: nonce,
                 signature: try signature(for: message)
-            )
+            ).applying(stepUp)
+        )
+        try install(response)
+    }
+
+    func linkPhoneIdentity(
+        phone: String,
+        code: String,
+        challengeId: String,
+        nonce: String,
+        stepUp: IdentityStepUp
+    ) async throws {
+        try requireReady()
+        guard let accessToken else { throw APIError.unauthorized }
+        try await registerDeviceIfNeeded()
+        let normalized = try PhoneDisplay.normalize(phone)
+        let message = [
+            "timia-mobile-phone",
+            challengeId,
+            nonce,
+            installationID,
+            Self.sha256(normalized),
+            Self.sha256(code)
+        ].joined(separator: "\n")
+        let response: MobileTokenResponse = try await post(
+            "/auth/mobile/identities/phone",
+            body: PhoneLoginRequest(
+                phone: normalized,
+                code: code,
+                installationId: installationID,
+                challengeId: challengeId,
+                nonce: nonce,
+                signature: try signature(for: message)
+            ).applying(stepUp),
+            bearerToken: accessToken
         )
         try install(response)
     }
@@ -249,7 +284,8 @@ actor CredentialManager {
         provider: String,
         code: String,
         redirectURI: String?,
-        codeVerifier: String?
+        codeVerifier: String?,
+        stepUp: IdentityStepUp? = nil
     ) async throws {
         try requireReady()
         guard provider == "google" || provider == "wechat" else {
@@ -276,7 +312,46 @@ actor CredentialManager {
                 code: code,
                 redirectUri: redirectURI,
                 codeVerifier: codeVerifier
-            )
+            ).applying(stepUp)
+        )
+        try install(response)
+    }
+
+    func linkOAuthIdentity(
+        provider: String,
+        code: String,
+        redirectURI: String?,
+        codeVerifier: String?,
+        stepUp: IdentityStepUp
+    ) async throws {
+        try requireReady()
+        guard provider == "google" || provider == "wechat" else {
+            throw APIError.transport("不支持的登录方式")
+        }
+        guard let accessToken else { throw APIError.unauthorized }
+        try await registerDeviceIfNeeded()
+        let challenge = try await challenge(purpose: "oauth")
+        let message = [
+            "timia-mobile-oauth",
+            challenge.challengeId,
+            challenge.nonce,
+            installationID,
+            provider,
+            Self.sha256(code)
+        ].joined(separator: "\n")
+        let response: MobileTokenResponse = try await post(
+            "/auth/mobile/identities/\(provider)",
+            body: OAuthLoginRequest(
+                installationId: installationID,
+                challengeId: challenge.challengeId,
+                nonce: challenge.nonce,
+                signature: try signature(for: message),
+                idToken: nil,
+                code: code,
+                redirectUri: redirectURI,
+                codeVerifier: codeVerifier
+            ).applying(stepUp),
+            bearerToken: accessToken
         )
         try install(response)
     }

@@ -32,15 +32,30 @@ struct WeChatAuthPayload: Equatable {
 @MainActor
 enum WeChatAuthInbox {
     static var latest: WeChatAuthPayload?
+    /// Scene and application delegate can both deliver one return. Drop the duplicate.
+    private static var lastDelivery: (payload: WeChatAuthPayload, at: Date)?
 
     static func store(errCode: Int, code: String?, state: String?) {
-        latest = WeChatAuthPayload(errCode: errCode, code: code ?? "", state: state ?? "")
+        let payload = WeChatAuthPayload(errCode: errCode, code: code ?? "", state: state ?? "")
+        let now = Date()
+        if let lastDelivery,
+           lastDelivery.payload == payload,
+           now.timeIntervalSince(lastDelivery.at) < 2 {
+            return
+        }
+        lastDelivery = (payload, now)
+        latest = payload
         NotificationCenter.default.post(name: .timiaWeChatAuthFinished, object: nil)
     }
 
     static func take() -> WeChatAuthPayload? {
         defer { latest = nil }
         return latest
+    }
+
+    static func reset() {
+        latest = nil
+        lastDelivery = nil
     }
 }
 
@@ -51,8 +66,46 @@ extension Notification.Name {
 enum WeChatOpenSDKLogin {
     static var sdkAvailable: Bool { WeChatSDKBridge.sdkAvailable() }
 
+    static func bundleValue(_ key: String, bundle: Bundle = .main) -> String? {
+        guard let raw = bundle.object(forInfoDictionaryKey: key) as? String else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed.contains("$(") { return nil }
+        return trimmed
+    }
+
+    /// Register before any URL arrives. OpenSDK ignores a cold-start callback until this runs.
+    @discardableResult
+    static func registerIfConfigured(bundle: Bundle = .main) -> Bool {
+        guard let appID = bundleValue("TIMIA_WECHAT_APP_ID", bundle: bundle),
+              let universalLink = bundleValue("TIMIA_WECHAT_UNIVERSAL_LINK", bundle: bundle) else {
+            return false
+        }
+        guard sdkAvailable else { return false }
+        return register(appID: appID, universalLink: universalLink)
+    }
+
+    @discardableResult
+    static func register(appID: String, universalLink: String) -> Bool {
+        WeChatSDKBridge.registerAppID(appID, universalLink: universalLink)
+    }
+
     @discardableResult
     static func send(appID: String, universalLink: String, state: String) -> Bool {
         WeChatSDKBridge.sendAuthAppID(appID, universalLink: universalLink, state: state)
+    }
+}
+
+enum WeChatSceneRouter {
+    @discardableResult
+    static func open(url: URL) -> Bool {
+        WeChatOpenSDKLogin.registerIfConfigured()
+        return WeChatSDKBridge.handleOpenURL(url)
+    }
+
+    @discardableResult
+    static func continueActivity(_ activity: NSUserActivity) -> Bool {
+        guard activity.activityType == NSUserActivityTypeBrowsingWeb else { return false }
+        WeChatOpenSDKLogin.registerIfConfigured()
+        return WeChatSDKBridge.handleUniversalLink(activity)
     }
 }

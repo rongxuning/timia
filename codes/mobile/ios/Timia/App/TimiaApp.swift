@@ -11,6 +11,12 @@ struct TimiaApp: App {
                 .environmentObject(session)
                 .tint(TimiaTheme.primary)
                 .task { await session.restore() }
+                .onOpenURL { url in
+                    WeChatSceneRouter.open(url: url)
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    WeChatSceneRouter.continueActivity(activity)
+                }
         }
     }
 }
