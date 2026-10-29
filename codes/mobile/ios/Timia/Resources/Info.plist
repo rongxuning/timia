@@ -25,6 +25,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSContactsUsageDescription</key>
+	<string>Timia 读取您通讯录中的本人名片电话，用于在登录页显示已隐藏中间四位的手机号。不会上传通讯录。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Timia 读取您的健康与健身数据，同步到您的账号，供您在网页查看趋势与建议。</string>
 	<key>NSHealthUpdateUsageDescription</key>

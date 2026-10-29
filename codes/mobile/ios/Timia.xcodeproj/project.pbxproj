@@ -72,6 +72,9 @@
 		85F60119F63454EA19F95053 /* NotificationInboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F765E7CB8A1F30BE9E0DA38 /* NotificationInboxTests.swift */; };
 		878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DD19186DC70910982C8C46 /* AuthenticationView.swift */; };
 		F1A1B001A001A001A001A002 /* PhoneDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B001A001A001A001A001 /* PhoneDisplay.swift */; };
+		F1A1C001C001C001C001C002 /* OwnCardPhone.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1C001C001C001C001C001 /* OwnCardPhone.swift */; };
+		F1A1C002C002C002C002C002 /* OwnCardPhone.m in Sources */ = {isa = PBXBuildFile; fileRef = F1A1C002C002C002C002C001 /* OwnCardPhone.m */; };
+		F1A1C004C004C004C004C002 /* Contacts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1A1C004C004C004C004C001 /* Contacts.framework */; };
 		F1A1B002A002A002A002A002 /* PhoneDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B002A002A002A002A001 /* PhoneDisplayTests.swift */; };
 		F1A1B003A003A003A003A003 /* WeChatSDKBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */; };
 		F1A1B004A004A004A004A002 /* WeChatOpenSDKLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B004A004A004A004A001 /* WeChatOpenSDKLogin.swift */; };
@@ -200,6 +203,10 @@
 		2E48BD6E8FB658577FED754E /* ScreenNotificationPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenNotificationPreference.swift; sourceTree = "<group>"; };
 		30DD19186DC70910982C8C46 /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
 		F1A1B001A001A001A001A001 /* PhoneDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneDisplay.swift; sourceTree = "<group>"; };
+		F1A1C001C001C001C001C001 /* OwnCardPhone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnCardPhone.swift; sourceTree = "<group>"; };
+		F1A1C002C002C002C002C001 /* OwnCardPhone.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = OwnCardPhone.m; sourceTree = "<group>"; };
+		F1A1C003C003C003C003C001 /* OwnCardPhone.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OwnCardPhone.h; sourceTree = "<group>"; };
+		F1A1C004C004C004C004C001 /* Contacts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Contacts.framework; path = System/Library/Frameworks/Contacts.framework; sourceTree = SDKROOT; };
 		F1A1B002A002A002A002A001 /* PhoneDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneDisplayTests.swift; sourceTree = "<group>"; };
 		F1A1B003A003A003A003A001 /* WeChatSDKBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WeChatSDKBridge.h; sourceTree = "<group>"; };
 		F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WeChatSDKBridge.m; sourceTree = "<group>"; };
@@ -319,6 +326,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D1B68BDA58BE3E0CBDF7ABC5 /* HealthKit.framework in Frameworks */,
+				F1A1C004C004C004C004C002 /* Contacts.framework in Frameworks */,
 				33053505AA150018921084D0 /* ActivityKit.framework in Frameworks */,
 				719D4B61D1F151F9B4C5CB1D /* UserNotifications.framework in Frameworks */,
 			);
@@ -365,6 +373,9 @@
 			isa = PBXGroup;
 			children = (
 				30DD19186DC70910982C8C46 /* AuthenticationView.swift */,
+				F1A1C003C003C003C003C001 /* OwnCardPhone.h */,
+				F1A1C002C002C002C002C001 /* OwnCardPhone.m */,
+				F1A1C001C001C001C001C001 /* OwnCardPhone.swift */,
 				F1A1B001A001A001A001A001 /* PhoneDisplay.swift */,
 			);
 			path = Authentication;
@@ -509,6 +520,7 @@
 			isa = PBXGroup;
 			children = (
 				E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */,
+				F1A1C004C004C004C004C001 /* Contacts.framework */,
 				851DA05472136D3FAB083B33 /* HealthKit.framework */,
 				7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */,
 				849AAEF8FA2E6934A70B8DC9 /* UserNotifications.framework */,
@@ -845,6 +857,8 @@
 				CCC77FA13FE64AAD42547A92 /* AttachmentChip.swift in Sources */,
 				878655E4724D149CB60A0D4F /* AuthenticationView.swift in Sources */,
 				F1A1B001A001A001A001A002 /* PhoneDisplay.swift in Sources */,
+				F1A1C001C001C001C001C002 /* OwnCardPhone.swift in Sources */,
+				F1A1C002C002C002C002C002 /* OwnCardPhone.m in Sources */,
 				F1A1B004A004A004A004A002 /* WeChatOpenSDKLogin.swift in Sources */,
 				F1A1B003A003A003A003A003 /* WeChatSDKBridge.m in Sources */,
 				52CEBD7A86BD635FDA113A8B /* CalendarCompletedCardStyle.swift in Sources */,
@@ -1225,7 +1239,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios;
 				PRODUCT_NAME = Timia;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Timia/Core/Auth $(inherited)";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Timia/Core/Auth $(SRCROOT)/Timia/Features/Authentication $(inherited)";
 				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "Timia/Core/Speech/Timia-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1265,7 +1279,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = online.timia.ios;
 				PRODUCT_NAME = Timia;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Timia/Core/Auth $(inherited)";
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Timia/Core/Auth $(SRCROOT)/Timia/Features/Authentication $(inherited)";
 				SDKROOT = iphoneos;
 				SWIFT_OBJC_BRIDGING_HEADER = "Timia/Core/Speech/Timia-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";

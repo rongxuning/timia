@@ -21,7 +21,8 @@ private enum DevelopmentLogin {
 struct AuthenticationView: View {
     @EnvironmentObject private var session: AppSession
     @StateObject private var oauth = OAuthBrowser()
-    @State private var phoneMask = PhoneDisplay.storedMask()
+    @State private var phoneMask: String? = PhoneDisplay.storedMask()
+    @State private var isResolvingPhone = false
     @State private var mode: AuthMode = .login
     @State private var email = DevelopmentLogin.email
     @State private var displayName = ""
@@ -43,7 +44,7 @@ struct AuthenticationView: View {
             GeometryReader { proxy in
                 let cardWidth = proxy.size.width * 0.58
                 let contentWidth = cardWidth - 36
-                let buttonWidth = contentWidth * 0.70
+                let buttonWidth = contentWidth * LoginMetrics.providerButtonWidthFactor
                 ScrollView {
                     VStack {
                         Spacer(minLength: 16)
@@ -62,6 +63,7 @@ struct AuthenticationView: View {
         .keyboardDoneToolbar { focusedField = nil }
         .onAppear {
             Task { await finishWeChatIfNeeded() }
+            Task { await refreshPhoneMask() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .timiaWeChatAuthFinished)) { _ in
             Task { await finishWeChatIfNeeded() }
@@ -70,6 +72,7 @@ struct AuthenticationView: View {
             guard phase == .active else { return }
             isSubmitting = false
             Task { await finishWeChatIfNeeded() }
+            Task { await refreshPhoneMask() }
         }
         .sheet(isPresented: $showPhoneSheet) {
             PhoneLoginSheet(mask: $phoneMask)
@@ -92,11 +95,13 @@ struct AuthenticationView: View {
                 .foregroundStyle(LoginPalette.caption)
                 .padding(.top, 10)
 
-            Text(phoneMask)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(LoginPalette.phone)
-                .padding(.top, 12)
-                .accessibilityIdentifier("login.phoneNumber")
+            if let phoneMask {
+                Text(phoneMask)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(LoginPalette.phone)
+                    .padding(.top, 12)
+                    .accessibilityIdentifier("login.phoneNumber")
+            }
 
             VStack(spacing: 10) {
                 compactButton(
@@ -117,7 +122,7 @@ struct AuthenticationView: View {
                     foreground: .white,
                     width: buttonWidth,
                     identifier: "login.wechat",
-                    icon: AnyView(WeChatMark())
+                    icon: AnyView(LoginBrandImage(name: "WeChatLogo"))
                 ) {
                     startWeChat()
                 }
@@ -128,7 +133,7 @@ struct AuthenticationView: View {
                     foreground: .white,
                     width: buttonWidth,
                     identifier: "login.google",
-                    icon: AnyView(GoogleMark())
+                    icon: AnyView(LoginBrandImage(name: "GoogleLogo"))
                 ) {
                     startGoogle()
                 }
@@ -208,7 +213,7 @@ struct AuthenticationView: View {
             Button(action: submitPassword) {
                 Text(mode == .login ? "登录" : "创建账号")
                     .font(.system(size: 15, weight: .semibold))
-                    .frame(width: contentWidth, height: 44)
+                    .frame(width: contentWidth, height: LoginMetrics.accountControlHeight)
                     .foregroundStyle(.white)
                     .background(LoginPalette.green, in: RoundedRectangle(cornerRadius: 12))
             }
@@ -286,7 +291,7 @@ struct AuthenticationView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
-            .frame(width: width, height: 38)
+            .frame(width: width, height: LoginMetrics.providerButtonHeight)
             .foregroundStyle(foreground)
             .background(fill, in: Capsule())
         }
@@ -429,6 +434,26 @@ struct AuthenticationView: View {
         }
     }
 
+    private func refreshPhoneMask() async {
+        if let stored = PhoneDisplay.storedMask() {
+            phoneMask = stored
+            return
+        }
+        guard !ProcessInfo.processInfo.arguments.contains("-ui-testing") else {
+            phoneMask = nil
+            return
+        }
+        guard !isResolvingPhone else { return }
+        isResolvingPhone = true
+        defer { isResolvingPhone = false }
+        let phones = await OwnCardPhone.candidates()
+        if let stored = PhoneDisplay.storedMask() {
+            phoneMask = stored
+            return
+        }
+        phoneMask = PhoneDisplay.resolvedMask(stored: nil, contactPhones: phones)
+    }
+
     private func showNotConfigured() {
         #if DEBUG
         errorMessage = "未配置"
@@ -525,14 +550,14 @@ private struct LoginField: View {
                 .foregroundStyle(LoginPalette.caption)
         }
         .padding(.horizontal, 14)
-        .frame(height: 44)
+        .frame(height: LoginMetrics.accountControlHeight)
         .background(LoginPalette.field, in: RoundedRectangle(cornerRadius: 12))
         .preferredColorScheme(.dark)
     }
 }
 
 private struct PhoneLoginSheet: View {
-    @Binding var mask: String
+    @Binding var mask: String?
     @EnvironmentObject private var session: AppSession
     @Environment(\.dismiss) private var dismiss
     @State private var phone = UserDefaults.standard.string(forKey: PhoneDisplay.storageKey) ?? ""
@@ -686,37 +711,26 @@ private enum LoginPKCE {
     }
 }
 
-private struct WeChatMark: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color(red: 0.13, green: 0.75, blue: 0.33))
-            Image(systemName: "bubble.left.fill")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.white)
-                .offset(x: -1, y: 1)
-        }
-        .frame(width: 16, height: 16)
-    }
+private enum LoginMetrics {
+    /// Top capsules were 38pt. ×0.9 → 34.2.
+    static let providerButtonHeight: CGFloat = 38 * 0.9
+    /// Top capsules were `contentWidth * 0.70`. ×1.1 → 0.77.
+    static let providerButtonWidthFactor: CGFloat = 0.70 * 1.1
+    /// Email, password, register fields, and the password submit button were 44pt. ×0.8 → 35.2.
+    static let accountControlHeight: CGFloat = 44 * 0.8
 }
 
-private struct GoogleMark: View {
+private struct LoginBrandImage: View {
+    let name: String
+
     var body: some View {
-        Text("G")
-            .font(.system(size: 13, weight: .heavy, design: .rounded))
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.26, green: 0.52, blue: 0.96),
-                        Color(red: 0.92, green: 0.26, blue: 0.21),
-                        Color(red: 0.98, green: 0.74, blue: 0.02),
-                        Color(red: 0.20, green: 0.66, blue: 0.33)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+        Image(name)
+            .resizable()
+            .renderingMode(.original)
+            .interpolation(.high)
+            .scaledToFit()
             .frame(width: 16, height: 16)
+            .accessibilityHidden(true)
     }
 }
 
