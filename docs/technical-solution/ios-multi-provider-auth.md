@@ -17,11 +17,23 @@
 - `POST /auth/mobile/identities/google`
 - `POST /auth/mobile/identities/wechat`
 
-身份无人占用时挂到当前用户。身份属于另一个用户时合并。
+身份无人占用时挂到当前用户。身份属于另一个用户时，先做下面的二次验证，再合并。
+
+## 绑定合并前的二次验证
+
+只拿着当前账号的 access token 不能把另一个用户并进来。合并会留下更早的账号，攻击者可以用自己更早的身份把被盗 token 的账号吸走。因此在 `link_profile` 发现身份属于别人、即将合并之前，调用方必须重新证明 **当前 token 所属的账号**，而不是只证明将被留下的那一方。
+
+接受的证明（请求体可选字段，登录接口不需要）：
+
+- `step_up_password`：当前账号设了密码时，校验该密码。
+- `step_up_provider=phone`，再加 `step_up_phone` / `step_up_code` / `step_up_challenge_id` / `step_up_nonce`：这是当前账号上已经绑定的手机号的一次新验证码，不能用正在绑定的那个新号码。
+- `step_up_provider=google|wechat`，再加 `step_up_id_token` 或 `step_up_oauth_code`：解析出的身份必须已经挂在当前用户身上。`OAUTH_DEV_MODE` 的规则不变，生产环境不接受 `dev:` 凭证。
+
+没有证明返回 `403 step_up_required`。证明对不上当前账号返回 `403 step_up_failed`。两种情况下都不合并、不改会话、不签发新登录态。身份还没人占用时仍只靠 access token 加上对新身份本身的验证，不要求二次验证。
 
 ## 合并规则
 
-留下 `created_at` 更早的用户。时间相同则留下 id 字典序更小的一个。被合并账号 `status=merged`，`merged_into_user_id` 指向留下的账号，邮箱和密码清空，移动会话与 Web 会话撤销。
+留下 `created_at` 更早的用户。时间相同则留下 id 字典序更小的一个。被合并账号 `status=merged`，`merged_into_user_id` 指向留下的账号，邮箱和密码清空。移动会话、Web 会话和该账号的个人访问令牌（`agent_tokens`）就地撤销，不搬到留下的账号上，因此不能再当成留下账号的凭证使用。
 
 同一事务内把引用 `users.id` 的外键改到留下的账号。唯一约束冲突时留下原账号上的那一行，并在删除冲突行之前处理这些特例：
 
@@ -37,16 +49,18 @@
 - 不因 Google / 微信返回相同邮箱而自动合并。OAuth 邮箱只写在 `auth_identities.normalized_email`，不写入 `users.email`，因此不会占用密码登录邮箱。
 - 两边都有邮箱时，留下较早账号的邮箱和密码。被合并邮箱不能再走密码登录；它带过来的手机号或第三方身份仍然可以登录留下的账号。
 - 只有被合并账号有邮箱时，邮箱和密码会拷到留下的账号，密码登录继续可用。
-- 被合并账号其他设备上的会话会撤销，需要重新登录。当前这次绑定会为留下的账号重新签发移动会话。
+- 被合并账号其他设备上的会话会撤销，需要重新登录。该账号签发的 PAT 一并作废。当前这次绑定会为留下的账号重新签发移动会话。
 - 合并发生在同一 Postgres 库。文件服务和通知服务如果引用了 `users.id`，同一次外键扫描会一并改写。
 
 ## 环境变量
 
-不要把密钥写进仓库。本地不设置短信网关时，验证码写入服务日志，并在响应字段 `dev_code` 里返回，方便开发。生产必须设置 `SMS_PROVIDER`，否则接口会把验证码交回客户端。
+不要把密钥写进仓库。验证码只有在明确的开发开关下才会写入日志并出现在响应字段 `dev_code`。开关是 `ENVIRONMENT=development`，或 `SMS_DEV_RETURN_CODE=true`。只把 `SMS_PROVIDER` 留空不会返回验证码。未配置真实发送时发码返回 `sms_not_configured`，响应和日志里都没有验证码。网关调用失败时，这次发码仍会计入 60 秒与每日上限，接口返回 `sms_unavailable`，同样不把验证码交回客户端。
 
 | 变量 | 作用 |
 | --- | --- |
-| `SMS_PROVIDER` | 空：开发桩，记录并返回验证码。`http`：POST 到 `SMS_HTTP_URL`。 |
+| `ENVIRONMENT` | `development` 且 `SMS_PROVIDER` 为空（或 `dev`）时走开发桩。默认 `production`，空短信配置会失败关闭。 |
+| `SMS_DEV_RETURN_CODE` | 显式开发开关。为 `true` 时即使不是 development 也返回 `dev_code`。生产必须保持 `false`。 |
+| `SMS_PROVIDER` | 空或 `dev`：仅在上面的开发开关打开时记录并返回验证码，否则 `sms_not_configured`。`http`：POST 到 `SMS_HTTP_URL`。 |
 | `SMS_HTTP_URL` | 短信网关地址。`SMS_PROVIDER=http` 但地址为空时，发码返回 `sms_not_configured`，不返回验证码。 |
 | `SMS_HTTP_TOKEN` | 可选，作为 `Authorization: Bearer`。 |
 | `SMS_SIGN_NAME` | 随 JSON 发给网关的签名。 |

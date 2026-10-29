@@ -19007,6 +19007,106 @@
       },
       "OAuthLoginRequest": {
         "properties": {
+          "step_up_password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Password"
+          },
+          "step_up_provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "phone",
+                  "google",
+                  "wechat"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Provider"
+          },
+          "step_up_phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Phone"
+          },
+          "step_up_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Code"
+          },
+          "step_up_challenge_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Challenge Id"
+          },
+          "step_up_nonce": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Nonce"
+          },
+          "step_up_id_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Id Token"
+          },
+          "step_up_oauth_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Oauth Code"
+          },
           "installation_id": {
             "type": "string",
             "maxLength": 64,
@@ -19193,6 +19293,106 @@
       },
       "PhoneLoginRequest": {
         "properties": {
+          "step_up_password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Password"
+          },
+          "step_up_provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "phone",
+                  "google",
+                  "wechat"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Provider"
+          },
+          "step_up_phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Phone"
+          },
+          "step_up_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Code"
+          },
+          "step_up_challenge_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Challenge Id"
+          },
+          "step_up_nonce": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Nonce"
+          },
+          "step_up_id_token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Id Token"
+          },
+          "step_up_oauth_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Up Oauth Code"
+          },
           "phone": {
             "type": "string",
             "maxLength": 20,

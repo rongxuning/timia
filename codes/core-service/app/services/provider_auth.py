@@ -1,8 +1,9 @@
 """Phone, Google, and WeChat identities on top of mobile device sessions.
 
 Unauthenticated login finds or creates the identity's user.
-An authenticated link attaches a free identity, or merges when it belongs to
-someone else. The earlier user survives. See account_merge.py.
+An authenticated link attaches a free identity. If that identity already
+belongs to someone else, the caller must re-prove the current account before
+the earlier user survives the merge. See account_merge.py.
 """
 
 from __future__ import annotations
@@ -16,9 +17,11 @@ from datetime import datetime, timedelta
 
 import httpx
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.security import verify_password
 from app.models._mixins import utcnow
 from app.models.mobile_auth import AuthChallenge, AuthIdentity
 from app.models.user import SYSTEM_ROLE_USER, User
@@ -33,9 +36,7 @@ PHONE_RESEND_WINDOW = timedelta(seconds=60)
 PHONE_MAX_ATTEMPTS = 5
 PHONE_DAILY_LIMIT = 10
 DEVICE_DAILY_LIMIT = 20
-PRODUCTION_GOOGLE_REDIRECT = (
-    "https://timia.online/core-service/auth/mobile/oauth/google/callback"
-)
+PRODUCTION_GOOGLE_REDIRECT = "https://timia.online/core-service/auth/mobile/oauth/google/callback"
 _GOOGLE_SUFFIX = ".apps.googleusercontent.com"
 
 
@@ -58,12 +59,33 @@ class ProviderProfile:
     display_name: str | None = None
 
 
+@dataclass(frozen=True)
+class StepUpProof:
+    """Re-proof of the account that holds the access token, required before a merge."""
+
+    password: str | None = None
+    provider: str | None = None
+    phone: str | None = None
+    code: str | None = None
+    challenge_id: uuid.UUID | None = None
+    nonce: str | None = None
+    installation_id: str | None = None
+    id_token: str | None = None
+    oauth_code: str | None = None
+
+    def offered(self) -> bool:
+        return bool((self.password or "").strip() or self.provider)
+
+
 def issue_phone_code(
     db: Session, *, raw_phone: str, installation_id: str
 ) -> tuple[uuid.UUID, str, datetime, str | None]:
     phone = _phone(raw_phone)
     require_device(db, installation_id)
     _enforce_phone_rate_limits(db, phone, installation_id)
+    if _sms_dispatch_mode() == "unconfigured":
+        # Fail before a code exists so nothing can be logged or returned.
+        raise ProviderAuthError("sms_not_configured", 503)
     code = f"{secrets.randbelow(1_000_000):06d}"
     nonce = secrets.token_urlsafe(48)
     now = utcnow()
@@ -78,10 +100,11 @@ def issue_phone_code(
     )
     db.add(challenge)
     db.flush()
-    dev_code = dispatch_sms(phone, code)
     challenge_id = challenge.id
     expires_at = challenge.expires_at
+    # Count the attempt even if the gateway later rejects the send.
     db.commit()
+    dev_code = dispatch_sms(phone, code)
     return challenge_id, nonce, expires_at, dev_code
 
 
@@ -165,15 +188,28 @@ def verify_wechat_login(*, code: str | None) -> ProviderProfile:
 
 def login_with_profile(db: Session, profile: ProviderProfile) -> User:
     identity = _lock_identity(db, profile)
-    if identity is None:
-        return _create_user_with_identity(db, profile)
-    user = _active_owner(db, identity)
-    identity.user_id = user.id
-    identity.last_login_at = utcnow()
+    if identity is not None:
+        return _touch_login(db, identity)
+    try:
+        with db.begin_nested():
+            user = _create_user_with_identity(db, profile)
+    except IntegrityError as exc:
+        if not _is_identity_conflict(exc):
+            raise
+        identity = _lock_identity(db, profile)
+        if identity is None:
+            raise
+        return _touch_login(db, identity)
     return user
 
 
-def link_profile(db: Session, current: User, profile: ProviderProfile) -> User:
+def link_profile(
+    db: Session,
+    current: User,
+    profile: ProviderProfile,
+    *,
+    step_up: StepUpProof | None = None,
+) -> User:
     current = resolve_active_user(db, current)
     if current.status != "active":
         raise ProviderAuthError("user_disabled", 403)
@@ -184,9 +220,11 @@ def link_profile(db: Session, current: User, profile: ProviderProfile) -> User:
         return current
     owner = _active_owner(db, identity)
     if owner.id == current.id:
-        identity.user_id = owner.id
-        identity.last_login_at = utcnow()
-        return owner
+        return _touch_login(db, identity)
+    # Prove the token holder before any merge. Proving only the surviving
+    # account is not enough: an older attacker account would otherwise absorb
+    # the token's user.
+    require_current_account_step_up(db, current, step_up)
     survivor = merge_accounts(db, current, owner)
     healed = _lock_identity(db, profile)
     if healed is not None:
@@ -194,12 +232,35 @@ def link_profile(db: Session, current: User, profile: ProviderProfile) -> User:
     return survivor
 
 
+def require_current_account_step_up(db: Session, current: User, proof: StepUpProof | None) -> None:
+    if proof is None or not proof.offered():
+        raise ProviderAuthError("step_up_required", 403)
+    if (proof.password or "").strip():
+        if verify_password(proof.password or "", current.password_hash):
+            return
+        raise ProviderAuthError("step_up_failed", 403)
+    if proof.provider == "phone":
+        _prove_existing_phone(db, current, proof)
+        return
+    if proof.provider in {"google", "wechat"}:
+        _prove_existing_oauth(db, current, proof)
+        return
+    raise ProviderAuthError("step_up_required", 403)
+
+
+def sms_dev_stub_enabled() -> bool:
+    """OTP may leave the server only behind an explicit dev switch."""
+    if settings.sms_dev_return_code:
+        return True
+    return (settings.environment or "").strip().lower() == "development"
+
+
 def dispatch_sms(phone: str, code: str) -> str | None:
-    provider = (settings.sms_provider or "").strip().lower()
-    if not provider:
+    mode = _sms_dispatch_mode()
+    if mode == "dev":
         logger.info("sms dev stub phone=%s code=%s", mask_phone(phone), code)
         return code
-    if provider != "http" or not settings.sms_http_url:
+    if mode != "http":
         raise ProviderAuthError("sms_not_configured", 503)
     headers = {}
     if settings.sms_http_token:
@@ -233,6 +294,74 @@ def allowed_google_redirects() -> set[str]:
             prefix = client_id[: -len(_GOOGLE_SUFFIX)]
             allowed.add(f"com.googleusercontent.apps.{prefix}:/oauth2redirect")
     return allowed
+
+
+def _sms_dispatch_mode() -> str:
+    provider = (settings.sms_provider or "").strip().lower()
+    if sms_dev_stub_enabled() and provider in {"", "dev"}:
+        return "dev"
+    if provider == "http" and (settings.sms_http_url or "").strip():
+        return "http"
+    return "unconfigured"
+
+
+def _touch_login(db: Session, identity: AuthIdentity) -> User:
+    user = _active_owner(db, identity)
+    identity.user_id = user.id
+    identity.last_login_at = utcnow()
+    return user
+
+
+def _is_identity_conflict(exc: IntegrityError) -> bool:
+    orig = exc.orig
+    diag = getattr(orig, "diag", None)
+    name = getattr(diag, "constraint_name", None) if diag is not None else None
+    if name == "uq_auth_identity_provider_subject":
+        return True
+    return "uq_auth_identity_provider_subject" in str(orig or exc)
+
+
+def _prove_existing_phone(db: Session, current: User, proof: StepUpProof) -> None:
+    if not (
+        proof.phone and proof.code and proof.challenge_id and proof.nonce and proof.installation_id
+    ):
+        raise ProviderAuthError("step_up_required", 403)
+    phone = consume_phone_code(
+        db,
+        challenge_id=proof.challenge_id,
+        nonce=proof.nonce,
+        raw_phone=proof.phone,
+        code=proof.code,
+        installation_id=proof.installation_id,
+    )
+    _require_identity_owner(db, current, phone_profile(phone))
+
+
+def _prove_existing_oauth(db: Session, current: User, proof: StepUpProof) -> None:
+    if proof.provider == "google":
+        profile = verify_google_login(
+            id_token=proof.id_token,
+            code=proof.oauth_code,
+            redirect_uri=None,
+            code_verifier=None,
+        )
+    elif proof.provider == "wechat":
+        code = proof.oauth_code or proof.id_token
+        profile = verify_wechat_login(code=code)
+    else:
+        raise ProviderAuthError("step_up_required", 403)
+    if profile.provider != proof.provider:
+        raise ProviderAuthError("step_up_failed", 403)
+    _require_identity_owner(db, current, profile)
+
+
+def _require_identity_owner(db: Session, current: User, profile: ProviderProfile) -> None:
+    identity = _lock_identity(db, profile)
+    if identity is None:
+        raise ProviderAuthError("step_up_failed", 403)
+    owner = _active_owner(db, identity)
+    if owner.id != current.id:
+        raise ProviderAuthError("step_up_failed", 403)
 
 
 def _phone(raw: str) -> str:

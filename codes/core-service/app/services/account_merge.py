@@ -1,5 +1,7 @@
 """Merge two user accounts. The earlier created_at survives.
 
+Absorbed mobile sessions, web sessions, and agent tokens are revoked in place.
+
 Edge cases are documented in docs/technical-solution/ios-multi-provider-auth.md.
 Raw SQL is used so every users.id foreign key is moved, including tables owned
 by file-service and notification-service in the same database.
@@ -15,6 +17,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from app.models._mixins import utcnow
+from app.models.agent_token import AgentToken
 from app.models.mobile_auth import MobileSession
 from app.models.user import User
 from app.models.web_auth import WebSession
@@ -25,6 +28,8 @@ _IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SKIP_MOVE = {
     ("mobile_sessions", "user_id"),
     ("web_sessions", "user_id"),
+    # Bearer PATs stay on the absorbed user and are revoked with sessions.
+    ("agent_tokens", "user_id"),
     ("asset_code_counters", "owner_user_id"),
 }
 
@@ -136,6 +141,7 @@ def merge_accounts(db: Session, left: User, right: User) -> User:
     loser_id = loser.id
     _upgrade_overlapping_memberships(db, loser_id, survivor_id)
     _merge_asset_code_counters(db, loser_id, survivor_id)
+    _revoke_login_credentials(db, loser_id)
     _move_foreign_keys(db, loser_id, survivor_id)
     _rewrite_user_id_arrays(db, loser_id, survivor_id)
     db.execute(
@@ -143,7 +149,6 @@ def merge_accounts(db: Session, left: User, right: User) -> User:
         .where(User.merged_into_user_id == loser_id)
         .values(merged_into_user_id=survivor_id)
     )
-    _revoke_sessions(db, loser_id)
     _transfer_login_secrets(db, survivor, loser)
     loser.status = "merged"
     loser.merged_into_user_id = survivor_id
@@ -344,7 +349,12 @@ def _rewrite_user_id_arrays(db: Session, loser_id: uuid.UUID, survivor_id: uuid.
         )
 
 
-def _revoke_sessions(db: Session, loser_id: uuid.UUID) -> None:
+def _revoke_login_credentials(db: Session, loser_id: uuid.UUID) -> None:
+    """Revoke sessions and PATs before foreign keys are rewritten.
+
+    These rows are listed in ``_SKIP_MOVE`` so a still-valid bearer cannot
+    follow the absorbed user onto the survivor.
+    """
     now = utcnow()
     db.execute(
         update(MobileSession)
@@ -355,6 +365,11 @@ def _revoke_sessions(db: Session, loser_id: uuid.UUID) -> None:
         update(WebSession)
         .where(WebSession.user_id == loser_id, WebSession.revoked_at.is_(None))
         .values(revoked_at=now, revoke_reason="account_merged")
+    )
+    db.execute(
+        update(AgentToken)
+        .where(AgentToken.user_id == loser_id, AgentToken.revoked_at.is_(None))
+        .values(revoked_at=now)
     )
 
 

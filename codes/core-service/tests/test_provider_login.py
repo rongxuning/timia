@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 import uuid
 from datetime import timedelta
 from types import SimpleNamespace
@@ -11,25 +12,34 @@ import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.core.config import settings
 from app.core.security import decode_access_token, hash_password
 from app.db.deps import get_db
 from app.main import app
 from app.models._mixins import utcnow
+from app.models.agent_token import AgentToken
 from app.models.item import Item
 from app.models.mobile_auth import AuthChallenge, AuthIdentity, MobileDevice
 from app.models.project import Project, ProjectMember
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.services.account_merge import merge_accounts, pick_survivor
+from app.services.agent_tokens import hash_pat, verify_pat
 from app.services.mobile_auth import (
     oauth_login_message,
     phone_login_message,
     registration_message,
 )
 from app.services.phone_numbers import mask_phone, normalize_phone
+from app.services.provider_auth import (
+    ProviderAuthError,
+    StepUpProof,
+    login_with_profile,
+    phone_profile,
+    require_current_account_step_up,
+)
 
 
 def test_normalize_and_mask_chinese_mobile():
@@ -73,7 +83,7 @@ def test_oauth_callback_redirects_into_the_app():
 
 
 def test_phone_code_locks_after_five_misses(monkeypatch):
-    monkeypatch.setattr(settings, "sms_provider", "")
+    _allow_sms_dev_stub(monkeypatch)
     client = TestClient(app)
     installation, private_key = _register_device(client)
     db = next(get_db())
@@ -108,7 +118,7 @@ def test_link_phone_requires_auth():
 
 
 def test_phone_login_is_stable_and_google_is_closed_without_config(monkeypatch):
-    monkeypatch.setattr(settings, "sms_provider", "")
+    _allow_sms_dev_stub(monkeypatch)
     monkeypatch.setattr(settings, "oauth_dev_mode", False)
     monkeypatch.setattr(settings, "google_client_ids", "")
     client = TestClient(app)
@@ -137,7 +147,7 @@ def test_phone_login_is_stable_and_google_is_closed_without_config(monkeypatch):
 
 
 def test_link_merges_into_the_earlier_user(monkeypatch):
-    monkeypatch.setattr(settings, "sms_provider", "")
+    _allow_sms_dev_stub(monkeypatch)
     monkeypatch.setattr(settings, "oauth_dev_mode", True)
     client = TestClient(app)
     installation, private_key = _register_device(client)
@@ -177,16 +187,48 @@ def test_link_merges_into_the_earlier_user(monkeypatch):
                 sent["dev_code"],
             ),
         )
+        link_body = {
+            "phone": "+8613900002222",
+            "code": sent["dev_code"],
+            "installation_id": installation,
+            "challenge_id": sent["challenge_id"],
+            "nonce": sent["nonce"],
+            "signature": signed,
+        }
+        silent = client.post(
+            "/auth/mobile/identities/phone",
+            headers={"Authorization": f"Bearer {google_token}"},
+            json=link_body,
+        )
+        assert silent.status_code == 403
+        assert silent.json()["detail"] == "step_up_required"
+        db.expire_all()
+        newer = db.get(User, newer_id)
+        assert newer is not None
+        assert newer.status == "active"
+        assert newer.merged_into_user_id is None
+
+        newer.password_hash = hash_password("correct-password")
+        db.commit()
+        wrong = client.post(
+            "/auth/mobile/identities/phone",
+            headers={"Authorization": f"Bearer {google_token}"},
+            json={**link_body, "step_up_password": "not-the-password"},
+        )
+        assert wrong.status_code == 403
+        assert wrong.json()["detail"] == "step_up_failed"
+        db.expire_all()
+        newer = db.get(User, newer_id)
+        assert newer is not None
+        assert newer.status == "active"
+
         linked = client.post(
             "/auth/mobile/identities/phone",
             headers={"Authorization": f"Bearer {google_token}"},
             json={
-                "phone": "+8613900002222",
-                "code": sent["dev_code"],
-                "installation_id": installation,
-                "challenge_id": sent["challenge_id"],
-                "nonce": sent["nonce"],
-                "signature": signed,
+                **link_body,
+                "step_up_provider": "google",
+                "step_up_id_token": "dev:google:merge-subject:merge@example.com",
             },
         )
         assert linked.status_code == 200, linked.text
@@ -275,6 +317,26 @@ def test_merge_moves_membership_task_and_keeps_survivor_email():
             email_verified=False,
         )
     )
+    loser_secret = f"tm_pat_{suffix}loser"
+    survivor_secret = f"tm_pat_{suffix}keep"
+    db.add_all(
+        [
+            AgentToken(
+                user_id=newer.id,
+                name="absorbed",
+                token_prefix=loser_secret[:16],
+                token_hash=hash_pat(loser_secret),
+                scopes=["profile:read"],
+            ),
+            AgentToken(
+                user_id=older.id,
+                name="kept",
+                token_prefix=survivor_secret[:16],
+                token_hash=hash_pat(survivor_secret),
+                scopes=["profile:read"],
+            ),
+        ]
+    )
     db.commit()
     older_email = older.email
     try:
@@ -303,6 +365,17 @@ def test_merge_moves_membership_task_and_keeps_survivor_email():
         identity = db.scalar(select(AuthIdentity).where(AuthIdentity.user_id == older.id))
         assert identity is not None
         assert identity.provider == "phone"
+        absorbed = db.scalar(
+            select(AgentToken).where(AgentToken.token_hash == hash_pat(loser_secret))
+        )
+        assert absorbed is not None
+        assert absorbed.user_id == newer.id
+        assert absorbed.revoked_at is not None
+        with pytest.raises(ValueError, match="invalid_token"):
+            verify_pat(db, loser_secret)
+        kept_user, kept_token = verify_pat(db, survivor_secret)
+        assert kept_user.id == older.id
+        assert kept_token.revoked_at is None
         again = merge_accounts(db, loser, survivor)
         assert again.id == older.id
     finally:
@@ -483,16 +556,180 @@ def _cleanup_device(db, installation: str, user_ids: list[uuid.UUID]) -> None:
     db.commit()
 
 
+def test_sms_failure_still_counts_toward_rate_limit(monkeypatch):
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "sms_dev_return_code", False)
+    monkeypatch.setattr(settings, "sms_provider", "http")
+    monkeypatch.setattr(settings, "sms_http_url", "http://sms.test/send")
+
+    def fail_send(phone: str, code: str) -> str | None:
+        raise ProviderAuthError("sms_unavailable", 503)
+
+    monkeypatch.setattr("app.services.provider_auth.dispatch_sms", fail_send)
+    client = TestClient(app)
+    installation, _private_key = _register_device(client)
+    db = next(get_db())
+    try:
+        payload = {"phone": "13600001111", "installation_id": installation}
+        first = client.post("/auth/mobile/login/phone/code", json=payload)
+        assert first.status_code == 503
+        assert first.json()["detail"] == "sms_unavailable"
+        assert "dev_code" not in first.json()
+        second = client.post("/auth/mobile/login/phone/code", json=payload)
+        assert second.status_code == 429
+        assert second.json()["detail"] == "resend_too_soon"
+        stored = db.scalar(
+            select(func.count())
+            .select_from(AuthChallenge)
+            .where(
+                AuthChallenge.installation_id == installation,
+                AuthChallenge.purpose == "phone_code",
+            )
+        )
+        assert stored == 1
+    finally:
+        _cleanup_device(db, installation, [])
+
+
+def test_empty_sms_provider_does_not_return_dev_code(monkeypatch, caplog):
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "sms_dev_return_code", False)
+    monkeypatch.setattr(settings, "sms_provider", "")
+    client = TestClient(app)
+    installation, _private_key = _register_device(client)
+    db = next(get_db())
+    try:
+        with caplog.at_level(logging.INFO):
+            response = client.post(
+                "/auth/mobile/login/phone/code",
+                json={"phone": "13600002222", "installation_id": installation},
+            )
+        assert response.status_code == 503
+        assert response.json()["detail"] == "sms_not_configured"
+        assert "dev_code" not in response.text
+        assert "sms dev stub" not in caplog.text
+        stored = db.scalar(
+            select(func.count())
+            .select_from(AuthChallenge)
+            .where(
+                AuthChallenge.installation_id == installation,
+                AuthChallenge.purpose == "phone_code",
+            )
+        )
+        assert stored == 0
+    finally:
+        _cleanup_device(db, installation, [])
+
+
+def test_explicit_sms_dev_flag_returns_code_outside_development(monkeypatch):
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "sms_dev_return_code", True)
+    monkeypatch.setattr(settings, "sms_provider", "")
+    client = TestClient(app)
+    installation, _private_key = _register_device(client)
+    db = next(get_db())
+    try:
+        sent = _send_code(client, installation, "13600003333")
+        assert len(sent["dev_code"]) == 6
+    finally:
+        _cleanup_device(db, installation, [])
+
+
+def test_step_up_does_not_accept_dev_google_when_oauth_dev_mode_is_off(monkeypatch):
+    monkeypatch.setattr(settings, "oauth_dev_mode", False)
+    monkeypatch.setattr(settings, "google_client_ids", "")
+    user = User(
+        id=uuid.uuid4(),
+        display_name=f"step-{uuid.uuid4().hex[:8]}",
+        status="active",
+        system_role="user",
+    )
+    with pytest.raises(ProviderAuthError) as caught:
+        require_current_account_step_up(
+            next(get_db()),
+            user,
+            StepUpProof(provider="google", id_token="dev:google:not-allowed"),
+        )
+    assert caught.value.status_code == 503
+    assert caught.value.detail == "provider_not_configured"
+
+
+def test_first_login_retries_after_identity_conflict(monkeypatch):
+    from app.services import provider_auth
+
+    db = next(get_db())
+    suffix = f"{uuid.uuid4().int % 100000000:08d}"
+    phone = f"+86137{suffix}"
+    user = User(
+        id=uuid.uuid4(),
+        email=None,
+        display_name=f"race-{suffix}",
+        password_hash=None,
+        status="active",
+        system_role="user",
+    )
+    db.add(user)
+    db.flush()
+    db.add(
+        AuthIdentity(
+            user_id=user.id,
+            provider="phone",
+            provider_tenant="timia",
+            provider_subject=phone,
+            normalized_phone=phone,
+            phone_verified=True,
+            email_verified=False,
+        )
+    )
+    db.commit()
+    original = provider_auth._lock_identity
+    calls = {"n": 0}
+
+    def miss_once(session, profile):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return original(session, profile)
+
+    monkeypatch.setattr(provider_auth, "_lock_identity", miss_once)
+    try:
+        logged_in = login_with_profile(db, phone_profile(phone))
+        assert logged_in.id == user.id
+        assert calls["n"] >= 2
+        rows = list(
+            db.scalars(select(AuthIdentity).where(AuthIdentity.provider_subject == phone)).all()
+        )
+        assert len(rows) == 1
+        assert rows[0].user_id == user.id
+    finally:
+        db.rollback()
+        db.execute(delete(AuthIdentity).where(AuthIdentity.provider_subject == phone))
+        db.execute(delete(User).where(User.id == user.id))
+        db.commit()
+
+
+def _allow_sms_dev_stub(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "environment", "development")
+    monkeypatch.setattr(settings, "sms_dev_return_code", False)
+    monkeypatch.setattr(settings, "sms_provider", "")
+
+
 @pytest.fixture(autouse=True)
 def _reset_settings():
     previous = (
         settings.sms_provider,
+        settings.sms_http_url,
+        settings.sms_dev_return_code,
+        settings.environment,
         settings.oauth_dev_mode,
         settings.google_client_ids,
     )
     yield
     (
         settings.sms_provider,
+        settings.sms_http_url,
+        settings.sms_dev_return_code,
+        settings.environment,
         settings.oauth_dev_mode,
         settings.google_client_ids,
     ) = previous

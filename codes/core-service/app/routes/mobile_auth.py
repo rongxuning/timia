@@ -47,6 +47,7 @@ from app.services.mobile_auth import (
 )
 from app.services.provider_auth import (
     ProviderAuthError,
+    StepUpProof,
     consume_phone_code,
     issue_phone_code,
     link_profile,
@@ -127,9 +128,7 @@ def register_mobile_device(
         )
         now = utcnow()
         device = db.scalar(
-            select(MobileDevice).where(
-                MobileDevice.installation_id == payload.installation_id
-            )
+            select(MobileDevice).where(MobileDevice.installation_id == payload.installation_id)
         )
         if device:
             if device.public_key != payload.public_key:
@@ -503,7 +502,11 @@ def _finish_phone_login(
         installation_id=payload.installation_id,
     )
     profile = phone_profile(verified)
-    user = link_profile(db, current, profile) if current else login_with_profile(db, profile)
+    user = (
+        link_profile(db, current, profile, step_up=_step_up_proof(payload))
+        if current
+        else login_with_profile(db, profile)
+    )
     return create_mobile_session(
         db,
         user=user,
@@ -553,7 +556,11 @@ def _finish_oauth_login(
         profile = verify_wechat_login(code=payload.code)
     else:
         raise ProviderAuthError("provider_not_configured", 503)
-    user = link_profile(db, current, profile) if current else login_with_profile(db, profile)
+    user = (
+        link_profile(db, current, profile, step_up=_step_up_proof(payload))
+        if current
+        else login_with_profile(db, profile)
+    )
     return create_mobile_session(
         db,
         user=user,
@@ -561,6 +568,20 @@ def _finish_oauth_login(
         login_provider=provider,
         last_ip=_client_ip(request),
         user_agent=request.headers.get("user-agent"),
+    )
+
+
+def _step_up_proof(payload: PhoneLoginRequest | OAuthLoginRequest) -> StepUpProof:
+    return StepUpProof(
+        password=payload.step_up_password,
+        provider=payload.step_up_provider,
+        phone=payload.step_up_phone,
+        code=payload.step_up_code,
+        challenge_id=payload.step_up_challenge_id,
+        nonce=payload.step_up_nonce,
+        installation_id=payload.installation_id,
+        id_token=payload.step_up_id_token,
+        oauth_code=payload.step_up_oauth_code,
     )
 
 

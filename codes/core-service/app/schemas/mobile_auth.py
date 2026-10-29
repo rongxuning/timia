@@ -58,7 +58,20 @@ class PhoneCodeOut(BaseModel):
     dev_code: str | None = None
 
 
-class PhoneLoginRequest(BaseModel):
+class IdentityStepUpRequest(BaseModel):
+    """Re-proof of the current account. Required only when the link would merge."""
+
+    step_up_password: str | None = Field(default=None, max_length=256)
+    step_up_provider: Literal["phone", "google", "wechat"] | None = None
+    step_up_phone: str | None = Field(default=None, max_length=20)
+    step_up_code: str | None = Field(default=None, pattern=r"^\d{6}$")
+    step_up_challenge_id: uuid.UUID | None = None
+    step_up_nonce: str | None = Field(default=None, max_length=256)
+    step_up_id_token: str | None = Field(default=None, max_length=8192)
+    step_up_oauth_code: str | None = Field(default=None, max_length=2048)
+
+
+class PhoneLoginRequest(IdentityStepUpRequest):
     phone: str = Field(min_length=8, max_length=20)
     code: str = Field(pattern=r"^\d{6}$")
     installation_id: str = Field(min_length=16, max_length=64)
@@ -67,7 +80,7 @@ class PhoneLoginRequest(BaseModel):
     signature: str = Field(min_length=64, max_length=256)
 
 
-class OAuthLoginRequest(BaseModel):
+class OAuthLoginRequest(IdentityStepUpRequest):
     installation_id: str = Field(min_length=16, max_length=64)
     challenge_id: uuid.UUID
     nonce: str = Field(min_length=32, max_length=256)
