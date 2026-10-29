@@ -1,27 +1,50 @@
 import Foundation
 
 enum PhoneDisplay {
-    static let placeholder = "138****5678"
     static let storageKey = "timia.login.phone"
 
-    /// iOS does not expose the carrier phone number. Show the last verified
-    /// number when we have one, otherwise the placeholder mask.
-    static func storedMask() -> String {
-        let raw = UserDefaults.standard.string(forKey: storageKey) ?? ""
-        return raw.isEmpty ? placeholder : mask(raw)
+    /// Last SMS-verified number in `UserDefaults`, masked, or nil when none is stored.
+    /// iOS does not expose the SIM number. Callers that still have no mask may ask
+    /// Contacts for the Me card; they must not invent a placeholder.
+    static func storedMask(defaults: UserDefaults = .standard) -> String? {
+        resolvedMask(stored: defaults.string(forKey: storageKey))
     }
 
     static func remember(_ e164: String) {
         UserDefaults.standard.set(e164, forKey: storageKey)
     }
 
-    static func mask(_ raw: String) -> String {
+    /// Prefix 3 + `****` + suffix 4. Returns nil when there are fewer than 7 digits.
+    static func mask(_ raw: String) -> String? {
         var digits = raw.filter(\.isNumber)
         if digits.hasPrefix("86"), digits.count >= 13 {
             digits.removeFirst(2)
         }
-        guard digits.count >= 7 else { return placeholder }
+        guard digits.count >= 7 else { return nil }
         return "\(digits.prefix(3))****\(digits.suffix(4))"
+    }
+
+    /// Stored SMS number wins. Otherwise the first maskable Me-card number,
+    /// preferring mobile / iPhone labels. Nil when nothing real is available.
+    static func resolvedMask(
+        stored: String?,
+        contactPhones: [(label: String, number: String)] = []
+    ) -> String? {
+        if let stored, let masked = mask(stored) {
+            return masked
+        }
+        guard let number = preferredNumber(from: contactPhones) else { return nil }
+        return mask(number)
+    }
+
+    static func preferredNumber(from candidates: [(label: String, number: String)]) -> String? {
+        let ranked = candidates.enumerated().sorted { lhs, rhs in
+            let left = labelRank(lhs.element.label)
+            let right = labelRank(rhs.element.label)
+            if left != right { return left < right }
+            return lhs.offset < rhs.offset
+        }
+        return ranked.lazy.compactMap { mask($0.element.number) == nil ? nil : $0.element.number }.first
     }
 
     static func normalize(_ raw: String) throws -> String {
@@ -45,5 +68,13 @@ enum PhoneDisplay {
             throw APIError.transport("请输入有效手机号")
         }
         return digits
+    }
+
+    private static func labelRank(_ label: String) -> Int {
+        let value = label.lowercased()
+        if value.contains("mobile") || value.contains("iphone") { return 0 }
+        if value.contains("main") { return 1 }
+        if value.contains("home") || value.contains("work") { return 2 }
+        return 3
     }
 }
