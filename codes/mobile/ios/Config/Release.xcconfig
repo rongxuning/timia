@@ -6,5 +6,5 @@ TIMIA_GOOGLE_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oau
 TIMIA_WECHAT_APP_ID =
 TIMIA_WECHAT_REDIRECT_URI = https:/$()/timia.online/core-service/auth/mobile/oauth/wechat/callback
 TIMIA_WECHAT_UNIVERSAL_LINK = https:/$()/timia.online/wechat/
-# Must be the mobile app id itself, for example wx0123456789abcdef. Leave blank until that id exists.
+// Must be the mobile app id itself, for example wx0123456789abcdef. Leave blank until that id exists.
 TIMIA_WECHAT_URL_SCHEME =
