@@ -99,7 +99,8 @@ enum WeChatSceneRouter {
     @discardableResult
     static func open(url: URL) -> Bool {
         WeChatOpenSDKLogin.registerIfConfigured()
-        return WeChatSDKBridge.handleOpenURL(url)
+        // +handleOpenURL: is imported as handleOpen(_:) (Swift 3; the ObjC selector is unchanged).
+        return WeChatSDKBridge.handleOpen(url)
     }
 
     @discardableResult
