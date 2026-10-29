@@ -23,6 +23,7 @@ services:
       PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       FILE_SERVICE_BASE: http://file-service:8003
       NOTIFICATION_SERVICE_BASE: http://notification-service:8001
+      USER_SERVICE_BASE: http://user-service:8004
     command:
       [
         "sh",
@@ -114,6 +115,36 @@ services:
     expose:
       - "8001"
 
+  user-service:
+    image: timia-user-service:prod
+    build:
+      context: ./codes/user-service
+      args:
+        BUILD_REVISION: ${USER_SERVICE_REVISION:-local}
+    restart: unless-stopped
+    env_file: ${TIMIA_ENV_FILE:?set TIMIA_ENV_FILE — use deploy/dc.sh}
+    environment:
+      PATH: /app/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      CORE_SERVICE_BASE: http://core-service:8000
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8004",
+      ]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      db:
+        condition: service_healthy
+      core-service:
+        condition: service_healthy
+    expose:
+      - "8004"
+
   web:
     image: timia-web:prod
     build:
@@ -161,6 +192,7 @@ services:
       - core-service
       - file-service
       - notification-service
+      - user-service
       - web
       - mcp-server
 

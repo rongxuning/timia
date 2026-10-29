@@ -42,7 +42,7 @@ const NOTIFICATION_API_BASE_URL =
  * Auth requests (`/auth/*`) are proxied through Next.js (dev) or the reverse
  * proxy (prod) so they hit the API as same-origin from the browser's
  * perspective. This keeps the `SameSite=Lax` RT cookie working across the
- * web (3000) → API (8000) port boundary in dev. Non-auth calls still use
+ * web (3000) → user-service (8004) port boundary in dev. Non-auth calls still use
  * the cross-origin `API_BASE_URL` because they don't carry cookies.
  */
 function baseUrlFor(path: string): string {

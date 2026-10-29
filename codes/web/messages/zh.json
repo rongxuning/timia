@@ -179,7 +179,9 @@
     "emailTaken": "该邮箱已被注册",
     "displayNameTaken": "该显示名称已被使用",
     "displayNameRequired": "请输入显示名称",
-    "displayNameTooLong": "显示名称过长"
+    "displayNameTooLong": "显示名称过长",
+    "wechatLogin": "微信扫码登录",
+    "wechatFailed": "微信登录未完成，请重试"
   },
   "place": {
     "label": "地点",

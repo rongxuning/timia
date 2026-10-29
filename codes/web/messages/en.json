@@ -179,7 +179,9 @@
     "emailTaken": "That email is already registered",
     "displayNameTaken": "That display name is already taken",
     "displayNameRequired": "Enter a display name",
-    "displayNameTooLong": "Display name is too long"
+    "displayNameTooLong": "Display name is too long",
+    "wechatLogin": "Continue with WeChat",
+    "wechatFailed": "WeChat sign-in did not finish. Try again."
   },
   "place": {
     "label": "Location",

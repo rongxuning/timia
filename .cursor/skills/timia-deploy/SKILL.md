@@ -33,11 +33,11 @@ PACK_SERVICES=web bash deploy/remote.sh
 
 ## 易错
 
-- 服务：`web`、`core-service`、`file-service`、`mcp-server`、`db`、`nginx`
+- 服务：`web`、`core-service`、`file-service`、`notification-service`、`user-service`、`mcp-server`、`db`、`nginx`
 - MCP：对外 `https://timia.online/mcp` + `/mcp-health`；`Authorization` 必须透传；`proxy_buffering off`
 - 证书在宿主机 `/etc/letsencrypt`，compose 挂载进 nginx
 - 环境变量：服务器 `.env.prod`（模板 `.env.prod.example`），不要把密钥提交进 git
 - 只重发 MCP：`DEPLOY_MODE=mcp-server bash deploy/local.sh` 或 `PACK_SERVICES=mcp-server bash deploy/remote.sh`
-- Alembic 在 core 容器启动时 upgrade；双 head 会让服务起不来（先 merge migration）
+- Alembic 在 core 容器启动时 upgrade；双 head 会让服务起不来（先 merge migration）。user-service 只写自己的版本表 `alembic_version_user_service`，不建领域表
 
 改 nginx/compose 后以 `docs/deploy/cloud.md` 的 MCP/HTTPS 小节为准，不要另写一套路径。

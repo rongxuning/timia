@@ -31,6 +31,7 @@ struct AuthenticationView: View {
     @State private var isSubmitting = false
     @State private var showPhoneSheet = false
     @FocusState private var focusedField: AuthField?
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -59,6 +60,14 @@ struct AuthenticationView: View {
             }
         }
         .keyboardDoneToolbar { focusedField = nil }
+        .onReceive(NotificationCenter.default.publisher(for: .timiaWeChatAuthFinished)) { _ in
+            Task { await finishWeChatIfNeeded() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            isSubmitting = false
+            Task { await finishWeChatIfNeeded() }
+        }
         .sheet(isPresented: $showPhoneSheet) {
             PhoneLoginSheet(mask: $phoneMask)
                 .environmentObject(session)
@@ -284,27 +293,49 @@ struct AuthenticationView: View {
 
     private func startWeChat() {
         errorMessage = nil
-        guard let appID = LoginProviders.value("TIMIA_WECHAT_APP_ID") else {
+        guard let appID = LoginProviders.value("TIMIA_WECHAT_APP_ID"), WeChatOpenSDKLogin.sdkAvailable else {
             showNotConfigured()
             return
         }
-        let redirect = LoginProviders.value("TIMIA_WECHAT_REDIRECT_URI")
-            ?? "https://timia.online/core-service/auth/mobile/oauth/wechat/callback"
+        let universalLink = LoginProviders.value("TIMIA_WECHAT_UNIVERSAL_LINK")
+            ?? "https://timia.online/wechat/"
         let state = UUID().uuidString.lowercased()
-        var components = URLComponents(string: "https://open.weixin.qq.com/connect/qrconnect")
-        components?.queryItems = [
-            URLQueryItem(name: "appid", value: appID),
-            URLQueryItem(name: "redirect_uri", value: redirect),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: "snsapi_login"),
-            URLQueryItem(name: "state", value: state)
-        ]
-        components?.fragment = "wechat_redirect"
-        guard let url = components?.url else {
+        WeChatAuthPending.save(state)
+        guard WeChatOpenSDKLogin.send(appID: appID, universalLink: universalLink, state: state) else {
+            _ = WeChatAuthPending.consume()
             showNotConfigured()
             return
         }
-        beginOAuth(url: url, state: state, provider: "wechat", redirectURI: nil, codeVerifier: nil)
+        isSubmitting = true
+    }
+
+    private func finishWeChatIfNeeded() async {
+        guard let payload = WeChatAuthInbox.take() else { return }
+        let expected = WeChatAuthPending.consume() ?? ""
+        guard let code = WeChatAuthGate.code(
+            errCode: payload.errCode,
+            code: payload.code,
+            state: payload.state,
+            expectedState: expected
+        ) else {
+            isSubmitting = false
+            if payload.errCode != -2 {
+                errorMessage = "登录未完成"
+            }
+            return
+        }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        do {
+            try await session.loginWithOAuth(
+                provider: "wechat",
+                code: code,
+                redirectURI: nil,
+                codeVerifier: nil
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func startGoogle() {

@@ -68,16 +68,21 @@
 | `GOOGLE_CLIENT_IDS` | 逗号分隔的 Google client id，用来校验 id token 的 audience，交换 code 时用第一个。 |
 | `GOOGLE_CLIENT_SECRET` | 授权码交换用。只放服务端。 |
 | `GOOGLE_REDIRECT_URI` | 可选。与 iOS `TIMIA_GOOGLE_REDIRECT_URI` 一致。未设置时仍允许生产回调 `https://timia.online/core-service/auth/mobile/oauth/google/callback`。 |
-| `WECHAT_APP_ID` | 微信开放平台应用 id。 |
-| `WECHAT_APP_SECRET` | 只放服务端，用来换 access token。优先用 `unionid`，没有则用 `(appid, openid)`。 |
+| `WECHAT_APP_ID` | 旧的单一微信应用 id。某一端没有单独配置时，网站应用和移动应用都回落到这一对。 |
+| `WECHAT_APP_SECRET` | 与 `WECHAT_APP_ID` 成对。只放服务端。 |
+| `WECHAT_WEB_APP_ID` / `WECHAT_WEB_APP_SECRET` | 微信开放平台里的**网站应用**。Web 扫码用这一对。 |
+| `WECHAT_MOBILE_APP_ID` / `WECHAT_MOBILE_APP_SECRET` | 同一开放平台账号下的**移动应用**。iOS OpenSDK 用这一对。 |
+| `WECHAT_WEB_REDIRECT_URI` | 网站应用回调，须与开放平台登记一致。生产是 `https://timia.online/auth/wechat/web/callback`。 |
 | `OAUTH_DEV_MODE` | 仅开发。`true` 时接受 `dev:google:{sub}`、`dev:google:{sub}:{email}`、`dev:wechat:{unionid}`。生产必须为 `false`。 |
 
 iOS 对应键放在 xcconfig，不放密钥：
 
 - `TIMIA_GOOGLE_CLIENT_ID`
 - `TIMIA_GOOGLE_REDIRECT_URI`
-- `TIMIA_WECHAT_APP_ID`
-- `TIMIA_WECHAT_REDIRECT_URI`
+- `TIMIA_WECHAT_APP_ID`（移动应用 AppID）
+- `TIMIA_WECHAT_UNIVERSAL_LINK`（默认 `https://timia.online/wechat/`）
+- `TIMIA_WECHAT_URL_SCHEME`（填移动应用 AppID 本身，例如 `wx…`）
+- `TIMIA_WECHAT_REDIRECT_URI`（保留给旧配置；微信登录不再打开这个地址）
 
 未填写时按钮不崩溃。Debug 显示「未配置」，Release 显示「暂不可用」。服务端未配置时返回 `provider_not_configured`，客户端按同样规则显示。
 
@@ -88,4 +93,4 @@ iOS 对应键放在 xcconfig，不放密钥：
 
 验证码 6 位、5 分钟、60 秒内不可重发、单码最多 5 次，手机号和设备各有每日上限。验证码只存哈希。
 
-微信和 Google 在 iOS 上走 `ASWebAuthenticationSession`，回调到 `timia://oauth/...`。真正换票在服务端完成。
+Google 在 iOS 上仍走 `ASWebAuthenticationSession`，回调到 `timia://oauth/google`。微信改为 OpenSDK：跳出微信授权后再回到 Timia，授权码交给 `POST /auth/mobile/login/wechat`。仓库还没放微信 XCFramework；未链入 SDK 时按钮显示未配置，不会退回浏览器登录。换票仍在服务端完成，身份键优先 `unionid`。网站扫码见 `user-service.md`。

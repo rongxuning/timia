@@ -28,6 +28,11 @@ from app.models.user import SYSTEM_ROLE_USER, User
 from app.services.account_merge import merge_accounts, resolve_active_user
 from app.services.mobile_auth import require_device, secret_hash
 from app.services.phone_numbers import PhoneNumberError, mask_phone, normalize_phone
+from app.services.wechat_credentials import (
+    WeChatClient,
+    select_wechat_credentials,
+    wechat_identity_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +178,7 @@ def verify_google_login(
     return _google_profile_from_token(token)
 
 
-def verify_wechat_login(*, code: str | None) -> ProviderProfile:
+def verify_wechat_login(*, code: str | None, client: WeChatClient = "mobile") -> ProviderProfile:
     if not code:
         raise ProviderAuthError("invalid_provider_token", 400)
     if settings.oauth_dev_mode and code.startswith("dev:wechat:"):
@@ -181,9 +186,22 @@ def verify_wechat_login(*, code: str | None) -> ProviderProfile:
         if not subject:
             raise ProviderAuthError("invalid_provider_token")
         return ProviderProfile(provider="wechat", provider_tenant="wechat", subject=subject)
-    if not settings.wechat_app_id or not settings.wechat_app_secret:
+    app_id, secret = _wechat_credentials(client)
+    if not app_id or not secret:
         raise ProviderAuthError("provider_not_configured", 503)
-    return _exchange_wechat_code(code)
+    return _exchange_wechat_code(code, app_id=app_id, secret=secret)
+
+
+def _wechat_credentials(client: WeChatClient) -> tuple[str, str]:
+    return select_wechat_credentials(
+        client,
+        web_app_id=settings.wechat_web_app_id,
+        web_app_secret=settings.wechat_web_app_secret,
+        mobile_app_id=settings.wechat_mobile_app_id,
+        mobile_app_secret=settings.wechat_mobile_app_secret,
+        legacy_app_id=settings.wechat_app_id,
+        legacy_app_secret=settings.wechat_app_secret,
+    )
 
 
 def login_with_profile(db: Session, profile: ProviderProfile) -> User:
@@ -566,13 +584,13 @@ def _exchange_google_code(code: str, redirect_uri: str, code_verifier: str) -> s
     return id_token
 
 
-def _exchange_wechat_code(code: str) -> ProviderProfile:
+def _exchange_wechat_code(code: str, *, app_id: str, secret: str) -> ProviderProfile:
     try:
         response = httpx.get(
             "https://api.weixin.qq.com/sns/oauth2/access_token",
             params={
-                "appid": settings.wechat_app_id,
-                "secret": settings.wechat_app_secret,
+                "appid": app_id,
+                "secret": secret,
                 "code": code,
                 "grant_type": "authorization_code",
             },
@@ -599,15 +617,11 @@ def _exchange_wechat_code(code: str) -> ProviderProfile:
             raise ProviderAuthError("provider_unavailable", 503) from exc
         unionid = str(info.get("unionid") or "")
         openid = str(info.get("openid") or openid)
-    if unionid:
-        return ProviderProfile(provider="wechat", provider_tenant="wechat", subject=unionid)
-    if not openid:
+    key = wechat_identity_key(unionid=unionid, openid=openid, app_id=app_id)
+    if key is None:
         raise ProviderAuthError("invalid_provider_token")
-    return ProviderProfile(
-        provider="wechat",
-        provider_tenant=settings.wechat_app_id,
-        subject=openid,
-    )
+    tenant, subject = key
+    return ProviderProfile(provider="wechat", provider_tenant=tenant, subject=subject)
 
 
 def _digest_equal(left: str, right: str) -> bool:

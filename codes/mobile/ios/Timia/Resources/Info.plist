@@ -55,6 +55,16 @@
 	<string>$(TIMIA_WECHAT_APP_ID)</string>
 	<key>TIMIA_WECHAT_REDIRECT_URI</key>
 	<string>$(TIMIA_WECHAT_REDIRECT_URI)</string>
+	<key>TIMIA_WECHAT_UNIVERSAL_LINK</key>
+	<string>$(TIMIA_WECHAT_UNIVERSAL_LINK)</string>
+	<key>TIMIA_WECHAT_URL_SCHEME</key>
+	<string>$(TIMIA_WECHAT_URL_SCHEME)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>weixin</string>
+		<string>weixinULAPI</string>
+		<string>weixinURLParamsAPI</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -63,6 +73,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>timia</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>online.timia.ios.wechat</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(TIMIA_WECHAT_URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
