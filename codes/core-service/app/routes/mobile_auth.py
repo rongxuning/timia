@@ -48,6 +48,7 @@ from app.services.mobile_auth import (
 from app.services.provider_auth import (
     ProviderAuthError,
     StepUpProof,
+    accept_verified_phone_challenge,
     consume_phone_code,
     issue_phone_code,
     link_profile,
@@ -500,6 +501,7 @@ def _finish_phone_login(
         raw_phone=phone,
         code=payload.code,
         installation_id=payload.installation_id,
+        consume=False,
     )
     profile = phone_profile(verified)
     user = (
@@ -507,6 +509,9 @@ def _finish_phone_login(
         if current
         else login_with_profile(db, profile)
     )
+    # Step-up failure commits only its own attempt. Consume the binding code
+    # after that, so a wrong step-up SMS does not burn it.
+    accept_verified_phone_challenge(db, payload.challenge_id)
     return create_mobile_session(
         db,
         user=user,
@@ -582,6 +587,8 @@ def _step_up_proof(payload: PhoneLoginRequest | OAuthLoginRequest) -> StepUpProo
         installation_id=payload.installation_id,
         id_token=payload.step_up_id_token,
         oauth_code=payload.step_up_oauth_code,
+        redirect_uri=payload.step_up_redirect_uri,
+        code_verifier=payload.step_up_code_verifier,
     )
 
 

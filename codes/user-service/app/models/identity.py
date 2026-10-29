@@ -19,7 +19,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     merged_into_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     system_role: Mapped[str] = mapped_column(String(20), nullable=False, default="user")

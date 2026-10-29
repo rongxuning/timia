@@ -10,6 +10,7 @@ typedef void (^WeChatAuthCompletion)(NSInteger errCode, NSString *_Nullable code
 @interface WeChatSDKBridge : NSObject
 + (BOOL)sdkAvailable;
 + (void)setAuthCompletion:(WeChatAuthCompletion _Nullable)completion;
++ (BOOL)registerAppID:(NSString *)appID universalLink:(NSString *)universalLink;
 + (BOOL)sendAuthAppID:(NSString *)appID
         universalLink:(NSString *)universalLink
                 state:(NSString *)state;

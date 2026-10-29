@@ -60,6 +60,9 @@ struct AuthenticationView: View {
             }
         }
         .keyboardDoneToolbar { focusedField = nil }
+        .onAppear {
+            Task { await finishWeChatIfNeeded() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .timiaWeChatAuthFinished)) { _ in
             Task { await finishWeChatIfNeeded() }
         }

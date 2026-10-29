@@ -52,6 +52,19 @@ struct PhoneCodeResponse: Decodable, Sendable {
     let devCode: String?
 }
 
+struct IdentityStepUp: Sendable {
+    var provider: String
+    var password: String? = nil
+    var phone: String? = nil
+    var code: String? = nil
+    var challengeId: String? = nil
+    var nonce: String? = nil
+    var idToken: String? = nil
+    var oauthCode: String? = nil
+    var redirectURI: String? = nil
+    var codeVerifier: String? = nil
+}
+
 struct PhoneLoginRequest: Encodable, Sendable {
     let phone: String
     let code: String
@@ -59,6 +72,16 @@ struct PhoneLoginRequest: Encodable, Sendable {
     let challengeId: String
     let nonce: String
     let signature: String
+    var stepUpProvider: String? = nil
+    var stepUpPassword: String? = nil
+    var stepUpPhone: String? = nil
+    var stepUpCode: String? = nil
+    var stepUpChallengeId: String? = nil
+    var stepUpNonce: String? = nil
+    var stepUpIdToken: String? = nil
+    var stepUpOauthCode: String? = nil
+    var stepUpRedirectUri: String? = nil
+    var stepUpCodeVerifier: String? = nil
 }
 
 struct OAuthLoginRequest: Encodable, Sendable {
@@ -70,6 +93,50 @@ struct OAuthLoginRequest: Encodable, Sendable {
     let code: String?
     let redirectUri: String?
     let codeVerifier: String?
+    var stepUpProvider: String? = nil
+    var stepUpPassword: String? = nil
+    var stepUpPhone: String? = nil
+    var stepUpCode: String? = nil
+    var stepUpChallengeId: String? = nil
+    var stepUpNonce: String? = nil
+    var stepUpIdToken: String? = nil
+    var stepUpOauthCode: String? = nil
+    var stepUpRedirectUri: String? = nil
+    var stepUpCodeVerifier: String? = nil
+
+    func applying(_ stepUp: IdentityStepUp?) -> OAuthLoginRequest {
+        guard let stepUp else { return self }
+        var copy = self
+        copy.stepUpProvider = stepUp.provider
+        copy.stepUpPassword = stepUp.password
+        copy.stepUpPhone = stepUp.phone
+        copy.stepUpCode = stepUp.code
+        copy.stepUpChallengeId = stepUp.challengeId
+        copy.stepUpNonce = stepUp.nonce
+        copy.stepUpIdToken = stepUp.idToken
+        copy.stepUpOauthCode = stepUp.oauthCode
+        copy.stepUpRedirectUri = stepUp.redirectURI
+        copy.stepUpCodeVerifier = stepUp.codeVerifier
+        return copy
+    }
+}
+
+extension PhoneLoginRequest {
+    func applying(_ stepUp: IdentityStepUp?) -> PhoneLoginRequest {
+        guard let stepUp else { return self }
+        var copy = self
+        copy.stepUpProvider = stepUp.provider
+        copy.stepUpPassword = stepUp.password
+        copy.stepUpPhone = stepUp.phone
+        copy.stepUpCode = stepUp.code
+        copy.stepUpChallengeId = stepUp.challengeId
+        copy.stepUpNonce = stepUp.nonce
+        copy.stepUpIdToken = stepUp.idToken
+        copy.stepUpOauthCode = stepUp.oauthCode
+        copy.stepUpRedirectUri = stepUp.redirectURI
+        copy.stepUpCodeVerifier = stepUp.codeVerifier
+        return copy
+    }
 }
 
 struct MobilePasswordLoginRequest: Encodable, Sendable {

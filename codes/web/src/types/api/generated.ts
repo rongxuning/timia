@@ -5005,6 +5005,10 @@ export interface components {
             step_up_id_token?: string | null;
             /** Step Up Oauth Code */
             step_up_oauth_code?: string | null;
+            /** Step Up Redirect Uri */
+            step_up_redirect_uri?: string | null;
+            /** Step Up Code Verifier */
+            step_up_code_verifier?: string | null;
             /** Installation Id */
             installation_id: string;
             /**
@@ -5084,6 +5088,10 @@ export interface components {
             step_up_id_token?: string | null;
             /** Step Up Oauth Code */
             step_up_oauth_code?: string | null;
+            /** Step Up Redirect Uri */
+            step_up_redirect_uri?: string | null;
+            /** Step Up Code Verifier */
+            step_up_code_verifier?: string | null;
             /** Phone */
             phone: string;
             /** Code */

@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -52,37 +53,85 @@ def login_wechat_web(
     user_agent: str | None,
 ) -> tuple[str, datetime]:
     """Find or create the WeChat user and return (refresh_token, idle_expires_at)."""
-    identity = db.scalar(
-        select(AuthIdentity).where(
-            AuthIdentity.provider == "wechat",
-            AuthIdentity.provider_tenant == provider_tenant,
-            AuthIdentity.provider_subject == provider_subject,
-        )
+    for _ in range(4):
+        now = utcnow()
+        identity = _lock_identity(db, provider_tenant, provider_subject)
+        if identity is not None:
+            user = _user_for_identity(db, identity)
+            identity.user_id = user.id
+            identity.last_login_at = now
+            return _create_web_session(
+                db, user=user, last_ip=last_ip, user_agent=user_agent
+            )
+        try:
+            with db.begin_nested():
+                user = _create_user(db)
+                identity = AuthIdentity(
+                    user_id=user.id,
+                    provider="wechat",
+                    provider_tenant=provider_tenant,
+                    provider_subject=provider_subject,
+                    email_verified=False,
+                    phone_verified=False,
+                    last_login_at=now,
+                )
+                db.add(identity)
+                db.flush()
+        except IntegrityError as exc:
+            # A retried callback can lose to the identity unique key, or to
+            # display_name, because the user row is flushed first.
+            if _is_identity_conflict(exc) or _is_display_name_conflict(exc):
+                continue
+            raise
+        else:
+            return _create_web_session(
+                db, user=user, last_ip=last_ip, user_agent=user_agent
+            )
+    raise WebLoginError("identity_conflict", 409)
+
+
+def _lock_identity(
+    db: Session, provider_tenant: str, provider_subject: str
+) -> AuthIdentity | None:
+    statement = select(AuthIdentity).where(
+        AuthIdentity.provider == "wechat",
+        AuthIdentity.provider_tenant == provider_tenant,
+        AuthIdentity.provider_subject == provider_subject,
     )
-    now = utcnow()
-    if identity is None:
-        user = _create_user(db)
-        identity = AuthIdentity(
-            user_id=user.id,
-            provider="wechat",
-            provider_tenant=provider_tenant,
-            provider_subject=provider_subject,
-            email_verified=False,
-            phone_verified=False,
-            last_login_at=now,
-        )
-        db.add(identity)
-        db.flush()
-    else:
-        owner = db.get(User, identity.user_id)
-        if owner is None:
-            raise WebLoginError("user_disabled", 403)
-        user = _resolve_active_user(db, owner)
-        if user.status != "active":
-            raise WebLoginError("user_disabled", 403)
-        identity.user_id = user.id
-        identity.last_login_at = now
-    return _create_web_session(db, user=user, last_ip=last_ip, user_agent=user_agent)
+    if db.get_bind().dialect.name != "sqlite":
+        statement = statement.with_for_update()
+    return db.scalar(statement)
+
+
+def _user_for_identity(db: Session, identity: AuthIdentity) -> User:
+    owner = db.get(User, identity.user_id)
+    if owner is None:
+        raise WebLoginError("user_disabled", 403)
+    user = _resolve_active_user(db, owner)
+    if user.status != "active":
+        raise WebLoginError("user_disabled", 403)
+    return user
+
+
+def _integrity_text(exc: IntegrityError) -> str:
+    orig = exc.orig
+    diag = getattr(orig, "diag", None)
+    name = getattr(diag, "constraint_name", None) if diag is not None else None
+    return f"{name or ''} {orig or exc}"
+
+
+def _is_identity_conflict(exc: IntegrityError) -> bool:
+    text = _integrity_text(exc)
+    return "uq_auth_identity_provider_subject" in text or "auth_identities.provider" in text
+
+
+def _is_display_name_conflict(exc: IntegrityError) -> bool:
+    text = _integrity_text(exc)
+    return (
+        "ix_users_display_name" in text
+        or "users_display_name_key" in text
+        or "users.display_name" in text
+    )
 
 
 def _resolve_active_user(db: Session, user: User) -> User:

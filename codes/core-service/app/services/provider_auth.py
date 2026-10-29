@@ -77,6 +77,8 @@ class StepUpProof:
     installation_id: str | None = None
     id_token: str | None = None
     oauth_code: str | None = None
+    redirect_uri: str | None = None
+    code_verifier: str | None = None
 
     def offered(self) -> bool:
         return bool((self.password or "").strip() or self.provider)
@@ -121,6 +123,7 @@ def consume_phone_code(
     raw_phone: str,
     code: str,
     installation_id: str,
+    consume: bool = True,
 ) -> str:
     phone = _phone(raw_phone)
     challenge = db.scalar(
@@ -137,15 +140,21 @@ def consume_phone_code(
         or not _digest_equal(challenge.nonce_hash, secret_hash(nonce))
     ):
         raise ProviderAuthError("invalid_challenge")
-    challenge.attempt_count += 1
-    if challenge.attempt_count > PHONE_MAX_ATTEMPTS:
+    # A correct code that we are not ready to consume (the binding OTP, while
+    # step-up can still fail) must not be marked used. Failed attempts still
+    # commit so the route's later rollback cannot reset the counter.
+    if challenge.attempt_count + 1 > PHONE_MAX_ATTEMPTS:
+        challenge.attempt_count += 1
         challenge.consumed_at = now
         db.commit()
         raise ProviderAuthError("invalid_code")
     if not challenge.code_hash or not _digest_equal(challenge.code_hash, secret_hash(code)):
-        # Persist the counter. The route rolls back the request after this error.
+        challenge.attempt_count += 1
         db.commit()
         raise ProviderAuthError("invalid_code")
+    if not consume:
+        return phone
+    challenge.attempt_count += 1
     challenge.consumed_at = now
     return phone
 
@@ -208,17 +217,27 @@ def login_with_profile(db: Session, profile: ProviderProfile) -> User:
     identity = _lock_identity(db, profile)
     if identity is not None:
         return _touch_login(db, identity)
-    try:
-        with db.begin_nested():
-            user = _create_user_with_identity(db, profile)
-    except IntegrityError as exc:
-        if not _is_identity_conflict(exc):
+    last_error: IntegrityError | None = None
+    for _ in range(4):
+        try:
+            with db.begin_nested():
+                user = _create_user_with_identity(db, profile)
+        except IntegrityError as exc:
+            last_error = exc
+            if not (_is_identity_conflict(exc) or _is_display_name_conflict(exc)):
+                raise
+            # The winner committed before our insert woke up. Prefer that account.
+            # A display-name clash with a different person just needs another name.
+            identity = _lock_identity(db, profile)
+            if identity is not None:
+                return _touch_login(db, identity)
+            if _is_display_name_conflict(exc):
+                continue
             raise
-        identity = _lock_identity(db, profile)
-        if identity is None:
-            raise
-        return _touch_login(db, identity)
-    return user
+        return user
+    if last_error is not None:
+        raise last_error
+    raise ProviderAuthError("identity_conflict", 409)
 
 
 def link_profile(
@@ -330,13 +349,40 @@ def _touch_login(db: Session, identity: AuthIdentity) -> User:
     return user
 
 
-def _is_identity_conflict(exc: IntegrityError) -> bool:
+def _constraint_name(exc: IntegrityError) -> str | None:
     orig = exc.orig
     diag = getattr(orig, "diag", None)
     name = getattr(diag, "constraint_name", None) if diag is not None else None
-    if name == "uq_auth_identity_provider_subject":
+    return str(name) if name else None
+
+
+def _is_identity_conflict(exc: IntegrityError) -> bool:
+    if _constraint_name(exc) == "uq_auth_identity_provider_subject":
         return True
-    return "uq_auth_identity_provider_subject" in str(orig or exc)
+    text = str(exc.orig or exc)
+    return "uq_auth_identity_provider_subject" in text or "auth_identities.provider" in text
+
+
+def _is_display_name_conflict(exc: IntegrityError) -> bool:
+    if _constraint_name(exc) in {"ix_users_display_name", "users_display_name_key"}:
+        return True
+    text = str(exc.orig or exc)
+    return "ix_users_display_name" in text or "users.display_name" in text
+
+
+def accept_verified_phone_challenge(db: Session, challenge_id: uuid.UUID) -> None:
+    """Consume a code already checked with consume_phone_code(consume=False)."""
+    challenge = db.get(AuthChallenge, challenge_id)
+    now = utcnow()
+    if (
+        challenge is None
+        or challenge.purpose != "phone_code"
+        or challenge.consumed_at is not None
+        or challenge.expires_at <= now
+    ):
+        raise ProviderAuthError("invalid_challenge")
+    challenge.attempt_count += 1
+    challenge.consumed_at = now
 
 
 def _prove_existing_phone(db: Session, current: User, proof: StepUpProof) -> None:
@@ -344,14 +390,21 @@ def _prove_existing_phone(db: Session, current: User, proof: StepUpProof) -> Non
         proof.phone and proof.code and proof.challenge_id and proof.nonce and proof.installation_id
     ):
         raise ProviderAuthError("step_up_required", 403)
-    phone = consume_phone_code(
-        db,
-        challenge_id=proof.challenge_id,
-        nonce=proof.nonce,
-        raw_phone=proof.phone,
-        code=proof.code,
-        installation_id=proof.installation_id,
-    )
+    try:
+        phone = consume_phone_code(
+            db,
+            challenge_id=proof.challenge_id,
+            nonce=proof.nonce,
+            raw_phone=proof.phone,
+            code=proof.code,
+            installation_id=proof.installation_id,
+        )
+    except ProviderAuthError as exc:
+        # invalid_code commits the step-up attempt. It must not be reported as
+        # a failure of the binding code, which is still unused in this request.
+        if exc.detail in {"invalid_code", "invalid_challenge", "invalid_phone"}:
+            raise ProviderAuthError("step_up_failed", 403) from exc
+        raise
     _require_identity_owner(db, current, phone_profile(phone))
 
 
@@ -360,8 +413,8 @@ def _prove_existing_oauth(db: Session, current: User, proof: StepUpProof) -> Non
         profile = verify_google_login(
             id_token=proof.id_token,
             code=proof.oauth_code,
-            redirect_uri=None,
-            code_verifier=None,
+            redirect_uri=proof.redirect_uri,
+            code_verifier=proof.code_verifier,
         )
     elif proof.provider == "wechat":
         code = proof.oauth_code or proof.id_token
