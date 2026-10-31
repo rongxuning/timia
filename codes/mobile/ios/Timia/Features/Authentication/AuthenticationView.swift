@@ -44,14 +44,12 @@ struct AuthenticationView: View {
             GeometryReader { proxy in
                 let cardWidth = proxy.size.width * 0.58
                 let contentWidth = cardWidth - 36
-                let buttonWidth = contentWidth * LoginMetrics.providerButtonWidthFactor
                 ScrollView {
                     VStack {
                         Spacer(minLength: 16)
                         authenticationCard(
                             cardWidth: cardWidth,
-                            contentWidth: contentWidth,
-                            buttonWidth: buttonWidth
+                            contentWidth: contentWidth
                         )
                         Spacer(minLength: 16)
                     }
@@ -82,8 +80,7 @@ struct AuthenticationView: View {
 
     private func authenticationCard(
         cardWidth: CGFloat,
-        contentWidth: CGFloat,
-        buttonWidth: CGFloat
+        contentWidth: CGFloat
     ) -> some View {
         VStack(spacing: 0) {
             Text("Timia")
@@ -103,40 +100,39 @@ struct AuthenticationView: View {
                     .accessibilityIdentifier("login.phoneNumber")
             }
 
-            VStack(spacing: 10) {
-                compactButton(
-                    title: "本手机号登录",
+            HStack(spacing: LoginMetrics.providerIconSpacing(contentWidth: contentWidth)) {
+                providerIconButton(
+                    accessibilityLabel: LoginMetrics.phoneAccessibilityLabel,
                     fill: LoginPalette.green,
-                    foreground: .white,
-                    width: buttonWidth,
-                    identifier: "login.phone"
-                ) {
-                    errorMessage = nil
-                    focusedField = nil
-                    showPhoneSheet = true
-                }
+                    identifier: "login.phone",
+                    icon: {
+                        Image(systemName: LoginMetrics.phoneSymbolName)
+                            .font(.system(size: LoginMetrics.providerSymbolPointSize, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .accessibilityHidden(true)
+                    },
+                    action: {
+                        errorMessage = nil
+                        focusedField = nil
+                        showPhoneSheet = true
+                    }
+                )
 
-                compactButton(
-                    title: "微信登录",
+                providerIconButton(
+                    accessibilityLabel: LoginMetrics.weChatAccessibilityLabel,
                     fill: LoginPalette.button,
-                    foreground: .white,
-                    width: buttonWidth,
                     identifier: "login.wechat",
-                    icon: AnyView(LoginBrandImage(name: "WeChatLogo"))
-                ) {
-                    startWeChat()
-                }
+                    icon: { LoginBrandImage(name: LoginMetrics.weChatAssetName) },
+                    action: { startWeChat() }
+                )
 
-                compactButton(
-                    title: "Google 邮箱登录",
+                providerIconButton(
+                    accessibilityLabel: LoginMetrics.googleAccessibilityLabel,
                     fill: LoginPalette.button,
-                    foreground: .white,
-                    width: buttonWidth,
                     identifier: "login.google",
-                    icon: AnyView(LoginBrandImage(name: "GoogleLogo"))
-                ) {
-                    startGoogle()
-                }
+                    icon: { LoginBrandImage(name: LoginMetrics.googleAssetName) },
+                    action: { startGoogle() }
+                )
             }
             .padding(.top, 16)
             .disabled(isSubmitting)
@@ -272,30 +268,21 @@ struct AuthenticationView: View {
         .accessibilityLabel("or")
     }
 
-    private func compactButton(
-        title: String,
+    private func providerIconButton<Icon: View>(
+        accessibilityLabel: String,
         fill: Color,
-        foreground: Color,
-        width: CGFloat,
         identifier: String,
-        icon: AnyView? = nil,
+        @ViewBuilder icon: () -> Icon,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                if let icon {
-                    icon
-                }
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .frame(width: width, height: LoginMetrics.providerButtonHeight)
-            .foregroundStyle(foreground)
-            .background(fill, in: Capsule())
+            icon()
+                .frame(width: LoginMetrics.providerIconSide, height: LoginMetrics.providerIconSide)
+                .background(fill, in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier(identifier)
     }
 
@@ -711,13 +698,26 @@ private enum LoginPKCE {
     }
 }
 
-private enum LoginMetrics {
-    /// Top capsules were 38pt. ×0.9 → 34.2.
-    static let providerButtonHeight: CGFloat = 38 * 0.9
-    /// Top capsules were `contentWidth * 0.70`. ×1.1 → 0.77.
-    static let providerButtonWidthFactor: CGFloat = 0.70 * 1.1
+enum LoginMetrics {
+    /// Equal icon buttons. 44pt is the minimum comfortable hit target.
+    static let providerIconSide: CGFloat = 44
+    /// Cap so the row stays a group on wide cards instead of stretching apart.
+    static let providerIconMaxSpacing: CGFloat = 32
+    static let providerSymbolPointSize: CGFloat = 22
+    static let providerLogoSide: CGFloat = 26
+    static let phoneAccessibilityLabel = "本手机号登录"
+    static let weChatAccessibilityLabel = "微信登录"
+    static let googleAccessibilityLabel = "Google 登录"
+    static let phoneSymbolName = "phone.fill"
+    static let weChatAssetName = "WeChatLogo"
+    static let googleAssetName = "GoogleLogo"
     /// Email, password, register fields, and the password submit button were 44pt. ×0.8 → 35.2.
     static let accountControlHeight: CGFloat = 44 * 0.8
+
+    static func providerIconSpacing(contentWidth: CGFloat) -> CGFloat {
+        let even = (contentWidth - providerIconSide * 3) / 2
+        return min(providerIconMaxSpacing, max(0, even))
+    }
 }
 
 private struct LoginBrandImage: View {
@@ -729,7 +729,7 @@ private struct LoginBrandImage: View {
             .renderingMode(.original)
             .interpolation(.high)
             .scaledToFit()
-            .frame(width: 16, height: 16)
+            .frame(width: LoginMetrics.providerLogoSide, height: LoginMetrics.providerLogoSide)
             .accessibilityHidden(true)
     }
 }
