@@ -79,6 +79,7 @@
 		F1A1B003A003A003A003A003 /* WeChatSDKBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */; };
 		F1A1B004A004A004A004A002 /* WeChatOpenSDKLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B004A004A004A004A001 /* WeChatOpenSDKLogin.swift */; };
 		F1A1B005A005A005A005A002 /* WeChatOpenSDKLoginTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B005A005A005A005A001 /* WeChatOpenSDKLoginTests.swift */; };
+		F1A1B006A006A006A006A002 /* LoginMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1B006A006A006A006A001 /* LoginMetricsTests.swift */; };
 		896332189CE0F5B4B85E7A17 /* CalendarWeekTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640CBEBB86E49C7B642F127C /* CalendarWeekTitle.swift */; };
 		8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */; };
 		9283B4D9C6BF4E90074DF566 /* PlaceValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8EE4AA6978B95D39ADD11BF /* PlaceValueTests.swift */; };
@@ -215,6 +216,7 @@
 		F1A1B003A003A003A003A002 /* WeChatSDKBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WeChatSDKBridge.m; sourceTree = "<group>"; };
 		F1A1B004A004A004A004A001 /* WeChatOpenSDKLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatOpenSDKLogin.swift; sourceTree = "<group>"; };
 		F1A1B005A005A005A005A001 /* WeChatOpenSDKLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatOpenSDKLoginTests.swift; sourceTree = "<group>"; };
+		F1A1B006A006A006A006A001 /* LoginMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginMetricsTests.swift; sourceTree = "<group>"; };
 		310A6AD7632431A7BCD789A7 /* FilesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesAPI.swift; sourceTree = "<group>"; };
 		3252038EF4AEA8BE1436B27A /* IdleCollapsePlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleCollapsePlannerTests.swift; sourceTree = "<group>"; };
 		32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaLiveActivityPaletteTests.swift; sourceTree = "<group>"; };
@@ -455,6 +457,7 @@
 				4AF849B1D815510E48A053CC /* YearMonthGridTests.swift */,
 				F1A1B002A002A002A002A001 /* PhoneDisplayTests.swift */,
 				F1A1B005A005A005A005A001 /* WeChatOpenSDKLoginTests.swift */,
+				F1A1B006A006A006A006A001 /* LoginMetricsTests.swift */,
 			);
 			path = TimiaTests;
 			sourceTree = "<group>";
@@ -980,6 +983,7 @@
 				6A57721389C73AF58E38EA0E /* APIModelsTests.swift in Sources */,
 				F1A1B002A002A002A002A002 /* PhoneDisplayTests.swift in Sources */,
 				F1A1B005A005A005A005A002 /* WeChatOpenSDKLoginTests.swift in Sources */,
+				F1A1B006A006A006A006A002 /* LoginMetricsTests.swift in Sources */,
 				BE8C2D7AC359161556903512 /* CalendarCompletedCardStyleTests.swift in Sources */,
 				99EF5A9F15D900FF09159E79 /* CalendarWeekTitleTests.swift in Sources */,
 				FA1AA94523A37B455AF73BFD /* ChinaCoordinateTests.swift in Sources */,
