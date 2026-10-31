@@ -122,6 +122,9 @@
 		DD3A7CF92ED67A3FDCF2B208 /* HealthSyncDrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25DA66892B881DA84ECB62A8 /* HealthSyncDrain.swift */; };
 		E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 817045A30702570209E9D7F0 /* Data+Gzip.swift */; };
 		E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */; };
+		B7E1A1C0D4F24A11B0010002 /* TaskImageLightbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E1A1C0D4F24A11B0010001 /* TaskImageLightbox.swift */; };
+		B7E1A1C0D4F24A11B0020002 /* TaskMediaPreviewPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E1A1C0D4F24A11B0020001 /* TaskMediaPreviewPager.swift */; };
+		B7E1A1C0D4F24A11B0030002 /* TaskMediaPreviewPagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E1A1C0D4F24A11B0030001 /* TaskMediaPreviewPagerTests.swift */; };
 		E4FB9BD6008C3B2ADA0B94B9 /* TimelineIdleChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408911DAC1F4ABFBCF736DB2 /* TimelineIdleChromeTests.swift */; };
 		E54C818CA4B7690E0DA7563E /* RecordingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB43C4FAECFCAA7B8311A6B3 /* RecordingOverlay.swift */; };
 		E550911D00F0C8E995B2B6D4 /* WorkspacesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29102C072744826E8F5BF01C /* WorkspacesView.swift */; };
@@ -249,6 +252,9 @@
 		73EEAF500D4032A3B8063DD7 /* ScheduleHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleHomeView.swift; sourceTree = "<group>"; };
 		75E957781609437059641828 /* HealthSyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncAPI.swift; sourceTree = "<group>"; };
 		7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditorView.swift; sourceTree = "<group>"; };
+		B7E1A1C0D4F24A11B0010001 /* TaskImageLightbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskImageLightbox.swift; sourceTree = "<group>"; };
+		B7E1A1C0D4F24A11B0020001 /* TaskMediaPreviewPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMediaPreviewPager.swift; sourceTree = "<group>"; };
+		B7E1A1C0D4F24A11B0030001 /* TaskMediaPreviewPagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskMediaPreviewPagerTests.swift; sourceTree = "<group>"; };
 		78ABB1D72902E40767B961B9 /* StickyNoteHandleBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StickyNoteHandleBar.swift; sourceTree = "<group>"; };
 		79724A92CD8BC75AA7DC1BFB /* Timia.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Timia.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79A8422E298A383A62006950 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
@@ -441,6 +447,7 @@
 				D6DA22012F7C8127E6D5908A /* ScheduleMapClustersTests.swift */,
 				3FEA276776B01B75FA2D7CB5 /* ScheduleMapFiltersTests.swift */,
 				088ECB8EA1F6B057C7CF606D /* ScreenNotificationContentBuilderTests.swift */,
+				B7E1A1C0D4F24A11B0030001 /* TaskMediaPreviewPagerTests.swift */,
 				4EE66B5E8ECE3228FC989E8B /* TimelineGeometryTests.swift */,
 				408911DAC1F4ABFBCF736DB2 /* TimelineIdleChromeTests.swift */,
 				28482C2888A5006EEEB5150F /* TimelineInteractionStateTests.swift */,
@@ -581,6 +588,8 @@
 				9D6FC5221A13796A97427A2C /* PinnedTagSelect.swift */,
 				106EE5FDF2E52B037E1F856B /* PlaceSearchField.swift */,
 				7736CD7A44BC780D07990AD5 /* TaskEditorView.swift */,
+				B7E1A1C0D4F24A11B0010001 /* TaskImageLightbox.swift */,
+				B7E1A1C0D4F24A11B0020001 /* TaskMediaPreviewPager.swift */,
 			);
 			path = Tasks;
 			sourceTree = "<group>";
@@ -927,6 +936,8 @@
 				5E5C3FAAF85F2DE1A437C7BF /* StickyNoteVoiceLauncher.swift in Sources */,
 				7936A0BB23E42FA7EB7112D6 /* StickyNotesAPI.swift in Sources */,
 				E4A246499E39B2DF004CCD0A /* TaskEditorView.swift in Sources */,
+				B7E1A1C0D4F24A11B0010002 /* TaskImageLightbox.swift in Sources */,
+				B7E1A1C0D4F24A11B0020002 /* TaskMediaPreviewPager.swift in Sources */,
 				F69CC7D813829E97E10DEBDC /* TimelineGeometry.swift in Sources */,
 				49513DD35E5C0C2BBB74B46C /* TimelineIdleChrome.swift in Sources */,
 				19E5F4CA0C1973E69CAACDCE /* TimelineInteractionState.swift in Sources */,
@@ -988,6 +999,7 @@
 				A9C60C484E180BA5198C212F /* ScheduleMapClustersTests.swift in Sources */,
 				8B97F168979B0C083F631CA6 /* ScheduleMapFiltersTests.swift in Sources */,
 				02D08393103E9800F2643DE8 /* ScreenNotificationContentBuilderTests.swift in Sources */,
+				B7E1A1C0D4F24A11B0030002 /* TaskMediaPreviewPagerTests.swift in Sources */,
 				295A350338C4820E231F09B3 /* TimelineGeometryTests.swift in Sources */,
 				E4FB9BD6008C3B2ADA0B94B9 /* TimelineIdleChromeTests.swift in Sources */,
 				32D51BF53D4B0EBBA634E34A /* TimelineInteractionStateTests.swift in Sources */,

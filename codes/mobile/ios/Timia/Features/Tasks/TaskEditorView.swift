@@ -84,6 +84,7 @@ struct TaskEditorView: View {
     @State private var pendingMedia: [PendingTaskMedia] = []
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var attachmentThumbs: [String: Data] = [:]
+    @State private var previewImageID: String?
     @FocusState private var focusedField: TaskEditorFocusField?
 
     private var isEditing: Bool {
@@ -295,19 +296,19 @@ struct TaskEditorView: View {
                             TaskAttachmentThumb(
                                 title: file.originalFilename,
                                 isVideo: file.kind == "video",
-                                data: attachmentThumbs[file.id]
-                            ) {
-                                Task { await deleteAttachment(file) }
-                            }
+                                data: attachmentThumbs[file.id],
+                                onPreview: imagePreviewHandler(kind: file.kind, id: file.id),
+                                onDelete: { Task { await deleteAttachment(file) } }
+                            )
                         }
                         ForEach(pendingMedia) { media in
                             TaskAttachmentThumb(
                                 title: media.filename,
                                 isVideo: media.kind == "video",
-                                data: media.kind == "image" ? media.data : nil
-                            ) {
-                                pendingMedia.removeAll { $0.id == media.id }
-                            }
+                                data: media.kind == "image" ? media.data : nil,
+                                onPreview: imagePreviewHandler(kind: media.kind, id: pendingPreviewID(media)),
+                                onDelete: { pendingMedia.removeAll { $0.id == media.id } }
+                            )
                         }
                     }
                     .padding(.vertical, 4)
@@ -523,6 +524,21 @@ struct TaskEditorView: View {
                     Task { await loadProjects(selecting: createdId) }
                 }
             }
+        }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { previewImageID != nil },
+                set: { isPresented in
+                    if !isPresented { previewImageID = nil }
+                }
+            )
+        ) {
+            TaskImageLightbox(
+                images: previewImages,
+                startID: previewImageID ?? "",
+                files: session.files,
+                onClose: { previewImageID = nil }
+            )
         }
     }
 
@@ -957,6 +973,46 @@ struct TaskEditorView: View {
         isSaving = false
     }
 
+    private var previewImages: [TaskPreviewImage] {
+        var images: [TaskPreviewImage] = []
+        for file in attachments where file.kind == "image" {
+            images.append(
+                TaskPreviewImage(
+                    id: file.id,
+                    title: file.originalFilename,
+                    placeholder: attachmentThumbs[file.id],
+                    contentPath: file.contentPath
+                )
+            )
+        }
+        for media in pendingMedia where media.kind == "image" {
+            images.append(
+                TaskPreviewImage(
+                    id: pendingPreviewID(media),
+                    title: media.filename,
+                    placeholder: media.data,
+                    contentPath: nil
+                )
+            )
+        }
+        return images
+    }
+
+    private func pendingPreviewID(_ media: PendingTaskMedia) -> String {
+        "pending:\(media.id.uuidString)"
+    }
+
+    private func imagePreviewHandler(kind: String, id: String) -> (() -> Void)? {
+        guard kind == "image" else { return nil }
+        return { openImagePreview(id: id) }
+    }
+
+    private func openImagePreview(id: String) {
+        guard previewImages.contains(where: { $0.id == id }) else { return }
+        focusedField = nil
+        previewImageID = id
+    }
+
     private func consumePicker(_ items: [PhotosPickerItem]) async {
         let remaining = FilesAPI.maxItemBindings - attachments.count - pendingMedia.count
         guard remaining > 0 else {
@@ -1320,27 +1376,12 @@ private struct TaskAttachmentThumb: View {
     let title: String
     let isVideo: Bool
     let data: Data?
+    var onPreview: (() -> Void)?
     let onDelete: () -> Void
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Group {
-                if let data, let image = UIImage(data: data) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    ZStack {
-                        Color(.secondarySystemFill)
-                        Image(systemName: isVideo ? "video.fill" : "photo")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .frame(width: 72, height: 72)
-            .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-
+            previewSurface
             Button(action: onDelete) {
                 Image(systemName: "xmark.circle.fill")
                     .symbolRenderingMode(.palette)
@@ -1348,8 +1389,59 @@ private struct TaskAttachmentThumb: View {
             }
             .buttonStyle(.plain)
             .offset(x: 4, y: -4)
+            .zIndex(1)
             .accessibilityLabel("删除 \(title)")
         }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var thumbnail: some View {
+        Group {
+            if let data, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    Color(.secondarySystemFill)
+                    Image(systemName: isVideo ? "video.fill" : "photo")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: 72, height: 72)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private var previewSurface: some View {
+        if let onPreview {
+            thumbnail
+                .onTapGesture(perform: onPreview)
+                .accessibilityElement()
+                .accessibilityLabel(previewAccessibilityLabel)
+                .accessibilityHint("打开大图")
+                .accessibilityAddTraits([.isImage, .isButton])
+                .accessibilityAction(.default, onPreview)
+                .accessibilityIdentifier("task-attachment-preview")
+        } else {
+            thumbnail
+                .accessibilityElement()
+                .accessibilityLabel(previewAccessibilityLabel)
+        }
+    }
+
+    private var previewAccessibilityLabel: String {
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isVideo {
+            return name.isEmpty ? "视频" : "视频 \(name)"
+        }
+        if onPreview == nil {
+            return name.isEmpty ? "图片" : name
+        }
+        return name.isEmpty ? "预览图片" : "预览 \(name)"
     }
 }
 
