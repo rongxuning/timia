@@ -9,6 +9,8 @@ enum MonthDayMetrics {
     static let titleCharacterLimit = 5
 
     static let dateSize: CGFloat = 28
+    /// Day-of-month numeral. `.subheadline` is 15pt at the default content size; month cells use +2pt.
+    static let dateFontSize: CGFloat = 17
     static let taskHeight: CGFloat = 15
     /// One "+N" line. Reserved in every row so a sixth task cannot grow that week.
     static let overflowHeight: CGFloat = 12

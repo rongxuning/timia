@@ -4227,7 +4227,7 @@ private struct MonthDayCell: View {
                 if let date = ScheduleFormat.date(day.key) { onSelectDate(date) }
             } label: {
                 Text("\(day.day)")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: MonthDayMetrics.dateFontSize, weight: .semibold))
                     .foregroundStyle(
                         isToday
                             ? Color.white

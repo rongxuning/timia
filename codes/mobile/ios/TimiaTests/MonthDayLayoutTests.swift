@@ -58,6 +58,11 @@ final class MonthDayLayoutTests: XCTestCase {
         )
     }
 
+    func testDayNumeralIsTwoPointsLargerThanSubheadline() {
+        // `.subheadline` is 15pt at the default Large content size.
+        XCTAssertEqual(MonthDayMetrics.dateFontSize, 15 + 2)
+    }
+
     func testColumnMetricsAreTighterAndSharedWithTheWeekdayHeader() {
         XCTAssertEqual(MonthDayMetrics.columnSpacing, 1)
         XCTAssertEqual(MonthDayMetrics.rowSpacing, 1)
