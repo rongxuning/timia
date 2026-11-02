@@ -37,13 +37,14 @@ targets:
         # AVAudioEngine raises ObjC NSExceptions; catch via ObjCExceptionCatcher.
         SWIFT_OBJC_BRIDGING_HEADER: Timia/Core/Speech/Timia-Bridging-Header.h
         HEADER_SEARCH_PATHS: "$(SRCROOT)/Timia/Core/Auth $(SRCROOT)/Timia/Features/Authentication $(inherited)"
-    # health-data and fetch also live in Timia/Resources/Info.plist so a build
-    # that skips xcodegen still wakes for HealthKit and BGAppRefresh.
+    # fetch also lives in Timia/Resources/Info.plist so a build that skips
+    # xcodegen still schedules BGAppRefresh. HealthKit background delivery
+    # uses the healthkit.background-delivery entitlement; App Store Connect
+    # rejects UIBackgroundModes value "health-data" (ITMS-90112).
     info:
       path: Timia/Resources/Info.plist
       properties:
         UIBackgroundModes:
-          - health-data
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
           - online.timia.ios.health-refresh
