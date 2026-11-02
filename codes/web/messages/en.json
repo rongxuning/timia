@@ -325,7 +325,7 @@
   },
   "assets": {
     "title": "Assets",
-    "subtitle": "Net worth, assets, and liabilities are totaled in the display currency. The mix is the current breakdown, and the daily chart follows the dates on the left.",
+    "subtitle": "Net worth, assets, and liabilities are totaled in the display currency. The mix is the current breakdown.",
     "add": "Add a line",
     "loading": "Loading…",
     "emptyTitle": "Start from the total, then break it down",
@@ -552,26 +552,6 @@
       "gold": "Gold",
       "fx": "Foreign cash",
       "other": "Other"
-    },
-    "chart": {
-      "title": "Daily change",
-      "caption": "Each calendar day in the range, converted at the current rates",
-      "empty": "Not enough points in this range",
-      "aria": "Daily curves for net worth, assets, and liabilities",
-      "netWorth": "Net worth",
-      "assets": "Assets",
-      "liabilities": "Liabilities"
-    },
-    "calendar": {
-      "previousMonth": "Previous month",
-      "nextMonth": "Next month",
-      "range": "Range",
-      "changed": "Adjusted",
-      "pickStart": "Choose a start date, then an end date",
-      "pickEnd": "Choose the end date",
-      "rangeTitle": "Range",
-      "rangeHint": "Chart window",
-      "days": "{count} days"
     }
   }
 }
