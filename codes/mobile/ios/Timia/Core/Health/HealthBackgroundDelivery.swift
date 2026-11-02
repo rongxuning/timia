@@ -15,7 +15,8 @@ enum HealthBackgroundTrigger: String, Sendable {
 final class HealthBackgroundDelivery {
     static let shared = HealthBackgroundDelivery()
 
-    private static let log = Logger(subsystem: "online.timia.ios", category: "HealthBackground")
+    /// Nonisolated so HealthKit's Sendable observer callback can log failures.
+    nonisolated private static let log = Logger(subsystem: "online.timia.ios", category: "HealthBackground")
     /// Cold background launch waits this long for session restore to attach an API client.
     private static let apiWaitSeconds: TimeInterval = 8
 
@@ -219,11 +220,13 @@ final class HealthBackgroundDelivery {
                 }
                 // Complete only after the budgeted attempt. Completing in the callback
                 // lets iOS suspend the process before the upload starts.
+                // The handler is not Sendable; box it the same way as BGAppRefreshTask.
+                let finish = ObserverCompletionBox(completion)
                 Task { @MainActor in
                     if let self {
                         await self.performBudgetedSync(trigger: .healthKit, gate: nil)
                     }
-                    completion()
+                    finish.call()
                 }
             }
             store.execute(query)
@@ -320,7 +323,7 @@ final class HealthBackgroundDelivery {
 }
 
 /// Resumes a continuation once from either the HealthKit callback or the timeout.
-private final class OnceResume<T>: @unchecked Sendable {
+private final class OnceResume<T: Sendable>: @unchecked Sendable {
     private var continuation: CheckedContinuation<T, Never>?
     private let lock = NSLock()
 
@@ -328,11 +331,30 @@ private final class OnceResume<T>: @unchecked Sendable {
         self.continuation = continuation
     }
 
-    func resume(_ value: T) {
+    func resume(_ value: sending T) {
+        guard let continuation = takeContinuation() else { return }
+        continuation.resume(returning: value)
+    }
+
+    private func takeContinuation() -> CheckedContinuation<T, Never>? {
         lock.lock()
+        defer { lock.unlock() }
         let continuation = self.continuation
         self.continuation = nil
-        lock.unlock()
-        continuation?.resume(returning: value)
+        return continuation
+    }
+}
+
+/// `HKObserverQueryCompletionHandler` is not Sendable. The box is what the
+/// main-actor task captures so the handler can run after the budgeted sync.
+private final class ObserverCompletionBox: @unchecked Sendable {
+    private let completion: () -> Void
+
+    init(_ completion: @escaping () -> Void) {
+        self.completion = completion
+    }
+
+    func call() {
+        completion()
     }
 }
