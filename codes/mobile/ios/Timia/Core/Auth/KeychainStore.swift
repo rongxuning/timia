@@ -20,6 +20,10 @@ final class KeychainStore: @unchecked Sendable {
     }
 
     func readData(_ account: String) -> Data? {
+        readDataResult(account).data
+    }
+
+    func readDataResult(_ account: String) -> (data: Data?, status: OSStatus) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -28,10 +32,9 @@ final class KeychainStore: @unchecked Sendable {
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
         var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else {
-            return nil
-        }
-        return result as? Data
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess else { return (nil, status) }
+        return (result as? Data, status)
     }
 
     func saveString(
@@ -105,7 +108,14 @@ actor CredentialManager {
     private let session: URLSession
     private let keychain: KeychainStore
     private let installationID: String
-    private let privateKey: P256.Signing.PrivateKey
+    /// Background HealthKit wakes must be able to sign a refresh while the device is locked.
+    private static let deviceKeyAccessibility = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    private static let deviceKeyMigratedDefaultsKey = "timia.auth.deviceKeyAfterFirstUnlock.v1"
+
+    private var privateKey: P256.Signing.PrivateKey
+    /// Set when the signing key exists but could not be read (typically the device is locked
+    /// and the key is still `WhenUnlocked`). Do not mint a replacement key in that case.
+    private var deviceKeyNeedsReload = false
     private let initializationErrorMessage: String?
     private var accessToken: String?
     private var accessTokenExpiresAt: Date?
@@ -133,21 +143,41 @@ actor CredentialManager {
             installationID = generated
         }
 
-        if let rawKey = keychain.readData(KeychainStore.Account.devicePrivateKey),
+        let keyAccount = KeychainStore.Account.devicePrivateKey
+        let keyResult = keychain.readDataResult(keyAccount)
+        if keyResult.status == errSecSuccess,
+           let rawKey = keyResult.data,
            let storedKey = try? P256.Signing.PrivateKey(rawRepresentation: rawKey) {
             privateKey = storedKey
-        } else {
+            if !UserDefaults.standard.bool(forKey: Self.deviceKeyMigratedDefaultsKey) {
+                do {
+                    try keychain.saveData(
+                        storedKey.rawRepresentation,
+                        account: keyAccount,
+                        accessibility: Self.deviceKeyAccessibility
+                    )
+                    UserDefaults.standard.set(true, forKey: Self.deviceKeyMigratedDefaultsKey)
+                } catch {
+                    // Readable for this launch. The next unlocked launch retries the migration.
+                }
+            }
+        } else if keyResult.status == errSecItemNotFound {
             let generated = P256.Signing.PrivateKey()
             do {
                 try keychain.saveData(
                     generated.rawRepresentation,
-                    account: KeychainStore.Account.devicePrivateKey,
-                    accessibility: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+                    account: keyAccount,
+                    accessibility: Self.deviceKeyAccessibility
                 )
+                UserDefaults.standard.set(true, forKey: Self.deviceKeyMigratedDefaultsKey)
             } catch {
                 initializationErrorMessage = "无法保存设备密钥"
             }
             privateKey = generated
+        } else {
+            // Includes errSecInteractionNotAllowed. The existing key must stay put.
+            deviceKeyNeedsReload = true
+            privateKey = P256.Signing.PrivateKey()
         }
         self.initializationErrorMessage = initializationErrorMessage
 
@@ -478,7 +508,38 @@ actor CredentialManager {
         )
     }
 
+    private func ensureDeviceKeyLoaded() throws {
+        guard deviceKeyNeedsReload else { return }
+        let account = KeychainStore.Account.devicePrivateKey
+        let result = keychain.readDataResult(account)
+        if result.status == errSecInteractionNotAllowed {
+            throw APIError.transport("设备已锁定，暂时无法刷新登录")
+        }
+        if result.status == errSecItemNotFound {
+            throw APIError.unauthorized
+        }
+        guard result.status == errSecSuccess,
+              let rawKey = result.data,
+              let storedKey = try? P256.Signing.PrivateKey(rawRepresentation: rawKey)
+        else {
+            throw APIError.transport("无法读取设备密钥")
+        }
+        privateKey = storedKey
+        deviceKeyNeedsReload = false
+        do {
+            try keychain.saveData(
+                storedKey.rawRepresentation,
+                account: account,
+                accessibility: Self.deviceKeyAccessibility
+            )
+            UserDefaults.standard.set(true, forKey: Self.deviceKeyMigratedDefaultsKey)
+        } catch {
+            // The in-memory key can sign for this unlock. Migration retries next launch.
+        }
+    }
+
     private func requireReady() throws {
+        try ensureDeviceKeyLoaded()
         if let initializationErrorMessage {
             throw APIError.transport(initializationErrorMessage)
         }

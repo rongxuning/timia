@@ -26,7 +26,8 @@ struct HealthSyncDrainBudget: Sendable, Equatable {
     var maxDuration: TimeInterval
 
     static let foreground = HealthSyncDrainBudget(maxBatches: .max, maxDuration: .infinity)
-    /// One HealthKit wake gets about half a minute. Upload as many queued batches as fit.
+    /// One HealthKit wake gets about half a minute. Callers that also sync workouts
+    /// pass a shorter `maxDuration` so both pipelines share that window.
     static let background = HealthSyncDrainBudget(maxBatches: 200, maxDuration: 25)
 }
 
@@ -73,7 +74,8 @@ struct HealthSyncDrain {
     /// Returns number of batches uploaded. Stops when budget hit or queue empty.
     func drain(
         budget: HealthSyncDrainBudget,
-        onProgress: (@Sendable (String) -> Void)? = nil
+        onProgress: (@Sendable (String) -> Void)? = nil,
+        shouldStop: @Sendable () -> Bool = { false }
     ) async throws -> Int {
         try await queue.resetUploadingToPending()
         try await queue.requeueFailed()
@@ -86,7 +88,7 @@ struct HealthSyncDrain {
 
         do {
             while uploaded < budget.maxBatches {
-                if Date().timeIntervalSince(started) >= budget.maxDuration {
+                if shouldStop() || Date().timeIntervalSince(started) >= budget.maxDuration {
                     durationBudgetHit = true
                     break
                 }
@@ -128,7 +130,7 @@ struct HealthSyncDrain {
                     }
                 }
 
-                if Date().timeIntervalSince(started) >= budget.maxDuration {
+                if shouldStop() || Date().timeIntervalSince(started) >= budget.maxDuration {
                     durationBudgetHit = true
                     break
                 }
