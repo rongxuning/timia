@@ -16,6 +16,28 @@ export function fetchMyAssets(token: string): Promise<MyAssetsView> {
   return apiFetch<MyAssetsView>("/views/me/assets", { token });
 }
 
+export type LedgerAccountKind = "savings" | "credit" | "stock" | "metal" | "forex";
+
+export type LedgerAccount = {
+  id: string;
+  code: string;
+  name: string;
+  account_kind: LedgerAccountKind;
+  account_number: string;
+  version: number;
+};
+
+export function createAssetAccount(
+  token: string,
+  body: { name: string; account_kind: LedgerAccountKind; account_number: string },
+): Promise<LedgerAccount> {
+  return apiFetch<LedgerAccount>("/asset-accounts", {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function openAssetBook(
   token: string,
   body: {

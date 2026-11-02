@@ -95,6 +95,7 @@ def test_assets_require_auth():
     client = TestClient(app)
     assert client.get("/views/me/assets").status_code == 401
     assert client.post("/asset-book/open", json={}).status_code == 401
+    assert client.post("/asset-accounts", json={}).status_code == 401
 
 
 def test_hkd_balance_is_stored_as_hkd_and_totaled_in_cny(client_and_user):
@@ -369,3 +370,43 @@ def test_one_bank_many_cards_and_one_card_many_currencies(client_and_user):
     assert savings["asset_account_no"] is None
     assert {row["currency"] for row in savings["balances"]} == {"CNY", "HKD"}
     assert all(row["code"].startswith("A") for row in savings["balances"])
+
+
+def test_ledger_account_is_listed_without_a_balance(client_and_user):
+    client, headers, _user = client_and_user
+    created = client.post(
+        "/asset-accounts",
+        headers=headers,
+        json={"name": "招商银行", "account_kind": "savings", "account_number": "6214 8300 1234 5678"},
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["name"] == "招商银行"
+    assert body["account_kind"] == "savings"
+    assert body["account_number"] == "6214830012345678"
+    assert body["code"].startswith("A")
+
+    view = client.get("/views/me/assets", headers=headers)
+    assert view.status_code == 200, view.text
+    accounts = [account for party in view.json()["parties"] for account in party["accounts"]]
+    match = next(account for account in accounts if account["id"] == body["id"])
+    assert match["name"] == "招商银行"
+    assert match["account_kind"] == "savings"
+    assert match["account_number"] == "6214830012345678"
+    assert match["balances"] == []
+
+    duplicate = client.post(
+        "/asset-accounts",
+        headers=headers,
+        json={"name": "另一张", "account_kind": "credit", "account_number": "6214830012345678"},
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["detail"] == "account_number_taken"
+
+    short = client.post(
+        "/asset-accounts",
+        headers=headers,
+        json={"name": "太短", "account_kind": "stock", "account_number": "12"},
+    )
+    assert short.status_code == 400
+    assert short.json()["detail"] == "account_no_invalid"

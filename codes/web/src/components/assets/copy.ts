@@ -212,6 +212,10 @@ export function errorText(t: AssetsT, message: string): string {
       return t("errors.asset_account_no_taken");
     case "account_no_invalid":
       return t("errors.account_no_invalid");
+    case "account_number_required":
+      return t("errors.account_number_required");
+    case "account_number_taken":
+      return t("errors.account_number_taken");
     case "balance_exists":
       return t("errors.balance_exists");
     case "category_not_allowed":
@@ -260,6 +264,16 @@ export function accountKindLabel(t: AssetsT, kind: string): string {
       return t("accountKinds.gold");
     case "fx":
       return t("accountKinds.fx");
+    case "savings":
+      return t("accountKinds.savings");
+    case "credit":
+      return t("accountKinds.credit");
+    case "stock":
+      return t("accountKinds.stock");
+    case "metal":
+      return t("accountKinds.metal");
+    case "forex":
+      return t("accountKinds.forex");
     default:
       return t("accountKinds.other");
   }

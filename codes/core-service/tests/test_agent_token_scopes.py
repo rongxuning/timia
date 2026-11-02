@@ -36,6 +36,7 @@ from app.services.agent_tokens import required_scope_for_request
         ("GET", "/views/me/health/cards/steps", "health:read"),
         ("GET", "/views/me/assets", "__deny__"),
         ("POST", "/asset-holdings", "__deny__"),
+        ("POST", "/asset-accounts", "__deny__"),
         ("PUT", "/asset-profile", "__deny__"),
     ],
 )

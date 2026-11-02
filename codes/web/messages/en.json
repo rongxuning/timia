@@ -349,6 +349,23 @@
       "reserveHint": "The emergency group. 10,000 is a starting figure.",
       "asOfToday": "As of today"
     },
+    "accounts": {
+      "title": "Accounts",
+      "add": "Add",
+      "empty": "No accounts yet",
+      "createTitle": "Add an account",
+      "name": "Name",
+      "type": "Type",
+      "number": "Account number",
+      "numberHint": "4 to 40 letters or digits",
+      "kinds": {
+        "savings": "Savings",
+        "credit": "Credit",
+        "stock": "Shares",
+        "metal": "Precious metals",
+        "forex": "Foreign exchange"
+      }
+    },
     "focus": {
       "start": "Start with one savings account or one wallet. Record each credit card on its own line.",
       "missing_fx": "Some lines have no exchange rate yet, so they are missing from the total. Add the rate under Display and rates. The original amount is still stored.",
@@ -511,6 +528,8 @@
       "asset_account_no_required": "Enter the asset account number",
       "asset_account_no_taken": "That asset account is already on the book",
       "account_no_invalid": "That account number is invalid",
+      "account_number_required": "Enter an account number",
+      "account_number_taken": "That account number is already on the book",
       "balance_exists": "This account already has that category and currency",
       "category_not_allowed": "That category does not belong on this account",
       "account_required": "Enter the account",
@@ -551,7 +570,12 @@
       "medical": "Medical",
       "gold": "Gold",
       "fx": "Foreign cash",
-      "other": "Other"
+      "other": "Other",
+      "savings": "Savings",
+      "credit": "Credit",
+      "stock": "Shares",
+      "metal": "Precious metals",
+      "forex": "Foreign exchange"
     }
   }
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { AccountSection, type AccountCard } from "@/components/assets/AccountSection";
 import { AssetsMixPies, categorySlices } from "@/components/assets/AssetsMixPies";
 import { categoryLabel, errorText } from "@/components/assets/copy";
 import { PageMain } from "@/components/layout";
@@ -11,6 +12,26 @@ import { getToken } from "@/lib/auth";
 import { htmlLang, type Locale } from "@/i18n/config";
 import { formatMinor } from "@/lib/money";
 import type { MyAssetsView } from "@/types/api/views/assets";
+
+const LEDGER_KINDS = new Set(["savings", "credit", "stock", "metal", "forex"]);
+
+function ledgerAccounts(view: MyAssetsView | null): AccountCard[] {
+  const cards: AccountCard[] = [];
+  for (const party of view?.parties ?? []) {
+    for (const account of party.accounts) {
+      if (!LEDGER_KINDS.has(account.account_kind) || !account.account_number) continue;
+      cards.push({
+        id: account.id,
+        code: account.code,
+        name: account.name,
+        account_kind: account.account_kind,
+        account_number: account.account_number,
+      });
+    }
+  }
+  cards.sort((left, right) => left.code.localeCompare(right.code));
+  return cards;
+}
 
 export function AssetsPage() {
   const t = useTranslations("assets");
@@ -31,6 +52,17 @@ export function AssetsPage() {
         setError(errorText(t, (err as { message?: string }).message ?? ""));
       } finally {
         setLoading(false);
+      }
+    },
+    [t],
+  );
+
+  const refresh = useCallback(
+    async (accessToken: string) => {
+      try {
+        setView(await fetchMyAssets(accessToken));
+      } catch (err) {
+        setError(errorText(t, (err as { message?: string }).message ?? ""));
       }
     },
     [t],
@@ -71,6 +103,16 @@ export function AssetsPage() {
             <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} hint={t("summary.asOfToday")} />
             <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} hint={t("summary.asOfToday")} />
           </section>
+        ) : null}
+
+        {view ? (
+          <AccountSection
+            accounts={ledgerAccounts(view)}
+            onSaved={async () => {
+              const accessToken = getToken();
+              if (accessToken) await refresh(accessToken);
+            }}
+          />
         ) : null}
 
         {summary ? (

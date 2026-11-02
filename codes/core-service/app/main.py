@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes.agent_tokens import router as agent_tokens_router
+from app.routes.assets import account_router as asset_accounts_router
 from app.routes.assets import book_router as asset_book_router
 from app.routes.assets import expense_router as asset_expenses_router
 from app.routes.assets import profile_router as asset_profile_router
@@ -73,6 +74,7 @@ app.include_router(asset_holdings_router)
 app.include_router(asset_profile_router)
 app.include_router(asset_fx_rates_router)
 app.include_router(asset_book_router)
+app.include_router(asset_accounts_router)
 app.include_router(asset_expenses_router)
 app.include_router(dev_db_tables_router)
 app.include_router(views_schedule_router)

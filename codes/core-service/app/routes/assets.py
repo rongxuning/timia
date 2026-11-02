@@ -11,6 +11,8 @@ from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.asset import (
+    AssetAccountCreate,
+    AssetAccountOut,
     AssetAdjustmentCreate,
     AssetBookOpen,
     AssetBookOpenOut,
@@ -30,7 +32,7 @@ from app.schemas.asset import (
     AssetProfileOut,
     AssetProfileUpdate,
 )
-from app.services.asset_book import open_book
+from app.services.asset_book import create_ledger_account, open_book
 from app.services.asset_api import (
     adjust_expense,
     adjust_holding,
@@ -52,6 +54,16 @@ profile_router = APIRouter(prefix="/asset-profile", tags=["assets"])
 rate_router = APIRouter(prefix="/asset-fx-rates", tags=["assets"])
 expense_router = APIRouter(prefix="/asset-expenses", tags=["assets"])
 book_router = APIRouter(prefix="/asset-book", tags=["assets"])
+account_router = APIRouter(prefix="/asset-accounts", tags=["assets"])
+
+
+@account_router.post("", response_model=AssetAccountOut, status_code=status.HTTP_201_CREATED)
+def post_asset_account(
+    payload: AssetAccountCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return create_ledger_account(db, user, payload)
 
 
 @book_router.post("/open", response_model=AssetBookOpenOut, status_code=status.HTTP_201_CREATED)

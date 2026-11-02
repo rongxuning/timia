@@ -44,6 +44,22 @@ _HOLDING_CATEGORIES = (
 )
 _CURRENCIES = ("CNY", "HKD", "JPY", "KRW", "USD", "EUR", "GBP")
 _EXPENSE_GROUPS = ("fixed", "daily", "emergency", "other")
+_ACCOUNT_KINDS = (
+    "debit_card",
+    "credit_card",
+    "securities",
+    "wallet",
+    "housing_fund",
+    "medical",
+    "gold",
+    "fx",
+    "other",
+    "savings",
+    "credit",
+    "stock",
+    "metal",
+    "forex",
+)
 
 
 def _in_list(column: str, values: tuple[str, ...]) -> str:
@@ -144,10 +160,7 @@ class AssetAccount(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "asset_accounts"
     __table_args__ = (
         CheckConstraint(
-            "account_kind IN ("
-            "'debit_card', 'credit_card', 'securities', 'wallet', "
-            "'housing_fund', 'medical', 'gold', 'fx', 'other'"
-            ")",
+            _in_list("account_kind", _ACCOUNT_KINDS),
             name="ck_asset_accounts_kind",
         ),
         Index("ix_asset_accounts_owner", "owner_user_id"),

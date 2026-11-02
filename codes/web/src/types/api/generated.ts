@@ -1698,6 +1698,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Asset Account */
+        post: operations["post_asset_account_asset_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-expenses": {
         parameters: {
             query?: never;
@@ -2442,6 +2459,39 @@ export interface components {
             request_meta?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * AssetAccountCreate
+         * @description Add one account from the assets page: name, type, and account number.
+         */
+        AssetAccountCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Account Kind
+             * @enum {string}
+             */
+            account_kind: "savings" | "credit" | "stock" | "metal" | "forex";
+            /** Account Number */
+            account_number: string;
+        };
+        /** AssetAccountOut */
+        AssetAccountOut: {
+            /** Id */
+            id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Account Kind
+             * @enum {string}
+             */
+            account_kind: "savings" | "credit" | "stock" | "metal" | "forex";
+            /** Account Number */
+            account_number: string;
+            /** Version */
+            version: number;
         };
         /** AssetAdjustmentCreate */
         AssetAdjustmentCreate: {
@@ -11170,6 +11220,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssetBookOpenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_asset_account_asset_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetAccountCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAccountOut"];
                 };
             };
             /** @description Validation Error */

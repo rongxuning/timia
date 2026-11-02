@@ -7606,6 +7606,65 @@
         }
       }
     },
+    "/asset-accounts": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Asset Account",
+        "operationId": "post_asset_account_asset_accounts_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAccountCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetAccountOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/asset-expenses": {
       "post": {
         "tags": [
@@ -11227,6 +11286,86 @@
           "ok"
         ],
         "title": "AgentToolCallAuditIn"
+      },
+      "AssetAccountCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "account_kind": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "credit",
+              "stock",
+              "metal",
+              "forex"
+            ],
+            "title": "Account Kind"
+          },
+          "account_number": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Account Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "account_kind",
+          "account_number"
+        ],
+        "title": "AssetAccountCreate",
+        "description": "Add one account from the assets page: name, type, and account number."
+      },
+      "AssetAccountOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "account_kind": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "credit",
+              "stock",
+              "metal",
+              "forex"
+            ],
+            "title": "Account Kind"
+          },
+          "account_number": {
+            "type": "string",
+            "title": "Account Number"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "account_kind",
+          "account_number",
+          "version"
+        ],
+        "title": "AssetAccountOut"
       },
       "AssetAdjustmentCreate": {
         "properties": {

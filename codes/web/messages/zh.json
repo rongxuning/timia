@@ -349,6 +349,23 @@
       "reserveHint": "应急这一档的合计，暂可按 10,000 记。",
       "asOfToday": "截止今日"
     },
+    "accounts": {
+      "title": "账户",
+      "add": "增加",
+      "empty": "还没有账户",
+      "createTitle": "添加账户",
+      "name": "名称",
+      "type": "类型",
+      "number": "账号",
+      "numberHint": "4 到 40 位字母或数字",
+      "kinds": {
+        "savings": "储蓄",
+        "credit": "信用",
+        "stock": "股票",
+        "metal": "贵金属",
+        "forex": "外汇"
+      }
+    },
     "focus": {
       "start": "从一张储蓄卡或一个钱包开始。信用卡有几张就分开记。",
       "missing_fx": "有账户还没有汇率，总资产里暂时没算上它们。在「显示与汇率」里补上，实际币种的数额仍然在。",
@@ -511,6 +528,8 @@
       "asset_account_no_required": "请填写资产账号",
       "asset_account_no_taken": "这个资产账号已经在账上",
       "account_no_invalid": "账号格式不对",
+      "account_number_required": "请填写账号",
+      "account_number_taken": "这个账号已经在账上",
       "balance_exists": "这个账户下已经有同一分类和币种的余额",
       "category_not_allowed": "这个账户不能记这个分类",
       "account_required": "请填写账户",
@@ -551,7 +570,12 @@
       "medical": "医保",
       "gold": "黄金",
       "fx": "外汇",
-      "other": "其他账户"
+      "other": "其他账户",
+      "savings": "储蓄",
+      "credit": "信用",
+      "stock": "股票",
+      "metal": "贵金属",
+      "forex": "外汇"
     }
   }
 }

@@ -307,6 +307,42 @@ class AssetBookOpen(BaseModel):
         return _clean(value)
 
 
+LedgerAccountKind = Literal["savings", "credit", "stock", "metal", "forex"]
+
+
+class AssetAccountCreate(BaseModel):
+    """Add one account from the assets page: name, type, and account number."""
+
+    name: str = Field(min_length=1, max_length=80)
+    account_kind: LedgerAccountKind
+    account_number: str = Field(min_length=1, max_length=40)
+
+    @field_validator("name")
+    @classmethod
+    def strip_account_name(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("name_required")
+        return text
+
+    @field_validator("account_number")
+    @classmethod
+    def strip_account_number(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("account_number_required")
+        return text
+
+
+class AssetAccountOut(BaseModel):
+    id: str
+    code: str
+    name: str
+    account_kind: LedgerAccountKind
+    account_number: str
+    version: int
+
+
 class AssetBookOpenOut(BaseModel):
     party_id: str
     party_code: str

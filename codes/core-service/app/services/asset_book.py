@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 
 from fastapi import HTTPException, status
@@ -21,7 +22,14 @@ from app.models.asset import (
     AssetParty,
 )
 from app.models.user import User
-from app.schemas.asset import AssetBookOpen, AssetBookOpenOut, AssetHoldingCreate, AssetHoldingOut
+from app.schemas.asset import (
+    AssetAccountCreate,
+    AssetAccountOut,
+    AssetBookOpen,
+    AssetBookOpenOut,
+    AssetHoldingCreate,
+    AssetHoldingOut,
+)
 from app.services.asset_api import _ensure_profile, _holding_out, _moment, utcnow
 from app.services.assets_math import (
     ASSET_CATEGORIES,
@@ -40,6 +48,11 @@ ACCOUNT_CATEGORIES: dict[str, frozenset[str]] = {
     "gold": frozenset({"gold"}),
     "fx": frozenset({"fx"}),
     "other": ASSET_CATEGORIES | LIABILITY_CATEGORIES,
+    "savings": frozenset({"bank_deposit"}),
+    "credit": frozenset({"credit_card"}),
+    "stock": frozenset({"a_share", "hk_share"}),
+    "metal": frozenset({"gold"}),
+    "forex": frozenset({"fx"}),
 }
 
 INSTITUTION_FOR_ACCOUNT = {
@@ -52,6 +65,11 @@ INSTITUTION_FOR_ACCOUNT = {
     "gold": "other",
     "fx": "bank",
     "other": "other",
+    "savings": "bank",
+    "credit": "bank",
+    "stock": "broker",
+    "metal": "other",
+    "forex": "bank",
 }
 
 
@@ -110,6 +128,45 @@ def add_balance(db: Session, user: User, payload: AssetHoldingCreate) -> AssetHo
     db.commit()
     db.refresh(holding)
     return _holding_out(holding, payload.reason, utcnow().date())
+
+
+def create_ledger_account(db: Session, user: User, payload: AssetAccountCreate) -> AssetAccountOut:
+    """Create an account card. No opening balance, and the institution stays behind the account."""
+    _ensure_profile(db, user.id)
+    number = _normalize_code(payload.account_number, required=True, missing="account_number_required")
+    if number is None or re.fullmatch(r"[A-Z0-9]{4,40}", number) is None:
+        raise HTTPException(status_code=400, detail="account_no_invalid")
+    if _account_number_taken(db, user.id, number):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="account_number_taken")
+    party = AssetParty(
+        owner_user_id=user.id,
+        code=_allocate_code(db, user.id),
+        name=payload.name,
+        institution_kind=INSTITUTION_FOR_ACCOUNT[payload.account_kind],
+        version=1,
+    )
+    db.add(party)
+    db.flush()
+    account = AssetAccount(
+        owner_user_id=user.id,
+        party_id=party.id,
+        code=_allocate_code(db, user.id),
+        name=payload.name,
+        account_kind=payload.account_kind,
+        account_number=number,
+        version=1,
+    )
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return AssetAccountOut(
+        id=str(account.id),
+        code=account.code,
+        name=account.name,
+        account_kind=payload.account_kind,
+        account_number=number,
+        version=account.version,
+    )
 
 
 def list_parties(db: Session, user_id: uuid.UUID) -> list[AssetParty]:
@@ -305,6 +362,13 @@ def _normalize_code(value: str | None, *, required: bool, missing: str) -> str |
     if not 4 <= len(text) <= 40:
         raise HTTPException(status_code=400, detail="account_no_invalid")
     return text
+
+
+def _account_number_taken(db: Session, user_id: uuid.UUID, value: str) -> bool:
+    return any(
+        _number_taken(db, user_id, column, value)
+        for column in (AssetAccount.account_number, AssetAccount.card_number, AssetAccount.asset_account_no)
+    )
 
 
 def _number_taken(db: Session, user_id: uuid.UUID, column, value: str) -> bool:
