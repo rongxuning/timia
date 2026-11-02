@@ -36,32 +36,14 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertEqual(filtered.map(\.id), ["1", "4"])
     }
 
-    func testHealthTimeLabelRelativeMinutes() {
-        let now = Date(timeIntervalSince1970: 1_000_000)
-        let synced = now.addingTimeInterval(-5 * 60)
-        XCTAssertEqual(
-            ScreenNotificationContentBuilder.healthTimeLabel(lastSyncedAt: synced, now: now),
-            "5分钟前"
-        )
-    }
-
-    func testHealthTimeLabelNeverSynced() {
-        XCTAssertEqual(
-            ScreenNotificationContentBuilder.healthTimeLabel(lastSyncedAt: nil),
-            "尚未同步"
-        )
-    }
-
-    func testMakeContentStateHidesHealthWhenDisabled() {
+    func testMakeContentStateKeepsAllDayPendingAndOmitsHealth() {
         let todos = [
             task(id: "1", title: "全天待办", status: "todo", startAt: "2026-09-05T00:00:00+08:00", endAt: "2026-09-06T00:00:00+08:00"),
         ]
-        let state = ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: false,
-            lastSyncedAt: Date(),
-            todos: todos
-        )
+        let state = ScreenNotificationContentBuilder.makeContentState(todos: todos)
         XCTAssertFalse(state.healthEnabled)
+        XCTAssertEqual(state.healthTitle, "")
+        XCTAssertEqual(state.healthTimeLabel, "")
         XCTAssertEqual(state.todos.count, 1)
         XCTAssertEqual(state.todos[0].title, "全天待办")
         XCTAssertEqual(state.todos[0].timeLabel, "全天")
@@ -70,24 +52,42 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertTrue(state.notStartedTodos.isEmpty)
         XCTAssertTrue(state.overdueTodos.isEmpty)
         XCTAssertTrue(state.doingTodos.isEmpty)
+        XCTAssertTrue(state.hasDisplayableTasks)
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .startOrUpdate)
+        XCTAssertEqual(state.lockScreenItems().map(\.id), ["1"])
     }
 
-    func testMakeContentStateIncludesHealthWhenEnabled() {
+    func testNoPendingTasksEndsLiveActivity() {
         let now = Date(timeIntervalSince1970: 1_000_000)
-        let state = ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: true,
-            lastSyncedAt: now.addingTimeInterval(-120),
-            todos: [],
-            now: now
-        )
-        XCTAssertTrue(state.healthEnabled)
-        XCTAssertEqual(state.healthTitle, "健康数据同步")
-        XCTAssertEqual(state.healthTimeLabel, "2分钟前")
-        // Health alone does not contribute to workingCount / Island badge.
+        let state = ScreenNotificationContentBuilder.makeContentState(todos: [], now: now)
+        XCTAssertFalse(state.healthEnabled)
+        XCTAssertEqual(state.healthTitle, "")
+        XCTAssertEqual(state.healthTimeLabel, "")
         XCTAssertEqual(state.workingCount, 0)
         XCTAssertEqual(state.totalCount, 0)
-        XCTAssertEqual(state.allDayCount, 0)
-        XCTAssertTrue(state.todos.isEmpty)
+        XCTAssertFalse(state.hasDisplayableTasks)
+        XCTAssertTrue(state.lockScreenItems().isEmpty)
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .endImmediately)
+    }
+
+    func testFinishedTasksDoNotKeepLiveActivity() {
+        let calendar = shanghaiCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 9, day: 7, hour: 18))!
+        let state = ScreenNotificationContentBuilder.makeContentState(
+            todos: [
+                task(
+                    id: "done",
+                    title: "已完成",
+                    status: "done",
+                    startAt: "2026-09-07T09:00:00+08:00",
+                    endAt: "2026-09-07T10:00:00+08:00"
+                ),
+            ],
+            now: now,
+            calendar: calendar
+        )
+        XCTAssertFalse(state.hasDisplayableTasks)
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .endImmediately)
     }
 
     func testMakeContentStateSplitsNotStartedOverdueAndAllDay() {
@@ -134,15 +134,14 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         ]
 
         let state = ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: true,
-            lastSyncedAt: nil,
             todos: dayTasks,
             overdue: overdue,
             now: now,
             calendar: calendar
         )
 
-        // workingCount = notStarted(1) + doing(1) + overdue(1); health excluded; all-day excluded
+        XCTAssertFalse(state.healthEnabled)
+        // workingCount = notStarted(1) + doing(1) + overdue(1); all-day excluded
         XCTAssertEqual(state.workingCount, 3)
         XCTAssertEqual(state.workingHeaderTitle, "3 进行中")
         XCTAssertEqual(state.doingTodos.map(\.title), ["写周报"])
@@ -159,8 +158,9 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertEqual(state.notStartedCount, 1)
         XCTAssertEqual(state.overdueCount, 1)
         XCTAssertEqual(state.allDayCount, 1)
-        // Island badge matches lock-screen header (excludes health + all-day).
+        // Island badge matches lock-screen header (excludes all-day).
         XCTAssertEqual(state.totalCount, 3)
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .startOrUpdate)
     }
 
     func testTimedTodoDoesNotAppearInAllDaySection() {
@@ -176,8 +176,6 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
             ),
         ]
         let state = ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: false,
-            lastSyncedAt: nil,
             todos: todos,
             now: now,
             calendar: calendar
@@ -199,8 +197,6 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
             endAt: "2026-09-04T19:00:00+08:00"
         )
         let state = ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: false,
-            lastSyncedAt: nil,
             todos: [overdue],
             overdue: [overdue],
             now: now,
@@ -209,6 +205,8 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         XCTAssertEqual(state.overdueTodos.map(\.id), ["overdue-today-dup"])
         XCTAssertTrue(state.notStartedTodos.isEmpty)
         XCTAssertTrue(state.todos.isEmpty)
+        XCTAssertTrue(state.hasDisplayableTasks)
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .startOrUpdate)
     }
 
     func testPastDeadlineInDayListGoesToOverdueWithoutApiList() {
@@ -222,8 +220,6 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
             endAt: "2026-09-04T19:00:00+08:00"
         )
         let state = ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: false,
-            lastSyncedAt: nil,
             todos: [past],
             overdue: [],
             now: now,
@@ -243,11 +239,15 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
             from: Data(json.utf8)
         )
         XCTAssertTrue(state.healthEnabled)
+        XCTAssertEqual(state.healthTitle, "健康数据同步")
         XCTAssertEqual(state.workingCount, 1)
         XCTAssertTrue(state.doingTodos.isEmpty)
         XCTAssertTrue(state.notStartedTodos.isEmpty)
         XCTAssertTrue(state.overdueTodos.isEmpty)
         XCTAssertEqual(state.totalCount, 1) // Island = workingCount only
+        XCTAssertTrue(state.lockScreenItems().isEmpty)
+        XCTAssertFalse(state.hasDisplayableTasks)
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .endImmediately)
     }
 
     func testTodoRowDecodesMissingStatusAsTodo() throws {
@@ -278,8 +278,9 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
 
         XCTAssertEqual(
             state.lockScreenItems(maxRows: 8).map(\.id),
-            ["health", "doing", "ns-1", "ns-2", "overdue", "all-day"]
+            ["doing", "ns-1", "ns-2", "overdue", "all-day"]
         )
+        XCTAssertFalse(state.lockScreenItems().contains { $0.id == "health" })
         XCTAssertTrue(state.showsWorkingHeader)
         XCTAssertEqual(state.workingHeaderTitle, "4 进行中")
         XCTAssertEqual(state.workingCount, 4)
@@ -297,7 +298,7 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
         )
 
         let items = state.lockScreenItems(maxRows: 5)
-        XCTAssertEqual(items.map(\.id), ["health", "doing", "ns-1", "ns-2", "overdue"])
+        XCTAssertEqual(items.map(\.id), ["doing", "ns-1", "ns-2", "overdue"])
         XCTAssertFalse(items.contains { if case .more = $0 { return true }; return false })
     }
 
@@ -313,10 +314,10 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
             allDay: [todoRow("all-day", "值班", "全天")]
         )
 
-        let items = state.lockScreenItems(maxRows: 5)
-        XCTAssertEqual(items.count, 5)
+        let items = state.lockScreenItems(maxRows: 4)
+        XCTAssertEqual(items.count, 4)
         XCTAssertEqual(items.last, .more(remaining: 2))
-        XCTAssertEqual(items.dropLast().map(\.id), ["health", "doing", "ns-1", "ns-2"])
+        XCTAssertEqual(items.dropLast().map(\.id), ["doing", "ns-1", "ns-2"])
         XCTAssertEqual(
             items.compactMap(\.todoTitle),
             ["trailmo.看店", "减脂塑形", "胸背塑造"]
@@ -353,10 +354,24 @@ final class ScreenNotificationContentBuilderTests: XCTestCase {
     func testLockScreenItemsSingleSlotKeepsOneCompleteRow() {
         let state = lockScreenState(
             healthEnabled: true,
+            doing: [todoRow("doing", "写周报", "15:00 – 16:00")],
+            notStarted: [todoRow("ns", "减脂塑形", "18:15 – 19:00")]
+        )
+        let items = state.lockScreenItems(maxRows: 1)
+        XCTAssertEqual(items.map(\.id), ["doing"])
+        XCTAssertNotEqual(items.last, .more(remaining: 1))
+        XCTAssertFalse(items.contains { $0.id == "health" })
+    }
+
+    func testLockScreenItemsIgnoreLegacyHealthFlag() {
+        let state = lockScreenState(
+            healthEnabled: true,
             doing: [todoRow("doing", "写周报", "15:00 – 16:00")]
         )
-        XCTAssertEqual(state.lockScreenItems(maxRows: 1), [.health])
-        XCTAssertNotEqual(state.lockScreenItems(maxRows: 1).last, .more(remaining: 1))
+        XCTAssertTrue(state.healthEnabled)
+        XCTAssertEqual(state.healthTitle, "健康数据同步")
+        XCTAssertEqual(state.lockScreenItems().map(\.id), ["doing"])
+        XCTAssertEqual(ScreenNotificationContentBuilder.refreshAction(for: state), .startOrUpdate)
     }
 
     func testPreferenceRoundTrip() {

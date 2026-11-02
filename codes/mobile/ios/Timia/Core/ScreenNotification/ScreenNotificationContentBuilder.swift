@@ -1,5 +1,13 @@
 import Foundation
 
+/// What a successful content build should do to the lock-screen Live Activity.
+enum ScreenNotificationRefreshAction: Equatable, Sendable {
+    /// Pending rows exist; request a new activity or update the current one.
+    case startOrUpdate
+    /// Every task row is empty; end the activity with immediate dismissal.
+    case endImmediately
+}
+
 /// Pure helpers for assembling lock-screen Live Activity content (unit-testable).
 enum ScreenNotificationContentBuilder {
     static func isAllDay(startAt: String?, endAt: String?) -> Bool {
@@ -38,21 +46,14 @@ enum ScreenNotificationContentBuilder {
         return datedTimeRange(start: start, end: end, calendar: calendar, now: now)
     }
 
-    static func healthTimeLabel(lastSyncedAt: Date?, now: Date = Date()) -> String {
-        guard let lastSyncedAt else { return "尚未同步" }
-        let seconds = max(0, Int(now.timeIntervalSince(lastSyncedAt)))
-        if seconds < 60 { return "刚刚" }
-        if seconds < 3600 { return "\(seconds / 60)分钟前" }
-        if seconds < 86_400 { return "\(seconds / 3600)小时前" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 HH:mm"
-        return formatter.string(from: lastSyncedAt)
+    /// End when 未开始 / 进行中 / 逾期 / 全天 are all empty. Overdue rows alone keep the card.
+    static func refreshAction(
+        for state: TimiaScreenActivityAttributes.ContentState
+    ) -> ScreenNotificationRefreshAction {
+        state.hasDisplayableTasks ? .startOrUpdate : .endImmediately
     }
 
     static func makeContentState(
-        healthEnabled: Bool,
-        lastSyncedAt: Date?,
         todos: [ScheduleTask],
         overdue: [ScheduleTask] = [],
         now: Date = Date(),
@@ -66,13 +67,9 @@ enum ScreenNotificationContentBuilder {
         let notStarted = remaining.filter { $0.status == "todo" && !isAllDay(startAt: $0.startAt, endAt: $0.endAt) }
         let allDay = remaining.filter { isAllDay(startAt: $0.startAt, endAt: $0.endAt) }
 
-        let healthVisible = healthEnabled
-        // Header count = 未开始 + 进行中 + 逾期（不含健康行、不含全天）
+        // Header count = 未开始 + 进行中 + 逾期（不含全天）
         let workingCount = notStarted.count + doing.count + overdueTasks.count
         return TimiaScreenActivityAttributes.ContentState(
-            healthEnabled: healthVisible,
-            healthTitle: "健康数据同步",
-            healthTimeLabel: healthTimeLabel(lastSyncedAt: lastSyncedAt, now: now),
             todos: rows(from: allDay, calendar: calendar, now: now),
             workingCount: workingCount,
             doingTodos: rows(from: doing, calendar: calendar, now: now),

@@ -10,6 +10,7 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
     var title: String
 
     struct ContentState: Codable, Hashable, Sendable {
+        // Legacy ActivityKit fields. New states leave these empty; the lock screen never renders them.
         var healthEnabled: Bool
         var healthTitle: String
         var healthTimeLabel: String
@@ -24,14 +25,19 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
         var overdueCount: Int { overdueTodos.count }
         var allDayCount: Int { todos.count }
         /// Dynamic Island / compact badge — same as lock-screen header:
-        /// 未开始 + 进行中 + 逾期（不含健康行、不含全天）.
+        /// 未开始 + 进行中 + 逾期（不含全天）.
         var totalCount: Int { workingCount }
+
+        /// True when any pending row should keep the Live Activity visible.
+        /// Overdue unfinished work counts; a health-only or fully empty payload does not.
+        var hasDisplayableTasks: Bool {
+            !doingTodos.isEmpty || !notStartedTodos.isEmpty || !overdueTodos.isEmpty || !todos.isEmpty
+        }
 
         /// Max lock-screen item rows, including a trailing overflow row when truncated.
         static let lockScreenVisibleRowLimit = 7
 
         enum LockScreenItem: Equatable, Identifiable, Sendable {
-            case health
             case todo(TodoRow)
             case more(remaining: Int)
 
@@ -43,7 +49,6 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
 
             var id: String {
                 switch self {
-                case .health: "health"
                 case .todo(let row): row.id
                 case .more: "more"
                 }
@@ -56,9 +61,6 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
 
         func lockScreenItems(maxRows: Int = Self.lockScreenVisibleRowLimit) -> [LockScreenItem] {
             var items: [LockScreenItem] = []
-            if healthEnabled {
-                items.append(.health)
-            }
             items.append(contentsOf: doingTodos.map { .todo($0) })
             items.append(contentsOf: notStartedTodos.map { .todo($0) })
             items.append(contentsOf: overdueTodos.map { .todo($0) })
@@ -116,9 +118,9 @@ struct TimiaScreenActivityAttributes: Codable, Hashable, Sendable {
         }
 
         init(
-            healthEnabled: Bool,
-            healthTitle: String,
-            healthTimeLabel: String,
+            healthEnabled: Bool = false,
+            healthTitle: String = "",
+            healthTimeLabel: String = "",
             todos: [TodoRow],
             workingCount: Int,
             doingTodos: [TodoRow] = [],

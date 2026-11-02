@@ -19,7 +19,7 @@ struct ScreenNotificationPromptModifier: ViewModifier {
                     Task { await deny() }
                 }
             } message: {
-                Text("允许后，锁屏将展示健康同步状态与当日未开始、逾期、全天待办；Timia 会尽量在后台保持同步与刷新。")
+                Text("允许后，锁屏将展示当日未开始、进行中、逾期与全天待办；没有这些任务时卡片会收起。Timia 会尽量在后台保持同步与刷新。")
             }
     }
 
