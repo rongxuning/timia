@@ -74,6 +74,8 @@ private struct RootView: View {
                         HealthBackgroundDelivery.shared.scheduleAppRefresh()
                     case .inactive:
                         break
+                    @unknown default:
+                        break
                     }
                 }
         }

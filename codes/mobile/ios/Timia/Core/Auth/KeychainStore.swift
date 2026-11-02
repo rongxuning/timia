@@ -108,8 +108,6 @@ actor CredentialManager {
     private let session: URLSession
     private let keychain: KeychainStore
     private let installationID: String
-    /// Background HealthKit wakes must be able to sign a refresh while the device is locked.
-    private static let deviceKeyAccessibility = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     private static let deviceKeyMigratedDefaultsKey = "timia.auth.deviceKeyAfterFirstUnlock.v1"
 
     private var privateKey: P256.Signing.PrivateKey
@@ -143,6 +141,7 @@ actor CredentialManager {
             installationID = generated
         }
 
+        // AfterFirstUnlockThisDeviceOnly: a locked-device HealthKit wake must still sign a refresh.
         let keyAccount = KeychainStore.Account.devicePrivateKey
         let keyResult = keychain.readDataResult(keyAccount)
         if keyResult.status == errSecSuccess,
@@ -154,7 +153,7 @@ actor CredentialManager {
                     try keychain.saveData(
                         storedKey.rawRepresentation,
                         account: keyAccount,
-                        accessibility: Self.deviceKeyAccessibility
+                        accessibility: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
                     )
                     UserDefaults.standard.set(true, forKey: Self.deviceKeyMigratedDefaultsKey)
                 } catch {
@@ -167,7 +166,7 @@ actor CredentialManager {
                 try keychain.saveData(
                     generated.rawRepresentation,
                     account: keyAccount,
-                    accessibility: Self.deviceKeyAccessibility
+                    accessibility: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
                 )
                 UserDefaults.standard.set(true, forKey: Self.deviceKeyMigratedDefaultsKey)
             } catch {
@@ -530,7 +529,7 @@ actor CredentialManager {
             try keychain.saveData(
                 storedKey.rawRepresentation,
                 account: account,
-                accessibility: Self.deviceKeyAccessibility
+                accessibility: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             )
             UserDefaults.standard.set(true, forKey: Self.deviceKeyMigratedDefaultsKey)
         } catch {

@@ -10,15 +10,16 @@ enum HealthBackgroundRefresh {
     static let earliestInterval: TimeInterval = 15 * 60
 
     private static let log = Logger(subsystem: "online.timia.ios", category: "HealthBackgroundRefresh")
-    private static let registerLock = NSLock()
-    private static var didRegister = false
+    /// One-shot registration flag. Mutable state lives inside the lock so the static is Sendable.
+    private static let didRegister = OSAllocatedUnfairLock(initialState: false)
 
     /// Call from `didFinishLaunching` before the method returns.
     static func register() {
-        registerLock.lock()
-        let already = didRegister
-        if !already { didRegister = true }
-        registerLock.unlock()
+        let already = didRegister.withLock { registered -> Bool in
+            if registered { return true }
+            registered = true
+            return false
+        }
         guard !already else { return }
 
         let registered = BGTaskScheduler.shared.register(
