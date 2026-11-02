@@ -90,7 +90,6 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>health-data</string>
 		<string>fetch</string>
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
