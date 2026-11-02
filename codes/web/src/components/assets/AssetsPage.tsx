@@ -102,9 +102,9 @@ export function AssetsPage() {
 
           {summary ? (
             <section className="grid gap-3 md:grid-cols-3">
-              <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} hint={t("summary.asOfNow")} />
-              <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} hint={t("summary.asOfNow")} />
-              <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} hint={t("summary.asOfNow")} />
+              <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} hint={t("summary.asOfToday")} />
+              <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} hint={t("summary.asOfToday")} />
+              <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} hint={t("summary.asOfToday")} />
             </section>
           ) : null}
 
@@ -139,10 +139,10 @@ export function AssetsPage() {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-      <p className="text-overline text-neutral-muted">{label}</p>
+    <article className="rounded-xl border border-primary/15 bg-primary-fixed p-lg shadow-sm">
+      <p className="text-overline text-on-primary-fixed-variant">{label}</p>
       <p className="mt-2 text-xl tabular-nums text-text-primary">{value}</p>
-      {hint ? <p className="mt-1 text-caption text-text-secondary">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-caption text-on-surface-variant">{hint}</p> : null}
     </article>
   );
 }

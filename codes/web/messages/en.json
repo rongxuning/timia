@@ -347,7 +347,7 @@
       "emergencyCashHint": "Bank deposits and payment wallets only.",
       "monthlyHint": "Fixed, daily, and other. The emergency reserve is not included.",
       "reserveHint": "The emergency group. 10,000 is a starting figure.",
-      "asOfNow": "As of now"
+      "asOfToday": "As of today"
     },
     "focus": {
       "start": "Start with one savings account or one wallet. Record each credit card on its own line.",

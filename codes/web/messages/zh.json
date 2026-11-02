@@ -347,7 +347,7 @@
       "emergencyCashHint": "只有银行储蓄和支付钱包。",
       "monthlyHint": "固定、日常、其他。不含应急备用。",
       "reserveHint": "应急这一档的合计，暂可按 10,000 记。",
-      "asOfNow": "截止当前"
+      "asOfToday": "截止今日"
     },
     "focus": {
       "start": "从一张储蓄卡或一个钱包开始。信用卡有几张就分开记。",
