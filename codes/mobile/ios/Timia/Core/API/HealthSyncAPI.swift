@@ -261,7 +261,8 @@ struct HealthSyncAPI: Sendable {
         timezone: String,
         from: String? = nil,
         to: String? = nil,
-        pipeline: String? = nil
+        pipeline: String? = nil,
+        timeoutInterval: TimeInterval? = nil
     ) async throws -> HealthSyncStatus {
         var query: [URLQueryItem] = [URLQueryItem(name: "timezone", value: timezone)]
         if let from { query.append(URLQueryItem(name: "from", value: from)) }
@@ -270,6 +271,7 @@ struct HealthSyncAPI: Sendable {
         return try await client.request(
             "/health/sync-status",
             query: query,
+            timeoutInterval: timeoutInterval,
             response: HealthSyncStatus.self
         )
     }

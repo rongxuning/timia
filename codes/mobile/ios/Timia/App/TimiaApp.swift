@@ -24,6 +24,8 @@ struct TimiaApp: App {
 private struct RootView: View {
     @EnvironmentObject private var session: AppSession
     @Environment(\.scenePhase) private var scenePhase
+    /// True after the scene has been in the background, so an inactive flicker does not sync.
+    @State private var leftForeground = false
 
     var body: some View {
         switch session.state {
@@ -45,17 +47,33 @@ private struct RootView: View {
         case let .signedIn(user):
             MainTabView(user: user)
                 .screenNotificationPrompt()
-                .task { await HealthBackgroundDelivery.shared.start(api: session.api) }
+                .task {
+                    await HealthBackgroundDelivery.shared.start(api: session.api)
+                    await HealthBackgroundDelivery.shared.catchUp()
+                }
                 .task {
                     PushTokenStore.shared.bind(client: session.notificationApi)
                     await RemotePushPermission.register()
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
-                    Task {
-                        await ScreenNotificationManager.shared.refreshIfStale(api: session.api)
-                        PushTokenStore.shared.bind(client: session.notificationApi)
-                        await RemotePushPermission.register()
+                    switch phase {
+                    case .active:
+                        let catchUp = leftForeground
+                        leftForeground = false
+                        Task {
+                            if catchUp {
+                                await HealthBackgroundDelivery.shared.start(api: session.api)
+                                await HealthBackgroundDelivery.shared.catchUp()
+                            }
+                            await ScreenNotificationManager.shared.refreshIfStale(api: session.api)
+                            PushTokenStore.shared.bind(client: session.notificationApi)
+                            await RemotePushPermission.register()
+                        }
+                    case .background:
+                        leftForeground = true
+                        HealthBackgroundDelivery.shared.scheduleAppRefresh()
+                    case .inactive:
+                        break
                     }
                 }
         }

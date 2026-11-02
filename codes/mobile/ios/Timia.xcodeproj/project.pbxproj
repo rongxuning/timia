@@ -92,6 +92,10 @@
 		A22C4012FFE7BFEF716C84CD /* TimiaLiveActivityPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FDE9BC3E8D715755C56FBA /* TimiaLiveActivityPaletteTests.swift */; };
 		A542917AE1DC25AC30137163 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0E37E4198B3D9197E70666E0 /* Assets.xcassets */; };
 		A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */; };
+		A9522001B001B001B001B002 /* BackgroundWakeBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9522001B001B001B001B001 /* BackgroundWakeBudget.swift */; };
+		A9522001B001B001B001B004 /* HealthBackgroundRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9522001B001B001B001B003 /* HealthBackgroundRefresh.swift */; };
+		A9522001B001B001B001B006 /* BackgroundWakeBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9522001B001B001B001B005 /* BackgroundWakeBudgetTests.swift */; };
+		A9522001B001B001B001B008 /* BackgroundTasks.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9522001B001B001B001B007 /* BackgroundTasks.framework */; };
 		A9C60C484E180BA5198C212F /* ScheduleMapClustersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6DA22012F7C8127E6D5908A /* ScheduleMapClustersTests.swift */; };
 		AA95165565C031687174633B /* ObjCExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 9BBDAB762716DD873CE03A5E /* ObjCExceptionCatcher.m */; };
 		AA95B28B73214B3E8FCF8F92 /* StickyNoteInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9A5326C95572814EFB05FA /* StickyNoteInputView.swift */; };
@@ -269,6 +273,10 @@
 		837BB4B0EAF2FB2B70CCEFCE /* Timia-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Timia-Bridging-Header.h"; sourceTree = "<group>"; };
 		849AAEF8FA2E6934A70B8DC9 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
 		851DA05472136D3FAB083B33 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
+		A9522001B001B001B001B001 /* BackgroundWakeBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWakeBudget.swift; sourceTree = "<group>"; };
+		A9522001B001B001B001B003 /* HealthBackgroundRefresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthBackgroundRefresh.swift; sourceTree = "<group>"; };
+		A9522001B001B001B001B005 /* BackgroundWakeBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWakeBudgetTests.swift; sourceTree = "<group>"; };
+		A9522001B001B001B001B007 /* BackgroundTasks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BackgroundTasks.framework; path = System/Library/Frameworks/BackgroundTasks.framework; sourceTree = SDKROOT; };
 		86E0CD09843CADCDA60D838F /* TimiaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimiaTheme.swift; sourceTree = "<group>"; };
 		874748456061425CD0A7F885 /* SpeechPermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPermissionManager.swift; sourceTree = "<group>"; };
 		87CA09AE7E6F5E3470553FAD /* CalendarCompletedCardStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarCompletedCardStyle.swift; sourceTree = "<group>"; };
@@ -334,6 +342,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D1B68BDA58BE3E0CBDF7ABC5 /* HealthKit.framework in Frameworks */,
+				A9522001B001B001B001B008 /* BackgroundTasks.framework in Frameworks */,
 				F1A1C004C004C004C004C002 /* Contacts.framework in Frameworks */,
 				33053505AA150018921084D0 /* ActivityKit.framework in Frameworks */,
 				719D4B61D1F151F9B4C5CB1D /* UserNotifications.framework in Frameworks */,
@@ -432,6 +441,7 @@
 			isa = PBXGroup;
 			children = (
 				4600E8F57F394CBF59D37A5A /* APIModelsTests.swift */,
+				A9522001B001B001B001B005 /* BackgroundWakeBudgetTests.swift */,
 				6E878601842E46C027A815D4 /* CalendarCompletedCardStyleTests.swift */,
 				49337B559756EF8E3CD20852 /* CalendarWeekTitleTests.swift */,
 				DF9985EB8302A6BB077BD738 /* ChinaCoordinateTests.swift */,
@@ -532,6 +542,7 @@
 				E1AE11469A78F2B1B4D09445 /* ActivityKit.framework */,
 				F1A1C004C004C004C004C001 /* Contacts.framework */,
 				851DA05472136D3FAB083B33 /* HealthKit.framework */,
+				A9522001B001B001B001B007 /* BackgroundTasks.framework */,
 				7B65C26EBB0A78F44C94A619 /* SwiftUI.framework */,
 				849AAEF8FA2E6934A70B8DC9 /* UserNotifications.framework */,
 				3A74ECA9573EA85DE8159DC6 /* WidgetKit.framework */,
@@ -687,7 +698,9 @@
 		ACC4B62CA936C2F1F0918896 /* Health */ = {
 			isa = PBXGroup;
 			children = (
+				A9522001B001B001B001B001 /* BackgroundWakeBudget.swift */,
 				4CC6F04F3971B3A2C023BF03 /* HealthBackgroundDelivery.swift */,
+				A9522001B001B001B001B003 /* HealthBackgroundRefresh.swift */,
 				416920BC708A66D4F8DC959E /* HealthKitAnchorStore.swift */,
 				358364DC9FBB2361030EFF90 /* HealthKitStore.swift */,
 				A207B20DBF14F28B7A23A351 /* HealthPermissionManager.swift */,
@@ -878,7 +891,9 @@
 				7071F19AD240C79FA2F894B9 /* ChinaCoordinate.swift in Sources */,
 				E3AC585A6D569BF7FA54D5B3 /* Data+Gzip.swift in Sources */,
 				9A544027B29ABF019DBFCEB4 /* FilesAPI.swift in Sources */,
+				A9522001B001B001B001B002 /* BackgroundWakeBudget.swift in Sources */,
 				A56A4DE95C980DCC0939B408 /* HealthBackgroundDelivery.swift in Sources */,
+				A9522001B001B001B001B004 /* HealthBackgroundRefresh.swift in Sources */,
 				BEB976AA7D65A297D68640DA /* HealthKitAnchorStore.swift in Sources */,
 				5DBE3AFC2AD291980D6B29F9 /* HealthKitStore.swift in Sources */,
 				3F50C6F41051B52FFB19B5D8 /* HealthPermissionManager.swift in Sources */,
@@ -1005,6 +1020,7 @@
 				32D51BF53D4B0EBBA634E34A /* TimelineInteractionStateTests.swift in Sources */,
 				A22C4012FFE7BFEF716C84CD /* TimiaLiveActivityPaletteTests.swift in Sources */,
 				56D33746245E15F6BD240D37 /* TodoDayCoverageTests.swift in Sources */,
+				A9522001B001B001B001B006 /* BackgroundWakeBudgetTests.swift in Sources */,
 				10FF9010D99AB4A7E42926A5 /* WorkoutSyncRunTests.swift in Sources */,
 				84B8598F1654854A9B2E7310 /* YearMonthGridTests.swift in Sources */,
 			);

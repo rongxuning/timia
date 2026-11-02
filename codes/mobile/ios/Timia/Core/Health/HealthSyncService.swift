@@ -413,13 +413,20 @@ struct HealthSyncService {
     /// Background: anchored export → enqueue → budgeted drain. Heals with a 2-day window when anchors are unhealthy.
     func syncBackgroundBudgeted(
         budget: HealthSyncDrainBudget = .background,
-        onProgress: (@Sendable (String) -> Void)? = nil
+        onProgress: (@Sendable (String) -> Void)? = nil,
+        shouldStop: @Sendable () -> Bool = { false }
     ) async throws -> Int {
+        if shouldStop() { return 0 }
         let end = Date()
 
         if await Self.anchorsHealthy() {
             do {
-                return try await syncBackgroundAnchored(budget: budget, end: end, onProgress: onProgress)
+                return try await syncBackgroundAnchored(
+                    budget: budget,
+                    end: end,
+                    onProgress: onProgress,
+                    shouldStop: shouldStop
+                )
             } catch HealthKitStoreError.needsAnchorHeal(let keys) {
                 Self.log.warning(
                     "Background anchor failure for \(keys.joined(separator: ","), privacy: .public); healing"
@@ -427,14 +434,21 @@ struct HealthSyncService {
             }
         }
 
-        return try await syncBackgroundHeal(budget: budget, end: end, onProgress: onProgress)
+        return try await syncBackgroundHeal(
+            budget: budget,
+            end: end,
+            onProgress: onProgress,
+            shouldStop: shouldStop
+        )
     }
 
     private func syncBackgroundAnchored(
         budget: HealthSyncDrainBudget,
         end: Date,
-        onProgress: (@Sendable (String) -> Void)?
+        onProgress: (@Sendable (String) -> Void)?,
+        shouldStop: @Sendable () -> Bool
     ) async throws -> Int {
+        if shouldStop() { return 0 }
         onProgress?("后台增量导出")
         let exportStarted = Date()
         let (anchored, newAnchors) = try await store.exportAnchoredChanges()
@@ -443,7 +457,7 @@ struct HealthSyncService {
         await anchorStore.saveAll(newAnchors)
 
         let drain = HealthSyncDrain(api: api, queue: queue)
-        let uploaded = try await drain.drain(budget: budget, onProgress: onProgress)
+        let uploaded = try await drain.drain(budget: budget, onProgress: onProgress, shouldStop: shouldStop)
 
         let dates = Array(exportLocalDates(anchored)).sorted()
         if dates.isEmpty {
@@ -467,8 +481,10 @@ struct HealthSyncService {
     private func syncBackgroundHeal(
         budget: HealthSyncDrainBudget,
         end: Date,
-        onProgress: (@Sendable (String) -> Void)?
+        onProgress: (@Sendable (String) -> Void)?,
+        shouldStop: @Sendable () -> Bool
     ) async throws -> Int {
+        if shouldStop() { return 0 }
         let start = Calendar.current.date(
             byAdding: .day,
             value: -Self.backgroundLookbackDays,
@@ -484,7 +500,7 @@ struct HealthSyncService {
         }
 
         let drain = HealthSyncDrain(api: api, queue: queue)
-        let uploaded = try await drain.drain(budget: budget, onProgress: onProgress)
+        let uploaded = try await drain.drain(budget: budget, onProgress: onProgress, shouldStop: shouldStop)
 
         for slice in slices {
             let label = Self.dayLabel(for: slice.start)

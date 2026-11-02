@@ -67,6 +67,7 @@ final class TimiaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        HealthBackgroundRefresh.register()
         UNUserNotificationCenter.current().delegate = self
         WeChatSDKBridge.setAuthCompletion { errCode, code, state in
             let codeText = code

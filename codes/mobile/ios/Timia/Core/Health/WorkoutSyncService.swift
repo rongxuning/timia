@@ -10,6 +10,8 @@ struct WorkoutSyncService {
     static let lastSyncedKey = "timia.workout.lastSyncedAt"
     static let pipeline = "workout"
     static let firstLookbackDays = 90
+    /// Background and catch-up heals stay short. The 90-day window stays on the manual path.
+    static let backgroundLookbackDays = 2
     static let chunkSize = 20
 
     private static let log = Logger(subsystem: "online.timia.ios", category: "WorkoutSync")
@@ -95,29 +97,69 @@ struct WorkoutSyncService {
         }
     }
 
-    func syncBackgroundBudgeted() async throws {
+    /// Incremental when anchors are healthy. An unhealthy anchor used to scan `firstLookbackDays`
+    /// and could consume the whole background window; that path now uses `backgroundLookbackDays`
+    /// and does not advance anchors, so a later manual sync can still heal the full lookback.
+    func syncBackgroundBudgeted(
+        deadline: Date,
+        shouldStop: @Sendable () -> Bool = { false }
+    ) async throws {
         guard Self.cachedLastSyncedAt() != nil else { return }
-        if await Self.anchorsHealthy() {
-            try await syncAnchored(source: .background) { _, _ in }
-        } else {
-            try await syncWindow(source: .background, onProgress: { _, _ in })
-            try await persistCurrentAnchors()
+        guard !shouldStop(), BackgroundWakeBudget.shouldStartSlice(deadline: deadline) else {
+            Self.log.info("Background workout sync skipped; shared budget exhausted")
+            return
         }
+        if await Self.anchorsHealthy() {
+            do {
+                try await syncAnchored(
+                    source: .background,
+                    deadline: deadline,
+                    shouldStop: shouldStop,
+                    onProgress: { _, _ in }
+                )
+                return
+            } catch HealthKitStoreError.needsAnchorHeal {
+                Self.log.warning("Workout anchor query failed; falling back to the short background window")
+            }
+        } else {
+            Self.log.warning(
+                "Workout anchors unhealthy; background sync limited to \(Self.backgroundLookbackDays, privacy: .public) days"
+            )
+        }
+        try await syncWindow(
+            source: .background,
+            lookbackDays: Self.backgroundLookbackDays,
+            deadline: deadline,
+            shouldStop: shouldStop,
+            skipGlobalCheckpoint: true,
+            onProgress: { _, _ in }
+        )
     }
 
     private func syncAnchored(
         source: HealthSyncSource,
+        deadline: Date? = nil,
+        shouldStop: @Sendable () -> Bool = { false },
         onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
+        if shouldStop() { return }
+        if let deadline, !BackgroundWakeBudget.shouldStartSlice(deadline: deadline) { return }
         onProgress(0.1, "读取训练增量")
         let (export, newAnchors) = try await store.exportWorkoutAnchoredChanges()
         onProgress(0.3, "上传训练")
-        let upserted = try await upload(
+        let outcome = try await upload(
             workouts: export.workouts,
             routes: export.routes,
             deletions: export.deletions,
+            deadline: deadline,
+            shouldStop: shouldStop,
             onProgress: onProgress
         )
+        guard !outcome.truncated else {
+            Self.log.warning("Workout anchored upload hit the shared wake budget; anchors were not advanced")
+            return
+        }
+        let upserted = outcome.upserted
         await anchorStore.saveAll(newAnchors)
         let syncedAt = Date()
         let stamped = try await api.checkpoint(
@@ -143,12 +185,17 @@ struct WorkoutSyncService {
     private func syncWindow(
         source: HealthSyncSource,
         onlyHkUuid: String? = nil,
+        lookbackDays: Int = Self.firstLookbackDays,
+        deadline: Date? = nil,
+        shouldStop: @Sendable () -> Bool = { false },
         skipGlobalCheckpoint: Bool = false,
         onProgress: @escaping @Sendable (Double, String) -> Void
     ) async throws {
+        if shouldStop() { return }
+        if let deadline, !BackgroundWakeBudget.shouldStartSlice(deadline: deadline) { return }
         let end = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -Self.firstLookbackDays, to: end) ?? end
-        onProgress(0.05, "读取近 \(Self.firstLookbackDays) 天训练")
+        let start = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: end) ?? end
+        onProgress(0.05, "读取近 \(lookbackDays) 天训练")
         var export = try await store.exportWorkouts(from: start, to: end)
         if let onlyHkUuid {
             let key = onlyHkUuid.lowercased()
@@ -163,12 +210,19 @@ struct WorkoutSyncService {
             export.routes = export.routes.filter { pendingIds.contains($0.hkUuid.lowercased()) }
         }
 
-        let upserted = try await upload(
+        let outcome = try await upload(
             workouts: export.workouts,
             routes: export.routes,
             deletions: [],
+            deadline: deadline,
+            shouldStop: shouldStop,
             onProgress: onProgress
         )
+        if outcome.truncated {
+            Self.log.warning("Workout window upload hit the shared wake budget")
+            return
+        }
+        let upserted = outcome.upserted
         if !skipGlobalCheckpoint {
             let stamped = try await api.checkpoint(
                 toAt: HealthSyncService.iso(end),
@@ -191,12 +245,29 @@ struct WorkoutSyncService {
         onProgress(1, "训练同步完成")
     }
 
+    private struct WorkoutUploadResult {
+        var upserted: Int
+        var truncated: Bool
+    }
+
     private func upload(
         workouts: [HealthWorkoutPayload],
         routes: [HealthWorkoutRoutePayload],
         deletions: [HealthKitDeletedObject],
+        deadline: Date? = nil,
+        shouldStop: @Sendable () -> Bool = { false },
         onProgress: @escaping @Sendable (Double, String) -> Void
-    ) async throws -> Int {
+    ) async throws -> WorkoutUploadResult {
+        func outOfTime() -> Bool {
+            if shouldStop() { return true }
+            if let deadline, !BackgroundWakeBudget.shouldStartSlice(deadline: deadline) { return true }
+            return false
+        }
+
+        if outOfTime() {
+            return WorkoutUploadResult(upserted: 0, truncated: true)
+        }
+
         var upserted = 0
         let workoutDeletions = deletions.filter { $0.kind == "workout" }
         if !workoutDeletions.isEmpty {
@@ -213,6 +284,9 @@ struct WorkoutSyncService {
 
         let total = max(workouts.count, 1)
         for (index, chunk) in workouts.chunked(into: Self.chunkSize).enumerated() {
+            if outOfTime() {
+                return WorkoutUploadResult(upserted: upserted, truncated: true)
+            }
             onProgress(
                 0.2 + 0.7 * Double(index) / Double(max(workouts.chunked(into: Self.chunkSize).count, 1)),
                 "训练 · \(min((index + 1) * Self.chunkSize, workouts.count))/\(total)"
@@ -227,15 +301,34 @@ struct WorkoutSyncService {
                 )
                 upserted += chunkRoutes.count
             }
-            try await uploadWorkoutDetail(for: chunk)
+            if try await uploadWorkoutDetail(
+                for: chunk,
+                deadline: deadline,
+                shouldStop: shouldStop
+            ) {
+                return WorkoutUploadResult(upserted: upserted, truncated: true)
+            }
         }
-        return upserted
+        return WorkoutUploadResult(upserted: upserted, truncated: false)
     }
 
     /// Session stats are averages only. Curves are the expanded quantity series.
-    private func uploadWorkoutDetail(for workouts: [HealthWorkoutPayload]) async throws {
+    /// Returns true when the shared wake budget ended before every curve was uploaded.
+    private func uploadWorkoutDetail(
+        for workouts: [HealthWorkoutPayload],
+        deadline: Date?,
+        shouldStop: @Sendable () -> Bool
+    ) async throws -> Bool {
+        func outOfTime() -> Bool {
+            if shouldStop() { return true }
+            if let deadline, !BackgroundWakeBudget.shouldStartSlice(deadline: deadline) { return true }
+            return false
+        }
+        if outOfTime() { return true }
+
         var samples: [HealthQuantitySamplePayload] = []
         for workout in workouts {
+            if outOfTime() { return true }
             guard let start = HealthSyncService.parseISO(workout.startAt),
                   let end = HealthSyncService.parseISO(workout.endAt),
                   start < end
@@ -246,8 +339,10 @@ struct WorkoutSyncService {
         var seen = Set<String>()
         let unique = samples.filter { seen.insert($0.hkUuid).inserted }
         for chunk in unique.chunked(into: 1000) where !chunk.isEmpty {
+            if outOfTime() { return true }
             _ = try await api.syncSamples(HealthQuantitySyncPayload(timezone: timezone, samples: chunk))
         }
+        return false
     }
 
     func persistCurrentAnchors() async throws {
