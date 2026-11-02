@@ -18,7 +18,7 @@ struct ScreenNotificationSettingsSection: View {
                     }
                 )
             )
-            Text("开启后锁屏展示健康同步（若已授权）与当日未开始、进行中、逾期、全天待办；App 内改任务后会尽快同步到锁屏。")
+            Text("开启后锁屏展示当日未开始、进行中、逾期、全天待办；没有这些任务时卡片会收起。App 内改任务后会尽快同步到锁屏。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             if let error = manager.lastError {

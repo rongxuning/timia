@@ -27,31 +27,18 @@ struct TimiaLiveActivityWidget: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        if context.state.healthEnabled {
-                            Text(context.state.healthTitle)
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(1)
-                        }
-                        if let first = context.state.previewTodo {
-                            Text(first.title)
-                                .font(.caption)
-                                .lineLimit(1)
-                        }
+                    if let first = context.state.previewTodo {
+                        Text(first.title)
+                            .font(.caption)
+                            .lineLimit(1)
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        if context.state.healthEnabled {
-                            Text(context.state.healthTimeLabel)
-                                .font(.caption2.monospacedDigit())
-                        }
-                        if let first = context.state.previewTodo {
-                            Text(first.timeLabel)
-                                .font(.caption2.monospacedDigit())
-                        }
+                    if let first = context.state.previewTodo {
+                        Text(first.timeLabel)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
                     }
-                    .foregroundStyle(.secondary)
                 }
             } compactLeading: {
                 Image(systemName: "sparkle")
@@ -109,12 +96,6 @@ struct TimiaLiveActivityLockScreenView: View {
             ForEach(items) { item in
                 lockScreenRow(item)
             }
-
-            if items.isEmpty {
-                Text("暂无展示内容")
-                    .font(.caption)
-                    .foregroundStyle(palette.secondaryText)
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -124,15 +105,6 @@ struct TimiaLiveActivityLockScreenView: View {
     @ViewBuilder
     private func lockScreenRow(_ item: TimiaScreenActivityAttributes.ContentState.LockScreenItem) -> some View {
         switch item {
-        case .health:
-            row(
-                title: state.healthTitle,
-                statusSymbol: "sparkle",
-                statusColor: palette.accent,
-                statusLabel: "健康同步",
-                time: state.healthTimeLabel,
-                muted: false
-            )
         case .todo(let todo):
             row(
                 title: todo.title,

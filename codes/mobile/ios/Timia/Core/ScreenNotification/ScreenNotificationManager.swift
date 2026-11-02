@@ -114,13 +114,18 @@ final class ScreenNotificationManager: ObservableObject {
             lastError = nil
             lastSuccessfulRefreshAt = Date()
         } catch {
+            // A failed fetch is not "today has no tasks". Keep a card that already
+            // shows pending work, but drop a health-only or empty activity.
             lastError = error.localizedDescription
-            state = ScreenNotificationContentBuilder.makeContentState(
-                healthEnabled: HealthPermissionManager.shared.didRequest,
-                lastSyncedAt: HealthSyncService.cachedLastSyncedAt(),
-                todos: [],
-                overdue: []
-            )
+            if let current = activity, !current.content.state.hasDisplayableTasks {
+                await endActivity()
+            }
+            return
+        }
+
+        if ScreenNotificationContentBuilder.refreshAction(for: state) == .endImmediately {
+            await endActivity()
+            return
         }
 
         if let current = activity {
@@ -145,13 +150,9 @@ final class ScreenNotificationManager: ObservableObject {
     }
 
     private func buildContentState(api: APIClient) async throws -> TimiaScreenActivityAttributes.ContentState {
-        let healthEnabled = HealthPermissionManager.shared.didRequest
-        let lastSyncedAt = HealthSyncService.cachedLastSyncedAt()
         async let dayTodos = fetchTodayTodos(api: api)
         async let overdueTodos = fetchOverdueTodos(api: api)
         return ScreenNotificationContentBuilder.makeContentState(
-            healthEnabled: healthEnabled,
-            lastSyncedAt: lastSyncedAt,
             todos: try await dayTodos,
             overdue: try await overdueTodos
         )

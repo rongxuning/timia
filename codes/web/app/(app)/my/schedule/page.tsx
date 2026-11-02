@@ -181,7 +181,7 @@ export default function MySchedulePage() {
       className="!px-3 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:[&>div]:flex lg:[&>div]:min-h-0 lg:[&>div]:flex-1 lg:[&>div]:flex-col"
       fullWidth
     >
-      <div className="grid items-start gap-lg lg:min-h-0 lg:flex-1 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
+      <div className="grid items-start gap-lg lg:min-h-0 lg:flex-1 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-stretch lg:overflow-hidden">
         <aside
           id="my-schedule-undated-panel"
           className="flex min-h-0 flex-col gap-2 lg:h-full lg:overflow-hidden"
