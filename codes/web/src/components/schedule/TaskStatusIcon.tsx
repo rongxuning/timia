@@ -46,6 +46,17 @@ type TaskStatusIconProps = {
   size?: "default" | "compact";
 };
 
+function StatusGlyph({ name, px, spin = false }: { name: string; px: number; spin?: boolean }) {
+  return (
+    <span
+      className={`material-symbols-outlined shrink-0 leading-none${spin ? " animate-spin" : ""}`}
+      style={{ fontSize: px, width: px, height: px, overflow: "visible" }}
+    >
+      {spin ? "progress_activity" : name}
+    </span>
+  );
+}
+
 export function TaskStatusIcon({
   status,
   loading = false,
@@ -57,7 +68,10 @@ export function TaskStatusIcon({
   const canToggleCompletion = cfg.toggleCompletionOnClick && !!onComplete;
   const toggleActionLabel = key === "done" ? "标记为未完成" : "标记为已完成";
   const boxClass = size === "compact" ? "h-4 w-4" : "h-5 w-5";
-  const iconClass = size === "compact" ? "text-[14px]" : "text-[18px]";
+  // `.material-symbols-outlined` sets font-size: 24px outside Tailwind layers, so
+  // text-[14px] never wins. A 24px circle in this 16px slot is clipped by
+  // overflow:hidden into a broken "C". Size the glyph inline so the ring is whole.
+  const iconPx = size === "compact" ? 14 : 18;
 
   if (!canToggleCompletion) {
     return (
@@ -66,7 +80,7 @@ export function TaskStatusIcon({
         title={cfg.label}
         aria-label={cfg.label}
       >
-        <span className={`material-symbols-outlined ${iconClass} leading-none`}>{cfg.icon}</span>
+        <StatusGlyph name={cfg.icon} px={iconPx} />
       </span>
     );
   }
@@ -99,14 +113,7 @@ export function TaskStatusIcon({
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <span
-        className={[
-          `material-symbols-outlined ${iconClass} leading-none`,
-          loading ? "animate-spin" : "",
-        ].join(" ")}
-      >
-        {loading ? "progress_activity" : cfg.icon}
-      </span>
+      <StatusGlyph name={cfg.icon} px={iconPx} spin={loading} />
     </span>
   );
 }
