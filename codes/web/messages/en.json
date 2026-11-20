@@ -325,16 +325,26 @@
   },
   "assets": {
     "title": "Assets",
-    "subtitle": "Net worth, assets, and liabilities are totaled in the display currency. The mix is the current breakdown.",
+    "subtitle": "Amounts on the left stay as of today. Curves on the right follow the range selected on the calendar.",
     "add": "Add a line",
     "loading": "Loading…",
+    "calendar": {
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "range": "{start} – {end}",
+      "pickEnd": "Pick an end date. Press Esc to cancel."
+    },
+    "charts": {
+      "title": "Curves",
+      "empty": "No balance history in this range"
+    },
     "emptyTitle": "Start from the total, then break it down",
     "emptyBody": "Record savings, shares, wallets, and the housing fund first, then credit cards. The same kind of account can be several lines, such as two CCB cards. Enter each balance in that account's currency.",
     "sameAccountHint": "CCB savings and credit, SPDB savings and credit, CMB savings, HSBC Hong Kong, housing fund, medical insurance, WeChat, Alipay, yen, won, and gold can start from the shortcuts below.",
     "summary": {
       "netWorth": "Net worth",
       "assets": "Total assets",
-      "liabilities": "Liabilities",
+      "liabilities": "Total liabilities",
       "spendable": "Spendable net worth",
       "emergencyCash": "Emergency cash",
       "monthly": "Monthly running cost",
