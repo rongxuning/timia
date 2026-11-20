@@ -41,15 +41,24 @@ export function AccountSection({ accounts, onSaved }: AccountSectionProps) {
       {accounts.length === 0 ? (
         <p className="mt-3 text-small text-text-secondary">{t("accounts.empty")}</p>
       ) : (
-        <ul className="mt-3 space-y-2">
+        <ul className="mt-3 grid gap-2 lg:grid-cols-2">
           {accounts.map((account) => (
             <li key={account.id}>
               <article className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-white px-lg py-md">
                 <div className="min-w-0">
-                  <p className="truncate text-body text-text-primary">{account.name}</p>
-                  <p className="mt-0.5 text-caption text-text-secondary">{accountKindLabel(t, account.account_kind)}</p>
+                  <p className="truncate text-body text-text-primary">
+                    <span className="sr-only">{t("accounts.name")} </span>
+                    {account.name}
+                  </p>
+                  <p className="mt-0.5 text-caption text-text-secondary">
+                    <span className="sr-only">{t("accounts.type")} </span>
+                    {accountKindLabel(t, account.account_kind)}
+                  </p>
                 </div>
-                <p className="shrink-0 font-code text-small tabular-nums text-text-primary">{account.account_number}</p>
+                <p className="max-w-[45%] shrink-0 break-all text-right font-code text-small tabular-nums text-text-primary">
+                  <span className="sr-only">{t("accounts.number")} </span>
+                  {account.account_number}
+                </p>
               </article>
             </li>
           ))}
