@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  accountBalanceTotals,
   buildCalendarCells,
   filterDailySeries,
   lineChartLayout,
@@ -8,6 +9,7 @@ import {
   monthStep,
   nearestChartIndex,
   nextRangeAfterPick,
+  pointerXInViewBox,
   shiftMonth,
   weekdayHeaderLabels,
 } from "./assetChartRange.ts";
@@ -148,6 +150,36 @@ describe("lineChartLayout", () => {
 
   it("returns nothing when the range has no points", () => {
     assert.equal(lineChartLayout([]), null);
+  });
+});
+
+describe("pointerXInViewBox", () => {
+  it("ignores horizontal letterboxing from xMidYMid meet", () => {
+    const viewWidth = 640;
+    const viewHeight = 168;
+    const elementWidth = 900;
+    const elementHeight = 144;
+    const scale = elementHeight / viewHeight;
+    const contentWidth = viewWidth * scale;
+    const padX = (elementWidth - contentWidth) / 2;
+    assert.equal(pointerXInViewBox(0, elementWidth, elementHeight, viewWidth, viewHeight), 0);
+    assert.equal(pointerXInViewBox(padX, elementWidth, elementHeight, viewWidth, viewHeight), 0);
+    assert.ok(Math.abs(pointerXInViewBox(padX + contentWidth / 2, elementWidth, elementHeight, viewWidth, viewHeight) - 320) < 0.001);
+    assert.equal(pointerXInViewBox(elementWidth, elementWidth, elementHeight, viewWidth, viewHeight), viewWidth);
+  });
+});
+
+describe("accountBalanceTotals", () => {
+  it("counts included assets and liabilities, and skips missing rates", () => {
+    assert.deepEqual(
+      accountBalanceTotals([
+        { kind: "asset", display_minor: 500, include_in_net_worth: true },
+        { kind: "liability", display_minor: 125, include_in_net_worth: true },
+        { kind: "asset", display_minor: 80, include_in_net_worth: false },
+        { kind: "asset", display_minor: null, include_in_net_worth: true },
+      ]),
+      { assets_minor: 500, liabilities_minor: 125, net_worth_minor: 375 },
+    );
   });
 });
 

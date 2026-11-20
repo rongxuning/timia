@@ -8,6 +8,7 @@ import {
   formatChartDate,
   lineChartLayout,
   nearestChartIndex,
+  pointerXInViewBox,
   type ChartPoint,
   type DatedBalance,
 } from "@/components/assets/assetChartRange";
@@ -26,20 +27,9 @@ type AssetBalanceChartsProps = {
 
 export function AssetBalanceCharts({ series, locale, formatMoney }: AssetBalanceChartsProps) {
   const t = useTranslations("assets");
-  const rangeLabel =
-    series.length === 0
-      ? null
-      : t("calendar.range", {
-          start: formatChartDate(series[0].as_of, locale),
-          end: formatChartDate(series[series.length - 1].as_of, locale),
-        });
 
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-body font-medium text-text-primary">{t("charts.title")}</h2>
-        {rangeLabel ? <p className="text-caption text-text-secondary">{rangeLabel}</p> : null}
-      </div>
       {series.length === 0 ? (
         <p className="rounded-xl border border-border-subtle bg-white px-lg py-md text-small text-text-secondary">
           {t("charts.empty")}
@@ -84,8 +74,8 @@ function BalanceChart({
   const first = coords[0];
   const last = coords[coords.length - 1];
 
-  function moveTo(clientX: number, width: number) {
-    const x = (clientX / width) * CHART_WIDTH;
+  function moveTo(offsetX: number, width: number, height: number) {
+    const x = pointerXInViewBox(offsetX, width, height, CHART_WIDTH, CHART_HEIGHT);
     setHover(nearestChartIndex(coords, x));
   }
 
@@ -103,7 +93,7 @@ function BalanceChart({
         tabIndex={0}
         onPointerMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
-          moveTo(event.clientX - rect.left, rect.width);
+          moveTo(event.clientX - rect.left, rect.width, rect.height);
         }}
         onPointerLeave={() => setHover(null)}
         onKeyDown={(event) => {

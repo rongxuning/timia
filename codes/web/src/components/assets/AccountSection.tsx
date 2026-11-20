@@ -15,55 +15,61 @@ export type AccountCard = {
   name: string;
   account_kind: string;
   account_number: string;
+  assets_minor: number;
+  liabilities_minor: number;
+  net_worth_minor: number;
 };
 
 type AccountSectionProps = {
   accounts: AccountCard[];
+  formatMoney: (amountMinor: number) => string;
   onSaved: () => Promise<void>;
 };
 
-export function AccountSection({ accounts, onSaved }: AccountSectionProps) {
+export function AccountSection({ accounts, formatMoney, onSaved }: AccountSectionProps) {
   const t = useTranslations("assets");
   const [open, setOpen] = useState(false);
+  const figures = [
+    { key: "net", label: t("summary.netWorth"), field: "net_worth_minor" },
+    { key: "assets", label: t("summary.assets"), field: "assets_minor" },
+    { key: "liabilities", label: t("summary.liabilities"), field: "liabilities_minor" },
+  ] as const;
 
   return (
     <section>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-body font-medium text-text-primary">{t("accounts.title")}</h2>
-        <button
-          type="button"
-          className="rounded-xl bg-primary px-4 py-2 text-small font-medium text-on-primary hover:bg-primary-hover"
-          onClick={() => setOpen(true)}
-        >
-          {t("accounts.add")}
-        </button>
-      </div>
-      {accounts.length === 0 ? (
-        <p className="mt-3 text-small text-text-secondary">{t("accounts.empty")}</p>
-      ) : (
-        <ul className="mt-3 grid gap-2 lg:grid-cols-2">
-          {accounts.map((account) => (
-            <li key={account.id}>
-              <article className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-white px-lg py-md">
-                <div className="min-w-0">
-                  <p className="truncate text-body text-text-primary">
-                    <span className="sr-only">{t("accounts.name")} </span>
-                    {account.name}
-                  </p>
-                  <p className="mt-0.5 text-caption text-text-secondary">
-                    <span className="sr-only">{t("accounts.type")} </span>
-                    {accountKindLabel(t, account.account_kind)}
-                  </p>
-                </div>
-                <p className="max-w-[45%] shrink-0 break-all text-right font-code text-small tabular-nums text-text-primary">
-                  <span className="sr-only">{t("accounts.number")} </span>
-                  {account.account_number}
-                </p>
-              </article>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {accounts.map((account) => (
+          <li key={account.id} className="min-w-0">
+            <article className="flex h-full items-start justify-between gap-3 rounded-xl border border-border-subtle bg-white p-md">
+              <div className="min-w-0">
+                <p className="truncate text-small font-medium text-text-primary">{account.name}</p>
+                <p className="mt-1 text-caption text-text-secondary">{accountKindLabel(t, account.account_kind)}</p>
+                <p className="mt-1 break-all font-code text-caption tabular-nums text-text-primary">{account.account_number}</p>
+              </div>
+              <dl className="shrink-0 space-y-1 text-right">
+                {figures.map((figure) => (
+                  <div key={figure.key}>
+                    <dt className="text-caption text-text-secondary">{figure.label}</dt>
+                    <dd className="text-caption tabular-nums text-text-primary">{formatMoney(account[figure.field])}</dd>
+                  </div>
+                ))}
+              </dl>
+            </article>
+          </li>
+        ))}
+        <li className="min-w-0">
+          <button
+            type="button"
+            className="flex h-full min-h-28 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border-subtle bg-white p-md text-small text-text-secondary hover:border-primary hover:text-primary"
+            onClick={() => setOpen(true)}
+          >
+            <span className="material-symbols-outlined text-[22px] leading-none" aria-hidden>
+              add
+            </span>
+            {t("accounts.createTitle")}
+          </button>
+        </li>
+      </ul>
       {open ? (
         <AddAccountDialog
           onClose={() => setOpen(false)}

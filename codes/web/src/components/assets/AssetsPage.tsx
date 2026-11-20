@@ -7,6 +7,7 @@ import { AccountSection, type AccountCard } from "@/components/assets/AccountSec
 import { AssetBalanceCharts } from "@/components/assets/AssetBalanceCharts";
 import { AssetRangeCalendar } from "@/components/assets/AssetRangeCalendar";
 import {
+  accountBalanceTotals,
   filterDailySeries,
   isoToday,
   monthKey,
@@ -30,12 +31,16 @@ function ledgerAccounts(view: MyAssetsView | null): AccountCard[] {
   for (const party of view?.parties ?? []) {
     for (const account of party.accounts) {
       if (!LEDGER_KINDS.has(account.account_kind) || !account.account_number) continue;
+      const totals = accountBalanceTotals(account.balances);
       cards.push({
         id: account.id,
         code: account.code,
         name: account.name,
         account_kind: account.account_kind,
         account_number: account.account_number,
+        assets_minor: totals.assets_minor,
+        liabilities_minor: totals.liabilities_minor,
+        net_worth_minor: totals.net_worth_minor,
       });
     }
   }
@@ -123,10 +128,7 @@ export function AssetsPage() {
   return (
     <PageMain>
       <div className="min-w-0 space-y-lg pb-20">
-        <div>
-          <h1 className="font-subhead text-subhead text-text-primary">{t("title")}</h1>
-          <p className="mt-1 max-w-2xl text-small text-text-secondary">{t("subtitle")}</p>
-        </div>
+        <h1 className="sr-only">{t("title")}</h1>
 
         {error ? (
           <p className="rounded-xl border border-error-container bg-error-container/10 px-lg py-md text-small text-error">
@@ -149,13 +151,9 @@ export function AssetsPage() {
             />
             {summary ? (
               <>
-                <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} hint={t("summary.asOfToday")} />
-                <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} hint={t("summary.asOfToday")} />
-                <Stat
-                  label={t("summary.liabilities")}
-                  value={money(summary.total_liabilities_minor)}
-                  hint={t("summary.asOfToday")}
-                />
+                <Stat label={t("summary.netWorth")} value={money(summary.net_worth_minor)} />
+                <Stat label={t("summary.assets")} value={money(summary.total_assets_minor)} />
+                <Stat label={t("summary.liabilities")} value={money(summary.total_liabilities_minor)} />
               </>
             ) : loading ? (
               <p className="text-small text-text-secondary">{t("loading")}</p>
@@ -166,6 +164,7 @@ export function AssetsPage() {
             {view ? (
               <AccountSection
                 accounts={ledgerAccounts(view)}
+                formatMoney={money}
                 onSaved={async () => {
                   const accessToken = getToken();
                   if (accessToken) await refresh(accessToken);
@@ -182,12 +181,11 @@ export function AssetsPage() {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <article className="rounded-xl border border-primary/15 bg-primary-fixed p-lg shadow-sm">
       <p className="text-overline text-on-primary-fixed-variant">{label}</p>
       <p className="mt-2 text-xl tabular-nums text-text-primary">{value}</p>
-      {hint ? <p className="mt-1 text-caption text-on-surface-variant">{hint}</p> : null}
     </article>
   );
 }

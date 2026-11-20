@@ -180,6 +180,44 @@ export function lineChartLayout(
   return { width, height, baseline, coords, line, area, min, max };
 }
 
+/** Map a pointer into a viewBox drawn with xMidYMid meet, ignoring the letterbox. */
+export function pointerXInViewBox(
+  offsetX: number,
+  elementWidth: number,
+  elementHeight: number,
+  viewWidth: number,
+  viewHeight: number,
+): number {
+  if (elementWidth <= 0 || elementHeight <= 0 || viewWidth <= 0 || viewHeight <= 0) return 0;
+  const scale = Math.min(elementWidth / viewWidth, elementHeight / viewHeight);
+  const contentWidth = viewWidth * scale;
+  const padX = (elementWidth - contentWidth) / 2;
+  const local = Math.min(Math.max(offsetX - padX, 0), contentWidth);
+  return (local / contentWidth) * viewWidth;
+}
+
+export type BalanceLine = {
+  kind: "asset" | "liability";
+  display_minor: number | null;
+  include_in_net_worth: boolean;
+};
+
+/** Same rule as the page summary: included holdings only, assets minus liabilities. */
+export function accountBalanceTotals(lines: BalanceLine[]): {
+  assets_minor: number;
+  liabilities_minor: number;
+  net_worth_minor: number;
+} {
+  let assets = 0;
+  let liabilities = 0;
+  for (const line of lines) {
+    if (line.display_minor == null || !line.include_in_net_worth) continue;
+    if (line.kind === "asset") assets += line.display_minor;
+    else liabilities += line.display_minor;
+  }
+  return { assets_minor: assets, liabilities_minor: liabilities, net_worth_minor: assets - liabilities };
+}
+
 export function nearestChartIndex(coords: PlotPoint[], x: number): number {
   let best = 0;
   let bestDist = Infinity;
