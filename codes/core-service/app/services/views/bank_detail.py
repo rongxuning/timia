@@ -33,6 +33,7 @@ from app.schemas.views.bank_detail import (
 from app.services.asset_api import list_rates, profile_out
 from app.services.assets_math import convert_minor
 from app.services.bank_book import BANK_ACCOUNT_KINDS, _bank_account
+from app.services.stock_flow import MAX_RANGE_DAYS
 
 
 def build_bank_detail(
@@ -46,6 +47,8 @@ def build_bank_detail(
 ) -> BankDetailOut:
     if end < start:
         raise HTTPException(status_code=400, detail="range_invalid")
+    if (end - start).days > MAX_RANGE_DAYS:
+        raise HTTPException(status_code=400, detail="range_too_long")
     try:
         zone = ZoneInfo(zone_name)
     except ZoneInfoNotFoundError as exc:

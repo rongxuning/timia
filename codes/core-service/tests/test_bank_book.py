@@ -341,6 +341,22 @@ def test_credit_create_uses_local_timezone_month(client_and_user):
     assert bill.year_month == "2026-11"
 
 
+def test_bank_detail_rejects_range_over_800_days(client_and_user):
+    client, headers, _db, _user = client_and_user
+    account_id = _account(client, headers, "BANK0005")
+    too_long = client.get(
+        f"/views/me/assets/accounts/{account_id}/bank",
+        headers=headers,
+        params={
+            "start": "2020-01-01",
+            "end": "2023-01-01",
+            "timezone": "Asia/Shanghai",
+        },
+    )
+    assert too_long.status_code == 400
+    assert too_long.json()["detail"] == "range_too_long"
+
+
 def test_stock_account_rejected_for_bank_products(client_and_user):
     client, headers, _db, _user = client_and_user
     created = client.post(
