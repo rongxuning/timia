@@ -24172,16 +24172,57 @@
             "type": "string",
             "title": "Name"
           },
-          "market_value_minor": {
+          "shares": {
             "type": "integer",
+            "title": "Shares"
+          },
+          "cost_price_minor": {
+            "type": "integer",
+            "title": "Cost Price Minor"
+          },
+          "market_value_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Market Value Minor"
+          },
+          "total_pnl_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pnl Minor"
+          },
+          "period_pnl_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Pnl Minor"
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "market_value_minor"
+          "shares",
+          "cost_price_minor",
+          "market_value_minor",
+          "total_pnl_minor",
+          "period_pnl_minor"
         ],
         "title": "StockSeriesPositionOut"
       },

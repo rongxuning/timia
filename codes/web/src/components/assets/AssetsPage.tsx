@@ -16,6 +16,7 @@ import {
   type DateRange,
 } from "@/components/assets/assetChartRange";
 import { errorText } from "@/components/assets/copy";
+import { primeStockAccountNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { PageMain } from "@/components/layout";
 import { fetchMyAssets } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
@@ -101,6 +102,12 @@ export function AssetsPage() {
     void load(accessToken);
   }, [load, router]);
 
+  useEffect(() => {
+    for (const account of ledgerAccounts(view)) {
+      if (account.account_kind === "stock") primeStockAccountNameForBreadcrumb(account.id, account.name);
+    }
+  }, [view]);
+
   const summary = view?.summary;
   const display = summary?.display_currency ?? "CNY";
   const money = useCallback(
@@ -137,7 +144,7 @@ export function AssetsPage() {
         ) : null}
 
         <div className="grid w-full items-start gap-lg lg:grid-cols-[18.5rem_minmax(0,1fr)]">
-          <aside className="w-full space-y-3 lg:sticky lg:top-20 lg:w-[18.5rem] lg:self-start">
+          <aside className="w-full space-y-3 lg:sticky lg:top-lg lg:w-[18.5rem] lg:self-start">
             <AssetRangeCalendar
               month={month}
               today={today}

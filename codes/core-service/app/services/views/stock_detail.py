@@ -35,6 +35,7 @@ from app.services.stock_flow import (
     Transfer,
     flow_series,
     period_pnl,
+    series_period_pnl,
     snapshot_on,
 )
 
@@ -111,6 +112,7 @@ def build_stock_detail(
     end_shot = snapshot_on(end, marks, cash_sets, transfers, convert, zone)
     start_shot = snapshot_on(start - timedelta(days=1), marks, cash_sets, transfers, convert, zone)
     start_by_id = {row.position_id: row for row in start_shot.positions}
+    baseline_pnl = {row.position_id: row.total_pnl_minor for row in start_shot.positions}
     versions = {str(row.id): row.version for row in positions}
     cards = [
         StockPositionOut(
@@ -170,7 +172,15 @@ def build_stock_detail(
                     StockSeriesPositionOut(
                         id=item.position_id,
                         name=item.name,
+                        shares=item.shares,
+                        cost_price_minor=item.cost_price_minor,
                         market_value_minor=item.market_value_minor,
+                        total_pnl_minor=item.total_pnl_minor,
+                        period_pnl_minor=series_period_pnl(
+                            item.total_pnl_minor,
+                            baseline_pnl.get(item.position_id),
+                            opened=item.position_id in baseline_pnl,
+                        ),
                     )
                     for item in point.positions
                 ],

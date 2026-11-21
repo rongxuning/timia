@@ -12,6 +12,7 @@ from app.services.stock_flow import (
     flow_series,
     iter_days,
     period_pnl,
+    series_period_pnl,
     snapshot_on,
 )
 
@@ -150,6 +151,13 @@ def test_series_uses_the_mark_in_effect_that_day():
     )
     assert [point.market_value_minor for point in points] == [0, 100, 100]
     assert points[1].positions[0].name == "茅台"
+    assert points[1].positions[0].shares == 2
+    assert points[1].positions[0].cost_price_minor == 1000
+    assert points[1].positions[0].total_pnl_minor == -100
+    assert series_period_pnl(-100, None, opened=False) == -100
+    assert series_period_pnl(-100, -40, opened=True) == -60
+    assert series_period_pnl(None, -40, opened=True) is None
+    assert series_period_pnl(-100, None, opened=True) is None
 
 
 def test_missing_fx_flags_the_snapshot_and_skips_that_value():
@@ -175,6 +183,28 @@ def test_missing_fx_flags_the_snapshot_and_skips_that_value():
     assert shot.market_value_minor == 0
     assert shot.positions[0].fx_missing is True
     assert shot.positions[0].total_pnl_minor is None
+    assert shot.positions[0].market_value_minor is None
+    points = flow_series(
+        date(2026, 11, 21),
+        date(2026, 11, 21),
+        [
+            PositionMark(
+                position_id="0700",
+                symbol="00700",
+                name="腾讯",
+                currency="HKD",
+                at=_at("2026-11-21"),
+                shares=10,
+                cost_price_minor=1000,
+                market_price_minor=1200,
+            )
+        ],
+        [],
+        [],
+        _identity,
+    )
+    assert points[0].positions[0].market_value_minor is None
+    assert points[0].positions[0].total_pnl_minor is None
 
 
 def test_negative_cost_increases_floating_profit():

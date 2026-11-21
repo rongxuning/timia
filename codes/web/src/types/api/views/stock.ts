@@ -37,6 +37,16 @@ export type StockPosition = {
   recorded_at: string;
 };
 
+export type StockSeriesPosition = {
+  id: string;
+  name: string;
+  shares: number;
+  cost_price_minor: number;
+  market_value_minor: number | null;
+  total_pnl_minor: number | null;
+  period_pnl_minor: number | null;
+};
+
 export type StockSeriesPoint = {
   as_of: string;
   net_assets_minor: number;
@@ -45,7 +55,7 @@ export type StockSeriesPoint = {
   cash_minor: number;
   liability_minor: number;
   gain_minor: number;
-  positions: { id: string; name: string; market_value_minor: number }[];
+  positions: StockSeriesPosition[];
 };
 
 export type StockDetail = {
