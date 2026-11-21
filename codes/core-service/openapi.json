@@ -407,6 +407,88 @@
         }
       }
     },
+    "/auth/login/phone/code": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Send Web Phone Code",
+        "operationId": "send_web_phone_code_auth_login_phone_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPhoneCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhoneCodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login/phone/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify Web Phone Login",
+        "operationId": "verify_web_phone_login_auth_login_phone_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPhoneLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/refresh": {
       "post": {
         "tags": [
@@ -23624,6 +23706,55 @@
           "password"
         ],
         "title": "WebLoginRequest"
+      },
+      "WebPhoneCodeRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 8,
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "title": "WebPhoneCodeRequest"
+      },
+      "WebPhoneLoginRequest": {
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 8,
+            "title": "Phone"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "title": "Code"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Challenge Id"
+          },
+          "nonce": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Nonce"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phone",
+          "code",
+          "challenge_id",
+          "nonce"
+        ],
+        "title": "WebPhoneLoginRequest"
       },
       "WebRefreshRequest": {
         "properties": {

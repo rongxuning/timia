@@ -108,6 +108,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login/phone/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Web Phone Code */
+        post: operations["send_web_phone_code_auth_login_phone_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify Web Phone Login */
+        post: operations["verify_web_phone_login_auth_login_phone_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/refresh": {
         parameters: {
             query?: never;
@@ -6574,6 +6608,25 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** WebPhoneCodeRequest */
+        WebPhoneCodeRequest: {
+            /** Phone */
+            phone: string;
+        };
+        /** WebPhoneLoginRequest */
+        WebPhoneLoginRequest: {
+            /** Phone */
+            phone: string;
+            /** Code */
+            code: string;
+            /**
+             * Challenge Id
+             * Format: uuid
+             */
+            challenge_id: string;
+            /** Nonce */
+            nonce: string;
+        };
         /** WebRefreshRequest */
         WebRefreshRequest: {
             /** Request Id */
@@ -7241,6 +7294,72 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["WebLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebTokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_web_phone_code_auth_login_phone_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebPhoneCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneCodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_web_phone_login_auth_login_phone_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebPhoneLoginRequest"];
             };
         };
         responses: {

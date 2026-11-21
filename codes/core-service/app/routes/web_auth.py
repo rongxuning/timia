@@ -21,16 +21,26 @@ from app.db.deps import get_db
 from app.models._mixins import utcnow
 from app.models.user import User
 from app.models.web_auth import WebSession
+from app.schemas.mobile_auth import PhoneCodeOut
 from app.schemas.web_auth import (
     WebLoginRequest,
+    WebPhoneCodeRequest,
+    WebPhoneLoginRequest,
     WebRefreshRequest,
     WebSessionOut,
     WebTokenOut,
 )
+from app.services.provider_auth import (
+    ProviderAuthError,
+    consume_phone_code,
+    issue_web_phone_code,
+    login_with_profile,
+    phone_profile,
+    web_phone_installation_id,
+)
 from app.services.web_auth import (
     WebAuthError,
     create_web_session,
-    new_request_id,
     refresh_web_session,
     revoke_all_web_sessions,
     revoke_web_session,
@@ -60,6 +70,63 @@ def login(
         last_ip=_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
+    _set_refresh_cookie(response, result.refresh_token, result.refresh_token_expires_at)
+    return WebTokenOut(
+        access_token=result.access_token,
+        expires_in=result.expires_in,
+        session_id=result.session_id,
+        refresh_token_expires_at=result.refresh_token_expires_at,
+    )
+
+
+@router.post("/login/phone/code", response_model=PhoneCodeOut, response_model_exclude_none=True)
+def send_web_phone_code(
+    payload: WebPhoneCodeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> PhoneCodeOut:
+    try:
+        challenge_id, nonce, expires_at, dev_code = issue_web_phone_code(
+            db, raw_phone=payload.phone, client_key=_client_key(request)
+        )
+    except ProviderAuthError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return PhoneCodeOut(
+        challenge_id=challenge_id,
+        nonce=nonce,
+        expires_at=expires_at,
+        dev_code=dev_code,
+    )
+
+
+@router.post("/login/phone/verify", response_model=WebTokenOut)
+def verify_web_phone_login(
+    payload: WebPhoneLoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> WebTokenOut:
+    client_key = _client_key(request)
+    try:
+        phone = consume_phone_code(
+            db,
+            challenge_id=payload.challenge_id,
+            nonce=payload.nonce,
+            raw_phone=payload.phone,
+            code=payload.code,
+            installation_id=web_phone_installation_id(client_key),
+        )
+        user = login_with_profile(db, phone_profile(phone))
+        result = create_web_session(
+            db,
+            user=user,
+            login_provider="phone",
+            last_ip=_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+        )
+    except ProviderAuthError as error:
+        db.rollback()
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
     _set_refresh_cookie(response, result.refresh_token, result.refresh_token_expires_at)
     return WebTokenOut(
         access_token=result.access_token,
@@ -249,6 +316,25 @@ def _client_ip(request: Request) -> str | None:
     if forwarded:
         return forwarded.split(",", 1)[0].strip()[:64]
     return request.client.host[:64] if request.client else None
+
+
+def _client_key(request: Request) -> str:
+    """Client address for the SMS cap.
+
+    nginx overwrites X-Real-IP with $remote_addr and appends that same address
+    to X-Forwarded-For, so the leftmost forwarded hop is chosen by the caller.
+    """
+    real_ip = (request.headers.get("x-real-ip") or "").split(",")[0].strip()
+    if real_ip:
+        return real_ip[:64]
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        hop = forwarded.rsplit(",", 1)[-1].strip()
+        if hop:
+            return hop[:64]
+    if request.client and request.client.host:
+        return request.client.host[:64]
+    return "unknown"
 
 
 def _quick_hash(token: str) -> str:

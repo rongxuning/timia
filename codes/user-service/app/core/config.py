@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     wechat_mobile_app_id: str = ""
     wechat_mobile_app_secret: str = ""
     wechat_web_redirect_uri: str = ""
+    # Browser Google OAuth client. Separate from the iOS client ids in core-service.
+    google_web_client_id: str = ""
+    google_web_client_secret: str = ""
+    google_web_redirect_uri: str = ""
     oauth_dev_mode: bool = False
 
     @property

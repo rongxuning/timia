@@ -8,6 +8,7 @@ the earlier user survives the merge. See account_merge.py.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import logging
 import secrets
@@ -89,6 +90,28 @@ def issue_phone_code(
 ) -> tuple[uuid.UUID, str, datetime, str | None]:
     phone = _phone(raw_phone)
     require_device(db, installation_id)
+    return _issue_phone_code(db, phone=phone, installation_id=installation_id)
+
+
+def issue_web_phone_code(
+    db: Session, *, raw_phone: str, client_key: str
+) -> tuple[uuid.UUID, str, datetime, str | None]:
+    """Browser OTP. The rate-limit bucket is derived from the client address, not a device."""
+    return _issue_phone_code(
+        db,
+        phone=_phone(raw_phone),
+        installation_id=web_phone_installation_id(client_key),
+    )
+
+
+def web_phone_installation_id(client_key: str) -> str:
+    digest = hashlib.sha256(f"timia-web-phone:{client_key}".encode()).hexdigest()[:20]
+    return f"web:{digest}"
+
+
+def _issue_phone_code(
+    db: Session, *, phone: str, installation_id: str
+) -> tuple[uuid.UUID, str, datetime, str | None]:
     _enforce_phone_rate_limits(db, phone, installation_id)
     if _sms_dispatch_mode() == "unconfigured":
         # Fail before a code exists so nothing can be logged or returned.
