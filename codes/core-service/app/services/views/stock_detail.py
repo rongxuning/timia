@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -44,7 +45,12 @@ def build_stock_detail(
     account_id: uuid.UUID,
     start: date,
     end: date,
+    zone_name: str,
 ) -> StockDetailOut:
+    try:
+        zone = ZoneInfo(zone_name)
+    except ZoneInfoNotFoundError as exc:
+        raise HTTPException(status_code=400, detail="timezone_invalid") from exc
     account = _stock_account(db, user.id, account_id)
     profile = profile_out(db, user)
     display = profile.display_currency
@@ -72,11 +78,19 @@ def build_stock_detail(
             shares=row.shares,
             cost_price_minor=row.cost_price_minor,
             market_price_minor=row.market_price_minor,
+            seq=row.created_at,
+            tie=str(row.id),
         )
         for row in _marks(db, list(by_id))
     ]
     cash_sets = [
-        CashSet(at=row.recorded_at, currency=row.currency, amount_minor=row.amount_minor)
+        CashSet(
+            at=row.recorded_at,
+            currency=row.currency,
+            amount_minor=row.amount_minor,
+            seq=row.created_at,
+            tie=str(row.id),
+        )
         for row in _cash(db, account.id)
     ]
     transfers = [
@@ -85,15 +99,17 @@ def build_stock_detail(
             currency=row.currency,
             direction=row.direction,  # type: ignore[arg-type]
             amount_minor=row.amount_minor,
+            seq=row.created_at,
+            tie=str(row.id),
         )
         for row in _transfers(db, account.id)
     ]
     try:
-        series = flow_series(start, end, marks, cash_sets, transfers, convert)
+        series = flow_series(start, end, marks, cash_sets, transfers, convert, zone)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    end_shot = snapshot_on(end, marks, cash_sets, transfers, convert)
-    start_shot = snapshot_on(start - timedelta(days=1), marks, cash_sets, transfers, convert)
+    end_shot = snapshot_on(end, marks, cash_sets, transfers, convert, zone)
+    start_shot = snapshot_on(start - timedelta(days=1), marks, cash_sets, transfers, convert, zone)
     start_by_id = {row.position_id: row for row in start_shot.positions}
     versions = {str(row.id): row.version for row in positions}
     cards = [
@@ -111,6 +127,9 @@ def build_stock_detail(
             period_pnl_minor=period_pnl(row, start_by_id.get(row.position_id)),
             fx_missing=row.fx_missing,
             version=versions[row.position_id],
+            current_shares=by_id[uuid.UUID(row.position_id)].shares,
+            current_cost_price_minor=by_id[uuid.UUID(row.position_id)].cost_price_minor,
+            current_market_price_minor=by_id[uuid.UUID(row.position_id)].market_price_minor,
         )
         for row in end_shot.positions
     ]

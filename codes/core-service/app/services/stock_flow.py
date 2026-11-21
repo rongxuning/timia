@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Literal
+from zoneinfo import ZoneInfo
 
 Converter = Callable[[int, str], int | None]
 MAX_RANGE_DAYS = 800
@@ -31,6 +32,8 @@ class PositionMark:
     shares: int
     cost_price_minor: int
     market_price_minor: int
+    seq: datetime | None = None
+    tie: str = ""
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,8 @@ class CashSet:
     at: datetime
     currency: str
     amount_minor: int
+    seq: datetime | None = None
+    tie: str = ""
 
 
 @dataclass(frozen=True)
@@ -46,6 +51,8 @@ class Transfer:
     currency: str
     direction: TransferDirection
     amount_minor: int
+    seq: datetime | None = None
+    tie: str = ""
 
 
 @dataclass(frozen=True)
@@ -104,17 +111,23 @@ def _utc(moment: datetime) -> datetime:
     return moment.astimezone(timezone.utc)
 
 
-def _on_or_before(moment: datetime, day: date) -> bool:
-    return _utc(moment).date() <= day
+def _on_or_before(moment: datetime, day: date, zone: ZoneInfo) -> bool:
+    return _utc(moment).astimezone(zone).date() <= day
 
 
-def latest_marks(marks: list[PositionMark], day: date) -> dict[str, PositionMark]:
+def _rank(at: datetime, seq: datetime | None, tie: str) -> tuple[datetime, datetime, str]:
+    moment = _utc(at)
+    return (moment, _utc(seq) if seq is not None else moment, tie)
+
+
+def latest_marks(marks: list[PositionMark], day: date, zone: ZoneInfo | None = None) -> dict[str, PositionMark]:
+    clock = zone or ZoneInfo("UTC")
     chosen: dict[str, PositionMark] = {}
     for mark in marks:
-        if not _on_or_before(mark.at, day):
+        if not _on_or_before(mark.at, day, clock):
             continue
         current = chosen.get(mark.position_id)
-        if current is None or _utc(mark.at) >= _utc(current.at):
+        if current is None or _rank(mark.at, mark.seq, mark.tie) >= _rank(current.at, current.seq, current.tie):
             chosen[mark.position_id] = mark
     return chosen
 
@@ -123,19 +136,22 @@ def _cash_balances(
     cash_sets: list[CashSet],
     transfers: list[Transfer],
     day: date,
+    zone: ZoneInfo,
 ) -> dict[str, int]:
-    events: list[tuple[datetime, int, str, str, int]] = []
+    events: list[tuple[datetime, int, datetime, str, str, str, int]] = []
     for row in transfers:
-        if not _on_or_before(row.at, day):
+        if not _on_or_before(row.at, day, zone):
             continue
         signed = row.amount_minor if row.direction == "bank_to_securities" else -row.amount_minor
-        events.append((_utc(row.at), 0, "move", row.currency, signed))
+        at, seq, tie = _rank(row.at, row.seq, row.tie)
+        events.append((at, 0, seq, tie, "move", row.currency, signed))
     for row in cash_sets:
-        if _on_or_before(row.at, day):
-            events.append((_utc(row.at), 1, "set", row.currency, row.amount_minor))
-    events.sort(key=lambda item: (item[0], item[1]))
+        if _on_or_before(row.at, day, zone):
+            at, seq, tie = _rank(row.at, row.seq, row.tie)
+            events.append((at, 1, seq, tie, "set", row.currency, row.amount_minor))
+    events.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
     balances: dict[str, int] = {}
-    for _at, _order, kind, currency, amount in events:
+    for _at, _order, _seq, _tie, kind, currency, amount in events:
         if kind == "set":
             balances[currency] = amount
         else:
@@ -161,8 +177,10 @@ def snapshot_on(
     cash_sets: list[CashSet],
     transfers: list[Transfer],
     convert: Converter,
+    zone: ZoneInfo | None = None,
 ) -> FlowSnapshot:
-    chosen = latest_marks(marks, day)
+    clock = zone or ZoneInfo("UTC")
+    chosen = latest_marks(marks, day, clock)
     positions: list[PositionSnap] = []
     market_parts: list[tuple[int, str]] = []
     missing = False
@@ -195,13 +213,13 @@ def snapshot_on(
             )
         )
     market_value, market_missing = _sum_converted(market_parts, convert)
-    balances = _cash_balances(cash_sets, transfers, day)
+    balances = _cash_balances(cash_sets, transfers, day, clock)
     cash_parts = [(amount, currency) for currency, amount in balances.items()]
     cash, cash_missing = _sum_converted(cash_parts, convert)
     inbound: list[tuple[int, str]] = []
     outbound: list[tuple[int, str]] = []
     for row in transfers:
-        if not _on_or_before(row.at, day):
+        if not _on_or_before(row.at, day, clock):
             continue
         bucket = inbound if row.direction == "bank_to_securities" else outbound
         bucket.append((row.amount_minor, row.currency))
@@ -255,10 +273,11 @@ def flow_series(
     cash_sets: list[CashSet],
     transfers: list[Transfer],
     convert: Converter,
+    zone: ZoneInfo | None = None,
 ) -> list[FlowPoint]:
     points: list[FlowPoint] = []
     for day in iter_days(start, end):
-        shot = snapshot_on(day, marks, cash_sets, transfers, convert)
+        shot = snapshot_on(day, marks, cash_sets, transfers, convert, zone)
         points.append(
             FlowPoint(
                 as_of=day,

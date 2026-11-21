@@ -56,7 +56,8 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       setLoading(true);
       setError(null);
       try {
-        setDetail(await fetchStockDetail(accessToken, accountId, next.start, next.end));
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setDetail(await fetchStockDetail(accessToken, accountId, next.start, next.end, timeZone));
       } catch (err) {
         setError(errorText(t, (err as { message?: string }).message ?? ""));
       } finally {

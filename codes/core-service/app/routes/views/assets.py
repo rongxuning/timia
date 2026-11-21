@@ -28,7 +28,8 @@ def my_stock_account(
     account_id: uuid.UUID,
     start: date = Query(),
     end: date = Query(),
+    zone_name: str = Query(default="Asia/Shanghai", alias="timezone"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return build_stock_detail(db, user, account_id, start, end)
+    return build_stock_detail(db, user, account_id, start, end, zone_name)

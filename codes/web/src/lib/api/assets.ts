@@ -179,8 +179,9 @@ export function fetchStockDetail(
   accountId: string,
   start: string,
   end: string,
+  timeZone: string,
 ): Promise<StockDetail> {
-  const query = new URLSearchParams({ start, end });
+  const query = new URLSearchParams({ start, end, timezone: timeZone });
   return apiFetch<StockDetail>(`/views/me/assets/accounts/${accountId}/stocks?${query}`, { token });
 }
 

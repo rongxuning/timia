@@ -238,6 +238,8 @@ export function errorText(t: AssetsT, message: string): string {
       return t("errors.range_invalid");
     case "range_too_long":
       return t("errors.range_too_long");
+    case "timezone_invalid":
+      return t("errors.timezone_invalid");
     default:
       return t("errors.generic");
   }

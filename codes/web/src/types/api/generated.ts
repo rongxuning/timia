@@ -6659,6 +6659,12 @@ export interface components {
             fx_missing: boolean;
             /** Version */
             version: number;
+            /** Current Shares */
+            current_shares: number;
+            /** Current Cost Price Minor */
+            current_cost_price_minor: number;
+            /** Current Market Price Minor */
+            current_market_price_minor: number;
         };
         /** StockPositionWriteOut */
         StockPositionWriteOut: {
@@ -12896,6 +12902,7 @@ export interface operations {
             query: {
                 start: string;
                 end: string;
+                timezone?: string;
             };
             header?: {
                 authorization?: string | null;

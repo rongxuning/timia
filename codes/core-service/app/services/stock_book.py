@@ -243,7 +243,7 @@ def _sync_latest(db: Session, position: AssetStockPosition) -> None:
             select(AssetStockMark).where(AssetStockMark.position_id == position.id)
         ).all()
     )
-    latest = max(marks, key=lambda row: row.recorded_at)
+    latest = max(marks, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
     position.shares = latest.shares
     position.cost_price_minor = latest.cost_price_minor
     position.market_price_minor = latest.market_price_minor

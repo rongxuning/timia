@@ -566,7 +566,8 @@
       "amount_invalid": "数额不对",
       "account_not_stock": "只有股票账户可以记持仓",
       "range_invalid": "时间段的起止不对",
-      "range_too_long": "时间段太长了"
+      "range_too_long": "时间段太长了",
+      "timezone_invalid": "无法识别这个时区"
     },
     "currencies": {
       "CNY": "人民币 CNY",

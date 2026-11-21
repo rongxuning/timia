@@ -43,6 +43,9 @@ class StockPositionOut(BaseModel):
     period_pnl_minor: int | None
     fx_missing: bool
     version: int
+    current_shares: int
+    current_cost_price_minor: int
+    current_market_price_minor: int
 
 
 class StockSeriesPositionOut(BaseModel):

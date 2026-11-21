@@ -1,6 +1,7 @@
 """Pure checks for the stock-account flow."""
 
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -163,6 +164,60 @@ def test_range_rejects_an_inverted_or_huge_window():
         iter_days(date(2026, 11, 5), date(2026, 11, 3))
     with pytest.raises(ValueError, match="range_too_long"):
         iter_days(date(2020, 1, 1), date(2026, 1, 1))
+
+
+def test_local_calendar_day_keeps_a_shanghai_morning_on_that_day():
+    # 2026-11-21 00:30 in Shanghai is still 2026-11-20 in UTC.
+    moment = datetime(2026, 11, 20, 16, 30, tzinfo=timezone.utc)
+    marks = [
+        PositionMark(
+            position_id="600519",
+            symbol="600519",
+            name="茅台",
+            currency="CNY",
+            at=moment,
+            shares=1,
+            cost_price_minor=100,
+            market_price_minor=100,
+        )
+    ]
+    shanghai = ZoneInfo("Asia/Shanghai")
+    on_local_day = snapshot_on(date(2026, 11, 21), marks, [], [], _identity, shanghai)
+    previous_utc_day = snapshot_on(date(2026, 11, 20), marks, [], [], _identity, shanghai)
+    assert on_local_day.market_value_minor == 100
+    assert previous_utc_day.market_value_minor == 0
+
+
+def test_tied_marks_keep_the_later_write():
+    moment = _at("2026-11-21")
+    earlier = _mark("2026-11-21", shares=1, price=10)
+    later = PositionMark(
+        position_id=earlier.position_id,
+        symbol=earlier.symbol,
+        name=earlier.name,
+        currency="CNY",
+        at=moment,
+        shares=9,
+        cost_price_minor=100,
+        market_price_minor=20,
+        seq=moment.replace(minute=1),
+        tie="b",
+    )
+    first = PositionMark(
+        position_id=earlier.position_id,
+        symbol=earlier.symbol,
+        name=earlier.name,
+        currency="CNY",
+        at=moment,
+        shares=1,
+        cost_price_minor=100,
+        market_price_minor=10,
+        seq=moment,
+        tie="a",
+    )
+    shot = snapshot_on(date(2026, 11, 21), [first, later], [], [], _identity)
+    assert shot.positions[0].shares == 9
+    assert shot.market_value_minor == 180
 
 
 def test_same_timestamp_cash_mark_wins_over_the_transfer():

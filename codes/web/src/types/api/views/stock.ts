@@ -31,6 +31,9 @@ export type StockPosition = {
   period_pnl_minor: number | null;
   fx_missing: boolean;
   version: number;
+  current_shares: number;
+  current_cost_price_minor: number;
+  current_market_price_minor: number;
 };
 
 export type StockSeriesPoint = {

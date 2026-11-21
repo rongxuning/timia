@@ -566,7 +566,8 @@
       "amount_invalid": "That amount is not valid",
       "account_not_stock": "Positions belong on a stock account",
       "range_invalid": "That date range is not valid",
-      "range_too_long": "That date range is too long"
+      "range_too_long": "That date range is too long",
+      "timezone_invalid": "That time zone is not recognized"
     },
     "currencies": {
       "CNY": "Chinese yuan CNY",

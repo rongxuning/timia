@@ -30,9 +30,16 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
   const [symbol, setSymbol] = useState(position?.symbol ?? "");
   const [name, setName] = useState(position?.name ?? "");
   const [market, setMarket] = useState<StockMarket>(position?.market ?? "a_share");
-  const [shares, setShares] = useState(position ? String(position.shares) : "");
-  const [cost, setCost] = useState(position ? minorToInput(position.cost_price_minor, position.currency) : "");
-  const [price, setPrice] = useState(position ? minorToInput(position.market_price_minor, position.currency) : "");
+  const liveShares = mode === "mark" && position ? position.current_shares : null;
+  const liveCost = mode === "mark" && position ? position.current_cost_price_minor : null;
+  const livePrice = mode === "mark" && position ? position.current_market_price_minor : null;
+  const [shares, setShares] = useState(liveShares == null ? "" : String(liveShares));
+  const [cost, setCost] = useState(
+    liveCost == null || !position ? "" : minorToInput(liveCost, position.currency),
+  );
+  const [price, setPrice] = useState(
+    livePrice == null || !position ? "" : minorToInput(livePrice, position.currency),
+  );
   const [direction, setDirection] = useState<StockTransferDirection>("bank_to_securities");
   const [currency, setCurrency] = useState(position?.currency ?? "CNY");
   const [amount, setAmount] = useState("");
