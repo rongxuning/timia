@@ -96,7 +96,10 @@ class FlowSnapshot:
 class SeriesPosition:
     position_id: str
     name: str
+    shares: int
+    cost_price_minor: int
     market_value_minor: int
+    total_pnl_minor: int | None
 
 
 @dataclass(frozen=True)
@@ -262,13 +265,27 @@ def snapshot_on(
 
 def period_pnl(end: PositionSnap | None, start: PositionSnap | None) -> int | None:
     """Floating profit at the range end, minus floating profit just before the range."""
-    if end is None or end.total_pnl_minor is None:
+    if end is None:
         return None
-    if start is None:
-        return end.total_pnl_minor
-    if start.total_pnl_minor is None:
+    return series_period_pnl(
+        end.total_pnl_minor,
+        None if start is None else start.total_pnl_minor,
+        opened=start is not None,
+    )
+
+
+def series_period_pnl(total: int | None, baseline: int | None, *, opened: bool) -> int | None:
+    """Floating profit that day, minus floating profit just before the range.
+
+    `opened` is whether this position already had a mark on the day before the range.
+    """
+    if total is None:
         return None
-    return end.total_pnl_minor - start.total_pnl_minor
+    if not opened:
+        return total
+    if baseline is None:
+        return None
+    return total - baseline
 
 
 def iter_days(start: date, end: date) -> list[date]:
@@ -305,7 +322,10 @@ def flow_series(
                     SeriesPosition(
                         position_id=row.position_id,
                         name=row.name,
+                        shares=row.shares,
+                        cost_price_minor=row.cost_price_minor,
                         market_value_minor=row.market_value_minor or 0,
+                        total_pnl_minor=row.total_pnl_minor,
                     )
                     for row in shot.positions
                 ),

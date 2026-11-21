@@ -6732,8 +6732,16 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Shares */
+            shares: number;
+            /** Cost Price Minor */
+            cost_price_minor: number;
             /** Market Value Minor */
             market_value_minor: number;
+            /** Total Pnl Minor */
+            total_pnl_minor: number | null;
+            /** Period Pnl Minor */
+            period_pnl_minor: number | null;
         };
         /** StockTransferCreate */
         StockTransferCreate: {

@@ -122,6 +122,53 @@ export function weekdayHeaderLabels(locale: string, weekStartsOn: number): strin
   });
 }
 
+/** Start, end, and Mondays between them when the span is longer than seven days.
+ *  A Monday that would sit on an endpoint label is left out.
+ */
+export function chartAxisDates(dates: readonly string[]): string[] {
+  if (dates.length === 0) return [];
+  const start = dates[0];
+  const end = dates[dates.length - 1];
+  if (!start || !end || start === end) return [start];
+  const startDate = utcDay(start);
+  const endDate = utcDay(end);
+  const span = Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000);
+  if (span <= 7) return [start, end];
+  const indexOf = new Map(dates.map((date, index) => [date, index]));
+  const last = dates.length - 1;
+  const mondays: string[] = [];
+  const cursor = new Date(startDate);
+  const weekday = cursor.getUTCDay();
+  cursor.setUTCDate(cursor.getUTCDate() + (weekday === 1 ? 7 : (8 - weekday) % 7));
+  while (cursor.getTime() < endDate.getTime()) {
+    const iso = utcIso(cursor);
+    const index = indexOf.get(iso);
+    if (index != null && mondayFits(index, last, mondays, indexOf)) mondays.push(iso);
+    cursor.setUTCDate(cursor.getUTCDate() + 7);
+  }
+  return [start, ...mondays, end];
+}
+
+/** Keep a Monday off the endpoint labels, which already occupy the two ends. */
+function mondayFits(index: number, last: number, kept: string[], indexOf: Map<string, number>): boolean {
+  if (last <= 0) return false;
+  const ratio = index / last;
+  if (ratio < 0.12 || ratio > 1 - 0.12) return false;
+  return kept.every((date) => Math.abs(index - (indexOf.get(date) ?? 0)) / last >= 0.12);
+}
+
+function utcDay(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year || 1970, (month || 1) - 1, day || 1));
+}
+
+function utcIso(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function formatChartDate(iso: string, locale: string): string {
   const [year, month, day] = iso.split("-").map(Number);
   if (!year || !month || !day) return iso;

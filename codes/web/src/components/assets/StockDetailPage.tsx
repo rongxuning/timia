@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AssetRangeCalendar } from "@/components/assets/AssetRangeCalendar";
 import {
@@ -15,7 +14,9 @@ import {
 import { errorText } from "@/components/assets/copy";
 import { StockEntryDialog, type StockDialogMode } from "@/components/assets/StockEntryDialog";
 import { StockFlowChart } from "@/components/assets/StockFlowChart";
-import { StockTrendChart, type TrendSeries } from "@/components/assets/StockTrendChart";
+import { StockTrendChart } from "@/components/assets/StockTrendChart";
+import { positionTrend, summaryTrend } from "@/components/assets/stockTrendSeries";
+import { primeStockAccountNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { PageMain } from "@/components/layout";
 import { fetchStockDetail } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
@@ -24,8 +25,6 @@ import { formatMinor, formatQuote } from "@/lib/money";
 import { useAccountWeekStart } from "@/lib/use-account-week-start";
 import type { StockDetail, StockPosition } from "@/types/api/views/stock";
 import type { StockFlowLabels, StockFlowNumbers } from "@/components/assets/stockFlow";
-
-const TONES = ["text-primary", "text-indigo-600", "text-success", "text-error", "text-text-secondary"];
 
 type StockDetailPageProps = {
   accountId: string;
@@ -57,7 +56,9 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       setError(null);
       try {
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        setDetail(await fetchStockDetail(accessToken, accountId, next.start, next.end, timeZone));
+        const loaded = await fetchStockDetail(accessToken, accountId, next.start, next.end, timeZone);
+        primeStockAccountNameForBreadcrumb(loaded.account.id, loaded.account.name);
+        setDetail(loaded);
       } catch (err) {
         setError(errorText(t, (err as { message?: string }).message ?? ""));
       } finally {
@@ -117,7 +118,39 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       })),
     };
   }, [detail]);
-  const trend = useMemo(() => trendSeries(detail, t), [detail, t]);
+  const summaryLabels = useMemo(
+    () => ({
+      netAssets: t("stockDetail.netAssets"),
+      totalCost: t("stockDetail.totalCost"),
+      marketValue: t("stockDetail.marketValue"),
+      cash: t("stockDetail.cash"),
+      liability: t("stockDetail.liability"),
+      gain: t("stockDetail.gain"),
+    }),
+    [t],
+  );
+  const positionLabels = useMemo(
+    () => ({
+      marketValue: t("stockDetail.marketValue"),
+      costPrice: t("stockDetail.costPrice"),
+      shareCount: t("stockDetail.shareCount"),
+      totalPnl: t("stockDetail.totalPnl"),
+      periodPnl: t("stockDetail.periodPnl"),
+    }),
+    [t],
+  );
+  const summary = useMemo(() => summaryTrend(detail, summaryLabels), [detail, summaryLabels]);
+  const positionCharts = useMemo(() => {
+    if (!detail) return new Map<string, ReturnType<typeof positionTrend>>();
+    const format = {
+      money,
+      quote: formatQuote,
+      shares: (count: number) => t("stockDetail.shares", { count }),
+    };
+    return new Map(
+      detail.positions.map((position) => [position.id, positionTrend(detail, position.id, positionLabels, format)]),
+    );
+  }, [detail, money, positionLabels, t]);
 
   function changeMonth(delta: number) {
     const step = monthStep(month, delta, today, pending);
@@ -143,13 +176,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
   return (
     <PageMain fullWidth>
       <div className="min-w-0 space-y-lg pb-20">
-        <div className="space-y-1">
-          <Link href="/my/assets" className="text-small text-text-secondary hover:text-text-primary">
-            {t("stockDetail.back")}
-          </Link>
-          <h1 className="font-subhead text-subhead text-text-primary">{detail?.account.name ?? t("stockDetail.title")}</h1>
-          <p className="text-small text-text-secondary">{t("stockDetail.lead")}</p>
-        </div>
+        <h1 className="sr-only">{detail?.account.name ?? t("stockDetail.title")}</h1>
         {error ? (
           <p className="rounded-xl border border-error-container bg-error-container/10 px-lg py-md text-small text-error">
             {error}
@@ -182,24 +209,27 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
               </p>
             ) : null}
             {detail && numbers ? (
-              <div className="grid items-start gap-lg xl:grid-cols-[minmax(0,1fr)_17rem]">
-                <div className="min-w-0 rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-                  <StockFlowChart
-                    numbers={numbers}
-                    labels={labels}
-                    headers={[
-                      t("stockDetail.layer1"),
-                      t("stockDetail.layer2"),
-                      t("stockDetail.layer3"),
-                      t("stockDetail.positions"),
-                    ]}
-                    format={money}
-                  />
-                  <p className="mt-3 text-caption text-text-secondary">{t("stockDetail.formula")}</p>
-                </div>
-                <ul className="space-y-2">
-                  {detail.positions.map((position) => (
-                    <li key={position.id}>
+              <div className="min-w-0 rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
+                <StockFlowChart
+                  numbers={numbers}
+                  labels={labels}
+                  headers={[
+                    t("stockDetail.layer1"),
+                    t("stockDetail.layer2"),
+                    t("stockDetail.layer3"),
+                    t("stockDetail.positions"),
+                  ]}
+                  format={money}
+                />
+                <p className="mt-3 text-caption text-text-secondary">{t("stockDetail.formula")}</p>
+              </div>
+            ) : null}
+            {detail && detail.positions.length > 0 ? (
+              <ul className="space-y-lg">
+                {detail.positions.map((position) => {
+                  const chart = positionCharts.get(position.id);
+                  return (
+                    <li key={position.id} className="grid items-start gap-lg xl:grid-cols-[17rem_minmax(0,1fr)]">
                       <article className="rounded-xl border border-border-subtle bg-white p-md shadow-sm">
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -219,10 +249,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
                         </div>
                         <dl className="mt-2 space-y-1 text-caption">
                           <CardRow label={t("stockDetail.marketValue")} value={moneyOrMissing(position.market_value_minor, money, t)} />
-                          <CardRow
-                            label={t("stockDetail.costPrice")}
-                            value={formatQuote(position.cost_price_minor)}
-                          />
+                          <CardRow label={t("stockDetail.costPrice")} value={formatQuote(position.cost_price_minor)} />
                           <CardRow label={t("stockDetail.shareCount")} value={t("stockDetail.shares", { count: position.shares })} />
                           <CardRow
                             label={t("stockDetail.totalPnl")}
@@ -236,15 +263,28 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
                           />
                         </dl>
                       </article>
+                      {chart ? (
+                        <StockTrendChart
+                          categories={chart.categories}
+                          series={chart.series}
+                          locale={numberLocale}
+                          formatMoney={money}
+                        />
+                      ) : null}
                     </li>
-                  ))}
-                </ul>
-              </div>
+                  );
+                })}
+              </ul>
             ) : null}
-            {trend ? (
+            {summary ? (
               <section className="space-y-2">
-                <h2 className="font-section-heading text-section-heading text-text-primary">{t("stockDetail.trend")}</h2>
-                <StockTrendChart categories={trend.categories} series={trend.series} locale={numberLocale} formatMoney={money} />
+                <h2 className="font-section-heading text-section-heading text-text-primary">{t("stockDetail.summary")}</h2>
+                <StockTrendChart
+                  categories={summary.categories}
+                  series={summary.series}
+                  locale={numberLocale}
+                  formatMoney={money}
+                />
               </section>
             ) : null}
           </div>
@@ -303,28 +343,4 @@ function moneyOrMissing(
 function pnlTone(amount: number | null): string {
   if (amount == null || amount === 0) return "text-text-primary";
   return amount > 0 ? "text-success" : "text-error";
-}
-
-function trendSeries(detail: StockDetail | null, t: ReturnType<typeof useTranslations<"assets">>) {
-  if (!detail || detail.series.length === 0) return null;
-  const categories = detail.series.map((point) => point.as_of);
-  const aggregates: TrendSeries[] = [
-    { id: "net", label: t("stockDetail.netAssets"), tone: "text-primary", values: detail.series.map((point) => point.net_assets_minor) },
-    { id: "cost", label: t("stockDetail.totalCost"), tone: "text-indigo-600", values: detail.series.map((point) => point.total_cost_minor) },
-    { id: "market", label: t("stockDetail.marketValue"), tone: "text-success", values: detail.series.map((point) => point.market_value_minor) },
-    { id: "cash", label: t("stockDetail.cash"), tone: "text-text-secondary", values: detail.series.map((point) => point.cash_minor) },
-    { id: "liability", label: t("stockDetail.liability"), tone: "text-error", values: detail.series.map((point) => point.liability_minor) },
-    { id: "gain", label: t("stockDetail.gain"), tone: "text-success", values: detail.series.map((point) => point.gain_minor) },
-  ];
-  const ids = new Map<string, string>();
-  for (const point of detail.series) {
-    for (const position of point.positions) ids.set(position.id, position.name);
-  }
-  const stocks: TrendSeries[] = [...ids.entries()].map(([id, name], index) => ({
-    id,
-    label: name,
-    tone: TONES[index % TONES.length],
-    values: detail.series.map((point) => point.positions.find((item) => item.id === id)?.market_value_minor ?? 0),
-  }));
-  return { categories, series: [...stocks, ...aggregates] };
 }

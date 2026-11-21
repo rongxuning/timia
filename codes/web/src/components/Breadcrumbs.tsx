@@ -38,6 +38,7 @@ type ResolvedName = { label: string };
 const workspaceNameCache = new Map<string, ResolvedName>();
 const projectNameCache = new Map<string, ResolvedName>();
 const planNameCache = new Map<string, ResolvedName>();
+const stockAccountNameCache = new Map<string, ResolvedName>();
 
 const breadcrumbNameCacheListeners = new Set<() => void>();
 let breadcrumbNameCacheEpoch = 0;
@@ -97,6 +98,15 @@ export function primePlanNameForBreadcrumb(planId: string, title: string) {
   if (!planId || !n) return;
   if (planNameCache.get(planId)?.label === n) return;
   planNameCache.set(planId, { label: n });
+  notifyBreadcrumbNameCache();
+}
+
+/** 股票账户详情的面包屑用账户名，不用路径里的 id。 */
+export function primeStockAccountNameForBreadcrumb(accountId: string, name: string) {
+  const n = name?.trim();
+  if (!accountId || !n) return;
+  if (stockAccountNameCache.get(accountId)?.label === n) return;
+  stockAccountNameCache.set(accountId, { label: n });
   notifyBreadcrumbNameCache();
 }
 
@@ -309,6 +319,16 @@ function BreadcrumbsInner({
       if (segment === "assets" && prev === "my") {
         href += `/${segment}`;
         out.push({ href, label: t("assets") });
+        continue;
+      }
+      if (segment === "stocks" && prev === "assets") {
+        href += `/${segment}`;
+        continue;
+      }
+      if (prev === "stocks" && looksLikeOpaqueId(segment)) {
+        href += `/${segment}`;
+        const accountName = stockAccountNameCache.get(segment)?.label;
+        if (accountName) out.push({ href, label: accountName });
         continue;
       }
       if (segment === "workouts" && prev === "health") {

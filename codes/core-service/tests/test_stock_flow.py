@@ -12,6 +12,7 @@ from app.services.stock_flow import (
     flow_series,
     iter_days,
     period_pnl,
+    series_period_pnl,
     snapshot_on,
 )
 
@@ -150,6 +151,13 @@ def test_series_uses_the_mark_in_effect_that_day():
     )
     assert [point.market_value_minor for point in points] == [0, 100, 100]
     assert points[1].positions[0].name == "茅台"
+    assert points[1].positions[0].shares == 2
+    assert points[1].positions[0].cost_price_minor == 1000
+    assert points[1].positions[0].total_pnl_minor == -100
+    assert series_period_pnl(-100, None, opened=False) == -100
+    assert series_period_pnl(-100, -40, opened=True) == -60
+    assert series_period_pnl(None, -40, opened=True) is None
+    assert series_period_pnl(-100, None, opened=True) is None
 
 
 def test_missing_fx_flags_the_snapshot_and_skips_that_value():

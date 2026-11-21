@@ -611,9 +611,7 @@
       "forex": "Foreign exchange"
     },
     "stockDetail": {
-      "back": "Assets",
       "title": "Stock account",
-      "lead": "The calendar range drives the flow, the position cards, and the chart below.",
       "addPosition": "Add position",
       "updatePosition": "Update price",
       "addTransfer": "Record transfer",
@@ -639,7 +637,7 @@
       "shares": "{count} shares",
       "totalPnl": "Unrealized P&L",
       "periodPnl": "P&L in range",
-      "trend": "Trend",
+      "summary": "Summary",
       "symbol": "Symbol",
       "direction": "Direction"
     }

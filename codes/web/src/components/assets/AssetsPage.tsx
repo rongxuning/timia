@@ -16,6 +16,7 @@ import {
   type DateRange,
 } from "@/components/assets/assetChartRange";
 import { errorText } from "@/components/assets/copy";
+import { primeStockAccountNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { PageMain } from "@/components/layout";
 import { fetchMyAssets } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
@@ -100,6 +101,12 @@ export function AssetsPage() {
     }
     void load(accessToken);
   }, [load, router]);
+
+  useEffect(() => {
+    for (const account of ledgerAccounts(view)) {
+      if (account.account_kind === "stock") primeStockAccountNameForBreadcrumb(account.id, account.name);
+    }
+  }, [view]);
 
   const summary = view?.summary;
   const display = summary?.display_currency ?? "CNY";

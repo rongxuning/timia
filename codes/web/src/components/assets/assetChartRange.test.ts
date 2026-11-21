@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   accountBalanceTotals,
   buildCalendarCells,
+  chartAxisDates,
   filterDailySeries,
   lineChartLayout,
   monthRange,
@@ -99,6 +100,38 @@ describe("weekdayHeaderLabels", () => {
     assert.equal(monday[0], "M");
     assert.equal(sunday[0], "S");
     assert.notEqual(monday[0], sunday[0]);
+  });
+});
+
+describe("chartAxisDates", () => {
+  function days(start: string, end: string) {
+    const out: string[] = [];
+    const cursor = new Date(`${start}T00:00:00Z`);
+    const last = new Date(`${end}T00:00:00Z`);
+    while (cursor.getTime() <= last.getTime()) {
+      out.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return out;
+  }
+
+  it("keeps only the two ends when the span is a week or shorter", () => {
+    assert.deepEqual(chartAxisDates(["2026-11-01"]), ["2026-11-01"]);
+    assert.deepEqual(chartAxisDates(days("2026-11-01", "2026-11-08")), ["2026-11-01", "2026-11-08"]);
+  });
+
+  it("inserts Mondays between the ends, skipping one that would sit on an endpoint label", () => {
+    assert.deepEqual(chartAxisDates(days("2026-11-01", "2026-11-21")), [
+      "2026-11-01",
+      "2026-11-09",
+      "2026-11-16",
+      "2026-11-21",
+    ]);
+    assert.deepEqual(chartAxisDates(days("2026-11-02", "2026-11-16")), [
+      "2026-11-02",
+      "2026-11-09",
+      "2026-11-16",
+    ]);
   });
 });
 

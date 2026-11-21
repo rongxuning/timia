@@ -611,9 +611,7 @@
       "forex": "外汇"
     },
     "stockDetail": {
-      "back": "资产",
       "title": "股票详情",
-      "lead": "日历选定的区间决定右侧资金图、持仓卡片和下方曲线。",
       "addPosition": "记持仓",
       "updatePosition": "更新价格",
       "addTransfer": "记转账",
@@ -639,7 +637,7 @@
       "shares": "{count}股",
       "totalPnl": "总浮盈亏",
       "periodPnl": "区间浮盈亏",
-      "trend": "区间趋势",
+      "summary": "汇总",
       "symbol": "代码",
       "direction": "方向"
     }
