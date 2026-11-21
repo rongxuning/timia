@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { positionTrend, summaryTrend } from "./stockTrendSeries.ts";
+import { isolatedValueIndexes, positionTrend, summaryTrend } from "./stockTrendSeries.ts";
 import type { StockDetail } from "../../types/api/views/stock.ts";
 
 const labels = {
@@ -73,6 +73,14 @@ function detail(): StockDetail {
     ],
   };
 }
+
+describe("isolatedValueIndexes", () => {
+  it("flags a day that has a value and no valued neighbor", () => {
+    assert.deepEqual(isolatedValueIndexes([null, null, 3000]), [2]);
+    assert.deepEqual(isolatedValueIndexes([1, 2, null, 4]), [3]);
+    assert.deepEqual(isolatedValueIndexes([1, 2]), []);
+  });
+});
 
 describe("summaryTrend", () => {
   it("keeps the six account totals and leaves individual stocks out", () => {

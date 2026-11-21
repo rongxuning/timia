@@ -183,6 +183,28 @@ def test_missing_fx_flags_the_snapshot_and_skips_that_value():
     assert shot.market_value_minor == 0
     assert shot.positions[0].fx_missing is True
     assert shot.positions[0].total_pnl_minor is None
+    assert shot.positions[0].market_value_minor is None
+    points = flow_series(
+        date(2026, 11, 21),
+        date(2026, 11, 21),
+        [
+            PositionMark(
+                position_id="0700",
+                symbol="00700",
+                name="腾讯",
+                currency="HKD",
+                at=_at("2026-11-21"),
+                shares=10,
+                cost_price_minor=1000,
+                market_price_minor=1200,
+            )
+        ],
+        [],
+        [],
+        _identity,
+    )
+    assert points[0].positions[0].market_value_minor is None
+    assert points[0].positions[0].total_pnl_minor is None
 
 
 def test_negative_cost_increases_floating_profit():

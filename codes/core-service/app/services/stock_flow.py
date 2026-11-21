@@ -98,7 +98,7 @@ class SeriesPosition:
     name: str
     shares: int
     cost_price_minor: int
-    market_value_minor: int
+    market_value_minor: int | None
     total_pnl_minor: int | None
 
 
@@ -324,7 +324,7 @@ def flow_series(
                         name=row.name,
                         shares=row.shares,
                         cost_price_minor=row.cost_price_minor,
-                        market_value_minor=row.market_value_minor or 0,
+                        market_value_minor=row.market_value_minor,
                         total_pnl_minor=row.total_pnl_minor,
                     )
                     for row in shot.positions

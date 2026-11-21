@@ -26,6 +26,18 @@ export type PositionTrendFormat = {
 
 const MISSING = "—";
 
+/** Days with a value and no valued neighbor. A lone path command draws nothing, so these need a dot. */
+export function isolatedValueIndexes(values: readonly (number | null)[]): number[] {
+  const indexes: number[] = [];
+  values.forEach((value, index) => {
+    if (value == null) return;
+    const before = index > 0 && values[index - 1] != null;
+    const after = index + 1 < values.length && values[index + 1] != null;
+    if (!before && !after) indexes.push(index);
+  });
+  return indexes;
+}
+
 export function summaryTrend(
   detail: StockDetail | null,
   labels: SummaryTrendLabels,

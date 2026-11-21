@@ -42,7 +42,7 @@ export type StockSeriesPosition = {
   name: string;
   shares: number;
   cost_price_minor: number;
-  market_value_minor: number;
+  market_value_minor: number | null;
   total_pnl_minor: number | null;
   period_pnl_minor: number | null;
 };

@@ -54,7 +54,7 @@ class StockSeriesPositionOut(BaseModel):
     name: str
     shares: int
     cost_price_minor: int
-    market_value_minor: int
+    market_value_minor: int | None
     total_pnl_minor: int | None
     period_pnl_minor: int | None
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { chartAxisDates, formatChartDate, nearestChartIndex, pointerXInViewBox } from "@/components/assets/assetChartRange";
+import { isolatedValueIndexes } from "@/components/assets/stockTrendSeries";
 
 const WIDTH = 720;
 const HEIGHT = 220;
@@ -95,6 +96,9 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
             className={`stroke-current ${line.tone}`}
           />
         ))}
+        {layout.dots.map((dot) => (
+          <circle key={dot.id} cx={dot.cx} cy={dot.cy} r="3.5" className={`fill-current ${dot.tone}`} />
+        ))}
         <line
           x1={layout.coords[index].x}
           x2={layout.coords[index].x}
@@ -167,13 +171,26 @@ function layoutTrend(categories: string[], series: TrendSeries[]) {
     });
     return { id: item.id, tone: item.tone, d: path };
   });
+  const dots = series.flatMap((item) => {
+    const yOf = yFor.get(item.scale ?? "money");
+    if (!yOf) return [];
+    return isolatedValueIndexes(item.values).map((index) => {
+      const value = item.values[index];
+      return {
+        id: `${item.id}-${index}`,
+        cx: coords[index].x,
+        cy: value == null ? 0 : yOf(value),
+        tone: item.tone,
+      };
+    });
+  });
   let zeroY: number | null = null;
   if (grouped.size === 1) {
     const [key, bounds] = [...domains.entries()][0];
     const yOf = yFor.get(key);
     if (bounds && yOf && bounds.min < 0 && bounds.max > 0) zeroY = yOf(0);
   }
-  return { coords, lines, zeroY };
+  return { coords, lines, dots, zeroY };
 }
 
 function domain(values: number[]) {

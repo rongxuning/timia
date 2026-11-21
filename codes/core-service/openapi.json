@@ -24181,7 +24181,14 @@
             "title": "Cost Price Minor"
           },
           "market_value_minor": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Market Value Minor"
           },
           "total_pnl_minor": {

@@ -6737,7 +6737,7 @@ export interface components {
             /** Cost Price Minor */
             cost_price_minor: number;
             /** Market Value Minor */
-            market_value_minor: number;
+            market_value_minor: number | null;
             /** Total Pnl Minor */
             total_pnl_minor: number | null;
             /** Period Pnl Minor */
