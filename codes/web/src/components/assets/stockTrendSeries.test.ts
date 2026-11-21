@@ -115,5 +115,8 @@ describe("positionTrend", () => {
     assert.equal(trend.series[1]?.formatValue?.(200819), "q200819");
     assert.equal(trend.series[1]?.formatValue?.(null), "—");
     assert.equal(trend.series[2]?.formatValue?.(100), "100股");
+    assert.equal(trend.series.find((item) => item.id === "total")?.signed, true);
+    assert.equal(trend.series.find((item) => item.id === "period")?.signed, true);
+    assert.equal(trend.series.find((item) => item.id === "market")?.signed, false);
   });
 });
