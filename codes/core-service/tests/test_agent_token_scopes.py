@@ -34,9 +34,12 @@ from app.services.agent_tokens import required_scope_for_request
         ("GET", "/views/me/health/workouts", "health:read"),
         ("GET", "/views/me/health/workouts/w1", "health:read"),
         ("GET", "/views/me/health/cards/steps", "health:read"),
-        ("GET", "/views/me/assets", "__deny__"),
+        ("GET", "/views/me/assets", "assets:read"),
+        ("GET", "/views/me/assets/accounts/a1/stocks", "assets:read"),
+        ("POST", "/asset-accounts", "assets:write"),
+        ("POST", "/asset-accounts/a1/stocks", "assets:write"),
+        ("POST", "/asset-accounts/a1/stocks/p1/marks", "assets:write"),
         ("POST", "/asset-holdings", "__deny__"),
-        ("POST", "/asset-accounts", "__deny__"),
         ("PUT", "/asset-profile", "__deny__"),
     ],
 )
@@ -48,7 +51,8 @@ def test_unknown_path_returns_sentinel():
     assert required_scope_for_request("GET", "/health/sync/samples") == "__deny__"
     assert required_scope_for_request("DELETE", "/health/data") == "__deny__"
     assert required_scope_for_request("GET", "/dev/db-tables") == "__deny__"
-    assert required_scope_for_request("GET", "/views/me/assets") == "__deny__"
+    assert required_scope_for_request("GET", "/views/me/assets") == "assets:read"
+    assert required_scope_for_request("POST", "/asset-accounts/a1/stock-cash") == "__deny__"
     assert required_scope_for_request("PATCH", "/asset-holdings/h1") == "__deny__"
     assert required_scope_for_request("DELETE", "/sticky-notes/n1") == "__deny__"
     assert required_scope_for_request("POST", "/plan-templates/t1/apply") == "__deny__"

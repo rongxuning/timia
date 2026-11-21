@@ -50,6 +50,30 @@ export function parseAmountToMinor(input: string, currency: string): number | nu
   return minor;
 }
 
+/** Stock quotes keep three decimal places. 200.819 is 200819. */
+export const STOCK_QUOTE_SCALE = 1000;
+
+export function parseQuoteToMinor(input: string): number | null {
+  const cleaned = input.replace(/[\s,]/g, "").trim();
+  if (!cleaned) return null;
+  const match = cleaned.match(/^(-)?(\d+)(?:\.(\d+))?$/);
+  if (!match) return null;
+  const frac = match[3] ?? "";
+  if (frac.length > 3) return null;
+  const minor = Number(match[2]) * STOCK_QUOTE_SCALE + Number(frac.padEnd(3, "0"));
+  const signed = match[1] ? -minor : minor;
+  if (!Number.isSafeInteger(signed) || Math.abs(signed) > MAX_MINOR) return null;
+  return signed;
+}
+
+export function formatQuote(amountMinor: number): string {
+  const negative = amountMinor < 0;
+  const abs = Math.abs(amountMinor);
+  const whole = Math.trunc(abs / STOCK_QUOTE_SCALE);
+  const frac = String(abs % STOCK_QUOTE_SCALE).padStart(3, "0");
+  return `${negative ? "-" : ""}${whole}.${frac}`;
+}
+
 export function nowLocalInput(): string {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, "0");

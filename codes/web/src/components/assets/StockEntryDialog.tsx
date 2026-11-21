@@ -11,7 +11,7 @@ import {
   setStockCash,
 } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
-import { localInputToIso, minorToInput, nowLocalInput, parseAmountToMinor } from "@/lib/money";
+import { formatQuote, localInputToIso, nowLocalInput, parseAmountToMinor, parseQuoteToMinor } from "@/lib/money";
 import type { StockMarket, StockPosition, StockTransferDirection } from "@/types/api/views/stock";
 
 export type StockDialogMode = "position" | "mark" | "transfer" | "cash";
@@ -34,12 +34,8 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
   const liveCost = mode === "mark" && position ? position.current_cost_price_minor : null;
   const livePrice = mode === "mark" && position ? position.current_market_price_minor : null;
   const [shares, setShares] = useState(liveShares == null ? "" : String(liveShares));
-  const [cost, setCost] = useState(
-    liveCost == null || !position ? "" : minorToInput(liveCost, position.currency),
-  );
-  const [price, setPrice] = useState(
-    livePrice == null || !position ? "" : minorToInput(livePrice, position.currency),
-  );
+  const [cost, setCost] = useState(liveCost == null ? "" : formatQuote(liveCost));
+  const [price, setPrice] = useState(livePrice == null ? "" : formatQuote(livePrice));
   const [direction, setDirection] = useState<StockTransferDirection>("bank_to_securities");
   const [currency, setCurrency] = useState(position?.currency ?? "CNY");
   const [amount, setAmount] = useState("");
@@ -47,7 +43,6 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
   const [recordedAt, setRecordedAt] = useState(nowLocalInput);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const priceCurrency = mode === "position" || mode === "mark" ? (market === "hk_share" ? "HKD" : "CNY") : currency;
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -70,9 +65,15 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
       const recorded_at = localInputToIso(recordedAt);
       if (mode === "position" || mode === "mark") {
         const shareCount = Number(shares);
-        const costMinor = parseAmountToMinor(cost, priceCurrency);
-        const priceMinor = parseAmountToMinor(price, priceCurrency);
-        if (!Number.isInteger(shareCount) || shareCount < (mode === "position" ? 1 : 0) || costMinor == null || priceMinor == null) {
+        const costMinor = parseQuoteToMinor(cost);
+        const priceMinor = parseQuoteToMinor(price);
+        if (
+          !Number.isInteger(shareCount)
+          || shareCount < (mode === "position" ? 1 : 0)
+          || costMinor == null
+          || priceMinor == null
+          || priceMinor < 0
+        ) {
           setError(t("form.amountInvalid"));
           setSaving(false);
           return;

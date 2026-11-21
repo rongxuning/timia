@@ -6597,7 +6597,10 @@ export interface components {
             version: number;
             /** Shares */
             shares: number;
-            /** Cost Price Minor */
+            /**
+             * Cost Price Minor
+             * @description Cost per share in thousandths of the listing currency. May be negative.
+             */
             cost_price_minor: number;
             /** Market Price Minor */
             market_price_minor: number;
@@ -6619,9 +6622,15 @@ export interface components {
             market: "a_share" | "hk_share";
             /** Shares */
             shares: number;
-            /** Cost Price Minor */
+            /**
+             * Cost Price Minor
+             * @description Cost per share in thousandths of the listing currency. May be negative.
+             */
             cost_price_minor: number;
-            /** Market Price Minor */
+            /**
+             * Market Price Minor
+             * @description Latest price per share in thousandths of the listing currency.
+             */
             market_price_minor: number;
             /** Reason */
             reason: string;

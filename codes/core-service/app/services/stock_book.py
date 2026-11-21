@@ -217,11 +217,15 @@ def _currency(value: str) -> str:
 
 
 def _prices(shares: int, cost_price_minor: int, market_price_minor: int) -> None:
-    if shares < 0 or cost_price_minor < 0 or market_price_minor < 0:
+    if shares < 0 or market_price_minor < 0:
         raise HTTPException(status_code=400, detail="amount_invalid")
-    if shares > MAX_MINOR or cost_price_minor > MAX_MINOR or market_price_minor > MAX_MINOR:
+    if (
+        shares > MAX_MINOR
+        or abs(cost_price_minor) > MAX_MINOR
+        or market_price_minor > MAX_MINOR
+    ):
         raise HTTPException(status_code=400, detail="amount_invalid")
-    if shares * cost_price_minor > MAX_MINOR or shares * market_price_minor > MAX_MINOR:
+    if abs(shares * cost_price_minor) > MAX_MINOR or shares * market_price_minor > MAX_MINOR:
         raise HTTPException(status_code=400, detail="amount_invalid")
 
 

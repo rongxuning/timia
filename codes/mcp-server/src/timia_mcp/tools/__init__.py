@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from timia_mcp.config import Settings
 from timia_mcp.http_client import TimiaHttpClient
 from timia_mcp.profiles import is_tool_enabled
+from timia_mcp.tools.assets import import_stock_positions_impl
 from timia_mcp.tools.comments import add_comment_impl, list_comments_impl
 from timia_mcp.tools.health import (
     get_health_metric_impl,
@@ -429,6 +430,30 @@ def register_all(mcp: _MCPApp, ctx: ToolContext) -> None:
                 workspace_id=workspace_id,
                 project_id=project_id,
                 item_id=item_id,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "import_stock_positions"):
+
+        @mcp.tool(
+            name="import_stock_positions",
+            description=(
+                "Write real stock positions into the personal asset book. "
+                "Prices are decimal strings in the listing currency, with up to three decimals. "
+                "cost_price may be negative. market is a_share or hk_share. "
+                "Uses the only stock account when account_id is omitted, or creates one named 普通交易."
+            ),
+        )
+        async def import_stock_positions(
+            positions: list[dict],
+            account_id: str | None = None,
+            reason: str = "券商持仓导入",
+        ) -> str:
+            return await run(
+                "import_stock_positions",
+                import_stock_positions_impl,
+                positions=positions,
+                account_id=account_id,
+                reason=reason,
             )
 
     if is_tool_enabled(settings.tool_profile, "add_comment"):

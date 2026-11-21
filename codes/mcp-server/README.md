@@ -139,6 +139,7 @@ make mcp-server-http
 | `get_activity` | `workspace:read` | Recent workspace activity |
 | `list_comments` | `workspace:read` | Comments on an item |
 | `add_comment` | `workspace:write` | Add a comment to an item |
+| `import_stock_positions` | `assets:write` | Write stock positions into the personal asset book |
 | `get_schedule` | `schedule:read` | Calendar items (day/week/month) |
 | `get_schedule_dashboard` | `schedule:read` | Personal schedule dashboard |
 | `list_overdue` | `schedule:read` | Overdue items |
@@ -151,7 +152,7 @@ make mcp-server-http
 | `complete_item` | `schedule:write` | Mark item done |
 | `parse_natural_language` | `schedule:write` | Parse NL text into a draft (no persist) |
 
-Default PATs include the P0 scopes above. Notes, plans, and health are omitted until the token is created with those scopes.
+Default PATs include the P0 scopes above, including `assets:read` and `assets:write`. Notes, plans, and health are omitted until the token is created with those scopes. A token minted before `assets:write` existed must be recreated to import positions.
 
 ## P1 tools (`TIMIA_TOOL_PROFILE=p1`)
 

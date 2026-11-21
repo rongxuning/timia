@@ -14,11 +14,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Callable, Literal
 from zoneinfo import ZoneInfo
 
+from app.services.assets_math import currency_digits
+
 Converter = Callable[[int, str], int | None]
 MAX_RANGE_DAYS = 800
+# Stock quotes keep three decimal places: 200.819 is stored as 200819.
+QUOTE_SCALE = 1000
 TransferDirection = Literal["bank_to_securities", "securities_to_bank"]
 
 
@@ -105,6 +110,13 @@ class FlowPoint:
     positions: tuple[SeriesPosition, ...]
 
 
+def quote_value_minor(shares: int, quote_minor: int, currency: str) -> int:
+    """Turn a share count and a 3-decimal quote into currency minor units."""
+    digits = currency_digits(currency)
+    product = Decimal(shares) * Decimal(quote_minor) * (Decimal(10) ** digits) / Decimal(QUOTE_SCALE)
+    return int(product.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
 def _utc(moment: datetime) -> datetime:
     if moment.tzinfo is None:
         return moment.replace(tzinfo=timezone.utc)
@@ -189,8 +201,8 @@ def snapshot_on(
         key=lambda row: (-(row.shares * row.market_price_minor), row.name.casefold(), row.symbol),
     )
     for mark in ordered:
-        native_market = mark.shares * mark.market_price_minor
-        native_cost = mark.shares * mark.cost_price_minor
+        native_market = quote_value_minor(mark.shares, mark.market_price_minor, mark.currency)
+        native_cost = quote_value_minor(mark.shares, mark.cost_price_minor, mark.currency)
         market_display = convert(native_market, mark.currency)
         cost_display = convert(native_cost, mark.currency)
         fx_missing = market_display is None or cost_display is None

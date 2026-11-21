@@ -29,8 +29,8 @@ def _mark(day: str, *, shares: int, price: int, cost: int = 100, name: str = "�
         currency="CNY",
         at=_at(day),
         shares=shares,
-        cost_price_minor=cost,
-        market_price_minor=price,
+        cost_price_minor=cost * 10,
+        market_price_minor=price * 10,
     )
 
 
@@ -145,8 +145,8 @@ def test_missing_fx_flags_the_snapshot_and_skips_that_value():
                 currency="HKD",
                 at=_at("2026-11-21"),
                 shares=10,
-                cost_price_minor=100,
-                market_price_minor=120,
+                cost_price_minor=1000,
+                market_price_minor=1200,
             )
         ],
         cash_sets=[],
@@ -157,6 +157,29 @@ def test_missing_fx_flags_the_snapshot_and_skips_that_value():
     assert shot.market_value_minor == 0
     assert shot.positions[0].fx_missing is True
     assert shot.positions[0].total_pnl_minor is None
+
+
+def test_negative_cost_increases_floating_profit():
+    shot = snapshot_on(
+        date(2026, 11, 21),
+        marks=[
+            PositionMark(
+                position_id="603083",
+                symbol="603083",
+                name="剑桥科技",
+                currency="CNY",
+                at=_at("2026-11-21"),
+                shares=1500,
+                cost_price_minor=-145_735,
+                market_price_minor=94_030,
+            )
+        ],
+        cash_sets=[],
+        transfers=[],
+        convert=_identity,
+    )
+    assert shot.market_value_minor == 14_104_500
+    assert shot.positions[0].total_pnl_minor == 35_964_750
 
 
 def test_range_rejects_an_inverted_or_huge_window():
@@ -177,8 +200,8 @@ def test_local_calendar_day_keeps_a_shanghai_morning_on_that_day():
             currency="CNY",
             at=moment,
             shares=1,
-            cost_price_minor=100,
-            market_price_minor=100,
+            cost_price_minor=1000,
+            market_price_minor=1000,
         )
     ]
     shanghai = ZoneInfo("Asia/Shanghai")
@@ -198,8 +221,8 @@ def test_tied_marks_keep_the_later_write():
         currency="CNY",
         at=moment,
         shares=9,
-        cost_price_minor=100,
-        market_price_minor=20,
+        cost_price_minor=1000,
+        market_price_minor=200,
         seq=moment.replace(minute=1),
         tie="b",
     )
@@ -210,8 +233,8 @@ def test_tied_marks_keep_the_later_write():
         currency="CNY",
         at=moment,
         shares=1,
-        cost_price_minor=100,
-        market_price_minor=10,
+        cost_price_minor=1000,
+        market_price_minor=100,
         seq=moment,
         tie="a",
     )
