@@ -23829,8 +23829,8 @@
           },
           "cost_price_minor": {
             "type": "integer",
-            "minimum": 0.0,
-            "title": "Cost Price Minor"
+            "title": "Cost Price Minor",
+            "description": "Cost per share in thousandths of the listing currency. May be negative."
           },
           "market_price_minor": {
             "type": "integer",
@@ -23895,13 +23895,14 @@
           },
           "cost_price_minor": {
             "type": "integer",
-            "minimum": 0.0,
-            "title": "Cost Price Minor"
+            "title": "Cost Price Minor",
+            "description": "Cost per share in thousandths of the listing currency. May be negative."
           },
           "market_price_minor": {
             "type": "integer",
             "minimum": 0.0,
-            "title": "Market Price Minor"
+            "title": "Market Price Minor",
+            "description": "Latest price per share in thousandths of the listing currency."
           },
           "reason": {
             "type": "string",

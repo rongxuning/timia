@@ -20,7 +20,7 @@ import { PageMain } from "@/components/layout";
 import { fetchStockDetail } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
 import { htmlLang, type Locale } from "@/i18n/config";
-import { formatMinor } from "@/lib/money";
+import { formatMinor, formatQuote } from "@/lib/money";
 import { useAccountWeekStart } from "@/lib/use-account-week-start";
 import type { StockDetail, StockPosition } from "@/types/api/views/stock";
 import type { StockFlowLabels, StockFlowNumbers } from "@/components/assets/stockFlow";
@@ -221,7 +221,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
                           <CardRow label={t("stockDetail.marketValue")} value={moneyOrMissing(position.market_value_minor, money, t)} />
                           <CardRow
                             label={t("stockDetail.costPrice")}
-                            value={formatMinor(position.cost_price_minor, position.currency, numberLocale)}
+                            value={formatQuote(position.cost_price_minor)}
                           />
                           <CardRow label={t("stockDetail.shareCount")} value={t("stockDetail.shares", { count: position.shares })} />
                           <CardRow

@@ -20,6 +20,7 @@ P0_TOOLS: set[str] = {
     "get_activity",
     "list_comments",
     "add_comment",
+    "import_stock_positions",
 }
 
 P1_TOOLS: set[str] = P0_TOOLS | {

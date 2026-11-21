@@ -306,7 +306,10 @@ class AssetStockPosition(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         CheckConstraint("market IN ('a_share', 'hk_share')", name="ck_asset_stock_positions_market"),
         CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_stock_positions_currency"),
         CheckConstraint("shares >= 0", name="ck_asset_stock_positions_shares"),
-        CheckConstraint("cost_price_minor >= 0", name="ck_asset_stock_positions_cost"),
+        CheckConstraint(
+            "cost_price_minor BETWEEN -9007199254740991 AND 9007199254740991",
+            name="ck_asset_stock_positions_cost",
+        ),
         CheckConstraint("market_price_minor >= 0", name="ck_asset_stock_positions_market_price"),
         Index("ix_asset_stock_positions_account", "account_id"),
         Index(
@@ -346,7 +349,10 @@ class AssetStockMark(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "asset_stock_marks"
     __table_args__ = (
         CheckConstraint("shares >= 0", name="ck_asset_stock_marks_shares"),
-        CheckConstraint("cost_price_minor >= 0", name="ck_asset_stock_marks_cost"),
+        CheckConstraint(
+            "cost_price_minor BETWEEN -9007199254740991 AND 9007199254740991",
+            name="ck_asset_stock_marks_cost",
+        ),
         CheckConstraint("market_price_minor >= 0", name="ck_asset_stock_marks_price"),
         CheckConstraint("char_length(reason) > 0", name="ck_asset_stock_marks_reason"),
         Index("ix_asset_stock_marks_position_time", "position_id", "recorded_at"),

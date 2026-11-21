@@ -22,6 +22,8 @@ DEFAULT_SCOPES: list[str] = [
     "workspace:read",
     "workspace:write",
     "admin:tokens",
+    "assets:read",
+    "assets:write",
 ]
 ALL_SCOPES = frozenset(
     {
@@ -31,6 +33,8 @@ ALL_SCOPES = frozenset(
         "plans:read",
         "plans:write",
         "health:read",
+        "assets:read",
+        "assets:write",
     }
 )
 
@@ -91,6 +95,14 @@ def required_scope_for_request(method: str, path: str) -> str | None:
         return "plans:write"
     if m == "GET" and p.startswith("/views/me/health"):
         return "health:read"
+    if m == "GET" and (p == "/views/me/assets" or p.startswith("/views/me/assets/")):
+        return "assets:read"
+    if m == "POST" and p == "/asset-accounts":
+        return "assets:write"
+    if m == "POST" and p.startswith("/asset-accounts/") and (
+        p.endswith("/stocks") or p.endswith("/marks")
+    ):
+        return "assets:write"
     return "__deny__"
 
 

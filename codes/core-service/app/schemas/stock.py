@@ -11,8 +11,13 @@ class StockPositionCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     market: Literal["a_share", "hk_share"]
     shares: int = Field(ge=1)
-    cost_price_minor: int = Field(ge=0)
-    market_price_minor: int = Field(ge=0)
+    cost_price_minor: int = Field(
+        description="Cost per share in thousandths of the listing currency. May be negative.",
+    )
+    market_price_minor: int = Field(
+        ge=0,
+        description="Latest price per share in thousandths of the listing currency.",
+    )
     reason: str = Field(min_length=1, max_length=200)
     recorded_at: datetime | None = None
 
@@ -20,7 +25,9 @@ class StockPositionCreate(BaseModel):
 class StockMarkCreate(BaseModel):
     version: int = Field(ge=1)
     shares: int = Field(ge=0)
-    cost_price_minor: int = Field(ge=0)
+    cost_price_minor: int = Field(
+        description="Cost per share in thousandths of the listing currency. May be negative.",
+    )
     market_price_minor: int = Field(ge=0)
     reason: str = Field(min_length=1, max_length=200)
     recorded_at: datetime | None = None
