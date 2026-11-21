@@ -31,6 +31,11 @@ class StockMarkCreate(BaseModel):
     market_price_minor: int = Field(ge=0)
     reason: str = Field(min_length=1, max_length=200)
     recorded_at: datetime | None = None
+    timezone: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Calendar day for overwrite. A mark on this local day replaces that day's mark.",
+    )
 
 
 class StockCashCreate(BaseModel):

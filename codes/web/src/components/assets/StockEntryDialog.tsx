@@ -102,6 +102,7 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
             market_price_minor: priceMinor,
             reason: reason.trim(),
             recorded_at,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           });
         }
       } else {

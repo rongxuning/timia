@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -90,17 +92,34 @@ def add_mark(
     reason = _required_text(payload.reason, "reason_required")
     _prices(payload.shares, payload.cost_price_minor, payload.market_price_minor)
     moment = _moment(payload.recorded_at)
-    db.add(
-        AssetStockMark(
-            position_id=position.id,
-            owner_user_id=user.id,
-            shares=payload.shares,
-            cost_price_minor=payload.cost_price_minor,
-            market_price_minor=payload.market_price_minor,
-            reason=reason,
-            recorded_at=moment,
-        )
+    zone = _mark_zone(payload.timezone, moment)
+    marks = list(
+        db.scalars(select(AssetStockMark).where(AssetStockMark.position_id == position.id)).all()
     )
+    day = moment.astimezone(zone).date()
+    same_day = [row for row in marks if _on_local_day(row.recorded_at, zone, day)]
+    if same_day:
+        winner = max(same_day, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
+        for extra in same_day:
+            if extra.id != winner.id:
+                db.delete(extra)
+        winner.shares = payload.shares
+        winner.cost_price_minor = payload.cost_price_minor
+        winner.market_price_minor = payload.market_price_minor
+        winner.reason = reason
+        winner.recorded_at = moment
+    else:
+        db.add(
+            AssetStockMark(
+                position_id=position.id,
+                owner_user_id=user.id,
+                shares=payload.shares,
+                cost_price_minor=payload.cost_price_minor,
+                market_price_minor=payload.market_price_minor,
+                reason=reason,
+                recorded_at=moment,
+            )
+        )
     db.flush()
     _sync_latest(db, position)
     db.commit()
@@ -227,6 +246,22 @@ def _prices(shares: int, cost_price_minor: int, market_price_minor: int) -> None
         raise HTTPException(status_code=400, detail="amount_invalid")
     if abs(shares * cost_price_minor) > MAX_MINOR or shares * market_price_minor > MAX_MINOR:
         raise HTTPException(status_code=400, detail="amount_invalid")
+
+
+def _mark_zone(name: str | None, moment: datetime) -> tzinfo:
+    text = (name or "").strip()
+    if text:
+        try:
+            return ZoneInfo(text)
+        except (ZoneInfoNotFoundError, KeyError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="timezone_invalid") from exc
+    return moment.tzinfo or ZoneInfo("UTC")
+
+
+def _on_local_day(moment: datetime, zone, day) -> bool:
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=ZoneInfo("UTC"))
+    return moment.astimezone(zone).date() == day
 
 
 def _mark(position: AssetStockPosition, reason: str, moment) -> AssetStockMark:

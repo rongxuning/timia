@@ -1,6 +1,6 @@
 /** Layout for the stock-account flow. Bar height follows the absolute amount. */
 
-export type FlowTone = "asset" | "cost" | "deduct" | "gain";
+export type FlowTone = "asset" | "cost" | "deduct" | "gain" | "cash" | "profit" | "loss" | "flat";
 
 export type FlowNodeInput = {
   id: string;
@@ -32,7 +32,7 @@ export type StockFlowNumbers = {
   showGain: boolean;
   bankIn: number;
   bankOut: number;
-  positions: { id: string; name: string; value: number }[];
+  positions: { id: string; name: string; value: number; pnl: number | null; share: string }[];
 };
 
 export type StockFlowLabels = {
@@ -45,12 +45,29 @@ export type StockFlowLabels = {
   gain: string;
   bankIn: string;
   bankOut: string;
+  floating: string;
 };
 
-export const STOCK_FLOW_COLUMNS = [112, 292, 486, 680];
+/** A-share convention: a gain is red, a loss is green. Zero and unknown stay neutral. */
+export function signedFlowTone(amount: number | null): Extract<FlowTone, "profit" | "loss" | "flat"> {
+  if (amount == null || amount === 0) return "flat";
+  return amount > 0 ? "profit" : "loss";
+}
+
+/** Share of total market value. A missing price or a zero total has no percentage. */
+export function marketShareLabel(part: number | null, total: number, locale: string): string {
+  if (part == null || !Number.isFinite(part) || !Number.isFinite(total) || total === 0) return "—";
+  return new Intl.NumberFormat(locale, {
+    style: "percent",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(part / total);
+}
+
+const STOCK_FLOW_COLUMNS = [112, 292, 486, 680];
 const COL_X = STOCK_FLOW_COLUMNS;
 const BAR_W = 10;
-const TOP = 28;
+const TOP = 12;
 const GAP = 12;
 const MIN_H = 14;
 const MAX_BAR = 150;
@@ -60,21 +77,23 @@ export function stockFlowGraph(
   labels: StockFlowLabels,
   format: (value: number) => string,
 ): { nodes: FlowNodeInput[]; links: FlowLinkInput[] } {
+  const floating = numbers.netAssets - numbers.totalCost;
   const nodes: FlowNodeInput[] = [
     node("net", labels.netAssets, numbers.netAssets, 0, "asset", format),
     node("cost", labels.totalCost, numbers.totalCost, 0, "cost", format),
+    node("floating", labels.floating, floating, 0, signedFlowTone(floating), format),
     node("assets", labels.totalAssets, numbers.totalAssets, 1, "asset", format),
     node("bank", labels.bankIn, numbers.bankIn, 1, "cost", format),
-    node("bankOut", labels.bankOut, numbers.bankOut, 1, "deduct", format),
+    node("bankOut", labels.bankOut, numbers.bankOut, 1, "cash", format),
     node("market", labels.marketValue, numbers.marketValue, 2, "asset", format),
-    node("cash", labels.cash, numbers.cash, 2, "asset", format),
+    node("cash", labels.cash, numbers.cash, 2, "cash", format),
   ];
   const links: FlowLinkInput[] = [
     { source: "net", target: "assets", tone: "asset" },
     { source: "assets", target: "market", tone: "asset" },
-    { source: "assets", target: "cash", tone: "asset" },
+    { source: "assets", target: "cash", tone: "cash" },
     { source: "cost", target: "bank", tone: "cost" },
-    { source: "cost", target: "bankOut", tone: "deduct" },
+    { source: "cost", target: "bankOut", tone: "cash" },
     { source: "market", target: "positions", tone: "asset" },
   ];
   if (numbers.showLiability) {
@@ -85,15 +104,16 @@ export function stockFlowGraph(
     links.push({ source: "cash", target: "gain", tone: "gain" });
   }
   for (const position of numbers.positions) {
+    const tone = signedFlowTone(position.pnl);
     nodes.push({
       id: `pos-${position.id}`,
       name: position.name,
-      amount: format(position.value),
+      amount: `${format(position.value)} · ${position.share}`,
       value: position.value,
       column: 3,
-      tone: "asset",
+      tone,
     });
-    links.push({ source: "positions", target: `pos-${position.id}`, tone: "asset" });
+    links.push({ source: "positions", target: `pos-${position.id}`, tone });
   }
   if (numbers.positions.length === 0) {
     const index = links.findIndex((link) => link.target === "positions");
@@ -166,7 +186,9 @@ export function layoutStockFlow(
 }
 
 function sectionGap(previousId: string, nextId: string): number {
-  if (nextId === "cost" || nextId === "bank" || nextId === "gain") return GAP + 28;
+  // Two text lines sit on each bar. A short holding needs room so the next name clears the amount above it.
+  if (previousId.startsWith("pos-") && nextId.startsWith("pos-")) return GAP + 14;
+  if (nextId === "cost" || nextId === "bank" || nextId === "gain" || nextId === "floating") return GAP + 28;
   if (previousId === "net" || previousId === "liability") return GAP + 8;
   return GAP;
 }

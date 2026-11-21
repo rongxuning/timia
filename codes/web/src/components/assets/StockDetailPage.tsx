@@ -24,7 +24,12 @@ import { htmlLang, type Locale } from "@/i18n/config";
 import { formatMinor, formatQuote } from "@/lib/money";
 import { useAccountWeekStart } from "@/lib/use-account-week-start";
 import type { StockDetail, StockPosition } from "@/types/api/views/stock";
-import type { StockFlowLabels, StockFlowNumbers } from "@/components/assets/stockFlow";
+import {
+  marketShareLabel,
+  signedFlowTone,
+  type StockFlowLabels,
+  type StockFlowNumbers,
+} from "@/components/assets/stockFlow";
 
 type StockDetailPageProps = {
   accountId: string;
@@ -93,6 +98,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       gain: t("stockDetail.gain"),
       bankIn: t("stockDetail.bankIn"),
       bankOut: t("stockDetail.bankOut"),
+      floating: t("stockDetail.floating"),
     }),
     [t],
   );
@@ -115,6 +121,8 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
         id: position.id,
         name: position.name,
         value: position.market_value_minor ?? 0,
+        pnl: position.total_pnl_minor,
+        share: marketShareLabel(position.market_value_minor, flow.market_value_minor, numberLocale),
       })),
     };
   }, [detail]);
@@ -210,18 +218,21 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
             ) : null}
             {detail && numbers ? (
               <div className="min-w-0 rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
-                <StockFlowChart
-                  numbers={numbers}
-                  labels={labels}
-                  headers={[
-                    t("stockDetail.layer1"),
-                    t("stockDetail.layer2"),
-                    t("stockDetail.layer3"),
-                    t("stockDetail.positions"),
-                  ]}
-                  format={money}
-                />
-                <p className="mt-3 text-caption text-text-secondary">{t("stockDetail.formula")}</p>
+                <div className="flex flex-col gap-lg lg:flex-row lg:items-start">
+                  <div className="min-w-0 flex-1">
+                    <StockFlowChart
+                      numbers={numbers}
+                      labels={labels}
+                      format={money}
+                      label={t("stockDetail.title")}
+                    />
+                  </div>
+                  <aside className="space-y-3 border-t border-border-subtle pt-lg text-caption leading-relaxed text-text-secondary lg:w-60 lg:shrink-0 lg:border-l lg:border-t-0 lg:pl-lg lg:pt-1">
+                    <FormulaNote text={t("stockDetail.formulaLiability")} />
+                    <FormulaNote text={t("stockDetail.formulaGain")} />
+                    <FormulaNote text={t("stockDetail.formulaFloating")} />
+                  </aside>
+                </div>
               </div>
             ) : null}
             {detail && detail.positions.length > 0 ? (
@@ -311,6 +322,18 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
   }
 }
 
+function FormulaNote({ text }: { text: string }) {
+  return (
+    <p>
+      {text.split("\n").map((line) => (
+        <span key={line} className="block">
+          {line}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 function ActionButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -341,6 +364,12 @@ function moneyOrMissing(
 }
 
 function pnlTone(amount: number | null): string {
-  if (amount == null || amount === 0) return "text-text-primary";
-  return amount > 0 ? "text-success" : "text-error";
+  switch (signedFlowTone(amount)) {
+    case "profit":
+      return "text-error";
+    case "loss":
+      return "text-success";
+    default:
+      return "text-text-primary";
+  }
 }

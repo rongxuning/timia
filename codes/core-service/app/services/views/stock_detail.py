@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -111,8 +111,11 @@ def build_stock_detail(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     end_shot = snapshot_on(end, marks, cash_sets, transfers, convert, zone)
     start_shot = snapshot_on(start - timedelta(days=1), marks, cash_sets, transfers, convert, zone)
-    start_by_id = {row.position_id: row for row in start_shot.positions}
     baseline_pnl = {row.position_id: row.total_pnl_minor for row in start_shot.positions}
+    as_of = card_as_of(datetime.now(zone).date(), (_local_day(row.marked_at, zone) for row in positions))
+    latest_shot = snapshot_on(as_of, marks, cash_sets, transfers, convert, zone)
+    prior_shot = snapshot_on(as_of - timedelta(days=1), marks, cash_sets, transfers, convert, zone)
+    prior_by_id = {row.position_id: row for row in prior_shot.positions}
     versions = {str(row.id): row.version for row in positions}
     cards = [
         StockPositionOut(
@@ -126,7 +129,7 @@ def build_stock_detail(
             market_price_minor=row.market_price_minor,
             market_value_minor=row.market_value_minor,
             total_pnl_minor=row.total_pnl_minor,
-            period_pnl_minor=period_pnl(row, start_by_id.get(row.position_id)),
+            period_pnl_minor=period_pnl(row, prior_by_id.get(row.position_id)),
             fx_missing=row.fx_missing,
             version=versions[row.position_id],
             current_shares=by_id[uuid.UUID(row.position_id)].shares,
@@ -134,7 +137,7 @@ def build_stock_detail(
             current_market_price_minor=by_id[uuid.UUID(row.position_id)].market_price_minor,
             recorded_at=row.recorded_at,
         )
-        for row in end_shot.positions
+        for row in latest_shot.positions
     ]
     return StockDetailOut(
         account=StockAccountOut(
@@ -188,6 +191,21 @@ def build_stock_detail(
             for point in series
         ],
     )
+
+
+def card_as_of(today: date, marked_on) -> date:
+    """Position cards follow the newest mark, not the chart range."""
+    latest = today
+    for day in marked_on:
+        if day > latest:
+            latest = day
+    return latest
+
+
+def _local_day(moment: datetime, zone: ZoneInfo) -> date:
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(zone).date()
 
 
 def _marks(db: Session, position_ids: list[uuid.UUID]) -> list[AssetStockMark]:

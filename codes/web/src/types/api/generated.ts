@@ -6608,6 +6608,11 @@ export interface components {
             reason: string;
             /** Recorded At */
             recorded_at?: string | null;
+            /**
+             * Timezone
+             * @description Calendar day for overwrite. A mark on this local day replaces that day's mark.
+             */
+            timezone?: string | null;
         };
         /** StockPositionCreate */
         StockPositionCreate: {

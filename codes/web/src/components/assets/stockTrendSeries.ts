@@ -80,11 +80,25 @@ export function positionTrend(
       metric("shares", labels.shareCount, "text-text-secondary", "count", points, (item) => item.shares, (value) =>
         value == null ? MISSING : format.shares(value),
       ),
-      metric("total", labels.totalPnl, "text-success", "money", points, (item) => item.total_pnl_minor, (value) =>
-        value == null ? MISSING : format.money(value),
+      metric(
+        "total",
+        labels.totalPnl,
+        "text-text-secondary",
+        "money",
+        points,
+        (item) => item.total_pnl_minor,
+        (value) => (value == null ? MISSING : format.money(value)),
+        true,
       ),
-      metric("period", labels.periodPnl, "text-error", "money", points, (item) => item.period_pnl_minor, (value) =>
-        value == null ? MISSING : format.money(value),
+      metric(
+        "period",
+        labels.periodPnl,
+        "text-text-secondary",
+        "money",
+        points,
+        (item) => item.period_pnl_minor,
+        (value) => (value == null ? MISSING : format.money(value)),
+        true,
       ),
     ],
   };
@@ -102,12 +116,14 @@ function metric(
   points: Array<StockSeriesPosition | null>,
   read: (item: StockSeriesPosition) => number | null,
   formatValue: (value: number | null) => string,
+  signed = false,
 ): TrendSeries {
   return {
     id,
     label,
     tone,
     scale,
+    signed,
     values: points.map((item) => (item ? read(item) : null)),
     formatValue,
   };

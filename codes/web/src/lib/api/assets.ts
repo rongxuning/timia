@@ -217,6 +217,7 @@ export function markStockPosition(
     market_price_minor: number;
     reason: string;
     recorded_at?: string;
+    timezone?: string;
   },
 ): Promise<StockPositionWrite> {
   return apiFetch<StockPositionWrite>(`/asset-accounts/${accountId}/stocks/${positionId}/marks`, {
