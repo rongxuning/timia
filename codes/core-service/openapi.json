@@ -23854,6 +23854,19 @@
               }
             ],
             "title": "Recorded At"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone",
+            "description": "Calendar day for overwrite. A mark on this local day replaces that day's mark."
           }
         },
         "type": "object",

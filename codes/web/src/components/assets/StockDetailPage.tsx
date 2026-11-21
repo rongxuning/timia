@@ -122,7 +122,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
         name: position.name,
         value: position.market_value_minor ?? 0,
         pnl: position.total_pnl_minor,
-        share: marketShareLabel(position.market_value_minor ?? 0, flow.market_value_minor, numberLocale),
+        share: marketShareLabel(position.market_value_minor, flow.market_value_minor, numberLocale),
       })),
     };
   }, [detail]);

@@ -54,9 +54,9 @@ export function signedFlowTone(amount: number | null): Extract<FlowTone, "profit
   return amount > 0 ? "profit" : "loss";
 }
 
-/** Share of total market value. A zero total has no percentage. */
-export function marketShareLabel(part: number, total: number, locale: string): string {
-  if (!Number.isFinite(part) || !Number.isFinite(total) || total === 0) return "—";
+/** Share of total market value. A missing price or a zero total has no percentage. */
+export function marketShareLabel(part: number | null, total: number, locale: string): string {
+  if (part == null || !Number.isFinite(part) || !Number.isFinite(total) || total === 0) return "—";
   return new Intl.NumberFormat(locale, {
     style: "percent",
     minimumFractionDigits: 2,

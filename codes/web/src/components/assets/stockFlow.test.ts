@@ -135,6 +135,7 @@ describe("marketShareLabel", () => {
     assert.equal(marketShareLabel(3, 4, "zh-CN"), "75.00%");
     assert.equal(marketShareLabel(1, 3, "en-US"), "33.33%");
     assert.equal(marketShareLabel(0, 0, "zh-CN"), "—");
+    assert.equal(marketShareLabel(null, 100, "zh-CN"), "—");
   });
 });
 
