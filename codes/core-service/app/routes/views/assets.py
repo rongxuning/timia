@@ -1,11 +1,16 @@
-from fastapi import APIRouter, Depends
+import uuid
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.views.assets import MyAssetsViewOut
+from app.schemas.views.stock_detail import StockDetailOut
 from app.services.views.my_assets import build_my_assets
+from app.services.views.stock_detail import build_stock_detail
 
 router = APIRouter(prefix="/views/me", tags=["views-assets"])
 
@@ -16,3 +21,14 @@ def my_assets(
     user: User = Depends(get_current_user),
 ):
     return build_my_assets(db, user)
+
+
+@router.get("/assets/accounts/{account_id}/stocks", response_model=StockDetailOut)
+def my_stock_account(
+    account_id: uuid.UUID,
+    start: date = Query(),
+    end: date = Query(),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return build_stock_detail(db, user, account_id, start, end)

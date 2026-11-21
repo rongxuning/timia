@@ -11,6 +11,12 @@ import type {
   AssetProfile,
   MyAssetsView,
 } from "@/types/api/views/assets";
+import type {
+  StockDetail,
+  StockMarket,
+  StockPositionWrite,
+  StockTransferDirection,
+} from "@/types/api/views/stock";
 
 export function fetchMyAssets(token: string): Promise<MyAssetsView> {
   return apiFetch<MyAssetsView>("/views/me/assets", { token });
@@ -166,6 +172,87 @@ export function adjustAssetExpense(
 
 export function fetchAssetExpense(token: string, id: string): Promise<AssetExpenseDetail> {
   return apiFetch<AssetExpenseDetail>(`/asset-expenses/${id}`, { token });
+}
+
+export function fetchStockDetail(
+  token: string,
+  accountId: string,
+  start: string,
+  end: string,
+): Promise<StockDetail> {
+  const query = new URLSearchParams({ start, end });
+  return apiFetch<StockDetail>(`/views/me/assets/accounts/${accountId}/stocks?${query}`, { token });
+}
+
+export function createStockPosition(
+  token: string,
+  accountId: string,
+  body: {
+    symbol: string;
+    name: string;
+    market: StockMarket;
+    shares: number;
+    cost_price_minor: number;
+    market_price_minor: number;
+    reason: string;
+    recorded_at?: string;
+  },
+): Promise<StockPositionWrite> {
+  return apiFetch<StockPositionWrite>(`/asset-accounts/${accountId}/stocks`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function markStockPosition(
+  token: string,
+  accountId: string,
+  positionId: string,
+  body: {
+    version: number;
+    shares: number;
+    cost_price_minor: number;
+    market_price_minor: number;
+    reason: string;
+    recorded_at?: string;
+  },
+): Promise<StockPositionWrite> {
+  return apiFetch<StockPositionWrite>(`/asset-accounts/${accountId}/stocks/${positionId}/marks`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function setStockCash(
+  token: string,
+  accountId: string,
+  body: { currency: string; amount_minor: number; reason: string; recorded_at?: string },
+): Promise<void> {
+  return apiFetch<void>(`/asset-accounts/${accountId}/stock-cash`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function createStockTransfer(
+  token: string,
+  accountId: string,
+  body: {
+    direction: StockTransferDirection;
+    currency: string;
+    amount_minor: number;
+    reason: string;
+    recorded_at?: string;
+  },
+): Promise<void> {
+  return apiFetch<void>(`/asset-accounts/${accountId}/stock-transfers`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function archiveAssetExpense(

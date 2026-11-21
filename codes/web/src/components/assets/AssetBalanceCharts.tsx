@@ -94,7 +94,7 @@ function BalanceChart({
   const last = coords[coords.length - 1];
 
   function moveTo(offsetX: number, width: number) {
-    if (width <= 0) return;
+    if (width <= 0 || !layout) return;
     setHover(nearestChartIndex(coords, (offsetX / width) * layout.width));
   }
 

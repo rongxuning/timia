@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { accountKindLabel, errorText } from "@/components/assets/copy";
 import { fieldClass, labelClass } from "@/components/assets/fields";
 import { createAssetAccount, type LedgerAccountKind } from "@/lib/api/assets";
@@ -38,25 +39,21 @@ export function AccountSection({ accounts, formatMoney, onSaved }: AccountSectio
   return (
     <section>
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {accounts.map((account) => (
-          <li key={account.id} className="min-w-0">
-            <article className="flex h-full items-start justify-between gap-3 rounded-xl border border-border-subtle bg-white p-md">
-              <div className="min-w-0">
-                <p className="truncate text-small font-medium text-text-primary">{account.name}</p>
-                <p className="mt-1 text-caption text-text-secondary">{accountKindLabel(t, account.account_kind)}</p>
-                <p className="mt-1 break-all font-code text-caption tabular-nums text-text-primary">{account.account_number}</p>
-              </div>
-              <dl className="shrink-0 space-y-1 text-right">
-                {figures.map((figure) => (
-                  <div key={figure.key}>
-                    <dt className="text-caption text-text-secondary">{figure.label}</dt>
-                    <dd className="text-caption tabular-nums text-text-primary">{formatMoney(account[figure.field])}</dd>
-                  </div>
-                ))}
-              </dl>
-            </article>
-          </li>
-        ))}
+        {accounts.map((account) => {
+          const face = <AccountFace account={account} figures={figures} formatMoney={formatMoney} kindLabel={accountKindLabel(t, account.account_kind)} />;
+          const className = "flex h-full items-start justify-between gap-3 rounded-xl border border-border-subtle bg-white p-md";
+          return (
+            <li key={account.id} className="min-w-0">
+              {account.account_kind === "stock" ? (
+                <Link href={`/my/assets/stocks/${account.id}`} className={`${className} hover:border-primary`}>
+                  {face}
+                </Link>
+              ) : (
+                <article className={className}>{face}</article>
+              )}
+            </li>
+          );
+        })}
         <li className="min-w-0">
           <button
             type="button"
@@ -80,6 +77,36 @@ export function AccountSection({ accounts, formatMoney, onSaved }: AccountSectio
         />
       ) : null}
     </section>
+  );
+}
+
+function AccountFace({
+  account,
+  figures,
+  formatMoney,
+  kindLabel,
+}: {
+  account: AccountCard;
+  figures: readonly { key: string; label: string; field: "net_worth_minor" | "assets_minor" | "liabilities_minor" }[];
+  formatMoney: (amountMinor: number) => string;
+  kindLabel: string;
+}) {
+  return (
+    <>
+      <div className="min-w-0">
+        <p className="truncate text-small font-medium text-text-primary">{account.name}</p>
+        <p className="mt-1 text-caption text-text-secondary">{kindLabel}</p>
+        <p className="mt-1 break-all font-code text-caption tabular-nums text-text-primary">{account.account_number}</p>
+      </div>
+      <dl className="shrink-0 space-y-1 text-right">
+        {figures.map((figure) => (
+          <div key={figure.key}>
+            <dt className="text-caption text-text-secondary">{figure.label}</dt>
+            <dd className="text-caption tabular-nums text-text-primary">{formatMoney(account[figure.field])}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
   );
 }
 

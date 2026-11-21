@@ -226,6 +226,18 @@ export function errorText(t: AssetsT, message: string): string {
       return t("errors.party_required");
     case "institution_kind_mismatch":
       return t("errors.institution_kind_mismatch");
+    case "symbol_invalid":
+      return t("errors.symbol_invalid");
+    case "symbol_taken":
+      return t("errors.symbol_taken");
+    case "amount_invalid":
+      return t("errors.amount_invalid");
+    case "account_not_stock":
+      return t("errors.account_not_stock");
+    case "range_invalid":
+      return t("errors.range_invalid");
+    case "range_too_long":
+      return t("errors.range_too_long");
     default:
       return t("errors.generic");
   }
