@@ -18,6 +18,8 @@ export type TrendSegment = {
 
 export type TrendDot = {
   id: string;
+  seriesId: string;
+  index: number;
   cx: number;
   cy: number;
   value: number;
@@ -113,6 +115,8 @@ export function layoutStockTrend(
       const outgoing = segments.find((segment) => segment.id.startsWith(`${item.id}-${point.index}-`));
       dots.push({
         id: `${item.id}-${point.index}`,
+        seriesId: item.id,
+        index: point.index,
         cx: point.x,
         cy: point.y,
         value: point.value,

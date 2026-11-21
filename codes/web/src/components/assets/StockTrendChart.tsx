@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { chartAxisDates, formatChartDate, nearestChartIndex, pointerXInViewBox } from "@/components/assets/assetChartRange";
-import { layoutStockTrend, type TrendDirection } from "@/components/assets/stockTrendLayout";
+import { layoutStockTrend, type TrendDirection, type TrendDot } from "@/components/assets/stockTrendLayout";
 
 export type TrendSeries = {
   id: string;
@@ -161,6 +161,22 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
         {layout.dots.map((dot) => (
           <circle key={dot.id} cx={dot.cx} cy={dot.cy} r="3.5" className="fill-current text-primary" />
         ))}
+        {pointLabels(layout.dots, index).map((dot) => {
+          const item = series.find((entry) => entry.id === dot.seriesId);
+          const text = item?.formatValue ? item.formatValue(dot.value) : formatMoney(dot.value);
+          const placeLeft = dot.cx > layout.plot.right - 88;
+          return (
+            <text
+              key={`label-${dot.id}`}
+              x={placeLeft ? dot.cx - 6 : dot.cx + 6}
+              y={dot.labelY}
+              textAnchor={placeLeft ? "end" : "start"}
+              className={`fill-current text-[10px] ${item ? valueTone(item, dot.value) : "text-text-primary"}`}
+            >
+              {text}
+            </text>
+          );
+        })}
         <line
           x1={activeX}
           x2={activeX}
@@ -171,6 +187,16 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
       </svg>
     </div>
   );
+}
+
+function pointLabels(dots: TrendDot[], index: number): Array<TrendDot & { labelY: number }> {
+  const active = dots.filter((dot) => dot.index === index).sort((left, right) => left.cy - right.cy);
+  let lastY = Number.NEGATIVE_INFINITY;
+  return active.map((dot) => {
+    const labelY = Math.max(dot.cy + 3, lastY + 11);
+    lastY = labelY;
+    return { ...dot, labelY };
+  });
 }
 
 function valueTone(item: TrendSeries, value: number | null): string {
