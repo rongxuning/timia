@@ -103,6 +103,8 @@ def required_scope_for_request(method: str, path: str) -> str | None:
         p.endswith("/stocks") or p.endswith("/marks")
     ):
         return "assets:write"
+    if m == "PUT" and p == "/asset-fx-rates":
+        return "assets:write"
     return "__deny__"
 
 

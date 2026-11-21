@@ -34,6 +34,7 @@ export type StockPosition = {
   current_shares: number;
   current_cost_price_minor: number;
   current_market_price_minor: number;
+  recorded_at: string;
 };
 
 export type StockSeriesPoint = {

@@ -40,6 +40,24 @@ def _identity(amount: int, currency: str) -> int | None:
     return amount
 
 
+def test_snapshot_keeps_the_mark_time_in_effect_on_that_day():
+    shot = snapshot_on(
+        date(2026, 11, 20),
+        marks=[
+            _mark("2026-11-19", shares=10, price=10_000),
+            _mark("2026-11-20", shares=12, price=11_000),
+            _mark("2026-11-21", shares=99, price=99_000),
+        ],
+        cash_sets=[],
+        transfers=[],
+        convert=_identity,
+        zone=ZoneInfo("Asia/Shanghai"),
+    )
+    assert len(shot.positions) == 1
+    assert shot.positions[0].shares == 12
+    assert shot.positions[0].recorded_at == _at("2026-11-20")
+
+
 def test_gain_shows_when_cash_covers_cost_and_liability_stays_hidden():
     shot = snapshot_on(
         date(2026, 11, 21),

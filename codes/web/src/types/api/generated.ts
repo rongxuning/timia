@@ -6674,6 +6674,11 @@ export interface components {
             current_cost_price_minor: number;
             /** Current Market Price Minor */
             current_market_price_minor: number;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
         };
         /** StockPositionWriteOut */
         StockPositionWriteOut: {

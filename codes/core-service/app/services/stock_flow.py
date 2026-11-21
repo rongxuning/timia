@@ -69,6 +69,7 @@ class PositionSnap:
     shares: int
     cost_price_minor: int
     market_price_minor: int
+    recorded_at: datetime
     market_value_minor: int | None
     total_pnl_minor: int | None
     fx_missing: bool
@@ -219,6 +220,7 @@ def snapshot_on(
                 shares=mark.shares,
                 cost_price_minor=mark.cost_price_minor,
                 market_price_minor=mark.market_price_minor,
+                recorded_at=mark.at,
                 market_value_minor=market_display,
                 total_pnl_minor=pnl,
                 fx_missing=fx_missing,

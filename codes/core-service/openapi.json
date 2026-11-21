@@ -24025,6 +24025,11 @@
           "current_market_price_minor": {
             "type": "integer",
             "title": "Current Market Price Minor"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
           }
         },
         "type": "object",
@@ -24044,7 +24049,8 @@
           "version",
           "current_shares",
           "current_cost_price_minor",
-          "current_market_price_minor"
+          "current_market_price_minor",
+          "recorded_at"
         ],
         "title": "StockPositionOut"
       },

@@ -39,6 +39,7 @@ from app.services.agent_tokens import required_scope_for_request
         ("POST", "/asset-accounts", "assets:write"),
         ("POST", "/asset-accounts/a1/stocks", "assets:write"),
         ("POST", "/asset-accounts/a1/stocks/p1/marks", "assets:write"),
+        ("PUT", "/asset-fx-rates", "assets:write"),
         ("POST", "/asset-holdings", "__deny__"),
         ("PUT", "/asset-profile", "__deny__"),
     ],
