@@ -75,6 +75,64 @@ def test_web_phone_login_is_stable(monkeypatch):
         _cleanup(db, user_ids)
 
 
+def test_sms_bucket_uses_the_proxy_address_not_the_forwarded_prefix(monkeypatch):
+    _allow_sms(monkeypatch)
+    client = TestClient(app)
+    db = next(get_db())
+    real_ip = "203.0.113.10"
+    user_ids: list[uuid.UUID] = []
+    try:
+        sent = client.post(
+            "/auth/login/phone/code",
+            json={"phone": "13800005555"},
+            headers={"x-real-ip": real_ip, "x-forwarded-for": f"1.1.1.1, {real_ip}"},
+        )
+        assert sent.status_code == 200, sent.text
+        body = sent.json()
+        shared = client.post(
+            "/auth/login/phone/code",
+            json={"phone": "13800006666"},
+            headers={"x-real-ip": real_ip, "x-forwarded-for": f"8.8.8.8, {real_ip}"},
+        )
+        assert shared.status_code == 200, shared.text
+        verified = client.post(
+            "/auth/login/phone/verify",
+            json={
+                "phone": "13800005555",
+                "code": body["dev_code"],
+                "challenge_id": body["challenge_id"],
+                "nonce": body["nonce"],
+            },
+            headers={"x-real-ip": real_ip, "x-forwarded-for": f"9.9.9.9, {real_ip}"},
+        )
+        assert verified.status_code == 200, verified.text
+        user_ids.append(uuid.UUID(decode_access_token(verified.json()["access_token"])["sub"]))
+        db.expire_all()
+        bucket = web_phone_installation_id(real_ip)
+        rows = db.scalars(select(AuthChallenge).where(AuthChallenge.installation_id == bucket)).all()
+        assert len(rows) == 2
+        spoofed = db.scalar(
+            select(AuthChallenge).where(
+                AuthChallenge.installation_id == web_phone_installation_id("1.1.1.1")
+            )
+        )
+        assert spoofed is None
+        mismatched = client.post(
+            "/auth/login/phone/verify",
+            json={
+                "phone": "13800006666",
+                "code": shared.json()["dev_code"],
+                "challenge_id": shared.json()["challenge_id"],
+                "nonce": shared.json()["nonce"],
+            },
+            headers={"x-real-ip": "198.51.100.4"},
+        )
+        assert mismatched.status_code == 401
+        assert mismatched.json()["detail"] == "invalid_challenge"
+    finally:
+        _cleanup(db, user_ids)
+
+
 def test_wrong_code_and_resend_and_unconfigured_sms(monkeypatch):
     _allow_sms(monkeypatch)
     client = TestClient(app)

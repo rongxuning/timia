@@ -319,7 +319,22 @@ def _client_ip(request: Request) -> str | None:
 
 
 def _client_key(request: Request) -> str:
-    return _client_ip(request) or "unknown"
+    """Client address for the SMS cap.
+
+    nginx overwrites X-Real-IP with $remote_addr and appends that same address
+    to X-Forwarded-For, so the leftmost forwarded hop is chosen by the caller.
+    """
+    real_ip = (request.headers.get("x-real-ip") or "").split(",")[0].strip()
+    if real_ip:
+        return real_ip[:64]
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        hop = forwarded.rsplit(",", 1)[-1].strip()
+        if hop:
+            return hop[:64]
+    if request.client and request.client.host:
+        return request.client.host[:64]
+    return "unknown"
 
 
 def _quick_hash(token: str) -> str:
