@@ -70,7 +70,7 @@ export function CalendarAllDayRow({
 
   return (
     <div className="flex shrink-0 border-b border-border-subtle bg-surface">
-      <div className="flex w-14 shrink-0 items-start justify-end border-r border-border-subtle bg-surface-container-lowest/60 px-1 pt-2 text-[10px] text-neutral-muted">
+      <div className="flex w-14 shrink-0 items-start justify-end border-r border-border-subtle bg-surface-container-lowest/60 px-1 pt-2 text-[12px] text-neutral-muted">
         全天
       </div>
       <div className={isWeek ? "grid min-w-0 flex-1 grid-cols-7" : "min-w-0 flex-1"}>

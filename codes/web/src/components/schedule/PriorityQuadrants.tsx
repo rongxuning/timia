@@ -70,8 +70,8 @@ export function PriorityQuadrants({
       {!hideHeader && (
         <div className="p-lg flex items-center justify-between gap-lg">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <div className="text-sm font-semibold text-primary">优先级象限</div>
-            <span className="text-caption text-neutral-muted">仅展示待办与进行中的任务</span>
+            <div className="text-base font-semibold text-primary">优先级象限</div>
+            <span className="text-[14px] leading-[1.4] text-neutral-muted">仅展示待办与进行中的任务</span>
           </div>
         </div>
       )}
@@ -113,20 +113,20 @@ export function PriorityQuadrants({
                     <span className={`w-2.5 h-2.5 rounded-full ${q.dotClass}`} />
                     <div className="font-medium text-text-primary truncate">{q.title}</div>
                   </div>
-                  <div className="text-caption text-neutral-muted">{list.length} 个任务</div>
+                  <div className="text-[14px] leading-[1.4] text-neutral-muted">{list.length} 个任务</div>
                 </div>
                 <div className="mt-3 space-y-1.5">
                   {list.length === 0 ? (
                     onCreateInPriority ? (
                       <button
                         type="button"
-                        className="w-full rounded-lg py-3 text-left text-[12px] text-neutral-muted transition-colors hover:bg-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        className="w-full rounded-lg py-3 text-left text-[14px] text-neutral-muted transition-colors hover:bg-white/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                         onClick={() => onCreateInPriority(q.p)}
                       >
                         暂无任务，点击添加。
                       </button>
                     ) : (
-                      <div className="text-[12px] text-neutral-muted">暂无任务。</div>
+                      <div className="text-[14px] text-neutral-muted">暂无任务。</div>
                     )
                   ) : (
                     list.slice(0, 6).map((it) => {
@@ -152,7 +152,7 @@ export function PriorityQuadrants({
                             onDragItemIdChange(null);
                             onDragOverPriorityChange(null);
                           }}
-                          className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[12px] text-text-primary transition-colors"
+                          className="w-full text-left rounded-lg bg-white/70 hover:bg-white border border-border-subtle px-2 py-1.5 text-[14px] text-text-primary transition-colors"
                           style={{
                             borderLeftColor: taskLabelStripeColor(
                               it.color,
@@ -175,14 +175,14 @@ export function PriorityQuadrants({
                                 <span className="min-w-0 flex-1 truncate font-medium leading-tight">{it.title}</span>
                                 <div className="flex shrink-0 items-center gap-1.5 min-w-0">
                                   {showProjectContext ? (
-                                    <span className="max-w-[120px] truncate text-[10px] leading-tight text-neutral-muted">
+                                    <span className="max-w-[120px] truncate text-[12px] leading-tight text-neutral-muted">
                                       {it.workspace_name} / {it.project_name}
                                     </span>
                                   ) : null}
                                   {cd && countdownClass ? (
                                     <span
                                       className={[
-                                        "shrink-0 whitespace-nowrap px-2 py-0.5 text-[10px] rounded font-bold tabular-nums leading-none",
+                                        "shrink-0 whitespace-nowrap px-2 py-0.5 text-[12px] rounded font-bold tabular-nums leading-none",
                                         countdownClass,
                                       ].join(" ")}
                                     >
@@ -192,7 +192,7 @@ export function PriorityQuadrants({
                                 </div>
                               </div>
                               {bodyText ? (
-                                <div className="line-clamp-2 text-[10px] leading-tight text-neutral-muted">
+                                <div className="line-clamp-2 text-[12px] leading-tight text-neutral-muted">
                                   {bodyText}
                                 </div>
                               ) : null}
@@ -206,7 +206,7 @@ export function PriorityQuadrants({
                     })
                   )}
                   {list.length > 6 && (
-                    <div className="text-[11px] text-neutral-muted font-medium">还有 +{list.length - 6} 个</div>
+                    <div className="text-[13px] text-neutral-muted font-medium">还有 +{list.length - 6} 个</div>
                   )}
                 </div>
               </div>

@@ -113,20 +113,20 @@ export function createScheduleMapPinElement(
   card.style.borderLeft = `3px solid ${copy.accent}`;
 
   const title = document.createElement("div");
-  title.className = "truncate text-[12px] font-semibold leading-tight";
+  title.className = "truncate text-[14px] font-semibold leading-tight";
   title.style.color = copy.foreground;
   title.textContent = copy.title;
   card.append(title);
 
   const time = document.createElement("div");
-  time.className = "mt-0.5 truncate text-[10px] leading-tight";
+  time.className = "mt-0.5 truncate text-[12px] leading-tight";
   time.style.color = copy.foreground;
   time.style.opacity = "0.82";
   time.textContent = copy.timeLabel;
   card.append(time);
 
   const status = document.createElement("div");
-  status.className = "truncate text-[10px] leading-tight";
+  status.className = "truncate text-[12px] leading-tight";
   status.style.color = copy.foreground;
   status.style.opacity = "0.82";
   status.textContent = copy.statusLabel;
@@ -134,7 +134,7 @@ export function createScheduleMapPinElement(
 
   if (copy.locationLabel) {
     const location = document.createElement("div");
-    location.className = "truncate text-[10px] leading-tight";
+    location.className = "truncate text-[12px] leading-tight";
     location.style.color = copy.foreground;
     location.style.opacity = "0.82";
     location.textContent = copy.locationLabel;
@@ -151,8 +151,8 @@ export function createScheduleMapPinElement(
       "position:absolute",
       "top:-6px",
       "right:-6px",
-      "min-width:16px",
-      "height:16px",
+      "min-width:18px",
+      "height:18px",
       "padding:0 4px",
       "border-radius:999px",
       "display:flex",
@@ -160,7 +160,7 @@ export function createScheduleMapPinElement(
       "justify-content:center",
       "background:var(--color-primary, #4f46e5)",
       "color:#fff",
-      "font-size:10px",
+      "font-size:12px",
       "font-weight:600",
       "line-height:1",
       "border:1.5px solid #fff",
@@ -246,15 +246,15 @@ export function createScheduleMapChestElement(
   const titleRow = document.createElement("div");
   titleRow.className = "flex items-center gap-2";
   const title = document.createElement("div");
-  title.className = "min-w-0 flex-1 truncate text-small font-semibold text-text-primary";
+  title.className = "min-w-0 flex-1 truncate text-[15px] leading-[1.5] font-semibold text-text-primary";
   title.textContent = copy.placeTitle;
   const badge = document.createElement("span");
   badge.className =
-    "rounded-full bg-primary/10 px-1.5 text-caption font-semibold text-primary";
+    "rounded-full bg-primary/10 px-1.5 text-[14px] leading-[1.4] font-semibold text-primary";
   badge.textContent = copy.countDisplay;
   titleRow.append(title, badge);
   const subtitle = document.createElement("div");
-  subtitle.className = "mt-0.5 truncate text-caption text-text-secondary";
+  subtitle.className = "mt-0.5 truncate text-[14px] leading-[1.4] text-text-secondary";
   subtitle.textContent = copy.countLabel;
   card.append(titleRow, subtitle);
   stack.append(card);

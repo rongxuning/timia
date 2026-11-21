@@ -49,7 +49,7 @@ export function SwimlaneKanban({
     <section className="mb-lg overflow-hidden rounded-xl border border-border-subtle bg-white">
       {!hideHeader && (
         <div className="border-b border-border-subtle p-lg">
-          <div className="text-sm font-semibold text-primary">泳道图</div>
+          <div className="text-base font-semibold text-primary">泳道图</div>
         </div>
       )}
 
@@ -66,7 +66,7 @@ export function SwimlaneKanban({
             <div className="flex min-w-0 items-center gap-2">
               <div className={`h-2 w-2 shrink-0 rounded-full ${s.dotClass}`} />
               <span className="truncate text-overline">{s.label}</span>
-              <span className="shrink-0 text-caption text-neutral-muted">({byStatus[s.key].length})</span>
+              <span className="shrink-0 text-[14px] leading-[1.4] text-neutral-muted">({byStatus[s.key].length})</span>
             </div>
             {onCreateInColumn ? (
               <button
@@ -76,7 +76,7 @@ export function SwimlaneKanban({
                 title={`在${s.label}列添加任务`}
                 aria-label={`在${s.label}列添加任务`}
               >
-                <span className="material-symbols-outlined text-[18px] leading-none">add</span>
+                <span className="material-symbols-outlined text-[20px] leading-none">add</span>
               </button>
             ) : null}
           </div>
@@ -106,7 +106,7 @@ export function SwimlaneKanban({
             }}
           >
             {byStatus[s.key].length === 0 ? (
-              <div className="text-[12px] text-neutral-muted">暂无任务。</div>
+              <div className="text-[14px] text-neutral-muted">暂无任务。</div>
             ) : (
               byStatus[s.key].map((it) => (
                 <button
@@ -137,21 +137,21 @@ export function SwimlaneKanban({
                     }
                   >
                     <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-bold ${priorityBadgeClass(it.priority)}`}
+                      className={`rounded px-2 py-0.5 text-[12px] font-bold ${priorityBadgeClass(it.priority)}`}
                     >
                       {priorityLabel(it.priority)}
                     </span>
                     {showProjectContext ? (
                       <span
-                        className="max-w-[60%] truncate text-[10px] text-neutral-muted"
+                        className="max-w-[60%] truncate text-[12px] text-neutral-muted"
                         title={`${it.workspace_name} / ${it.project_name}`}
                       >
                         {it.project_name}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-small font-medium text-text-primary">{it.title}</p>
-                  {it.body && <p className="mt-1 line-clamp-2 text-caption text-neutral-muted">{it.body}</p>}
+                  <p className="mt-2 text-[15px] leading-[1.5] font-medium text-text-primary">{it.title}</p>
+                  {it.body && <p className="mt-1 line-clamp-2 text-[14px] leading-[1.4] text-neutral-muted">{it.body}</p>}
                   <div className="mt-4 flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       {showAssigneeAvatar && it.assignee ? (
@@ -159,7 +159,7 @@ export function SwimlaneKanban({
                       ) : null}
                       {showProjectContext ? (
                         <a
-                          className="text-[10px] text-primary hover:underline"
+                          className="text-[12px] text-primary hover:underline"
                           href={`/workspace/${it.workspace_id}/projects/${it.project_id}`}
                           onClick={(e) => e.stopPropagation()}
                           title="打开所在项目"
@@ -169,8 +169,8 @@ export function SwimlaneKanban({
                       ) : null}
                     </div>
                     {formatScheduleRange(it.start_at, it.end_at) ? (
-                      <span className="flex shrink-0 items-center gap-1 text-[10px] text-neutral-muted">
-                        <span className="material-symbols-outlined text-xs">schedule</span>
+                      <span className="flex shrink-0 items-center gap-1 text-[12px] text-neutral-muted">
+                        <span className="material-symbols-outlined text-sm">schedule</span>
                         {formatScheduleRange(it.start_at, it.end_at)}
                       </span>
                     ) : null}

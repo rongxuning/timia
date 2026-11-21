@@ -90,7 +90,7 @@ export function UndatedTaskList({
     >
       <div className="shrink-0 border-b border-border-subtle p-lg">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-primary">未确认启动时间</div>
+          <div className="text-base font-semibold text-primary">未确认启动时间</div>
           {onAddTask ? (
             <button
               type="button"
@@ -99,7 +99,7 @@ export function UndatedTaskList({
               title="添加任务"
               aria-label="添加任务"
             >
-              <span className="material-symbols-outlined text-[18px] leading-none">add</span>
+              <span className="material-symbols-outlined text-[20px] leading-none">add</span>
             </button>
           ) : null}
         </div>
@@ -110,15 +110,18 @@ export function UndatedTaskList({
             value={titleQuery}
             onChange={(event) => setTitleQuery(event.target.value)}
             placeholder="搜索任务标题"
-            className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+            className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-[17px] leading-[1.6] outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
           />
         </label>
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-lg max-lg:max-h-[min(70vh,40rem)]">
         {items == null ? (
-          <div className="h-[72px] animate-pulse rounded-lg border border-border-subtle bg-surface-container-lowest" />
+          <div
+            className="animate-pulse rounded-lg border border-border-subtle bg-surface-container-lowest"
+            style={{ height: CALENDAR_TASK_CARD_HEIGHT_PX }}
+          />
         ) : visibleItems.length === 0 ? (
-          <div className="text-[12px] text-neutral-muted">
+          <div className="text-[14px] text-neutral-muted">
             {titleQuery.trim() ? "没有匹配的任务。" : "暂无任务。"}
           </div>
         ) : (

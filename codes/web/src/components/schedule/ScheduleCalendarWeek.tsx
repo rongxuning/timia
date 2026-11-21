@@ -95,8 +95,8 @@ export function ScheduleCalendarWeekHeader({
                 title={onDateHeaderClick ? "查看日视图" : undefined}
               >
                 <div className="flex min-w-0 items-center justify-between gap-1">
-                  <span className="truncate text-[10px] leading-4 text-neutral-muted">{lunarDateLabel(key)}</span>
-                  <span className="text-[11px] font-medium leading-4 text-text-primary">{day}</span>
+                  <span className="truncate text-[12px] leading-4 text-neutral-muted">{lunarDateLabel(key)}</span>
+                  <span className="text-[13px] font-medium leading-4 text-text-primary">{day}</span>
                 </div>
               </div>
             );
@@ -109,7 +109,7 @@ export function ScheduleCalendarWeekHeader({
           {week.days.map(({ key }) => (
             <div
               key={key}
-              className="border-r border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted last:border-r-0"
+              className="border-r border-border-subtle px-2 py-1 text-center text-[12px] font-medium leading-4 text-neutral-muted last:border-r-0"
             >
               {weekdayLabel(key)}
             </div>

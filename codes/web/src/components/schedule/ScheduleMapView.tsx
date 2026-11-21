@@ -146,7 +146,7 @@ export function ScheduleMapView({
       <div className="relative shrink-0 space-y-2 border-b border-border-subtle px-lg py-3">
         {view != null && placeCountLabel ? (
           <span
-            className="absolute right-lg top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-primary/10 px-2 text-small font-medium text-primary"
+            className="absolute right-lg top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-primary/10 px-2 text-[15px] leading-[1.5] font-medium text-primary"
             title={placeCountLabel}
             aria-label={placeCountLabel}
           >
@@ -154,7 +154,7 @@ export function ScheduleMapView({
           </span>
         ) : null}
         <div className="flex min-h-8 flex-wrap items-center gap-2 pr-12">
-          <span className="w-10 shrink-0 text-caption font-medium text-text-secondary">{t("status")}</span>
+          <span className="w-10 shrink-0 text-[14px] leading-[1.4] font-medium text-text-secondary">{t("status")}</span>
           {MAP_STATUS_KEYS.map((key) => {
             const selected = filters.statuses.includes(key);
             return (
@@ -163,7 +163,7 @@ export function ScheduleMapView({
                 type="button"
                 aria-pressed={selected}
                 className={[
-                  "h-8 rounded-full border px-3 text-small transition-colors",
+                  "h-8 rounded-full border px-3 text-[15px] leading-[1.5] transition-colors",
                   selected
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border-subtle bg-white text-text-secondary hover:bg-surface-container-lowest",
@@ -178,7 +178,7 @@ export function ScheduleMapView({
           })}
         </div>
         <div className="flex min-h-8 flex-wrap items-center gap-2 pr-12">
-          <span className="w-10 shrink-0 text-caption font-medium text-text-secondary">{t("scope")}</span>
+          <span className="w-10 shrink-0 text-[14px] leading-[1.4] font-medium text-text-secondary">{t("scope")}</span>
           <div className="min-w-[160px] flex-1">
             <SystemSelect
               label={t("workspace")}
@@ -212,11 +212,11 @@ export function ScheduleMapView({
           </div>
         </div>
         {error ? (
-          <div className="flex flex-wrap items-center gap-3 text-small text-error">
+          <div className="flex flex-wrap items-center gap-3 text-[15px] leading-[1.5] text-error">
             <span>{error}</span>
             <button
               type="button"
-              className="rounded-lg border border-error-container px-2 py-1 text-caption hover:bg-error-container/10"
+              className="rounded-lg border border-error-container px-2 py-1 text-[14px] leading-[1.4] hover:bg-error-container/10"
               onClick={() => setFilters((current) => ({ ...current }))}
             >
               {t("retry")}

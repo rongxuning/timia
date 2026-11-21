@@ -97,7 +97,7 @@ export function ScheduleCalendar({
     <section className="mb-lg rounded-xl border border-border-subtle bg-white">
       <div className="sticky top-0 z-30 shrink-0 bg-white shadow-sm">
         <div className="flex flex-col gap-3 p-lg sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-lg font-bold text-text-primary">
+          <div className="text-xl font-bold text-text-primary">
             {calendarTitle(calendarAnchor, calendarMode, weekStartsOn)}
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -107,7 +107,7 @@ export function ScheduleCalendar({
                   key={m.key}
                   type="button"
                   className={[
-                    "rounded-lg px-3 py-1.5 text-sm transition-colors",
+                    "rounded-lg px-3 py-1.5 text-base transition-colors",
                     calendarMode === m.key
                       ? "bg-primary text-on-primary shadow-sm"
                       : "text-text-secondary hover:bg-surface-container-lowest",
@@ -125,11 +125,11 @@ export function ScheduleCalendar({
               onClick={() => onCalendarAnchorChange(shiftCalendarAnchor(calendarAnchor, calendarMode, -1))}
               title={calendarNavStepLabel(calendarMode).split(" / ")[0]}
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              <span className="material-symbols-outlined text-[20px]">chevron_left</span>
             </button>
             <button
               type="button"
-              className="flex h-10 items-center justify-center rounded-xl border border-border-subtle px-3 text-sm transition-colors hover:bg-surface-container-lowest"
+              className="flex h-10 items-center justify-center rounded-xl border border-border-subtle px-3 text-base transition-colors hover:bg-surface-container-lowest"
               onClick={() => onCalendarAnchorChange(startOfDay(new Date()))}
               title={calendarTodayLabel(calendarMode)}
             >
@@ -141,7 +141,7 @@ export function ScheduleCalendar({
               onClick={() => onCalendarAnchorChange(shiftCalendarAnchor(calendarAnchor, calendarMode, 1))}
               title={calendarNavStepLabel(calendarMode).split(" / ")[1]}
             >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              <span className="material-symbols-outlined text-[20px]">chevron_right</span>
             </button>
           </div>
         </div>
@@ -152,7 +152,7 @@ export function ScheduleCalendar({
               <div
                 key={`${d}-${di}`}
                 className={[
-                  "border-r border-b border-border-subtle px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted",
+                  "border-r border-b border-border-subtle px-2 py-1 text-center text-[12px] font-medium leading-4 text-neutral-muted",
                   di === 0 ? "border-l border-border-subtle" : "",
                   "last:border-r-0",
                 ].join(" ")}
@@ -196,13 +196,13 @@ export function ScheduleCalendar({
           <ScheduleCalendarWeek week={calendar.weeks[0]} showHeader={false} {...bodyProps} />
         ) : null}
         {displayedMode === "week" && !calendar?.weeks[0] ? (
-          <div className="border-t border-border-subtle p-lg text-caption text-neutral-muted">加载中…</div>
+          <div className="border-t border-border-subtle p-lg text-[14px] leading-[1.4] text-neutral-muted">加载中…</div>
         ) : null}
         {displayedMode === "day" && calendar?.day ? (
           <ScheduleCalendarDay day={calendar.day} showHeader={false} {...bodyProps} />
         ) : null}
         {displayedMode === "day" && !calendar?.day ? (
-          <div className="border-t border-border-subtle p-lg text-caption text-neutral-muted">加载中…</div>
+          <div className="border-t border-border-subtle p-lg text-[14px] leading-[1.4] text-neutral-muted">加载中…</div>
         ) : null}
         {displayedMode === "year" ? (
           <ScheduleCalendarYear

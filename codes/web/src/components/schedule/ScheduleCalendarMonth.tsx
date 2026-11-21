@@ -91,10 +91,10 @@ export function ScheduleCalendarMonth({
                     title={onDateHeaderClick ? "查看日视图" : undefined}
                   >
                     <div className="flex min-w-0 items-center justify-between gap-1">
-                      <span className="truncate text-[10px] leading-4 text-neutral-muted">
+                      <span className="truncate text-[12px] leading-4 text-neutral-muted">
                         {lunarDateLabel(key)}
                       </span>
-                      <span className={in_month ? "text-[11px] font-medium leading-4 text-text-primary" : "text-[11px] leading-4"}>
+                      <span className={in_month ? "text-[13px] font-medium leading-4 text-text-primary" : "text-[13px] leading-4"}>
                         {day}
                       </span>
                     </div>

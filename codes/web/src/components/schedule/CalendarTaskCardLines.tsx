@@ -20,13 +20,13 @@ type CalendarTaskCardLinesProps = {
  * 3. 起始终止时间（浅色）
  * 4. 任务描述（浅色）
  *
- * 四行固定槽位；缺省项用等高占位。月/日/周卡面高度统一为 CALENDAR_TASK_CARD_HEIGHT_PX(72)。
+ * 四行固定槽位；缺省项用等高占位。月/日/周卡面高度统一为 CALENDAR_TASK_CARD_HEIGHT_PX(80)。
  */
 export function CalendarTaskCardLines({
   item,
   showProjectContext,
-  titleClassName = "text-[11px]",
-  metaClassName = "text-[9px]",
+  titleClassName = "text-[13px]",
+  metaClassName = "text-[11px]",
   previewStartAtIso,
   previewEndAtIso,
 }: CalendarTaskCardLinesProps) {
@@ -57,7 +57,7 @@ export function CalendarTaskCardLines({
           {item.workspace_name} / {item.project_name}
         </div>
       ) : (
-        <div className={`h-[10px] ${metaClassName}`} aria-hidden />
+        <div className={`h-[15px] ${metaClassName}`} aria-hidden />
       )}
       {timeRangeLabel ? (
         <div
@@ -69,12 +69,12 @@ export function CalendarTaskCardLines({
           {timeRangeLabel}
         </div>
       ) : (
-        <div className={`h-[10px] ${metaClassName}`} aria-hidden />
+        <div className={`h-[15px] ${metaClassName}`} aria-hidden />
       )}
       {bodyText ? (
         <div className={`truncate leading-tight text-neutral-muted/80 ${metaClassName}`}>{bodyText}</div>
       ) : (
-        <div className={`h-[10px] ${metaClassName}`} aria-hidden />
+        <div className={`h-[15px] ${metaClassName}`} aria-hidden />
       )}
     </div>
   );

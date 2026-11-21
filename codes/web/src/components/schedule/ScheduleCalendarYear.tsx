@@ -59,12 +59,12 @@ export function ScheduleCalendarYear({
           return (
             <div key={month} className="min-w-0">
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <div className="text-sm font-semibold text-text-primary">{month}月</div>
-                <div className="text-[11px] text-neutral-muted">{summary?.task_count ?? 0} 项</div>
+                <div className="text-base font-semibold text-text-primary">{month}月</div>
+                <div className="text-[13px] text-neutral-muted">{summary?.task_count ?? 0} 项</div>
               </div>
               <div className="mb-1 grid grid-cols-7 gap-0.5">
                 {weekdayHeaders.map((d, index) => (
-                  <div key={`${d}-${index}`} className="text-center text-[9px] leading-4 text-neutral-muted">
+                  <div key={`${d}-${index}`} className="text-center text-[11px] leading-4 text-neutral-muted">
                     {d}
                   </div>
                 ))}
@@ -81,7 +81,7 @@ export function ScheduleCalendarYear({
                       type="button"
                       title={`${cell.key} · ${cell.taskCount} 项`}
                       className={[
-                        "aspect-square rounded-sm text-[10px] leading-none transition-colors",
+                        "aspect-square rounded-sm text-[12px] leading-none transition-colors",
                         heatClass(cell.taskCount),
                         isToday ? "ring-1 ring-violet-600 ring-inset" : "hover:ring-1 hover:ring-primary/40",
                       ].join(" ")}
