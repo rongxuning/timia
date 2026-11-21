@@ -46,14 +46,14 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
 
   useEffect(() => {
     if (!product) return;
-    if (mode === "savings") setBalance(minorToInput(product.balance_minor, product.currency));
+    if (mode === "savings") setBalance(minorToInput(product.current_balance_minor, product.currency));
     if (mode === "investment") {
-      setValue(minorToInput(product.value_minor, product.currency));
-      setCost(signedMinorToInput(product.cost_minor, product.currency));
+      setValue(minorToInput(product.current_value_minor, product.currency));
+      setCost(signedMinorToInput(product.current_cost_minor, product.currency));
     }
     if (mode === "credit") {
-      setLimit(minorToInput(product.limit_minor, product.currency));
-      setStatement(minorToInput(product.statement_minor, product.currency));
+      setLimit(minorToInput(product.current_limit_minor, product.currency));
+      setStatement(minorToInput(product.current_statement_minor, product.currency));
       setPaidOff(product.paid_off);
       setYearMonth(nowLocalInput().slice(0, 7));
     }
@@ -99,6 +99,7 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
             balance_minor: balanceMinor,
             reason: reason.trim(),
             recorded_at,
+            timezone: timeZone,
           });
         } else if (kind === "investment") {
           const valueMinor = parseAmountToMinor(value, currency);
@@ -116,6 +117,7 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
             cost_minor: costMinor,
             reason: reason.trim(),
             recorded_at,
+            timezone: timeZone,
           });
         } else {
           const limitMinor = parseAmountToMinor(limit, currency);
@@ -134,6 +136,7 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
             paid_off: paidOff,
             reason: reason.trim(),
             recorded_at,
+            timezone: timeZone,
           });
         }
       } else if (mode === "savings" && product) {

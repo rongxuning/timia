@@ -14027,6 +14027,19 @@
               }
             ],
             "title": "Recorded At"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone",
+            "description": "Local calendar for the opening credit statement month."
           }
         },
         "type": "object",
@@ -14147,6 +14160,26 @@
             "type": "string",
             "format": "date-time",
             "title": "Recorded At"
+          },
+          "current_balance_minor": {
+            "type": "integer",
+            "title": "Current Balance Minor"
+          },
+          "current_value_minor": {
+            "type": "integer",
+            "title": "Current Value Minor"
+          },
+          "current_cost_minor": {
+            "type": "integer",
+            "title": "Current Cost Minor"
+          },
+          "current_limit_minor": {
+            "type": "integer",
+            "title": "Current Limit Minor"
+          },
+          "current_statement_minor": {
+            "type": "integer",
+            "title": "Current Statement Minor"
           }
         },
         "type": "object",
@@ -14164,7 +14197,12 @@
           "paid_off",
           "fx_missing",
           "version",
-          "recorded_at"
+          "recorded_at",
+          "current_balance_minor",
+          "current_value_minor",
+          "current_cost_minor",
+          "current_limit_minor",
+          "current_statement_minor"
         ],
         "title": "BankProductOut"
       },

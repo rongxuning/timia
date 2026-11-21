@@ -27,6 +27,11 @@ class BankProductCreate(BaseModel):
     paid_off: bool | None = None
     reason: str = Field(min_length=1, max_length=200)
     recorded_at: datetime | None = None
+    timezone: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Local calendar for the opening credit statement month.",
+    )
 
     @model_validator(mode="after")
     def kind_fields(self) -> BankProductCreate:

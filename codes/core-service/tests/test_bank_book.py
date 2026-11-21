@@ -263,6 +263,84 @@ def test_investment_and_credit_products(client_and_user):
     assert credit_detail.json()["selected"]["credit_bills"][0]["paid_off"] is True
 
 
+def test_backdated_savings_txn_keeps_latest_face(client_and_user):
+    client, headers, db, _user = client_and_user
+    account_id = _account(client, headers, "BANK0003")
+    created = client.post(
+        f"/asset-accounts/{account_id}/bank-products",
+        headers=headers,
+        json={
+            "name": "活期",
+            "product_kind": "savings",
+            "balance_minor": 100_00,
+            "reason": "开户",
+            "recorded_at": "2026-11-20T10:00:00+08:00",
+        },
+    )
+    assert created.status_code == 201, created.text
+    product = created.json()
+    today = client.post(
+        f"/asset-accounts/{account_id}/bank-products/{product['id']}/savings-txns",
+        headers=headers,
+        json={
+            "version": product["version"],
+            "balance_minor": 200_00,
+            "reason": "今天",
+            "recorded_at": "2026-11-21T12:00:00+08:00",
+            "timezone": "Asia/Shanghai",
+        },
+    )
+    assert today.status_code == 200, today.text
+    backdated = client.post(
+        f"/asset-accounts/{account_id}/bank-products/{product['id']}/savings-txns",
+        headers=headers,
+        json={
+            "version": today.json()["version"],
+            "balance_minor": 50_00,
+            "reason": "补记昨天",
+            "recorded_at": "2026-11-20T18:00:00+08:00",
+            "timezone": "Asia/Shanghai",
+        },
+    )
+    assert backdated.status_code == 200, backdated.text
+    assert backdated.json()["balance_minor"] == 200_00
+    db.expire_all()
+    count = db.scalar(
+        select(func.count()).select_from(AssetBankSavingsTxn).where(
+            AssetBankSavingsTxn.product_id == uuid.UUID(product["id"])
+        )
+    )
+    assert count == 2
+
+
+def test_credit_create_uses_local_timezone_month(client_and_user):
+    client, headers, db, _user = client_and_user
+    account_id = _account(client, headers, "BANK0004")
+    # 2026-11-01 00:30 Asia/Shanghai is still Oct 31 UTC.
+    created = client.post(
+        f"/asset-accounts/{account_id}/bank-products",
+        headers=headers,
+        json={
+            "name": "信用卡",
+            "product_kind": "credit",
+            "limit_minor": 10_000_00,
+            "statement_minor": 100_00,
+            "paid_off": False,
+            "reason": "开卡",
+            "recorded_at": "2026-11-01T00:30:00+08:00",
+            "timezone": "Asia/Shanghai",
+        },
+    )
+    assert created.status_code == 201, created.text
+    product_id = created.json()["id"]
+    db.expire_all()
+    bill = db.scalar(
+        select(AssetBankCreditBill).where(AssetBankCreditBill.product_id == uuid.UUID(product_id))
+    )
+    assert bill is not None
+    assert bill.year_month == "2026-11"
+
+
 def test_stock_account_rejected_for_bank_products(client_and_user):
     client, headers, _db, _user = client_and_user
     created = client.post(

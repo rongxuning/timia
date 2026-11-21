@@ -3286,6 +3286,11 @@ export interface components {
             reason: string;
             /** Recorded At */
             recorded_at?: string | null;
+            /**
+             * Timezone
+             * @description Local calendar for the opening credit statement month.
+             */
+            timezone?: string | null;
         };
         /** BankProductDetailOut */
         BankProductDetailOut: {
@@ -3335,6 +3340,16 @@ export interface components {
              * Format: date-time
              */
             recorded_at: string;
+            /** Current Balance Minor */
+            current_balance_minor: number;
+            /** Current Value Minor */
+            current_value_minor: number;
+            /** Current Cost Minor */
+            current_cost_minor: number;
+            /** Current Limit Minor */
+            current_limit_minor: number;
+            /** Current Statement Minor */
+            current_statement_minor: number;
         };
         /** BankProductSeriesPointOut */
         BankProductSeriesPointOut: {

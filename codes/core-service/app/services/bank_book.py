@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, tzinfo
+from datetime import date, datetime, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import HTTPException
@@ -95,7 +95,8 @@ def create_product(
             )
         )
     else:
-        year_month = moment.strftime("%Y-%m")
+        zone = _zone(payload.timezone, moment)
+        year_month = moment.astimezone(zone).strftime("%Y-%m")
         db.add(
             AssetBankCreditBill(
                 product_id=product.id,
@@ -133,16 +134,9 @@ def add_savings_txn(
     txns = list(
         db.scalars(select(AssetBankSavingsTxn).where(AssetBankSavingsTxn.product_id == product.id)).all()
     )
+    prior_balance = _prior_before_day(txns, zone, day, "balance_minor")
     same_day = [row for row in txns if _on_local_day(row.recorded_at, zone, day)]
-    prior_balance = product.balance_minor
     if same_day:
-        # Rebuild prior from the latest txn before this local day.
-        earlier = [row for row in txns if not _on_local_day(row.recorded_at, zone, day)]
-        if earlier:
-            prior = max(earlier, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
-            prior_balance = prior.balance_minor
-        else:
-            prior_balance = 0
         winner = max(same_day, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
         for extra in same_day:
             if extra.id != winner.id:
@@ -163,9 +157,7 @@ def add_savings_txn(
             )
         )
     db.flush()
-    product.balance_minor = payload.balance_minor
-    product.marked_at = moment
-    product.version += 1
+    _sync_savings_latest(db, product)
     db.commit()
     db.refresh(product)
     return _write_out(product)
@@ -195,15 +187,9 @@ def add_investment_op(
             select(AssetBankInvestmentOp).where(AssetBankInvestmentOp.product_id == product.id)
         ).all()
     )
+    prior_cost = _prior_before_day(ops, zone, day, "cost_minor")
     same_day = [row for row in ops if _on_local_day(row.recorded_at, zone, day)]
-    prior_cost = product.cost_minor
     if same_day:
-        earlier = [row for row in ops if not _on_local_day(row.recorded_at, zone, day)]
-        if earlier:
-            prior = max(earlier, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
-            prior_cost = prior.cost_minor
-        else:
-            prior_cost = 0
         winner = max(same_day, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
         for extra in same_day:
             if extra.id != winner.id:
@@ -226,10 +212,7 @@ def add_investment_op(
             )
         )
     db.flush()
-    product.value_minor = payload.value_minor
-    product.cost_minor = payload.cost_minor
-    product.marked_at = moment
-    product.version += 1
+    _sync_investment_latest(db, product)
     db.commit()
     db.refresh(product)
     return _write_out(product)
@@ -278,7 +261,36 @@ def add_credit_bill(
         existing.reason = reason
         existing.recorded_at = moment
     db.flush()
-    # Keep the card face on the latest bill by year_month then recorded_at.
+    _sync_credit_latest(db, product)
+    db.commit()
+    db.refresh(product)
+    return _write_out(product)
+
+
+def _sync_savings_latest(db: Session, product: AssetBankProduct) -> None:
+    txns = list(
+        db.scalars(select(AssetBankSavingsTxn).where(AssetBankSavingsTxn.product_id == product.id)).all()
+    )
+    latest = max(txns, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
+    product.balance_minor = latest.balance_minor
+    product.marked_at = latest.recorded_at
+    product.version += 1
+
+
+def _sync_investment_latest(db: Session, product: AssetBankProduct) -> None:
+    ops = list(
+        db.scalars(
+            select(AssetBankInvestmentOp).where(AssetBankInvestmentOp.product_id == product.id)
+        ).all()
+    )
+    latest = max(ops, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
+    product.value_minor = latest.value_minor
+    product.cost_minor = latest.cost_minor
+    product.marked_at = latest.recorded_at
+    product.version += 1
+
+
+def _sync_credit_latest(db: Session, product: AssetBankProduct) -> None:
     bills = list(
         db.scalars(
             select(AssetBankCreditBill).where(AssetBankCreditBill.product_id == product.id)
@@ -290,9 +302,20 @@ def add_credit_bill(
     product.paid_off = latest.paid_off
     product.marked_at = latest.recorded_at
     product.version += 1
-    db.commit()
-    db.refresh(product)
-    return _write_out(product)
+
+
+def _prior_before_day(rows: list, zone, day: date, field: str) -> int:
+    earlier = [row for row in rows if _local_day(row.recorded_at, zone) < day]
+    if not earlier:
+        return 0
+    prior = max(earlier, key=lambda row: (row.recorded_at, row.created_at, str(row.id)))
+    return int(getattr(prior, field))
+
+
+def _local_day(moment: datetime, zone) -> date:
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=ZoneInfo("UTC"))
+    return moment.astimezone(zone).date()
 
 
 def _bank_account(db: Session, user_id: uuid.UUID, account_id: uuid.UUID) -> AssetAccount:
@@ -369,9 +392,7 @@ def _zone(name: str | None, moment: datetime) -> tzinfo:
 
 
 def _on_local_day(moment: datetime, zone, day) -> bool:
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=ZoneInfo("UTC"))
-    return moment.astimezone(zone).date() == day
+    return _local_day(moment, zone) == day
 
 
 def _write_out(product: AssetBankProduct) -> BankProductWriteOut:

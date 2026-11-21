@@ -29,6 +29,11 @@ export type BankProduct = {
   fx_missing: boolean;
   version: number;
   recorded_at: string;
+  current_balance_minor: number;
+  current_value_minor: number;
+  current_cost_minor: number;
+  current_limit_minor: number;
+  current_statement_minor: number;
 };
 
 export type BankSeriesPoint = {

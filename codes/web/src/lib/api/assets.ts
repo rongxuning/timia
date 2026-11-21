@@ -218,6 +218,7 @@ export function createBankProduct(
     paid_off?: boolean;
     reason: string;
     recorded_at?: string;
+    timezone?: string;
   },
 ): Promise<BankProductWrite> {
   return apiFetch<BankProductWrite>(`/asset-accounts/${accountId}/bank-products`, {

@@ -29,6 +29,7 @@ class BankProductOut(BaseModel):
     name: str
     product_kind: BankProductKind
     currency: str
+    # Display-currency figures for cards and charts.
     balance_minor: int
     value_minor: int
     cost_minor: int
@@ -39,6 +40,12 @@ class BankProductOut(BaseModel):
     fx_missing: bool
     version: int
     recorded_at: datetime
+    # Native product-currency figures for edit forms (same pattern as stock current_*).
+    current_balance_minor: int
+    current_value_minor: int
+    current_cost_minor: int
+    current_limit_minor: int
+    current_statement_minor: int
 
 
 class BankSeriesPointOut(BaseModel):

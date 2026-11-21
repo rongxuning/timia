@@ -172,6 +172,11 @@ def _product_card(
             fx_missing=missing,
             version=product.version,
             recorded_at=product.marked_at,
+            current_balance_minor=product.balance_minor,
+            current_value_minor=product.value_minor,
+            current_cost_minor=product.cost_minor,
+            current_limit_minor=product.limit_minor,
+            current_statement_minor=product.statement_minor,
         ),
         missing,
     )
