@@ -100,7 +100,12 @@ def required_scope_for_request(method: str, path: str) -> str | None:
     if m == "POST" and p == "/asset-accounts":
         return "assets:write"
     if m == "POST" and p.startswith("/asset-accounts/") and (
-        p.endswith("/stocks") or p.endswith("/marks")
+        p.endswith("/stocks")
+        or p.endswith("/marks")
+        or p.endswith("/bank-products")
+        or p.endswith("/savings-txns")
+        or p.endswith("/investment-ops")
+        or p.endswith("/credit-bills")
     ):
         return "assets:write"
     if m == "PUT" and p == "/asset-fx-rates":

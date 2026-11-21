@@ -12,6 +12,11 @@ import type {
   MyAssetsView,
 } from "@/types/api/views/assets";
 import type {
+  BankDetail,
+  BankProductKind,
+  BankProductWrite,
+} from "@/types/api/views/bank";
+import type {
   StockDetail,
   StockMarket,
   StockPositionWrite,
@@ -183,6 +188,101 @@ export function fetchStockDetail(
 ): Promise<StockDetail> {
   const query = new URLSearchParams({ start, end, timezone: timeZone });
   return apiFetch<StockDetail>(`/views/me/assets/accounts/${accountId}/stocks?${query}`, { token });
+}
+
+export function fetchBankDetail(
+  token: string,
+  accountId: string,
+  start: string,
+  end: string,
+  timeZone: string,
+  productId?: string | null,
+): Promise<BankDetail> {
+  const query = new URLSearchParams({ start, end, timezone: timeZone });
+  if (productId) query.set("product_id", productId);
+  return apiFetch<BankDetail>(`/views/me/assets/accounts/${accountId}/bank?${query}`, { token });
+}
+
+export function createBankProduct(
+  token: string,
+  accountId: string,
+  body: {
+    name: string;
+    product_kind: BankProductKind;
+    currency?: string;
+    balance_minor?: number;
+    value_minor?: number;
+    cost_minor?: number;
+    limit_minor?: number;
+    statement_minor?: number;
+    paid_off?: boolean;
+    reason: string;
+    recorded_at?: string;
+    timezone?: string;
+  },
+): Promise<BankProductWrite> {
+  return apiFetch<BankProductWrite>(`/asset-accounts/${accountId}/bank-products`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function createBankSavingsTxn(
+  token: string,
+  accountId: string,
+  productId: string,
+  body: {
+    version: number;
+    balance_minor: number;
+    reason: string;
+    recorded_at?: string;
+    timezone?: string;
+  },
+): Promise<BankProductWrite> {
+  return apiFetch<BankProductWrite>(
+    `/asset-accounts/${accountId}/bank-products/${productId}/savings-txns`,
+    { token, method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export function createBankInvestmentOp(
+  token: string,
+  accountId: string,
+  productId: string,
+  body: {
+    version: number;
+    value_minor: number;
+    cost_minor: number;
+    reason: string;
+    recorded_at?: string;
+    timezone?: string;
+  },
+): Promise<BankProductWrite> {
+  return apiFetch<BankProductWrite>(
+    `/asset-accounts/${accountId}/bank-products/${productId}/investment-ops`,
+    { token, method: "POST", body: JSON.stringify(body) },
+  );
+}
+
+export function createBankCreditBill(
+  token: string,
+  accountId: string,
+  productId: string,
+  body: {
+    version: number;
+    year_month: string;
+    limit_minor: number;
+    statement_minor: number;
+    paid_off: boolean;
+    reason: string;
+    recorded_at?: string;
+  },
+): Promise<BankProductWrite> {
+  return apiFetch<BankProductWrite>(
+    `/asset-accounts/${accountId}/bank-products/${productId}/credit-bills`,
+    { token, method: "POST", body: JSON.stringify(body) },
+  );
 }
 
 export function createStockPosition(

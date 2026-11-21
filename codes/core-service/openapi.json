@@ -8019,6 +8019,312 @@
         }
       }
     },
+    "/asset-accounts/{account_id}/bank-products": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Bank Product",
+        "operationId": "post_bank_product_asset_accounts__account_id__bank_products_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankProductCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProductWriteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-accounts/{account_id}/bank-products/{product_id}/savings-txns": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Savings Txn",
+        "operationId": "post_savings_txn_asset_accounts__account_id__bank_products__product_id__savings_txns_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankSavingsTxnCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProductWriteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-accounts/{account_id}/bank-products/{product_id}/investment-ops": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Investment Op",
+        "operationId": "post_investment_op_asset_accounts__account_id__bank_products__product_id__investment_ops_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankInvestmentOpCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProductWriteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-accounts/{account_id}/bank-products/{product_id}/credit-bills": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Credit Bill",
+        "operationId": "post_credit_bill_asset_accounts__account_id__bank_products__product_id__credit_bills_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankCreditBillCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProductWriteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/asset-expenses": {
       "post": {
         "tags": [
@@ -10653,6 +10959,112 @@
         }
       }
     },
+    "/views/me/assets/accounts/{account_id}/bank": {
+      "get": {
+        "tags": [
+          "views-assets"
+        ],
+        "summary": "My Bank Account",
+        "operationId": "my_bank_account_views_me_assets_accounts__account_id__bank_get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "End"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "Asia/Shanghai",
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/views/plans": {
       "get": {
         "tags": [
@@ -13221,6 +13633,804 @@
           "display_name"
         ],
         "title": "AssignableUserOut"
+      },
+      "BankAccountOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_kind": {
+            "type": "string",
+            "title": "Account Kind"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "code",
+          "account_kind"
+        ],
+        "title": "BankAccountOut"
+      },
+      "BankCreditBillCreate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "year_month": {
+            "type": "string",
+            "maxLength": 7,
+            "minLength": 7,
+            "title": "Year Month"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Limit Minor"
+          },
+          "statement_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Statement Minor"
+          },
+          "paid_off": {
+            "type": "boolean",
+            "title": "Paid Off"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "year_month",
+          "limit_minor",
+          "statement_minor",
+          "paid_off",
+          "reason"
+        ],
+        "title": "BankCreditBillCreate"
+      },
+      "BankCreditBillOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "year_month": {
+            "type": "string",
+            "title": "Year Month"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "title": "Limit Minor"
+          },
+          "statement_minor": {
+            "type": "integer",
+            "title": "Statement Minor"
+          },
+          "paid_off": {
+            "type": "boolean",
+            "title": "Paid Off"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "year_month",
+          "limit_minor",
+          "statement_minor",
+          "paid_off",
+          "reason",
+          "recorded_at"
+        ],
+        "title": "BankCreditBillOut"
+      },
+      "BankDetailOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/BankAccountOut"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/BankSummaryOut"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/BankProductOut"
+            },
+            "type": "array",
+            "title": "Products"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/BankSeriesPointOut"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BankProductDetailOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "account",
+          "summary"
+        ],
+        "title": "BankDetailOut"
+      },
+      "BankInvestmentOpCreate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "value_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Value Minor"
+          },
+          "cost_minor": {
+            "type": "integer",
+            "title": "Cost Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "value_minor",
+          "cost_minor",
+          "reason"
+        ],
+        "title": "BankInvestmentOpCreate"
+      },
+      "BankInvestmentOpOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "value_minor": {
+            "type": "integer",
+            "title": "Value Minor"
+          },
+          "cost_minor": {
+            "type": "integer",
+            "title": "Cost Minor"
+          },
+          "cost_delta_minor": {
+            "type": "integer",
+            "title": "Cost Delta Minor"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "value_minor",
+          "cost_minor",
+          "cost_delta_minor",
+          "reason",
+          "recorded_at"
+        ],
+        "title": "BankInvestmentOpOut"
+      },
+      "BankProductCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "product_kind": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "investment",
+              "credit"
+            ],
+            "title": "Product Kind"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "default": "CNY"
+          },
+          "balance_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Minor"
+          },
+          "value_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Minor"
+          },
+          "cost_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Minor"
+          },
+          "limit_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Minor"
+          },
+          "statement_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement Minor"
+          },
+          "paid_off": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paid Off"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone",
+            "description": "Local calendar for the opening credit statement month."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "product_kind",
+          "reason"
+        ],
+        "title": "BankProductCreate"
+      },
+      "BankProductDetailOut": {
+        "properties": {
+          "product": {
+            "$ref": "#/components/schemas/BankProductOut"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/BankProductSeriesPointOut"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "savings_txns": {
+            "items": {
+              "$ref": "#/components/schemas/BankSavingsTxnOut"
+            },
+            "type": "array",
+            "title": "Savings Txns"
+          },
+          "investment_ops": {
+            "items": {
+              "$ref": "#/components/schemas/BankInvestmentOpOut"
+            },
+            "type": "array",
+            "title": "Investment Ops"
+          },
+          "credit_bills": {
+            "items": {
+              "$ref": "#/components/schemas/BankCreditBillOut"
+            },
+            "type": "array",
+            "title": "Credit Bills"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product"
+        ],
+        "title": "BankProductDetailOut"
+      },
+      "BankProductOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "product_kind": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "investment",
+              "credit"
+            ],
+            "title": "Product Kind"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "balance_minor": {
+            "type": "integer",
+            "title": "Balance Minor"
+          },
+          "value_minor": {
+            "type": "integer",
+            "title": "Value Minor"
+          },
+          "cost_minor": {
+            "type": "integer",
+            "title": "Cost Minor"
+          },
+          "floating_pnl_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floating Pnl Minor"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "title": "Limit Minor"
+          },
+          "statement_minor": {
+            "type": "integer",
+            "title": "Statement Minor"
+          },
+          "paid_off": {
+            "type": "boolean",
+            "title": "Paid Off"
+          },
+          "fx_missing": {
+            "type": "boolean",
+            "title": "Fx Missing"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "current_balance_minor": {
+            "type": "integer",
+            "title": "Current Balance Minor"
+          },
+          "current_value_minor": {
+            "type": "integer",
+            "title": "Current Value Minor"
+          },
+          "current_cost_minor": {
+            "type": "integer",
+            "title": "Current Cost Minor"
+          },
+          "current_limit_minor": {
+            "type": "integer",
+            "title": "Current Limit Minor"
+          },
+          "current_statement_minor": {
+            "type": "integer",
+            "title": "Current Statement Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "product_kind",
+          "currency",
+          "balance_minor",
+          "value_minor",
+          "cost_minor",
+          "floating_pnl_minor",
+          "limit_minor",
+          "statement_minor",
+          "paid_off",
+          "fx_missing",
+          "version",
+          "recorded_at",
+          "current_balance_minor",
+          "current_value_minor",
+          "current_cost_minor",
+          "current_limit_minor",
+          "current_statement_minor"
+        ],
+        "title": "BankProductOut"
+      },
+      "BankProductSeriesPointOut": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "primary_minor": {
+            "type": "integer",
+            "title": "Primary Minor"
+          },
+          "secondary_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "primary_minor"
+        ],
+        "title": "BankProductSeriesPointOut"
+      },
+      "BankProductWriteOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "product_kind": {
+            "type": "string",
+            "enum": [
+              "savings",
+              "investment",
+              "credit"
+            ],
+            "title": "Product Kind"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "balance_minor": {
+            "type": "integer",
+            "title": "Balance Minor"
+          },
+          "value_minor": {
+            "type": "integer",
+            "title": "Value Minor"
+          },
+          "cost_minor": {
+            "type": "integer",
+            "title": "Cost Minor"
+          },
+          "limit_minor": {
+            "type": "integer",
+            "title": "Limit Minor"
+          },
+          "statement_minor": {
+            "type": "integer",
+            "title": "Statement Minor"
+          },
+          "paid_off": {
+            "type": "boolean",
+            "title": "Paid Off"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "product_kind",
+          "currency",
+          "balance_minor",
+          "value_minor",
+          "cost_minor",
+          "limit_minor",
+          "statement_minor",
+          "paid_off",
+          "version"
+        ],
+        "title": "BankProductWriteOut"
+      },
+      "BankSavingsTxnCreate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "balance_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Balance Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "balance_minor",
+          "reason"
+        ],
+        "title": "BankSavingsTxnCreate"
+      },
+      "BankSavingsTxnOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "balance_minor": {
+            "type": "integer",
+            "title": "Balance Minor"
+          },
+          "delta_minor": {
+            "type": "integer",
+            "title": "Delta Minor"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "balance_minor",
+          "delta_minor",
+          "reason",
+          "recorded_at"
+        ],
+        "title": "BankSavingsTxnOut"
+      },
+      "BankSeriesPointOut": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "total_assets_minor": {
+            "type": "integer",
+            "title": "Total Assets Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "total_assets_minor"
+        ],
+        "title": "BankSeriesPointOut"
+      },
+      "BankSummaryOut": {
+        "properties": {
+          "display_currency": {
+            "type": "string",
+            "title": "Display Currency"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "total_assets_minor": {
+            "type": "integer",
+            "title": "Total Assets Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_currency",
+          "fx_incomplete",
+          "total_assets_minor"
+        ],
+        "title": "BankSummaryOut"
       },
       "CalendarDayDetailOut": {
         "properties": {

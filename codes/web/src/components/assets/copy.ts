@@ -234,6 +234,18 @@ export function errorText(t: AssetsT, message: string): string {
       return t("errors.amount_invalid");
     case "account_not_stock":
       return t("errors.account_not_stock");
+    case "account_not_bank":
+      return t("errors.account_not_bank");
+    case "product_kind_mismatch":
+      return t("errors.product_kind_mismatch");
+    case "balance_required":
+      return t("errors.balance_required");
+    case "investment_amounts_required":
+      return t("errors.investment_amounts_required");
+    case "credit_amounts_required":
+      return t("errors.credit_amounts_required");
+    case "year_month_invalid":
+      return t("errors.year_month_invalid");
     case "range_invalid":
       return t("errors.range_invalid");
     case "range_too_long":

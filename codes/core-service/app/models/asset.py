@@ -431,3 +431,142 @@ class AssetStockTransfer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
     reason: Mapped[str] = mapped_column(String(200), nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+_BANK_PRODUCT_KINDS = ("savings", "investment", "credit")
+
+
+class AssetBankProduct(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """One savings, investment, or credit product under a bank account."""
+
+    __tablename__ = "asset_bank_products"
+    __table_args__ = (
+        CheckConstraint(
+            _in_list("product_kind", _BANK_PRODUCT_KINDS),
+            name="ck_asset_bank_products_kind",
+        ),
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_bank_products_currency"),
+        CheckConstraint("balance_minor >= 0", name="ck_asset_bank_products_balance"),
+        CheckConstraint("value_minor >= 0", name="ck_asset_bank_products_value"),
+        CheckConstraint(
+            "cost_minor BETWEEN -9007199254740991 AND 9007199254740991",
+            name="ck_asset_bank_products_cost",
+        ),
+        CheckConstraint("limit_minor >= 0", name="ck_asset_bank_products_limit"),
+        CheckConstraint("statement_minor >= 0", name="ck_asset_bank_products_statement"),
+        Index("ix_asset_bank_products_account", "account_id"),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    product_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="CNY")
+    balance_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    value_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    cost_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    limit_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    statement_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    paid_off: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AssetBankSavingsTxn(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Absolute savings balance after one change. Same local day keeps the last txn."""
+
+    __tablename__ = "asset_bank_savings_txns"
+    __table_args__ = (
+        CheckConstraint("balance_minor >= 0", name="ck_asset_bank_savings_txns_balance"),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_bank_savings_txns_reason"),
+        Index("ix_asset_bank_savings_txns_product_time", "product_id", "recorded_at"),
+    )
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_bank_products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    balance_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    delta_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssetBankInvestmentOp(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Investment value/cost snapshot. Marks cost change on each operation."""
+
+    __tablename__ = "asset_bank_investment_ops"
+    __table_args__ = (
+        CheckConstraint("value_minor >= 0", name="ck_asset_bank_investment_ops_value"),
+        CheckConstraint(
+            "cost_minor BETWEEN -9007199254740991 AND 9007199254740991",
+            name="ck_asset_bank_investment_ops_cost",
+        ),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_bank_investment_ops_reason"),
+        Index("ix_asset_bank_investment_ops_product_time", "product_id", "recorded_at"),
+    )
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_bank_products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    value_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cost_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cost_delta_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssetBankCreditBill(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Credit statement at month grain. Same year-month replaces the prior bill."""
+
+    __tablename__ = "asset_bank_credit_bills"
+    __table_args__ = (
+        CheckConstraint("statement_minor >= 0", name="ck_asset_bank_credit_bills_statement"),
+        CheckConstraint("limit_minor >= 0", name="ck_asset_bank_credit_bills_limit"),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_bank_credit_bills_reason"),
+        CheckConstraint(
+            "year_month ~ '^[0-9]{4}-[0-9]{2}$'",
+            name="ck_asset_bank_credit_bills_year_month",
+        ),
+        Index("ix_asset_bank_credit_bills_product_month", "product_id", "year_month"),
+        UniqueConstraint("product_id", "year_month", name="uq_asset_bank_credit_bills_month"),
+    )
+
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_bank_products.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    year_month: Mapped[str] = mapped_column(String(7), nullable=False)
+    limit_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    statement_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    paid_off: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

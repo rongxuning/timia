@@ -48,6 +48,10 @@ export function AccountSection({ accounts, formatMoney, onSaved }: AccountSectio
                 <Link href={`/my/assets/stocks/${account.id}`} className={`${className} hover:border-primary`}>
                   {face}
                 </Link>
+              ) : account.account_kind === "savings" || account.account_kind === "credit" ? (
+                <Link href={`/my/assets/banks/${account.id}`} className={`${className} hover:border-primary`}>
+                  {face}
+                </Link>
               ) : (
                 <article className={className}>{face}</article>
               )}
