@@ -137,7 +137,7 @@ export function AssetsPage() {
         ) : null}
 
         <div className="grid w-full items-start gap-lg lg:grid-cols-[18.5rem_minmax(0,1fr)]">
-          <aside className="w-full space-y-3 lg:sticky lg:top-20 lg:w-[18.5rem] lg:self-start">
+          <aside className="w-full space-y-3 lg:sticky lg:top-lg lg:w-[18.5rem] lg:self-start">
             <AssetRangeCalendar
               month={month}
               today={today}
