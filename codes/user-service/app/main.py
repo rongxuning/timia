@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.routes.auth_proxy import router as auth_proxy_router
+from app.routes.google_web import router as google_web_router
 from app.routes.internal import router as internal_router
 from app.routes.wechat_web import router as wechat_web_router
 
@@ -16,8 +17,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static WeChat routes before the /auth/{path} proxy.
+# Provider routes before the /auth/{path} proxy.
 app.include_router(wechat_web_router)
+app.include_router(google_web_router)
 app.include_router(auth_proxy_router)
 app.include_router(internal_router)
 

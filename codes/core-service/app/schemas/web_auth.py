@@ -17,6 +17,17 @@ class WebLoginRequest(BaseModel):
     password: str
 
 
+class WebPhoneCodeRequest(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+
+
+class WebPhoneLoginRequest(BaseModel):
+    phone: str = Field(min_length=8, max_length=20)
+    code: str = Field(pattern=r"^\d{6}$")
+    challenge_id: uuid.UUID
+    nonce: str = Field(min_length=32, max_length=256)
+
+
 class WebRefreshRequest(BaseModel):
     request_id: str = Field(min_length=16, max_length=64)
 

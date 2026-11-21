@@ -53,26 +53,58 @@ def login_wechat_web(
     user_agent: str | None,
 ) -> tuple[str, datetime]:
     """Find or create the WeChat user and return (refresh_token, idle_expires_at)."""
+    return login_provider_web(
+        db,
+        provider="wechat",
+        provider_tenant=provider_tenant,
+        provider_subject=provider_subject,
+        display_stem="微信用户",
+        last_ip=last_ip,
+        user_agent=user_agent,
+    )
+
+
+def login_provider_web(
+    db: Session,
+    *,
+    provider: str,
+    provider_tenant: str,
+    provider_subject: str,
+    display_stem: str,
+    last_ip: str | None,
+    user_agent: str | None,
+    normalized_email: str | None = None,
+    email_verified: bool = False,
+    normalized_phone: str | None = None,
+    phone_verified: bool = False,
+) -> tuple[str, datetime]:
+    """Find or create a provider user and return (refresh_token, idle_expires_at)."""
     for _ in range(4):
         now = utcnow()
-        identity = _lock_identity(db, provider_tenant, provider_subject)
+        identity = _lock_identity(db, provider, provider_tenant, provider_subject)
         if identity is not None:
             user = _user_for_identity(db, identity)
             identity.user_id = user.id
             identity.last_login_at = now
             return _create_web_session(
-                db, user=user, last_ip=last_ip, user_agent=user_agent
+                db,
+                user=user,
+                login_provider=provider,
+                last_ip=last_ip,
+                user_agent=user_agent,
             )
         try:
             with db.begin_nested():
-                user = _create_user(db)
+                user = _create_user(db, display_stem)
                 identity = AuthIdentity(
                     user_id=user.id,
-                    provider="wechat",
+                    provider=provider,
                     provider_tenant=provider_tenant,
                     provider_subject=provider_subject,
-                    email_verified=False,
-                    phone_verified=False,
+                    normalized_email=normalized_email,
+                    normalized_phone=normalized_phone,
+                    email_verified=email_verified,
+                    phone_verified=phone_verified,
                     last_login_at=now,
                 )
                 db.add(identity)
@@ -85,16 +117,20 @@ def login_wechat_web(
             raise
         else:
             return _create_web_session(
-                db, user=user, last_ip=last_ip, user_agent=user_agent
+                db,
+                user=user,
+                login_provider=provider,
+                last_ip=last_ip,
+                user_agent=user_agent,
             )
     raise WebLoginError("identity_conflict", 409)
 
 
 def _lock_identity(
-    db: Session, provider_tenant: str, provider_subject: str
+    db: Session, provider: str, provider_tenant: str, provider_subject: str
 ) -> AuthIdentity | None:
     statement = select(AuthIdentity).where(
-        AuthIdentity.provider == "wechat",
+        AuthIdentity.provider == provider,
         AuthIdentity.provider_tenant == provider_tenant,
         AuthIdentity.provider_subject == provider_subject,
     )
@@ -148,11 +184,11 @@ def _resolve_active_user(db: Session, user: User) -> User:
     return current
 
 
-def _create_user(db: Session) -> User:
+def _create_user(db: Session, display_stem: str) -> User:
     user = User(
         email=None,
         password_hash=None,
-        display_name=_allocate_display_name(db),
+        display_name=_allocate_display_name(db, display_stem),
         status="active",
         system_role="user",
         week_starts_on=1,
@@ -162,8 +198,7 @@ def _create_user(db: Session) -> User:
     return user
 
 
-def _allocate_display_name(db: Session) -> str:
-    stem = "微信用户"
+def _allocate_display_name(db: Session, stem: str) -> str:
     for index in range(30):
         candidate = stem if index == 0 else f"{stem}-{index}"
         taken = db.scalar(select(User.id).where(User.display_name == candidate))
@@ -176,6 +211,7 @@ def _create_web_session(
     db: Session,
     *,
     user: User,
+    login_provider: str,
     last_ip: str | None,
     user_agent: str | None,
 ) -> tuple[str, datetime]:
@@ -187,7 +223,7 @@ def _create_web_session(
     )
     web_session = WebSession(
         user_id=user.id,
-        login_provider="wechat",
+        login_provider=login_provider,
         refresh_token_hash="pending",
         token_family_id=uuid.uuid4(),
         refresh_generation=0,

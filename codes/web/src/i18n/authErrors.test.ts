@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { loginErrorKey, registerErrorKey } from "./authErrors.ts";
+import { loginErrorKey, phoneLoginErrorKey, registerErrorKey } from "./authErrors.ts";
 
 describe("loginErrorKey", () => {
   it("maps 401 and invalid_credentials", () => {
@@ -25,6 +25,23 @@ describe("loginErrorKey", () => {
   it("maps fetch TypeError to networkError", () => {
     assert.equal(loginErrorKey(new TypeError("Failed to fetch")), "networkError");
     assert.equal(loginErrorKey({ status: 0, message: "Failed to fetch" }), "networkError");
+  });
+});
+
+describe("phoneLoginErrorKey", () => {
+  it("maps phone and sms failures", () => {
+    assert.equal(phoneLoginErrorKey({ status: 400, message: "invalid_phone" }), "invalidPhone");
+    assert.equal(phoneLoginErrorKey({ status: 401, message: "invalid_code" }), "invalidCode");
+    assert.equal(phoneLoginErrorKey({ status: 401, message: "invalid_challenge" }), "invalidCode");
+    assert.equal(phoneLoginErrorKey({ status: 429, message: "resend_too_soon" }), "resendTooSoon");
+    assert.equal(phoneLoginErrorKey({ status: 429, message: "phone_rate_limited" }), "phoneRateLimited");
+    assert.equal(phoneLoginErrorKey({ status: 503, message: "sms_not_configured" }), "smsUnavailable");
+    assert.equal(phoneLoginErrorKey({ status: 503, message: "sms_unavailable" }), "smsUnavailable");
+  });
+
+  it("falls back to the shared login errors", () => {
+    assert.equal(phoneLoginErrorKey(new TypeError("Failed to fetch")), "networkError");
+    assert.equal(phoneLoginErrorKey({ status: 500, message: "boom" }), "serverUnavailable");
   });
 });
 

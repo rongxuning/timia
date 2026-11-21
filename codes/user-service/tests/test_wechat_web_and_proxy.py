@@ -170,11 +170,11 @@ def test_identity_insert_race_returns_a_session(monkeypatch, db):
     original = mod._lock_identity
     calls = {"n": 0}
 
-    def miss_once(session, tenant, subject):
+    def miss_once(session, provider, tenant, subject):
         calls["n"] += 1
         if calls["n"] == 1:
             return None
-        return original(session, tenant, subject)
+        return original(session, provider, tenant, subject)
 
     monkeypatch.setattr(mod, "_lock_identity", miss_once)
     token, _expires = login_wechat_web(
@@ -219,14 +219,14 @@ def test_display_name_race_returns_the_existing_wechat_session(monkeypatch, db):
     original = mod._lock_identity
     calls = {"n": 0}
 
-    def miss_once(session, tenant, subject):
+    def miss_once(session, provider, tenant, subject):
         calls["n"] += 1
         if calls["n"] == 1:
             return None
-        return original(session, tenant, subject)
+        return original(session, provider, tenant, subject)
 
     monkeypatch.setattr(mod, "_lock_identity", miss_once)
-    monkeypatch.setattr(mod, "_allocate_display_name", lambda _db: "微信用户")
+    monkeypatch.setattr(mod, "_allocate_display_name", lambda _db, _stem: "微信用户")
     token, _expires = login_wechat_web(
         db,
         provider_tenant="wechat",

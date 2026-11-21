@@ -13,6 +13,34 @@ type RegisterErrorKey =
   | "displayNameRequired"
   | "displayNameTooLong";
 
+type PhoneLoginErrorKey =
+  | LoginErrorKey
+  | "invalidPhone"
+  | "invalidCode"
+  | "resendTooSoon"
+  | "phoneRateLimited"
+  | "smsUnavailable";
+
+const PHONE_ERROR_KEYS: Record<string, PhoneLoginErrorKey> = {
+  invalid_phone: "invalidPhone",
+  invalid_code: "invalidCode",
+  invalid_challenge: "invalidCode",
+  resend_too_soon: "resendTooSoon",
+  phone_rate_limited: "phoneRateLimited",
+  sms_not_configured: "smsUnavailable",
+  sms_unavailable: "smsUnavailable",
+};
+
+export function phoneLoginErrorKey(error: unknown): PhoneLoginErrorKey {
+  if (error && typeof error === "object") {
+    const message = (error as { message?: string }).message;
+    if (typeof message === "string" && message in PHONE_ERROR_KEYS) {
+      return PHONE_ERROR_KEYS[message];
+    }
+  }
+  return loginErrorKey(error);
+}
+
 export function loginErrorKey(error: unknown): LoginErrorKey {
   if (error instanceof TypeError) return "networkError";
   if (!error || typeof error !== "object") return "loginFailed";
