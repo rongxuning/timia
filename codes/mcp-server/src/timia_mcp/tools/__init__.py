@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from timia_mcp.config import Settings
 from timia_mcp.http_client import TimiaHttpClient
 from timia_mcp.profiles import is_tool_enabled
-from timia_mcp.tools.assets import import_stock_positions_impl
+from timia_mcp.tools.assets import (
+    get_stock_day_snapshot_impl,
+    import_stock_positions_impl,
+    upsert_asset_fx_rate_impl,
+)
 from timia_mcp.tools.comments import add_comment_impl, list_comments_impl
 from timia_mcp.tools.health import (
     get_health_metric_impl,
@@ -440,13 +444,19 @@ def register_all(mcp: _MCPApp, ctx: ToolContext) -> None:
                 "Write real stock positions into the personal asset book. "
                 "Prices are decimal strings in the listing currency, with up to three decimals. "
                 "cost_price may be negative. market is a_share or hk_share. "
-                "Uses the only stock account when account_id is omitted, or creates one named 普通交易."
+                "symbol is 1-12 letters or digits and must not include an exchange suffix. "
+                "recorded_at is an ISO datetime, or YYYY-MM-DD meaning 00:00 in the client "
+                "timezone (default Asia/Shanghai). Omit it to let the server stamp now. "
+                "An existing symbol receives a new mark instead of a second position. "
+                "Omit account_id only to use the sole stock account, or to create 普通交易. "
+                "A provided account_id is never replaced by a new account."
             ),
         )
         async def import_stock_positions(
             positions: list[dict],
             account_id: str | None = None,
             reason: str = "券商持仓导入",
+            recorded_at: str | None = None,
         ) -> str:
             return await run(
                 "import_stock_positions",
@@ -454,6 +464,53 @@ def register_all(mcp: _MCPApp, ctx: ToolContext) -> None:
                 positions=positions,
                 account_id=account_id,
                 reason=reason,
+                recorded_at=recorded_at,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "upsert_asset_fx_rate"):
+
+        @mcp.tool(
+            name="upsert_asset_fx_rate",
+            description=(
+                "Upsert one display FX rate for the personal asset book. "
+                "Writes a real rate. currency is a 3-letter code other than CNY. "
+                "cny_per_unit is how many CNY equal 1 unit of that currency, such as HKD 0.84944. "
+                "Requires assets:write."
+            ),
+        )
+        async def upsert_asset_fx_rate(currency: str, cny_per_unit: str) -> str:
+            return await run(
+                "upsert_asset_fx_rate",
+                upsert_asset_fx_rate_impl,
+                currency=currency,
+                cny_per_unit=cny_per_unit,
+            )
+
+    if is_tool_enabled(settings.tool_profile, "get_stock_day_snapshot"):
+
+        @mcp.tool(
+            name="get_stock_day_snapshot",
+            description=(
+                "Read whether a stock account already has position marks recorded on a "
+                "calendar day (YYYY-MM-DD). timezone defaults to Asia/Shanghai. "
+                "has_snapshot is true only when a mark falls on that day. "
+                "positions lists those same-day holdings: symbol, shares, cost_price_minor, "
+                "market_price_minor, currency, and recorded_at. "
+                "Earlier marks are omitted so a weekday reminder can skip a duplicate import. "
+                "Does not write balances."
+            ),
+        )
+        async def get_stock_day_snapshot(
+            account_id: str,
+            day: str,
+            timezone: str | None = None,
+        ) -> str:
+            return await run(
+                "get_stock_day_snapshot",
+                get_stock_day_snapshot_impl,
+                account_id=account_id,
+                day=day,
+                timezone=timezone or settings.default_timezone,
             )
 
     if is_tool_enabled(settings.tool_profile, "add_comment"):

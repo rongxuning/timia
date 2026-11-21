@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -46,6 +46,7 @@ class StockPositionOut(BaseModel):
     current_shares: int
     current_cost_price_minor: int
     current_market_price_minor: int
+    recorded_at: datetime
 
 
 class StockSeriesPositionOut(BaseModel):

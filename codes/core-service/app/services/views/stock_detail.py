@@ -130,6 +130,7 @@ def build_stock_detail(
             current_shares=by_id[uuid.UUID(row.position_id)].shares,
             current_cost_price_minor=by_id[uuid.UUID(row.position_id)].cost_price_minor,
             current_market_price_minor=by_id[uuid.UUID(row.position_id)].market_price_minor,
+            recorded_at=row.recorded_at,
         )
         for row in end_shot.positions
     ]

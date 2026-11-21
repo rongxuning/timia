@@ -21,6 +21,8 @@ P0_TOOLS: set[str] = {
     "list_comments",
     "add_comment",
     "import_stock_positions",
+    "upsert_asset_fx_rate",
+    "get_stock_day_snapshot",
 }
 
 P1_TOOLS: set[str] = P0_TOOLS | {

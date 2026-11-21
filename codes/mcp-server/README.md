@@ -139,7 +139,9 @@ make mcp-server-http
 | `get_activity` | `workspace:read` | Recent workspace activity |
 | `list_comments` | `workspace:read` | Comments on an item |
 | `add_comment` | `workspace:write` | Add a comment to an item |
-| `import_stock_positions` | `assets:write` | Write stock positions into the personal asset book |
+| `import_stock_positions` | `assets:write` | Write stock positions, optionally at a `recorded_at` snapshot time |
+| `upsert_asset_fx_rate` | `assets:write` | Upsert a display FX rate (CNY per 1 unit of a currency) |
+| `get_stock_day_snapshot` | `assets:read` | Whether a stock account already has marks on a calendar day |
 | `get_schedule` | `schedule:read` | Calendar items (day/week/month) |
 | `get_schedule_dashboard` | `schedule:read` | Personal schedule dashboard |
 | `list_overdue` | `schedule:read` | Overdue items |
@@ -152,7 +154,29 @@ make mcp-server-http
 | `complete_item` | `schedule:write` | Mark item done |
 | `parse_natural_language` | `schedule:write` | Parse NL text into a draft (no persist) |
 
-Default PATs include the P0 scopes above, including `assets:read` and `assets:write`. Notes, plans, and health are omitted until the token is created with those scopes. A token minted before `assets:write` existed must be recreated to import positions.
+Default PATs include the P0 scopes above, including `assets:read` and `assets:write`. Notes, plans, and health are omitted until the token is created with those scopes. A token minted before `assets:write` existed must be recreated to import positions or set FX rates.
+
+### Stock snapshots
+
+`import_stock_positions` writes real balances. Pass `recorded_at` when the snapshot belongs to a calendar day rather than the moment of the call.
+
+- `recorded_at: "2026-11-20"` is stored as `2026-11-20T00:00:00+08:00` when `TIMIA_DEFAULT_TIMEZONE` is `Asia/Shanghai`. A datetime without a zone uses that same timezone.
+- `recorded_at: "2026-11-20T16:00:00+08:00"` is stored at that instant.
+- Omit `recorded_at` and the server stamps its own clock. The tool does not substitute `now` when a value is provided.
+- `account_id` selects the stock account. When it is set, the tool never creates another account. Omit it only when the user has one stock account, or to create `普通交易`.
+- Prices stay decimal strings (`200.819` becomes minor `200819`). `cost_price` may be negative. `market` is `a_share` (CNY) or `hk_share` (HKD).
+- Symbols are 1–12 letters or digits (`300757`, not `300757.SZ`). An existing symbol on the account gets a new mark.
+- `reason` defaults to `券商持仓导入`.
+
+Check the day before importing, so a weekday 16:00 reminder does not write a duplicate:
+
+```text
+get_stock_day_snapshot(account_id, day="2026-11-20", timezone="Asia/Shanghai")
+```
+
+`has_snapshot` is true only when a mark's local time falls on that calendar day. Each position includes `symbol`, `shares`, `cost_price_minor`, `market_price_minor`, `currency`, and `recorded_at`. Marks from earlier days are left out.
+
+`upsert_asset_fx_rate` sets the display rate used to value foreign listings, for example `currency="HKD"` and `cny_per_unit="0.84944"`. CNY is fixed and cannot be set.
 
 ## P1 tools (`TIMIA_TOOL_PROFILE=p1`)
 
