@@ -148,6 +148,21 @@ describe("lineChartLayout", () => {
     assert.equal(layout.coords[0].x, (640 - 12 - 12) / 2 + 12);
   });
 
+  it("spreads the line across a wider plot", () => {
+    const layout = lineChartLayout(
+      [
+        { as_of: "2026-11-01", value: 1 },
+        { as_of: "2026-11-21", value: 2 },
+      ],
+      1200,
+      144,
+    );
+    assert.ok(layout);
+    assert.equal(layout.width, 1200);
+    assert.ok(layout.coords[0].x < 20);
+    assert.ok(layout.coords[1].x > 1180);
+  });
+
   it("returns nothing when the range has no points", () => {
     assert.equal(lineChartLayout([]), null);
   });

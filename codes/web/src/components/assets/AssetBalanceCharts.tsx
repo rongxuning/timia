@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CHART_HEIGHT,
@@ -8,7 +8,6 @@ import {
   formatChartDate,
   lineChartLayout,
   nearestChartIndex,
-  pointerXInViewBox,
   type ChartPoint,
   type DatedBalance,
 } from "@/components/assets/assetChartRange";
@@ -29,13 +28,13 @@ export function AssetBalanceCharts({ series, locale, formatMoney }: AssetBalance
   const t = useTranslations("assets");
 
   return (
-    <section className="space-y-3">
+    <section className="w-full min-w-0 space-y-3">
       {series.length === 0 ? (
         <p className="rounded-xl border border-border-subtle bg-white px-lg py-md text-small text-text-secondary">
           {t("charts.empty")}
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="w-full min-w-0 space-y-3">
           {SERIES.map((item) => (
             <BalanceChart
               key={item.key}
@@ -65,8 +64,28 @@ function BalanceChart({
   locale: string;
   formatMoney: (amountMinor: number) => string;
 }) {
-  const layout = useMemo(() => lineChartLayout(points), [points]);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [box, setBox] = useState({ width: CHART_WIDTH, height: CHART_HEIGHT });
+  const layout = useMemo(
+    () => lineChartLayout(points, box.width, box.height),
+    [points, box.width, box.height],
+  );
   const [hover, setHover] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const node = svgRef.current;
+    if (!node) return;
+    const update = () => {
+      const rect = node.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width));
+      const height = Math.max(1, Math.round(rect.height));
+      setBox((current) => (current.width === width && current.height === height ? current : { width, height }));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   if (!layout) return null;
   const { coords } = layout;
   const index = Math.min(hover ?? coords.length - 1, coords.length - 1);
@@ -74,26 +93,28 @@ function BalanceChart({
   const first = coords[0];
   const last = coords[coords.length - 1];
 
-  function moveTo(offsetX: number, width: number, height: number) {
-    const x = pointerXInViewBox(offsetX, width, height, CHART_WIDTH, CHART_HEIGHT);
-    setHover(nearestChartIndex(coords, x));
+  function moveTo(offsetX: number, width: number) {
+    if (width <= 0) return;
+    setHover(nearestChartIndex(coords, (offsetX / width) * layout.width));
   }
 
   return (
-    <article className="rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
+    <article className="w-full min-w-0 rounded-xl border border-border-subtle bg-white p-lg shadow-sm">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-small font-medium text-text-primary">{title}</h3>
         <p className="text-body tabular-nums text-text-primary">{formatMoney(active.value)}</p>
       </div>
       <p className="text-caption text-text-secondary">{formatChartDate(active.as_of, locale)}</p>
       <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className={`mt-2 h-36 w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40 ${tone}`}
+        ref={svgRef}
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        preserveAspectRatio="none"
+        className={`mt-2 block h-36 w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40 ${tone}`}
         aria-label={`${title} ${formatChartDate(first.as_of, locale)} ${formatMoney(first.value)} ${formatChartDate(last.as_of, locale)} ${formatMoney(last.value)}`}
         tabIndex={0}
         onPointerMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
-          moveTo(event.clientX - rect.left, rect.width, rect.height);
+          moveTo(event.clientX - rect.left, rect.width);
         }}
         onPointerLeave={() => setHover(null)}
         onKeyDown={(event) => {
@@ -111,6 +132,7 @@ function BalanceChart({
             fill="none"
             className="stroke-current"
             strokeWidth="2.5"
+            vectorEffect="non-scaling-stroke"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
@@ -122,6 +144,7 @@ function BalanceChart({
           y2={layout.baseline}
           className="stroke-current opacity-30"
           strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
         />
         <circle cx={active.x} cy={active.y} r="4" className="fill-current" />
       </svg>

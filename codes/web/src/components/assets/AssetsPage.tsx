@@ -126,7 +126,7 @@ export function AssetsPage() {
   }
 
   return (
-    <PageMain>
+    <PageMain fullWidth>
       <div className="min-w-0 space-y-lg pb-20">
         <h1 className="sr-only">{t("title")}</h1>
 
@@ -136,8 +136,8 @@ export function AssetsPage() {
           </p>
         ) : null}
 
-        <div className="grid items-start gap-lg lg:grid-cols-[18.5rem_minmax(0,1fr)]">
-          <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+        <div className="grid w-full items-start gap-lg lg:grid-cols-[18.5rem_minmax(0,1fr)]">
+          <aside className="w-full space-y-3 lg:sticky lg:top-20 lg:w-[18.5rem] lg:self-start">
             <AssetRangeCalendar
               month={month}
               today={today}
@@ -160,7 +160,7 @@ export function AssetsPage() {
             ) : null}
           </aside>
 
-          <div className="min-w-0 space-y-lg">
+          <div className="w-full min-w-0 space-y-lg">
             {view ? (
               <AccountSection
                 accounts={ledgerAccounts(view)}
