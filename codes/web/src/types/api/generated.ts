@@ -1817,6 +1817,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-accounts/{account_id}/bank-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Bank Product */
+        post: operations["post_bank_product_asset_accounts__account_id__bank_products_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-accounts/{account_id}/bank-products/{product_id}/savings-txns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Savings Txn */
+        post: operations["post_savings_txn_asset_accounts__account_id__bank_products__product_id__savings_txns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-accounts/{account_id}/bank-products/{product_id}/investment-ops": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Investment Op */
+        post: operations["post_investment_op_asset_accounts__account_id__bank_products__product_id__investment_ops_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-accounts/{account_id}/bank-products/{product_id}/credit-bills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Credit Bill */
+        post: operations["post_credit_bill_asset_accounts__account_id__bank_products__product_id__credit_bills_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-expenses": {
         parameters: {
             query?: never;
@@ -2337,6 +2405,23 @@ export interface paths {
         };
         /** My Stock Account */
         get: operations["my_stock_account_views_me_assets_accounts__account_id__stocks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/me/assets/accounts/{account_id}/bank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Bank Account */
+        get: operations["my_bank_account_views_me_assets_accounts__account_id__bank_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3077,6 +3162,267 @@ export interface components {
             email: string;
             /** Display Name */
             display_name: string;
+        };
+        /** BankAccountOut */
+        BankAccountOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Code */
+            code: string;
+            /** Account Kind */
+            account_kind: string;
+            /** Account Number */
+            account_number?: string | null;
+        };
+        /** BankCreditBillCreate */
+        BankCreditBillCreate: {
+            /** Version */
+            version: number;
+            /** Year Month */
+            year_month: string;
+            /** Limit Minor */
+            limit_minor: number;
+            /** Statement Minor */
+            statement_minor: number;
+            /** Paid Off */
+            paid_off: boolean;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** BankCreditBillOut */
+        BankCreditBillOut: {
+            /** Id */
+            id: string;
+            /** Year Month */
+            year_month: string;
+            /** Limit Minor */
+            limit_minor: number;
+            /** Statement Minor */
+            statement_minor: number;
+            /** Paid Off */
+            paid_off: boolean;
+            /** Reason */
+            reason: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+        };
+        /** BankDetailOut */
+        BankDetailOut: {
+            account: components["schemas"]["BankAccountOut"];
+            summary: components["schemas"]["BankSummaryOut"];
+            /** Products */
+            products?: components["schemas"]["BankProductOut"][];
+            /** Series */
+            series?: components["schemas"]["BankSeriesPointOut"][];
+            selected?: components["schemas"]["BankProductDetailOut"] | null;
+        };
+        /** BankInvestmentOpCreate */
+        BankInvestmentOpCreate: {
+            /** Version */
+            version: number;
+            /** Value Minor */
+            value_minor: number;
+            /** Cost Minor */
+            cost_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+        };
+        /** BankInvestmentOpOut */
+        BankInvestmentOpOut: {
+            /** Id */
+            id: string;
+            /** Value Minor */
+            value_minor: number;
+            /** Cost Minor */
+            cost_minor: number;
+            /** Cost Delta Minor */
+            cost_delta_minor: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+        };
+        /** BankProductCreate */
+        BankProductCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Product Kind
+             * @enum {string}
+             */
+            product_kind: "savings" | "investment" | "credit";
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Balance Minor */
+            balance_minor?: number | null;
+            /** Value Minor */
+            value_minor?: number | null;
+            /** Cost Minor */
+            cost_minor?: number | null;
+            /** Limit Minor */
+            limit_minor?: number | null;
+            /** Statement Minor */
+            statement_minor?: number | null;
+            /** Paid Off */
+            paid_off?: boolean | null;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** BankProductDetailOut */
+        BankProductDetailOut: {
+            product: components["schemas"]["BankProductOut"];
+            /** Series */
+            series?: components["schemas"]["BankProductSeriesPointOut"][];
+            /** Savings Txns */
+            savings_txns?: components["schemas"]["BankSavingsTxnOut"][];
+            /** Investment Ops */
+            investment_ops?: components["schemas"]["BankInvestmentOpOut"][];
+            /** Credit Bills */
+            credit_bills?: components["schemas"]["BankCreditBillOut"][];
+        };
+        /** BankProductOut */
+        BankProductOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Product Kind
+             * @enum {string}
+             */
+            product_kind: "savings" | "investment" | "credit";
+            /** Currency */
+            currency: string;
+            /** Balance Minor */
+            balance_minor: number;
+            /** Value Minor */
+            value_minor: number;
+            /** Cost Minor */
+            cost_minor: number;
+            /** Floating Pnl Minor */
+            floating_pnl_minor: number | null;
+            /** Limit Minor */
+            limit_minor: number;
+            /** Statement Minor */
+            statement_minor: number;
+            /** Paid Off */
+            paid_off: boolean;
+            /** Fx Missing */
+            fx_missing: boolean;
+            /** Version */
+            version: number;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+        };
+        /** BankProductSeriesPointOut */
+        BankProductSeriesPointOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Primary Minor */
+            primary_minor: number;
+            /** Secondary Minor */
+            secondary_minor?: number | null;
+        };
+        /** BankProductWriteOut */
+        BankProductWriteOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Product Kind
+             * @enum {string}
+             */
+            product_kind: "savings" | "investment" | "credit";
+            /** Currency */
+            currency: string;
+            /** Balance Minor */
+            balance_minor: number;
+            /** Value Minor */
+            value_minor: number;
+            /** Cost Minor */
+            cost_minor: number;
+            /** Limit Minor */
+            limit_minor: number;
+            /** Statement Minor */
+            statement_minor: number;
+            /** Paid Off */
+            paid_off: boolean;
+            /** Version */
+            version: number;
+        };
+        /** BankSavingsTxnCreate */
+        BankSavingsTxnCreate: {
+            /** Version */
+            version: number;
+            /** Balance Minor */
+            balance_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+        };
+        /** BankSavingsTxnOut */
+        BankSavingsTxnOut: {
+            /** Id */
+            id: string;
+            /** Balance Minor */
+            balance_minor: number;
+            /** Delta Minor */
+            delta_minor: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+        };
+        /** BankSeriesPointOut */
+        BankSeriesPointOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Total Assets Minor */
+            total_assets_minor: number;
+        };
+        /** BankSummaryOut */
+        BankSummaryOut: {
+            /** Display Currency */
+            display_currency: string;
+            /** Fx Incomplete */
+            fx_incomplete: boolean;
+            /** Total Assets Minor */
+            total_assets_minor: number;
         };
         /** CalendarDayDetailOut */
         CalendarDayDetailOut: {
@@ -11850,6 +12196,157 @@ export interface operations {
             };
         };
     };
+    post_bank_product_asset_accounts__account_id__bank_products_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankProductCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankProductWriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_savings_txn_asset_accounts__account_id__bank_products__product_id__savings_txns_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankSavingsTxnCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankProductWriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_investment_op_asset_accounts__account_id__bank_products__product_id__investment_ops_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankInvestmentOpCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankProductWriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_credit_bill_asset_accounts__account_id__bank_products__product_id__credit_bills_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankCreditBillCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankProductWriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_asset_expense_asset_expenses_post: {
         parameters: {
             query?: never;
@@ -12948,6 +13445,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StockDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_bank_account_views_me_assets_accounts__account_id__bank_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+                timezone?: string;
+                product_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankDetailOut"];
                 };
             };
             /** @description Validation Error */

@@ -565,6 +565,12 @@
       "symbol_taken": "这个代码已经在这个账户里",
       "amount_invalid": "数额不对",
       "account_not_stock": "只有股票账户可以记持仓",
+      "account_not_bank": "只有储蓄或信用账户可以记银行卡",
+      "product_kind_mismatch": "卡片类型对不上",
+      "balance_required": "请填写总资产",
+      "investment_amounts_required": "请填写总价值和成本",
+      "credit_amounts_required": "请填写额度和账单",
+      "year_month_invalid": "月份格式不对",
       "range_invalid": "时间段的起止不对",
       "range_too_long": "时间段太长了",
       "timezone_invalid": "无法识别这个时区"
@@ -639,6 +645,39 @@
       "summary": "汇总",
       "symbol": "代码",
       "direction": "方向"
+    },
+    "bankDetail": {
+      "title": "银行账户",
+      "addCard": "添加卡片",
+      "cardName": "名称",
+      "cardType": "类型",
+      "update": "更新",
+      "updateSavings": "记余额",
+      "updateInvestment": "记投资",
+      "updateCredit": "记账单",
+      "totalAssets": "总资产",
+      "totalValue": "总价值",
+      "cost": "成本",
+      "costDelta": "成本变化",
+      "floatingPnl": "浮动盈亏",
+      "creditLimit": "总额度",
+      "monthBill": "当月账单",
+      "paidOff": "是否还清",
+      "yes": "已还清",
+      "no": "未还清",
+      "yearMonth": "账单月份",
+      "txns": "交易明细",
+      "txnsEmpty": "还没有交易记录。",
+      "ops": "投资操作明细",
+      "opsEmpty": "还没有投资操作。",
+      "bills": "账单明细",
+      "billsEmpty": "还没有账单。",
+      "missingFx": "有卡片还没有汇率，汇总里暂时没算上。",
+      "kinds": {
+        "savings": "储蓄",
+        "investment": "投资",
+        "credit": "信用"
+      }
     }
   }
 }

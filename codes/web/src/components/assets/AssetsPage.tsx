@@ -16,7 +16,10 @@ import {
   type DateRange,
 } from "@/components/assets/assetChartRange";
 import { errorText } from "@/components/assets/copy";
-import { primeStockAccountNameForBreadcrumb } from "@/components/Breadcrumbs";
+import {
+  primeBankAccountNameForBreadcrumb,
+  primeStockAccountNameForBreadcrumb,
+} from "@/components/Breadcrumbs";
 import { PageMain } from "@/components/layout";
 import { fetchMyAssets } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
@@ -105,6 +108,9 @@ export function AssetsPage() {
   useEffect(() => {
     for (const account of ledgerAccounts(view)) {
       if (account.account_kind === "stock") primeStockAccountNameForBreadcrumb(account.id, account.name);
+      if (account.account_kind === "savings" || account.account_kind === "credit") {
+        primeBankAccountNameForBreadcrumb(account.id, account.name);
+      }
     }
   }, [view]);
 

@@ -565,6 +565,12 @@
       "symbol_taken": "This symbol is already on the account",
       "amount_invalid": "That amount is not valid",
       "account_not_stock": "Positions belong on a stock account",
+      "account_not_bank": "Bank cards belong on a savings or credit account",
+      "product_kind_mismatch": "That card type does not match",
+      "balance_required": "Enter the total balance",
+      "investment_amounts_required": "Enter value and cost",
+      "credit_amounts_required": "Enter the limit and statement",
+      "year_month_invalid": "That month is not valid",
       "range_invalid": "That date range is not valid",
       "range_too_long": "That date range is too long",
       "timezone_invalid": "That time zone is not recognized"
@@ -639,6 +645,39 @@
       "summary": "Summary",
       "symbol": "Symbol",
       "direction": "Direction"
+    },
+    "bankDetail": {
+      "title": "Bank account",
+      "addCard": "Add card",
+      "cardName": "Name",
+      "cardType": "Type",
+      "update": "Update",
+      "updateSavings": "Record balance",
+      "updateInvestment": "Record investment",
+      "updateCredit": "Record statement",
+      "totalAssets": "Total assets",
+      "totalValue": "Total value",
+      "cost": "Cost",
+      "costDelta": "Cost change",
+      "floatingPnl": "Floating P&L",
+      "creditLimit": "Credit limit",
+      "monthBill": "This month's bill",
+      "paidOff": "Paid off",
+      "yes": "Paid",
+      "no": "Unpaid",
+      "yearMonth": "Statement month",
+      "txns": "Transactions",
+      "txnsEmpty": "No transactions yet.",
+      "ops": "Investment activity",
+      "opsEmpty": "No investment activity yet.",
+      "bills": "Statements",
+      "billsEmpty": "No statements yet.",
+      "missingFx": "A card is missing an exchange rate, so it is left out of the totals.",
+      "kinds": {
+        "savings": "Savings",
+        "investment": "Investment",
+        "credit": "Credit"
+      }
     }
   }
 }

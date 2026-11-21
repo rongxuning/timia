@@ -110,6 +110,17 @@ export function primeStockAccountNameForBreadcrumb(accountId: string, name: stri
   notifyBreadcrumbNameCache();
 }
 
+const bankAccountNameCache = new Map<string, { label: string }>();
+
+/** 银行账户详情的面包屑用账户名，不用路径里的 id。 */
+export function primeBankAccountNameForBreadcrumb(accountId: string, name: string) {
+  const n = name?.trim();
+  if (!accountId || !n) return;
+  if (bankAccountNameCache.get(accountId)?.label === n) return;
+  bankAccountNameCache.set(accountId, { label: n });
+  notifyBreadcrumbNameCache();
+}
+
 type BreadcrumbsProps = {
   className?: string;
   labelBySegment?: Record<string, string>;
@@ -328,6 +339,16 @@ function BreadcrumbsInner({
       if (prev === "stocks" && looksLikeOpaqueId(segment)) {
         href += `/${segment}`;
         const accountName = stockAccountNameCache.get(segment)?.label;
+        if (accountName) out.push({ href, label: accountName });
+        continue;
+      }
+      if (segment === "banks" && prev === "assets") {
+        href += `/${segment}`;
+        continue;
+      }
+      if (prev === "banks" && looksLikeOpaqueId(segment)) {
+        href += `/${segment}`;
+        const accountName = bankAccountNameCache.get(segment)?.label;
         if (accountName) out.push({ href, label: accountName });
         continue;
       }
