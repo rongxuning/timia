@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { layoutStockTrend, trendDirection } from "./stockTrendLayout.ts";
+import { daysBetween, layoutStockTrend, trendDirection } from "./stockTrendLayout.ts";
 
+const days = ["2026-11-13", "2026-11-14", "2026-11-15", "2026-11-16"];
 const series = [
   { id: "market", scale: "money", values: [10, 30, 30, 5] },
   { id: "pnl", scale: "money", signed: true, values: [2, null, 4, -1] },
@@ -9,7 +10,7 @@ const series = [
 
 describe("layoutStockTrend", () => {
   it("joins each day with a straight segment and a dot", () => {
-    const layout = layoutStockTrend(["d1", "d2", "d3", "d4"], series);
+    const layout = layoutStockTrend(days, series);
     assert.ok(layout);
     const market = layout.segments.filter((segment) => segment.id.startsWith("market-"));
     assert.deepEqual(
@@ -24,7 +25,7 @@ describe("layoutStockTrend", () => {
   });
 
   it("draws a solid frame and a dashed guide on every day", () => {
-    const layout = layoutStockTrend(["d1", "d2", "d3", "d4"], series);
+    const layout = layoutStockTrend(days, series);
     assert.ok(layout);
     assert.equal(layout.axisX.y1, layout.axisX.y2);
     assert.equal(layout.axisY.x1, layout.axisY.x2);
@@ -35,7 +36,7 @@ describe("layoutStockTrend", () => {
     assert.ok(layout.yTicks.every((tick) => tick.y >= layout.plot.top && tick.y <= layout.plot.bottom));
     assert.deepEqual(
       layout.xTicks.map((tick) => tick.date),
-      ["d1", "d2", "d3", "d4"],
+      days,
     );
     assert.ok(layout.xTicks[0] && layout.xTicks[3] && layout.xTicks[3].x > layout.xTicks[0].x);
   });
@@ -47,6 +48,21 @@ describe("layoutStockTrend", () => {
     );
     assert.ok(layout);
     assert.equal(layout.yTicks.some((tick) => Object.is(tick.value, 0)), true);
+  });
+
+  it("leaves a gap when the two days are not next to each other", () => {
+    const layout = layoutStockTrend(
+      ["2026-11-13", "2026-11-16", "2026-11-17"],
+      [{ id: "market", scale: "money", values: [10, 40, 20] }],
+    );
+    assert.ok(layout);
+    assert.deepEqual(
+      layout.segments.map((segment) => segment.id),
+      ["market-1-2"],
+    );
+    assert.equal(layout.dots.length, 3);
+    assert.equal(daysBetween("2026-11-13", "2026-11-14"), 1);
+    assert.equal(daysBetween("2026-11-13", "2026-11-16"), 3);
   });
 
   it("names an upward move up and a downward move down", () => {

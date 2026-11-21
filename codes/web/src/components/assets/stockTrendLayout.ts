@@ -94,7 +94,8 @@ export function layoutStockTrend(
         return;
       }
       const current = { index, x: point.x, y: yOf(value), value };
-      if (previous) {
+      const previousDate = previous == null ? undefined : categories[previous.index];
+      if (previous && previousDate && daysBetween(previousDate, categories[index]) === 1) {
         segments.push({
           id: `${item.id}-${previous.index}-${index}`,
           x1: previous.x,
@@ -161,6 +162,14 @@ export function layoutStockTrend(
 
 export function trendDirection(previous: number, next: number): TrendDirection {
   return direction(previous, next);
+}
+
+/** Whole calendar days from `start` to `end`. Unparseable dates do not count as adjacent. */
+export function daysBetween(start: string, end: string): number | null {
+  const left = Date.parse(`${start}T00:00:00Z`);
+  const right = Date.parse(`${end}T00:00:00Z`);
+  if (Number.isNaN(left) || Number.isNaN(right)) return null;
+  return Math.round((right - left) / 86_400_000);
 }
 
 function direction(previous: number, next: number): TrendDirection {

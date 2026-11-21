@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { chartAxisDates, formatChartDate, nearestChartIndex, pointerXInViewBox } from "@/components/assets/assetChartRange";
-import {
-  layoutStockTrend,
-  type TrendDirection,
-  type TrendDot,
-} from "@/components/assets/stockTrendLayout";
+import { layoutStockTrend, type TrendDirection } from "@/components/assets/stockTrendLayout";
 
 export type TrendSeries = {
   id: string;
@@ -163,7 +159,7 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
           />
         ))}
         {layout.dots.map((dot) => (
-          <circle key={dot.id} cx={dot.cx} cy={dot.cy} r="3.5" className={`fill-current ${dotTone(dot)}`} />
+          <circle key={dot.id} cx={dot.cx} cy={dot.cy} r="3.5" className="fill-current text-primary" />
         ))}
         <line
           x1={activeX}
@@ -181,13 +177,4 @@ function valueTone(item: TrendSeries, value: number | null): string {
   if (!item.signed) return item.tone;
   if (value == null || value === 0) return "text-text-primary";
   return value > 0 ? "text-error" : "text-success";
-}
-
-function dotTone(dot: TrendDot): string {
-  if (dot.signed) {
-    if (dot.value > 0) return "text-error";
-    if (dot.value < 0) return "text-success";
-    return "text-text-secondary";
-  }
-  return DIRECTION_TONE[dot.direction];
 }
