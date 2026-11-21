@@ -220,8 +220,8 @@ export function ScheduleMapFanOverlay({
                 transition: motion === "drag" ? "none" : `top ${duration}ms ease-out, transform ${duration}ms ease-out, opacity ${duration}ms ease-out`,
               }}
             >
-              <div className="truncate text-[11px] font-semibold leading-tight">{item.title}</div>
-              <div className="mt-0.5 truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
+              <div className="truncate text-[13px] font-semibold leading-tight">{item.title}</div>
+              <div className="mt-0.5 truncate text-[12px] leading-tight" style={{ opacity: 0.82 }}>
                 {time}
               </div>
             </button>
@@ -247,7 +247,7 @@ export function ScheduleMapFanOverlay({
           >
             {badge ? (
               <span
-                className="absolute -right-1.5 -top-1.5 z-[1] flex h-4 min-w-4 items-center justify-center rounded-full border-[1.5px] border-white bg-primary px-1 text-[10px] font-semibold leading-none text-white"
+                className="absolute -right-1.5 -top-1.5 z-[1] flex h-5 min-w-5 items-center justify-center rounded-full border-[1.5px] border-white bg-primary px-1 text-[12px] font-semibold leading-none text-white"
                 aria-label={countAria(count)}
               >
                 {badge}
@@ -264,15 +264,15 @@ export function ScheduleMapFanOverlay({
                 borderLeftWidth: 3,
               }}
             >
-              <div className="truncate text-[12px] font-semibold leading-tight">{selected.title}</div>
-              <div className="mt-0.5 truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
+              <div className="truncate text-[14px] font-semibold leading-tight">{selected.title}</div>
+              <div className="mt-0.5 truncate text-[12px] leading-tight" style={{ opacity: 0.82 }}>
                 {selectedTime}
               </div>
-              <div className="truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
+              <div className="truncate text-[12px] leading-tight" style={{ opacity: 0.82 }}>
                 {selectedStatus}
               </div>
               {selected.location?.trim() ? (
-                <div className="truncate text-[10px] leading-tight" style={{ opacity: 0.82 }}>
+                <div className="truncate text-[12px] leading-tight" style={{ opacity: 0.82 }}>
                   {selected.location.trim()}
                 </div>
               ) : null}

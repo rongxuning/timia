@@ -8,10 +8,10 @@ type AssigneeAvatarProps = {
 export function AssigneeAvatar({ displayName, size = "default" }: AssigneeAvatarProps) {
   const sizeClass =
     size === "compact"
-      ? "h-4 w-4 text-[8px]"
+      ? "h-4 w-4 text-[10px]"
       : size === "large"
-        ? "h-6 w-6 text-[10px]"
-        : "h-5 w-5 text-[9px]";
+        ? "h-6 w-6 text-[12px]"
+        : "h-5 w-5 text-[11px]";
 
   const name = displayName?.trim() ?? "";
   const letter = (name.slice(0, 1) || "?").toUpperCase();

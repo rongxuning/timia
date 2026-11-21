@@ -320,7 +320,7 @@ export function ScheduleBoard({
   }
 
   if (loading && !calendar) {
-    return <div className="text-small text-text-secondary py-xl text-center">加载中…</div>;
+    return <div className="text-[15px] leading-[1.5] text-text-secondary py-xl text-center">加载中…</div>;
   }
 
   const priorityView = (
@@ -370,7 +370,7 @@ export function ScheduleBoard({
   return (
     <>
       {error && (
-        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-small text-error">
+        <div className="mb-lg rounded-xl border border-error-container bg-error-container/10 p-lg text-[15px] leading-[1.5] text-error">
           {error}
         </div>
       )}
@@ -382,7 +382,7 @@ export function ScheduleBoard({
           aria-live="polite"
           className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4"
         >
-          <div className="pointer-events-auto max-w-sm rounded-xl bg-text-primary text-on-primary px-4 py-2 text-small shadow-lg opacity-95">
+          <div className="pointer-events-auto max-w-sm rounded-xl bg-text-primary text-on-primary px-4 py-2 text-[15px] leading-[1.5] shadow-lg opacity-95">
             {toastMessage}
           </div>
         </div>

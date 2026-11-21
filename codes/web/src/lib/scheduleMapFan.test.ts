@@ -126,9 +126,9 @@ describe("scheduleMapReelSide", () => {
 });
 
 describe("schedule map card size", () => {
-  it("keeps the main card at a compact 148 by 70", () => {
+  it("keeps the main card at 148 by 80", () => {
     assert.equal(SCHEDULE_MAP_CARD_WIDTH, 148);
-    assert.equal(SCHEDULE_MAP_CARD_HEIGHT, 70);
+    assert.equal(SCHEDULE_MAP_CARD_HEIGHT, 80);
   });
 });
 

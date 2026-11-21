@@ -42,13 +42,13 @@ export function ScheduleCalendarDayHeader({
       <div className="flex border-b border-border-subtle">
         <div className="w-14 shrink-0 border-r border-border-subtle bg-surface" aria-hidden />
         <div className="flex min-h-7 min-w-0 flex-1 items-center justify-between gap-1 px-1.5 py-1">
-          <span className="truncate text-[10px] leading-4 text-neutral-muted">{lunarDateLabel(day.key)}</span>
-          <span className="text-[11px] font-medium leading-4 text-text-primary">{dayOfMonth}</span>
+          <span className="truncate text-[12px] leading-4 text-neutral-muted">{lunarDateLabel(day.key)}</span>
+          <span className="text-[13px] font-medium leading-4 text-text-primary">{dayOfMonth}</span>
         </div>
       </div>
       <div className="flex bg-violet-50/80">
         <div className="w-14 shrink-0 border-r border-border-subtle" aria-hidden />
-        <div className="min-w-0 flex-1 px-2 py-1 text-center text-[10px] font-medium leading-4 text-neutral-muted">
+        <div className="min-w-0 flex-1 px-2 py-1 text-center text-[12px] font-medium leading-4 text-neutral-muted">
           {weekdayLabel(day.key)}
         </div>
       </div>

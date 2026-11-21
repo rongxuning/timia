@@ -154,7 +154,7 @@ export function taskLabelStripeColor(color: string | null | undefined, fallback:
 }
 
 /** 日历任务卡片固定高度（px），月/周/日视图统一 */
-export const CALENDAR_TASK_CARD_HEIGHT_PX = 72;
+export const CALENDAR_TASK_CARD_HEIGHT_PX = 80;
 /** 日历任务条单行高度（px），与 gridAutoRows 一致 */
 export const CALENDAR_LANE_HEIGHT_PX = CALENDAR_TASK_CARD_HEIGHT_PX;
 export const CALENDAR_LANE_GAP_PX = 4;

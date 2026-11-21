@@ -81,7 +81,7 @@ export function CalendarTaskBar({
       }
       onDragEnd={draggable && onDragEnd ? () => onDragEnd(item) : undefined}
       className={[
-        "relative flex h-full min-h-0 w-full items-center text-left text-[10px] min-w-0 border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm overflow-hidden",
+        "relative flex h-full min-h-0 w-full items-center text-left text-[12px] min-w-0 border-solid hover:brightness-[0.97] transition-[filter] z-[2] shadow-sm overflow-hidden",
         showLabel ? "p-0" : "px-1 py-0.5",
         draggable ? "cursor-grab active:cursor-grabbing" : "",
         isDragging ? "opacity-40" : "",

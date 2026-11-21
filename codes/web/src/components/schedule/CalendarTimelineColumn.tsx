@@ -213,7 +213,7 @@ export function CalendarTimelineColumn({
       {blocks.length === 0 && emptyLabel ? (
         <div
           className={[
-            "absolute inset-y-0 flex items-center justify-center p-1 text-center text-[10px] text-neutral-muted pointer-events-none",
+            "absolute inset-y-0 flex items-center justify-center p-1 text-center text-[12px] text-neutral-muted pointer-events-none",
             isGridSlot ? "left-0" : "inset-x-0",
           ].join(" ")}
           style={isGridSlot ? { width: `${gridColWidthPct}%` } : undefined}
@@ -307,7 +307,7 @@ export function CalendarTimelineColumn({
               height: 0,
             }}
           >
-            <div className="-translate-y-1/2 rounded-r-md bg-primary px-1.5 py-px text-[10px] font-semibold tabular-nums text-on-primary shadow">
+            <div className="-translate-y-1/2 rounded-r-md bg-primary px-1.5 py-px text-[12px] font-semibold tabular-nums text-on-primary shadow">
               {formatFloatHour(dragOverHour)}
             </div>
             <div className="-translate-y-1/2 ml-0 h-0.5 flex-1 bg-primary/50" />

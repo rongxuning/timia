@@ -27,8 +27,8 @@ export function CalendarTaskCard({
   previewEndAtIso,
   showStatusControl = true,
 }: CalendarTaskCardProps) {
-  const titleClassName = compact ? "text-[10px]" : "text-[11px]";
-  const metaClassName = compact ? "text-[9px]" : "text-[10px]";
+  const titleClassName = compact ? "text-[12px]" : "text-[13px]";
+  const metaClassName = compact ? "text-[11px]" : "text-[12px]";
 
   return (
     <div className="relative flex h-full min-h-0 w-full min-w-0 items-start gap-1.5 p-1">
@@ -54,7 +54,7 @@ export function CalendarTaskCard({
         <AssigneeAvatar displayName={item.assignee?.display_name} size="compact" />
       </div>
       <div
-        className="pointer-events-none absolute bottom-1 right-1 text-[9px] font-medium tabular-nums opacity-80"
+        className="pointer-events-none absolute bottom-1 right-1 text-[11px] font-medium tabular-nums opacity-80"
         title={priorityLabel(item.priority)}
         aria-label={priorityLabel(item.priority)}
       >
