@@ -11,6 +11,10 @@ from app.models.asset import (
     AssetHolding,
     AssetParty,
     AssetProfile,
+    AssetStockCash,
+    AssetStockMark,
+    AssetStockPosition,
+    AssetStockTransfer,
 )
 from app.models.comment import Comment
 from app.models.health import (
@@ -67,6 +71,10 @@ __all__ = [
     "AssetHolding",
     "AssetParty",
     "AssetProfile",
+    "AssetStockCash",
+    "AssetStockMark",
+    "AssetStockPosition",
+    "AssetStockTransfer",
     "Comment",
     "HealthInsightDaily",
     "HealthMetricsDaily",

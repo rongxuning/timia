@@ -7747,6 +7747,278 @@
         }
       }
     },
+    "/asset-accounts/{account_id}/stocks": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Stock",
+        "operationId": "post_stock_asset_accounts__account_id__stocks_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockPositionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockPositionWriteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-accounts/{account_id}/stocks/{position_id}/marks": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Stock Mark",
+        "operationId": "post_stock_mark_asset_accounts__account_id__stocks__position_id__marks_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "position_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Position Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockMarkCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockPositionWriteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-accounts/{account_id}/stock-cash": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Stock Cash",
+        "operationId": "post_stock_cash_asset_accounts__account_id__stock_cash_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockCashCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-accounts/{account_id}/stock-transfers": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Stock Transfer",
+        "operationId": "post_stock_transfer_asset_accounts__account_id__stock_transfers_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockTransferCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/asset-expenses": {
       "post": {
         "tags": [
@@ -10275,6 +10547,95 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MyAssetsViewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/views/me/assets/accounts/{account_id}/stocks": {
+      "get": {
+        "tags": [
+          "views-assets"
+        ],
+        "summary": "My Stock Account",
+        "operationId": "my_stock_account_views_me_assets_accounts__account_id__stocks_get",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "End"
+            }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "Asia/Shanghai",
+              "title": "Timezone"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockDetailOut"
                 }
               }
             }
@@ -23277,6 +23638,594 @@
         "type": "object",
         "title": "StickyNoteUpdate",
         "description": "Only the editable fields; everything else is append-only."
+      },
+      "StockAccountOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "code"
+        ],
+        "title": "StockAccountOut"
+      },
+      "StockCashCreate": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "StockCashCreate"
+      },
+      "StockDetailOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/StockAccountOut"
+          },
+          "flow": {
+            "$ref": "#/components/schemas/StockFlowOut"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/StockPositionOut"
+            },
+            "type": "array",
+            "title": "Positions"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/StockSeriesPointOut"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account",
+          "flow"
+        ],
+        "title": "StockDetailOut"
+      },
+      "StockFlowOut": {
+        "properties": {
+          "display_currency": {
+            "type": "string",
+            "title": "Display Currency"
+          },
+          "fx_incomplete": {
+            "type": "boolean",
+            "title": "Fx Incomplete"
+          },
+          "net_assets_minor": {
+            "type": "integer",
+            "title": "Net Assets Minor"
+          },
+          "total_cost_minor": {
+            "type": "integer",
+            "title": "Total Cost Minor"
+          },
+          "total_assets_minor": {
+            "type": "integer",
+            "title": "Total Assets Minor"
+          },
+          "market_value_minor": {
+            "type": "integer",
+            "title": "Market Value Minor"
+          },
+          "cash_minor": {
+            "type": "integer",
+            "title": "Cash Minor"
+          },
+          "liability_minor": {
+            "type": "integer",
+            "title": "Liability Minor"
+          },
+          "show_liability": {
+            "type": "boolean",
+            "title": "Show Liability"
+          },
+          "gain_minor": {
+            "type": "integer",
+            "title": "Gain Minor"
+          },
+          "show_gain": {
+            "type": "boolean",
+            "title": "Show Gain"
+          },
+          "bank_to_securities_minor": {
+            "type": "integer",
+            "title": "Bank To Securities Minor"
+          },
+          "securities_to_bank_minor": {
+            "type": "integer",
+            "title": "Securities To Bank Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_currency",
+          "fx_incomplete",
+          "net_assets_minor",
+          "total_cost_minor",
+          "total_assets_minor",
+          "market_value_minor",
+          "cash_minor",
+          "liability_minor",
+          "show_liability",
+          "gain_minor",
+          "show_gain",
+          "bank_to_securities_minor",
+          "securities_to_bank_minor"
+        ],
+        "title": "StockFlowOut"
+      },
+      "StockMarkCreate": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "shares": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Shares"
+          },
+          "cost_price_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Cost Price Minor"
+          },
+          "market_price_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Market Price Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "shares",
+          "cost_price_minor",
+          "market_price_minor",
+          "reason"
+        ],
+        "title": "StockMarkCreate"
+      },
+      "StockPositionCreate": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 1,
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "a_share",
+              "hk_share"
+            ],
+            "title": "Market"
+          },
+          "shares": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Shares"
+          },
+          "cost_price_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Cost Price Minor"
+          },
+          "market_price_minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Market Price Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "name",
+          "market",
+          "shares",
+          "cost_price_minor",
+          "market_price_minor",
+          "reason"
+        ],
+        "title": "StockPositionCreate"
+      },
+      "StockPositionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "a_share",
+              "hk_share"
+            ],
+            "title": "Market"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "shares": {
+            "type": "integer",
+            "title": "Shares"
+          },
+          "cost_price_minor": {
+            "type": "integer",
+            "title": "Cost Price Minor"
+          },
+          "market_price_minor": {
+            "type": "integer",
+            "title": "Market Price Minor"
+          },
+          "market_value_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Value Minor"
+          },
+          "total_pnl_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pnl Minor"
+          },
+          "period_pnl_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Pnl Minor"
+          },
+          "fx_missing": {
+            "type": "boolean",
+            "title": "Fx Missing"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "current_shares": {
+            "type": "integer",
+            "title": "Current Shares"
+          },
+          "current_cost_price_minor": {
+            "type": "integer",
+            "title": "Current Cost Price Minor"
+          },
+          "current_market_price_minor": {
+            "type": "integer",
+            "title": "Current Market Price Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "name",
+          "market",
+          "currency",
+          "shares",
+          "cost_price_minor",
+          "market_price_minor",
+          "market_value_minor",
+          "total_pnl_minor",
+          "period_pnl_minor",
+          "fx_missing",
+          "version",
+          "current_shares",
+          "current_cost_price_minor",
+          "current_market_price_minor"
+        ],
+        "title": "StockPositionOut"
+      },
+      "StockPositionWriteOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "a_share",
+              "hk_share"
+            ],
+            "title": "Market"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "shares": {
+            "type": "integer",
+            "title": "Shares"
+          },
+          "cost_price_minor": {
+            "type": "integer",
+            "title": "Cost Price Minor"
+          },
+          "market_price_minor": {
+            "type": "integer",
+            "title": "Market Price Minor"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "symbol",
+          "name",
+          "market",
+          "currency",
+          "shares",
+          "cost_price_minor",
+          "market_price_minor",
+          "version"
+        ],
+        "title": "StockPositionWriteOut"
+      },
+      "StockSeriesPointOut": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "net_assets_minor": {
+            "type": "integer",
+            "title": "Net Assets Minor"
+          },
+          "total_cost_minor": {
+            "type": "integer",
+            "title": "Total Cost Minor"
+          },
+          "market_value_minor": {
+            "type": "integer",
+            "title": "Market Value Minor"
+          },
+          "cash_minor": {
+            "type": "integer",
+            "title": "Cash Minor"
+          },
+          "liability_minor": {
+            "type": "integer",
+            "title": "Liability Minor"
+          },
+          "gain_minor": {
+            "type": "integer",
+            "title": "Gain Minor"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/StockSeriesPositionOut"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of",
+          "net_assets_minor",
+          "total_cost_minor",
+          "market_value_minor",
+          "cash_minor",
+          "liability_minor",
+          "gain_minor"
+        ],
+        "title": "StockSeriesPointOut"
+      },
+      "StockSeriesPositionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "market_value_minor": {
+            "type": "integer",
+            "title": "Market Value Minor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "market_value_minor"
+        ],
+        "title": "StockSeriesPositionOut"
+      },
+      "StockTransferCreate": {
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "bank_to_securities",
+              "securities_to_bank"
+            ],
+            "title": "Direction"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "direction",
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "StockTransferCreate"
       },
       "TaskDrawerContextOut": {
         "properties": {

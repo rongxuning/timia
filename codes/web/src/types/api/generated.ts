@@ -1749,6 +1749,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-accounts/{account_id}/stocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Stock */
+        post: operations["post_stock_asset_accounts__account_id__stocks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-accounts/{account_id}/stocks/{position_id}/marks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Stock Mark */
+        post: operations["post_stock_mark_asset_accounts__account_id__stocks__position_id__marks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-accounts/{account_id}/stock-cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Stock Cash */
+        post: operations["post_stock_cash_asset_accounts__account_id__stock_cash_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/asset-accounts/{account_id}/stock-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Stock Transfer */
+        post: operations["post_stock_transfer_asset_accounts__account_id__stock_transfers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-expenses": {
         parameters: {
             query?: never;
@@ -2252,6 +2320,23 @@ export interface paths {
         };
         /** My Assets */
         get: operations["my_assets_views_me_assets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/views/me/assets/accounts/{account_id}/stocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Stock Account */
+        get: operations["my_stock_account_views_me_assets_accounts__account_id__stocks_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6445,6 +6530,212 @@ export interface components {
             content?: string | null;
             /** Location Name */
             location_name?: string | null;
+        };
+        /** StockAccountOut */
+        StockAccountOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Code */
+            code: string;
+            /** Account Number */
+            account_number?: string | null;
+        };
+        /** StockCashCreate */
+        StockCashCreate: {
+            /** Currency */
+            currency: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** StockDetailOut */
+        StockDetailOut: {
+            account: components["schemas"]["StockAccountOut"];
+            flow: components["schemas"]["StockFlowOut"];
+            /** Positions */
+            positions?: components["schemas"]["StockPositionOut"][];
+            /** Series */
+            series?: components["schemas"]["StockSeriesPointOut"][];
+        };
+        /** StockFlowOut */
+        StockFlowOut: {
+            /** Display Currency */
+            display_currency: string;
+            /** Fx Incomplete */
+            fx_incomplete: boolean;
+            /** Net Assets Minor */
+            net_assets_minor: number;
+            /** Total Cost Minor */
+            total_cost_minor: number;
+            /** Total Assets Minor */
+            total_assets_minor: number;
+            /** Market Value Minor */
+            market_value_minor: number;
+            /** Cash Minor */
+            cash_minor: number;
+            /** Liability Minor */
+            liability_minor: number;
+            /** Show Liability */
+            show_liability: boolean;
+            /** Gain Minor */
+            gain_minor: number;
+            /** Show Gain */
+            show_gain: boolean;
+            /** Bank To Securities Minor */
+            bank_to_securities_minor: number;
+            /** Securities To Bank Minor */
+            securities_to_bank_minor: number;
+        };
+        /** StockMarkCreate */
+        StockMarkCreate: {
+            /** Version */
+            version: number;
+            /** Shares */
+            shares: number;
+            /** Cost Price Minor */
+            cost_price_minor: number;
+            /** Market Price Minor */
+            market_price_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** StockPositionCreate */
+        StockPositionCreate: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name: string;
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "a_share" | "hk_share";
+            /** Shares */
+            shares: number;
+            /** Cost Price Minor */
+            cost_price_minor: number;
+            /** Market Price Minor */
+            market_price_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** StockPositionOut */
+        StockPositionOut: {
+            /** Id */
+            id: string;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name: string;
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "a_share" | "hk_share";
+            /** Currency */
+            currency: string;
+            /** Shares */
+            shares: number;
+            /** Cost Price Minor */
+            cost_price_minor: number;
+            /** Market Price Minor */
+            market_price_minor: number;
+            /** Market Value Minor */
+            market_value_minor: number | null;
+            /** Total Pnl Minor */
+            total_pnl_minor: number | null;
+            /** Period Pnl Minor */
+            period_pnl_minor: number | null;
+            /** Fx Missing */
+            fx_missing: boolean;
+            /** Version */
+            version: number;
+            /** Current Shares */
+            current_shares: number;
+            /** Current Cost Price Minor */
+            current_cost_price_minor: number;
+            /** Current Market Price Minor */
+            current_market_price_minor: number;
+        };
+        /** StockPositionWriteOut */
+        StockPositionWriteOut: {
+            /** Id */
+            id: string;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name: string;
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "a_share" | "hk_share";
+            /** Currency */
+            currency: string;
+            /** Shares */
+            shares: number;
+            /** Cost Price Minor */
+            cost_price_minor: number;
+            /** Market Price Minor */
+            market_price_minor: number;
+            /** Version */
+            version: number;
+        };
+        /** StockSeriesPointOut */
+        StockSeriesPointOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Net Assets Minor */
+            net_assets_minor: number;
+            /** Total Cost Minor */
+            total_cost_minor: number;
+            /** Market Value Minor */
+            market_value_minor: number;
+            /** Cash Minor */
+            cash_minor: number;
+            /** Liability Minor */
+            liability_minor: number;
+            /** Gain Minor */
+            gain_minor: number;
+            /** Positions */
+            positions?: components["schemas"]["StockSeriesPositionOut"][];
+        };
+        /** StockSeriesPositionOut */
+        StockSeriesPositionOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Market Value Minor */
+            market_value_minor: number;
+        };
+        /** StockTransferCreate */
+        StockTransferCreate: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "bank_to_securities" | "securities_to_bank";
+            /** Currency */
+            currency: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
         };
         /** TaskDrawerContextOut */
         TaskDrawerContextOut: {
@@ -11387,6 +11678,151 @@ export interface operations {
             };
         };
     };
+    post_stock_asset_accounts__account_id__stocks_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockPositionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockPositionWriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_stock_mark_asset_accounts__account_id__stocks__position_id__marks_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+                position_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockMarkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockPositionWriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_stock_cash_asset_accounts__account_id__stock_cash_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockCashCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_stock_transfer_asset_accounts__account_id__stock_transfers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockTransferCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     post_asset_expense_asset_expenses_post: {
         parameters: {
             query?: never;
@@ -12448,6 +12884,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyAssetsViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_stock_account_views_me_assets_accounts__account_id__stocks_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+                timezone?: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockDetailOut"];
                 };
             };
             /** @description Validation Error */

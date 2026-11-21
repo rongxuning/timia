@@ -560,7 +560,14 @@
       "category_not_allowed": "这个账户不能记这个分类",
       "account_required": "请填写账户",
       "party_required": "请填写开户行",
-      "institution_kind_mismatch": "开户机构类型和账户类型对不上"
+      "institution_kind_mismatch": "开户机构类型和账户类型对不上",
+      "symbol_invalid": "代码用 1 到 12 位字母或数字",
+      "symbol_taken": "这个代码已经在这个账户里",
+      "amount_invalid": "数额不对",
+      "account_not_stock": "只有股票账户可以记持仓",
+      "range_invalid": "时间段的起止不对",
+      "range_too_long": "时间段太长了",
+      "timezone_invalid": "无法识别这个时区"
     },
     "currencies": {
       "CNY": "人民币 CNY",
@@ -602,6 +609,39 @@
       "stock": "股票",
       "metal": "贵金属",
       "forex": "外汇"
+    },
+    "stockDetail": {
+      "back": "资产",
+      "title": "股票详情",
+      "lead": "日历选定的区间决定右侧资金图、持仓卡片和下方曲线。",
+      "addPosition": "记持仓",
+      "updatePosition": "更新价格",
+      "addTransfer": "记转账",
+      "setCash": "记现金",
+      "missingFx": "有持仓还没有汇率，汇总里暂时没算上。",
+      "layer1": "第一层",
+      "layer2": "第二层",
+      "layer3": "第三层",
+      "positions": "个股",
+      "formula": "总负债 = 净总资产 − 总成本，小于 0 才出现。总收益 = 总现金 − 总成本，大于等于 0 才出现。",
+      "netAssets": "净总资产",
+      "totalCost": "总成本",
+      "totalAssets": "总资产",
+      "marketValue": "总市值",
+      "cash": "总现金",
+      "liability": "总负债",
+      "gain": "总收益",
+      "bankIn": "银行转证券",
+      "bankOut": "证券转银行",
+      "costPrice": "成本价",
+      "marketPrice": "现价",
+      "shareCount": "股数",
+      "shares": "{count}股",
+      "totalPnl": "总浮盈亏",
+      "periodPnl": "区间浮盈亏",
+      "trend": "区间趋势",
+      "symbol": "代码",
+      "direction": "方向"
     }
   }
 }

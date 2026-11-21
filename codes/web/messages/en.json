@@ -560,7 +560,14 @@
       "category_not_allowed": "That category does not belong on this account",
       "account_required": "Enter the account",
       "party_required": "Enter the institution",
-      "institution_kind_mismatch": "The institution type does not match the account"
+      "institution_kind_mismatch": "The institution type does not match the account",
+      "symbol_invalid": "Use 1 to 12 letters or digits",
+      "symbol_taken": "This symbol is already on the account",
+      "amount_invalid": "That amount is not valid",
+      "account_not_stock": "Positions belong on a stock account",
+      "range_invalid": "That date range is not valid",
+      "range_too_long": "That date range is too long",
+      "timezone_invalid": "That time zone is not recognized"
     },
     "currencies": {
       "CNY": "Chinese yuan CNY",
@@ -602,6 +609,39 @@
       "stock": "Shares",
       "metal": "Precious metals",
       "forex": "Foreign exchange"
+    },
+    "stockDetail": {
+      "back": "Assets",
+      "title": "Stock account",
+      "lead": "The calendar range drives the flow, the position cards, and the chart below.",
+      "addPosition": "Add position",
+      "updatePosition": "Update price",
+      "addTransfer": "Record transfer",
+      "setCash": "Record cash",
+      "missingFx": "A position is missing an exchange rate, so it is left out of the totals.",
+      "layer1": "Layer 1",
+      "layer2": "Layer 2",
+      "layer3": "Layer 3",
+      "positions": "Positions",
+      "formula": "Liabilities = net assets − cost, and appear only when that is below 0. Gain = cash − cost, and appears only when that is 0 or more.",
+      "netAssets": "Net assets",
+      "totalCost": "Total cost",
+      "totalAssets": "Total assets",
+      "marketValue": "Market value",
+      "cash": "Cash",
+      "liability": "Liabilities",
+      "gain": "Gain",
+      "bankIn": "Bank to securities",
+      "bankOut": "Securities to bank",
+      "costPrice": "Cost price",
+      "marketPrice": "Price",
+      "shareCount": "Shares",
+      "shares": "{count} shares",
+      "totalPnl": "Unrealized P&L",
+      "periodPnl": "P&L in range",
+      "trend": "Trend",
+      "symbol": "Symbol",
+      "direction": "Direction"
     }
   }
 }

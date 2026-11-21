@@ -22,6 +22,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -293,5 +294,134 @@ class AssetExpenseAdjustment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
     delta_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssetStockPosition(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """One listed stock inside a stock account. History lives on marks."""
+
+    __tablename__ = "asset_stock_positions"
+    __table_args__ = (
+        CheckConstraint("market IN ('a_share', 'hk_share')", name="ck_asset_stock_positions_market"),
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_stock_positions_currency"),
+        CheckConstraint("shares >= 0", name="ck_asset_stock_positions_shares"),
+        CheckConstraint("cost_price_minor >= 0", name="ck_asset_stock_positions_cost"),
+        CheckConstraint("market_price_minor >= 0", name="ck_asset_stock_positions_market_price"),
+        Index("ix_asset_stock_positions_account", "account_id"),
+        Index(
+            "uq_asset_stock_positions_symbol",
+            "account_id",
+            "symbol",
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+        ),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    symbol: Mapped[str] = mapped_column(String(12), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    market: Mapped[str] = mapped_column(String(16), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    shares: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cost_price_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    market_price_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AssetStockMark(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Shares, cost, and price of one stock at a moment."""
+
+    __tablename__ = "asset_stock_marks"
+    __table_args__ = (
+        CheckConstraint("shares >= 0", name="ck_asset_stock_marks_shares"),
+        CheckConstraint("cost_price_minor >= 0", name="ck_asset_stock_marks_cost"),
+        CheckConstraint("market_price_minor >= 0", name="ck_asset_stock_marks_price"),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_stock_marks_reason"),
+        Index("ix_asset_stock_marks_position_time", "position_id", "recorded_at"),
+    )
+
+    position_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_stock_positions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    shares: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cost_price_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    market_price_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssetStockCash(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Absolute cash balance inside a stock account, in its own currency."""
+
+    __tablename__ = "asset_stock_cash"
+    __table_args__ = (
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_stock_cash_currency"),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_stock_cash_reason"),
+        Index("ix_asset_stock_cash_account_time", "account_id", "recorded_at"),
+    )
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssetStockTransfer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Money moved between the bank and this stock account. Also moves cash."""
+
+    __tablename__ = "asset_stock_transfers"
+    __table_args__ = (
+        CheckConstraint(
+            "direction IN ('bank_to_securities', 'securities_to_bank')",
+            name="ck_asset_stock_transfers_direction",
+        ),
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_stock_transfers_currency"),
+        CheckConstraint("amount_minor > 0", name="ck_asset_stock_transfers_amount"),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_stock_transfers_reason"),
+        Index("ix_asset_stock_transfers_account_time", "account_id", "recorded_at"),
+    )
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    direction: Mapped[str] = mapped_column(String(32), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
     reason: Mapped[str] = mapped_column(String(200), nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
