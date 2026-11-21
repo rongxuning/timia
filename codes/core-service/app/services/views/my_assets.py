@@ -69,9 +69,15 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
         today=today,
     )
 
+    # Stock ledger is the source of truth for projected broker accounts — skip
+    # any leftover asset_holdings on those accounts so cards/summary do not double-count.
     book_lines: list[BookLine] = []
     view_holdings: list[AssetHoldingViewOut] = []
+    holding_ids_for_adjustments: list = []
     for row in holdings:
+        if str(row.account_id) in stock.account_ids:
+            continue
+        holding_ids_for_adjustments.append(row.id)
         display_minor = convert_minor(row.amount_minor, row.currency, display, rates)
         book_lines.append(
             BookLine(
@@ -141,8 +147,9 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
             )
         )
     expense_summary = summarize_expenses(expense_lines)
+    fx_incomplete = summary.fx_incomplete or expense_summary.fx_incomplete or stock.fx_incomplete
     months = None
-    if not summary.fx_incomplete and not expense_summary.fx_incomplete:
+    if not fx_incomplete:
         months = coverage_months(summary.emergency_cash_minor, expense_summary.monthly_running_minor)
 
     currency_by_id = {line.line_id: line.currency for line in book_lines}
@@ -153,7 +160,7 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
             currency=currency_by_id[str(row.holding_id)],
             recorded_at=row.recorded_at,
         )
-        for row in list_holding_adjustments(db, [row.id for row in holdings])
+        for row in list_holding_adjustments(db, holding_ids_for_adjustments)
     ]
     adjustments.extend(stock.adjustments)
     series = net_worth_series(
@@ -191,12 +198,12 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
             emergency_reserve_minor=expense_summary.emergency_minor,
             spending_total_minor=expense_summary.spending_total_minor,
             coverage_months=months,
-            fx_incomplete=summary.fx_incomplete or expense_summary.fx_incomplete,
+            fx_incomplete=fx_incomplete,
             missing_currencies=list(summary.missing_currencies),
             holding_count=summary.holding_count,
             needs_review_count=summary.needs_review_count,
             latest_adjusted_at=summary.latest_adjusted_at,
-            focus=summary.focus if not expense_summary.fx_incomplete else "missing_fx",
+            focus="missing_fx" if fx_incomplete else summary.focus,
         ),
         groups=groups,
         parties=_parties(parties, accounts, view_holdings),
@@ -235,8 +242,8 @@ def _parties(parties, accounts, holdings: list[AssetHoldingViewOut]) -> list[Par
             total = 0
             missing = False
             for row in rows:
+                missing = missing or row.fx_missing or row.display_minor is None
                 if row.display_minor is None:
-                    missing = True
                     continue
                 signed = row.display_minor if row.kind == "asset" else -row.display_minor
                 if row.include_in_net_worth:

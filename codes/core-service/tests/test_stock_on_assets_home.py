@@ -158,3 +158,118 @@ def test_stock_account_totals_appear_on_assets_home(client_and_user):
     assert body["daily_series"]
     assert body["daily_series"][-1]["assets_minor"] == expected_net
     assert body["daily_series"][-1]["net_worth_minor"] == expected_net
+
+
+def test_stock_projection_replaces_holdings_on_the_same_account(client_and_user):
+    client, headers, _db, _user = client_and_user
+    created = client.post(
+        "/asset-accounts",
+        headers=headers,
+        json={"name": "国泰君安", "account_kind": "stock", "account_number": "10443860"},
+    )
+    assert created.status_code == 201, created.text
+    account_id = created.json()["id"]
+
+    shares = 10
+    market_price = 10_000
+    market_value = quote_value_minor(shares, market_price, "CNY")
+    opened = client.post(
+        f"/asset-accounts/{account_id}/stocks",
+        headers=headers,
+        json={
+            "symbol": "600000",
+            "name": "浦发银行",
+            "market": "a_share",
+            "shares": shares,
+            "cost_price_minor": 10_000,
+            "market_price_minor": market_price,
+            "reason": "建仓",
+            "recorded_at": "2026-11-20T10:00:00+08:00",
+        },
+    )
+    assert opened.status_code == 201, opened.text
+
+    leftover = client.post(
+        "/asset-holdings",
+        headers=headers,
+        json={
+            "account_id": account_id,
+            "name": "旧余额",
+            "category": "a_share",
+            "currency": "CNY",
+            "amount_minor": 9_999_999,
+            "reason": "残留",
+            "recorded_at": "2026-11-19T10:00:00+08:00",
+        },
+    )
+    assert leftover.status_code == 201, leftover.text
+
+    view = client.get("/views/me/assets", headers=headers)
+    assert view.status_code == 200, view.text
+    body = view.json()
+    account = next(
+        account
+        for party in body["parties"]
+        for account in party["accounts"]
+        if account["id"] == account_id
+    )
+    assert len(account["balances"]) == 1
+    assert account["balances"][0]["display_minor"] == market_value
+    assert body["summary"]["total_assets_minor"] == market_value
+
+
+def test_incomplete_stock_fx_keeps_partial_totals_on_home(client_and_user):
+    client, headers, _db, _user = client_and_user
+    created = client.post(
+        "/asset-accounts",
+        headers=headers,
+        json={"name": "国泰君安", "account_kind": "stock", "account_number": "10443861"},
+    )
+    assert created.status_code == 201, created.text
+    account_id = created.json()["id"]
+
+    cash_minor = 500_00
+    cash = client.post(
+        f"/asset-accounts/{account_id}/stock-cash",
+        headers=headers,
+        json={
+            "currency": "CNY",
+            "amount_minor": cash_minor,
+            "reason": "现金",
+            "recorded_at": "2026-11-20T10:00:00+08:00",
+        },
+    )
+    assert cash.status_code == 204, cash.text
+
+    opened = client.post(
+        f"/asset-accounts/{account_id}/stocks",
+        headers=headers,
+        json={
+            "symbol": "00700",
+            "name": "腾讯",
+            "market": "hk_share",
+            "shares": 100,
+            "cost_price_minor": 300_000,
+            "market_price_minor": 320_000,
+            "reason": "建仓",
+            "recorded_at": "2026-11-20T11:00:00+08:00",
+        },
+    )
+    assert opened.status_code == 201, opened.text
+
+    view = client.get("/views/me/assets", headers=headers)
+    assert view.status_code == 200, view.text
+    body = view.json()
+    account = next(
+        account
+        for party in body["parties"]
+        for account in party["accounts"]
+        if account["id"] == account_id
+    )
+    assert account["balances"][0]["display_minor"] == cash_minor
+    assert account["balances"][0]["fx_missing"] is True
+    assert account["fx_incomplete"] is True
+    assert body["summary"]["total_assets_minor"] == cash_minor
+    assert body["summary"]["fx_incomplete"] is True
+    assert "CNY" not in body["summary"]["missing_currencies"]
+    assert body["daily_series"][-1]["assets_minor"] == cash_minor

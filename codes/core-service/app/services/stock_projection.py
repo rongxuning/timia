@@ -45,6 +45,8 @@ class StockBookProjection:
     lines: tuple[BookLine, ...]
     adjustments: tuple[BookAdjustment, ...]
     change_ats: tuple[datetime, ...]
+    account_ids: frozenset[str]
+    fx_incomplete: bool
 
 
 def project_stock_accounts(
@@ -56,10 +58,17 @@ def project_stock_accounts(
     rates: dict[str, Decimal],
     today: date,
 ) -> StockBookProjection:
-    """Build synthetic holdings/lines/adjustments for every active stock account."""
+    """Build synthetic holdings/lines/adjustments for every active stock account.
+
+    Totals stay in the display currency (same partial sums as the stock detail
+    page). `fx_incomplete` is true when any currency could not be converted;
+    callers should OR that into the page summary instead of clearing
+    `display_minor`, so cards/summary/series stay consistent.
+    """
     stock_accounts = [row for row in accounts if row.account_kind == "stock"]
+    empty = StockBookProjection((), (), (), (), frozenset(), False)
     if not stock_accounts:
-        return StockBookProjection((), (), (), ())
+        return empty
 
     def convert(amount: int, currency: str) -> int | None:
         return convert_minor(amount, currency, display_currency, rates)
@@ -68,6 +77,8 @@ def project_stock_accounts(
     lines: list[BookLine] = []
     adjustments: list[BookAdjustment] = []
     change_ats: list[datetime] = []
+    projected_ids: set[str] = set()
+    fx_incomplete = False
 
     ledgers = _load_ledgers(db, user_id, stock_accounts)
     for account in stock_accounts:
@@ -85,6 +96,7 @@ def project_stock_accounts(
         shot = snapshot_on(today, marks, cash_sets, transfers, convert, _UTC)
         line_id = f"{STOCK_LINE_PREFIX}{account.id}"
         adjusted_at = max(event_ats)
+        fx_incomplete = fx_incomplete or shot.fx_incomplete
         holding = AssetHoldingViewOut(
             id=line_id,
             code=account.code,
@@ -101,7 +113,7 @@ def project_stock_accounts(
             needs_review=False,
             version=1,
             latest_reason=None,
-            display_minor=None if shot.fx_incomplete else shot.total_assets_minor,
+            display_minor=shot.total_assets_minor,
             fx_missing=shot.fx_incomplete,
         )
         holdings.append(holding)
@@ -112,11 +124,12 @@ def project_stock_accounts(
                 category="a_share",
                 currency=display_currency,
                 amount_minor=shot.total_assets_minor,
-                display_minor=None if shot.fx_incomplete else shot.total_assets_minor,
+                display_minor=shot.total_assets_minor,
                 include_in_net_worth=True,
                 adjusted_at=adjusted_at,
             )
         )
+        projected_ids.add(str(account.id))
         series = flow_series(first_day, today, marks, cash_sets, transfers, convert, _UTC)
         for point in series:
             adjustments.append(
@@ -135,6 +148,8 @@ def project_stock_accounts(
         lines=tuple(lines),
         adjustments=tuple(adjustments),
         change_ats=tuple(change_ats),
+        account_ids=frozenset(projected_ids),
+        fx_incomplete=fx_incomplete,
     )
 
 
