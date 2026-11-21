@@ -265,7 +265,7 @@ export function accountBalanceTotals(lines: BalanceLine[]): {
   return { assets_minor: assets, liabilities_minor: liabilities, net_worth_minor: assets - liabilities };
 }
 
-export function nearestChartIndex(coords: PlotPoint[], x: number): number {
+export function nearestChartIndex(coords: readonly { x: number }[], x: number): number {
   let best = 0;
   let bestDist = Infinity;
   for (let index = 0; index < coords.length; index += 1) {
