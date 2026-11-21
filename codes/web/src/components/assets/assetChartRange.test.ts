@@ -243,4 +243,8 @@ describe("nearestChartIndex", () => {
     assert.equal(nearestChartIndex(layout.coords, layout.coords[0].x + 1), 0);
     assert.equal(nearestChartIndex(layout.coords, mid + 0.1), 2);
   });
+
+  it("uses x only, so shared category ticks do not need a value", () => {
+    assert.equal(nearestChartIndex([{ x: 10 }, { x: 40 }, { x: 70 }], 46), 1);
+  });
 });
