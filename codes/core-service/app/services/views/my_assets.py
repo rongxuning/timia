@@ -45,6 +45,7 @@ from app.services.assets_math import (
     summarize_expenses,
     summarize_holdings,
 )
+from app.services.stock_projection import project_stock_accounts
 
 
 def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
@@ -55,8 +56,18 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
     rates = {row.currency: Decimal(row.cny_per_unit) for row in rate_rows}
     holdings = list_active_holdings(db, user.id)
     expenses = list_active_expenses(db, user.id)
+    accounts = list_accounts(db, user.id)
+    parties = list_parties(db, user.id)
     reasons = latest_reasons(db, [row.id for row in holdings])
     expense_reasons = latest_expense_reasons(db, [row.id for row in expenses])
+    stock = project_stock_accounts(
+        db,
+        user.id,
+        accounts,
+        display_currency=display,
+        rates=rates,
+        today=today,
+    )
 
     book_lines: list[BookLine] = []
     view_holdings: list[AssetHoldingViewOut] = []
@@ -95,6 +106,8 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
                 fx_missing=display_minor is None and row.currency != display,
             )
         )
+    view_holdings.extend(stock.holdings)
+    book_lines.extend(stock.lines)
     view_holdings.sort(
         key=lambda row: (*category_sort_key(row.kind, row.category), row.name.casefold(), row.id)
     )
@@ -142,6 +155,7 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
         )
         for row in list_holding_adjustments(db, [row.id for row in holdings])
     ]
+    adjustments.extend(stock.adjustments)
     series = net_worth_series(
         book_lines,
         adjustments,
@@ -155,7 +169,9 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
         rates=rates,
         today=today,
     )
-    change_ats = sorted(point.recorded_at for point in adjustments)
+    change_ats = sorted(
+        {point.recorded_at for point in adjustments} | set(stock.change_ats)
+    )
     groups = _groups(group_totals, view_holdings)
     expense_groups = _expense_groups(expense_summary.groups, view_expenses)
     return MyAssetsViewOut(
@@ -183,7 +199,7 @@ def build_my_assets(db: Session, user: User) -> MyAssetsViewOut:
             focus=summary.focus if not expense_summary.fx_incomplete else "missing_fx",
         ),
         groups=groups,
-        parties=_parties(list_parties(db, user.id), list_accounts(db, user.id), view_holdings),
+        parties=_parties(parties, accounts, view_holdings),
         expense_groups=expense_groups,
         net_worth_series=[
             NetWorthPointOut(as_of=point.as_of, net_worth_minor=point.net_worth_minor) for point in series
