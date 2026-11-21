@@ -59,12 +59,9 @@ private extension TimiaScreenActivityAttributes.ContentState {
 }
 
 struct TimiaLiveActivityLockScreenView: View {
-    @Environment(\.colorScheme) private var colorScheme
     let state: TimiaScreenActivityAttributes.ContentState
 
-    private var palette: TimiaLiveActivityPalette {
-        TimiaLiveActivityPalette.make(colorScheme: colorScheme)
-    }
+    private var palette: TimiaLiveActivityPalette { .lockScreen }
 
     var body: some View {
         ViewThatFits(in: .vertical) {

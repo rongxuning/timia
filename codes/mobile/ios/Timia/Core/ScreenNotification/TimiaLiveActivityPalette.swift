@@ -88,33 +88,18 @@ struct TimiaLiveActivityPalette: Equatable, Sendable {
         Self.color(hex: hex)
     }
 
-    static func make(colorScheme: ColorScheme) -> Self {
-        switch colorScheme {
-        case .dark:
-            // Opaque system-dark surface: frosted black bleeds busy wallpapers and
-            // washes out white labels at night. Solid charcoal keeps contrast stable.
-            return Self(
-                backgroundHex: "#1C1C1E",
-                backgroundOpacity: 1.0,
-                primaryTextHex: "#FFFFFF",
-                secondaryTextHex: "#8E8E93",
-                accentHex: "#0A84FF",
-                actionForegroundHex: "#FFFFFF",
-                isDark: true
-            )
-        default:
-            // Opaque light surface paired with dark labels for daytime / light appearance.
-            return Self(
-                backgroundHex: "#FFFFFF",
-                backgroundOpacity: 1.0,
-                primaryTextHex: "#000000",
-                secondaryTextHex: "#3A3A3C",
-                accentHex: "#007AFF",
-                actionForegroundHex: "#000000",
-                isDark: false
-            )
-        }
-    }
+    /// Opaque charcoal lock-screen surface. Frosted black bleeds busy wallpapers
+    /// and washes out white labels, so the card stays this solid dark palette
+    /// even when the system appearance is light. Dynamic Island does not use it.
+    static let lockScreen = Self(
+        backgroundHex: "#1C1C1E",
+        backgroundOpacity: 1.0,
+        primaryTextHex: "#FFFFFF",
+        secondaryTextHex: "#8E8E93",
+        accentHex: "#0A84FF",
+        actionForegroundHex: "#FFFFFF",
+        isDark: true
+    )
 
     private static func color(hex: String) -> Color {
         let normalized = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
