@@ -65,6 +65,10 @@ dialog.modal-dialog::backdrop {
   overscroll-behavior: contain;
 }
 
+dialog.modal-dialog.modal-dialog--lightbox::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
 dialog.modal-dialog:modal {
   overscroll-behavior: contain;
 }

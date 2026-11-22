@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
 
-export type ModalDialogProps = {
-  titleId: string;
+type ModalDialogAriaProps =
+  | { titleId: string; ariaLabel?: undefined }
+  | { titleId?: undefined; ariaLabel: string };
+
+export type ModalDialogProps = ModalDialogAriaProps & {
   onClose: () => void;
   children: ReactNode | ((api: { requestClose: () => void }) => ReactNode);
   className?: string;
@@ -22,6 +25,7 @@ function closedByValue(lightDismiss: boolean, busy: boolean): "any" | "closerequ
 
 export function ModalDialog({
   titleId,
+  ariaLabel,
   onClose,
   children,
   className = "",
@@ -90,7 +94,7 @@ export function ModalDialog({
     <dialog
       ref={dialogRef}
       className={`modal-dialog ${className}`.trim()}
-      aria-labelledby={titleId}
+      {...(titleId ? { "aria-labelledby": titleId } : { "aria-label": ariaLabel })}
       // HTML attribute; browsers without closedby ignore it and use the click fallback above.
       {...({ closedby } as HTMLAttributes<HTMLDialogElement>)}
     >
