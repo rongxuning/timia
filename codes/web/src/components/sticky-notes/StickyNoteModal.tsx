@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import { useDraggable } from "@/hooks/useDraggable";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import {
   listStickyNotes,
   createStickyNote,
@@ -35,6 +34,10 @@ type Props = {
 
 const STICKY_NOTE_TRANSITION_MS = 600;
 
+function supportsDialogClosedBy(): boolean {
+  return typeof HTMLDialogElement !== "undefined" && "closedBy" in HTMLDialogElement.prototype;
+}
+
 function getTokenOrThrow(): string {
   const t = getAccessToken();
   if (!t) throw new Error("未登录");
@@ -64,11 +67,10 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
   const parsePollingRef = useRef<Map<string, { cancelled: boolean }>>(new Map());
   const openRef = useRef(open);
   const refreshRequestRef = useRef(0);
-
-  useEscapeDismiss({
-    open,
-    onDismiss: onClose,
-  });
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closingFromUnmountRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     let firstFrame: number | undefined;
@@ -82,10 +84,11 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       });
     } else {
       setDrawerVisible(false);
-      unmountTimer = window.setTimeout(
-        () => setDrawerMounted(false),
-        STICKY_NOTE_TRANSITION_MS,
-      );
+      unmountTimer = window.setTimeout(() => {
+        closingFromUnmountRef.current = true;
+        dialogRef.current?.close();
+        setDrawerMounted(false);
+      }, STICKY_NOTE_TRANSITION_MS);
     }
 
     return () => {
@@ -94,6 +97,45 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       if (unmountTimer !== undefined) window.clearTimeout(unmountTimer);
     };
   }, [open]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !drawerMounted || dialog.open) return;
+    dialog.showModal();
+  }, [drawerMounted]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !drawerMounted) return;
+
+    const onDialogClose = () => {
+      if (closingFromUnmountRef.current) {
+        closingFromUnmountRef.current = false;
+        return;
+      }
+      if (!dialog.open) dialog.showModal();
+      onCloseRef.current();
+    };
+
+    const onCancel = (event: Event) => {
+      event.preventDefault();
+      onCloseRef.current();
+    };
+
+    const onClick = (event: MouseEvent) => {
+      if (supportsDialogClosedBy()) return;
+      if (event.target === dialog) onCloseRef.current();
+    };
+
+    dialog.addEventListener("close", onDialogClose);
+    dialog.addEventListener("cancel", onCancel);
+    dialog.addEventListener("click", onClick);
+    return () => {
+      dialog.removeEventListener("close", onDialogClose);
+      dialog.removeEventListener("cancel", onCancel);
+      dialog.removeEventListener("click", onClick);
+    };
+  }, [drawerMounted]);
 
   // Reset the expanded preview when the modal closes so a re-open is clean.
   useEffect(() => {
@@ -449,15 +491,14 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
   if (!drawerMounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-end">
-      <div
-        className={`absolute inset-0 bg-black/30 ${drawerVisible ? "" : "pointer-events-none"}`}
-        onClick={onClose}
-      />
+    <dialog
+      ref={dialogRef}
+      className="sticky-note-dialog fixed z-50 flex items-end justify-end"
+      aria-label="便利贴"
+      {...({ closedby: "any" } as HTMLAttributes<HTMLDialogElement>)}
+    >
       <div
         ref={drag.panelRef}
-        role="dialog"
-        aria-label="便利贴"
         className={`flex max-h-[80vh] w-[864px] max-w-[calc(100vw-32px)] transform-gpu flex-col overflow-hidden rounded-2xl border border-border-subtle bg-surface shadow-2xl transition-transform duration-[600ms] ease-out motion-reduce:transition-none ${
           drawerVisible ? "translate-x-0" : "translate-x-full"
         }`}
@@ -523,6 +564,6 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

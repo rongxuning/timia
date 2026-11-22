@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { PageMain } from "@/components/layout";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
+import { ModalDialog } from "@/components/ModalDialog";
 import { WorkspaceCardGrid } from "@/components/workspace";
 import { WorkspaceModal } from "@/components/WorkspaceModal";
 import { primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
@@ -10,13 +11,14 @@ import { fetchWorkspaceCards, updateWorkspaceFavorite } from "@/lib/api/workspac
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { favoriteCardsFirst } from "@/lib/cardSort";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import { useRouter } from "next/navigation";
 import type { WorkspaceCardView } from "@/types/api/views/workspace";
 
 type Workspace = { id: string; name: string; description?: string | null; color: string };
 
 export default function WorkspacesPage() {
+  const deleteDialogTitleId = useId();
+  const editDialogTitleId = useId();
   const router = useRouter();
   const [items, setItems] = useState<WorkspaceCardView[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -33,17 +35,6 @@ export default function WorkspacesPage() {
   const [editColor, setEditColor] = useState("#FFFFFF");
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
-
-  useEscapeDismiss({
-    open: deleteOpen,
-    onDismiss: () => setDeleteOpen(false),
-    disabled: !!deletingId,
-  });
-  useEscapeDismiss({
-    open: editOpen,
-    onDismiss: () => setEditOpen(false),
-    disabled: editLoading,
-  });
 
   async function reloadCards() {
     const token = getToken();
@@ -191,32 +182,49 @@ export default function WorkspacesPage() {
         }}
       />
 
-      {deleteOpen && deleteTarget && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !deletingId && setDeleteOpen(false)} />
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border p-6 space-y-4">
-              <div className="font-semibold">删除工作空间 “{deleteTarget.name}”？</div>
-              {deleteError && <div className="text-small text-error">{deleteError}</div>}
+      {deleteOpen && deleteTarget ? (
+        <ModalDialog
+          titleId={deleteDialogTitleId}
+          onClose={() => setDeleteOpen(false)}
+          busy={!!deletingId}
+          className="w-[min(720px,calc(100vw-2rem))] space-y-4 rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+        >
+          {({ requestClose }) => (
+            <>
+              <div id={deleteDialogTitleId} className="font-semibold">
+                删除工作空间 “{deleteTarget.name}”？
+              </div>
+              {deleteError ? <div className="text-small text-error">{deleteError}</div> : null}
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setDeleteOpen(false)} disabled={!!deletingId}>
+                <button type="button" onClick={requestClose} disabled={!!deletingId}>
                   取消
                 </button>
-                <button type="button" className="bg-red-600 text-white px-4 py-2 rounded-xl" onClick={() => onDeleteWorkspace(deleteTarget)} disabled={deletingId === deleteTarget.id}>
+                <button
+                  type="button"
+                  className="rounded-xl bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+                  onClick={() => void onDeleteWorkspace(deleteTarget)}
+                  disabled={deletingId === deleteTarget.id}
+                >
                   {deletingId === deleteTarget.id ? "删除中…" : "删除"}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </ModalDialog>
+      ) : null}
 
-      {editOpen && editTarget && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !editLoading && setEditOpen(false)} />
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm">
-              <div className="font-semibold font-subhead">编辑工作空间</div>
+      {editOpen && editTarget ? (
+        <ModalDialog
+          titleId={editDialogTitleId}
+          onClose={() => setEditOpen(false)}
+          busy={editLoading}
+          className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+        >
+          {({ requestClose }) => (
+            <>
+              <div id={editDialogTitleId} className="font-semibold font-subhead">
+                编辑工作空间
+              </div>
               <form onSubmit={onSaveWorkspace} className="space-y-4">
                 <input
                   className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md"
@@ -232,25 +240,25 @@ export default function WorkspacesPage() {
                   placeholder="描述（可选）"
                   disabled={editLoading}
                 />
-                <LabelColorPicker
-                  value={editColor}
-                  onChange={setEditColor}
-                  disabled={editLoading}
-                />
-                {editError && <div className="text-small text-error">{editError}</div>}
+                <LabelColorPicker value={editColor} onChange={setEditColor} disabled={editLoading} />
+                {editError ? <div className="text-small text-error">{editError}</div> : null}
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setEditOpen(false)} disabled={editLoading}>
+                  <button type="button" onClick={requestClose} disabled={editLoading}>
                     取消
                   </button>
-                  <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-on-primary" disabled={editLoading}>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-primary px-4 py-2 text-on-primary disabled:opacity-50"
+                    disabled={editLoading}
+                  >
                     {editLoading ? "保存中…" : "保存"}
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </ModalDialog>
+      ) : null}
     </PageMain>
   );
 }

@@ -138,13 +138,17 @@ export function ScheduleMapFanOverlay({
     : "";
   const selectedStatus = selected ? statusLabel(selected.status) : "";
   const badge = scheduleMapCountDisplay(count);
+  const regionLabel =
+    selected != null
+      ? fanAria(center + 1, count, selected.title, selectedTime, selectedStatus)
+      : countAria(count);
 
   return (
     <div
       ref={rootRef}
       tabIndex={0}
-      role="dialog"
-      aria-modal={!drawerOpen}
+      role="region"
+      aria-label={regionLabel}
       className="pointer-events-auto absolute inset-0 z-20 outline-none"
       style={{ touchAction: "none" }}
       onPointerDown={(event) => {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageMain } from "@/components/layout";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
+import { ModalDialog } from "@/components/ModalDialog";
 import { ProjectList, RecentDiscussions, WorkspaceDashboardCards } from "@/components/workspace";
 import { primeProjectNameForBreadcrumb, primeWorkspaceNameForBreadcrumb } from "@/components/Breadcrumbs";
 import { TaskDrawerWithComments } from "@/components/TaskDrawerWithComments";
@@ -12,7 +13,6 @@ import { fetchWorkspaceDashboard, updateProjectFavorite } from "@/lib/api/worksp
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { favoriteCardsFirst } from "@/lib/cardSort";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
 import type { DiscussionViewItem, WorkspaceDashboardView, WorkspaceProjectCard } from "@/types/api/views/workspace";
 
 type WorkspacePatch = { id: string; name: string; description?: string | null; color: string };
@@ -21,6 +21,8 @@ export default function WorkspaceHome() {
   const router = useRouter();
   const params = useParams<{ workspaceId: string }>();
   const workspaceId = params.workspaceId;
+  const editWorkspaceDialogTitleId = useId();
+  const deleteProjectDialogTitleId = useId();
 
   const [token, setToken] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -43,17 +45,6 @@ export default function WorkspaceHome() {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [editProjectTarget, setEditProjectTarget] = useState<WorkspaceProjectCard | null>(null);
   const [favoritingProjectId, setFavoritingProjectId] = useState<string | null>(null);
-
-  useEscapeDismiss({
-    open: editWorkspaceOpen,
-    onDismiss: () => setEditWorkspaceOpen(false),
-    disabled: editLoading,
-  });
-  useEscapeDismiss({
-    open: deleteProjectOpen,
-    onDismiss: () => setDeleteProjectOpen(false),
-    disabled: !!deletingProjectId,
-  });
 
   const reloadDashboard = useCallback(async () => {
     const t = getToken();
@@ -256,14 +247,25 @@ export default function WorkspaceHome() {
         }}
       />
 
-      {editWorkspaceOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !editLoading && setEditWorkspaceOpen(false)} />
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm max-h-[calc(100vh-6rem)] overflow-auto">
+      {editWorkspaceOpen ? (
+        <ModalDialog
+          titleId={editWorkspaceDialogTitleId}
+          onClose={() => setEditWorkspaceOpen(false)}
+          busy={editLoading}
+          className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+        >
+          {({ requestClose }) => (
+            <>
               <div className="flex items-center justify-between">
-                <div className="font-semibold font-subhead">编辑工作空间</div>
-                <button type="button" className="text-sm underline" disabled={editLoading} onClick={() => setEditWorkspaceOpen(false)}>
+                <div id={editWorkspaceDialogTitleId} className="font-semibold font-subhead">
+                  编辑工作空间
+                </div>
+                <button
+                  type="button"
+                  className="text-sm underline disabled:opacity-50"
+                  disabled={editLoading}
+                  onClick={requestClose}
+                >
                   关闭
                 </button>
               </div>
@@ -274,7 +276,7 @@ export default function WorkspaceHome() {
                   </label>
                   <input
                     id="editWorkspaceName"
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
+                    className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     disabled={editLoading}
@@ -286,31 +288,36 @@ export default function WorkspaceHome() {
                   </label>
                   <textarea
                     id="editWorkspaceDescription"
-                    className="w-full bg-surface-bright border border-border-subtle rounded-xl px-lg py-md text-body focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none min-h-[96px] resize-none"
+                    className="min-h-[96px] w-full resize-none rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
                     disabled={editLoading}
                   />
                 </div>
-                <LabelColorPicker
-                  value={editColor}
-                  onChange={setEditColor}
-                  disabled={editLoading}
-                />
-                {editError && <div className="text-small text-error">{editError}</div>}
+                <LabelColorPicker value={editColor} onChange={setEditColor} disabled={editLoading} />
+                {editError ? <div className="text-small text-error">{editError}</div> : null}
                 <div className="flex items-center justify-end gap-2">
-                  <button type="button" className="text-sm rounded-xl border border-border-subtle px-4 py-2" onClick={() => setEditWorkspaceOpen(false)} disabled={editLoading}>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
+                    onClick={requestClose}
+                    disabled={editLoading}
+                  >
                     取消
                   </button>
-                  <button type="submit" className="text-sm rounded-xl bg-primary text-on-primary px-4 py-2 disabled:opacity-50" disabled={editLoading}>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-primary px-4 py-2 text-sm text-on-primary disabled:opacity-50"
+                    disabled={editLoading}
+                  >
                     {editLoading ? "保存中…" : "保存"}
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </ModalDialog>
+      ) : null}
 
       <TaskDrawerWithComments
         open={taskDrawerOpen}
@@ -327,28 +334,44 @@ export default function WorkspaceHome() {
         token={token}
       />
 
-      {deleteProjectOpen && deleteProjectTarget && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !deletingProjectId && setDeleteProjectOpen(false)} />
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm">
-              <div className="font-semibold font-subhead">删除项目</div>
+      {deleteProjectOpen && deleteProjectTarget ? (
+        <ModalDialog
+          titleId={deleteProjectDialogTitleId}
+          onClose={() => setDeleteProjectOpen(false)}
+          busy={!!deletingProjectId}
+          className="w-[min(720px,calc(100vw-2rem))] space-y-5 rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+        >
+          {({ requestClose }) => (
+            <>
+              <div id={deleteProjectDialogTitleId} className="font-semibold font-subhead">
+                删除项目
+              </div>
               <div className="rounded-xl border border-error-container bg-error-container/10 p-4">
                 <div className="font-medium">确定要删除项目 “{deleteProjectTarget.name}” 吗？</div>
               </div>
-              {deleteProjectError && <div className="text-small text-error">{deleteProjectError}</div>}
+              {deleteProjectError ? <div className="text-small text-error">{deleteProjectError}</div> : null}
               <div className="flex justify-end gap-2">
-                <button type="button" className="text-sm rounded-xl border px-4 py-2" onClick={() => setDeleteProjectOpen(false)} disabled={!!deletingProjectId}>
+                <button
+                  type="button"
+                  className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
+                  onClick={requestClose}
+                  disabled={!!deletingProjectId}
+                >
                   取消
                 </button>
-                <button type="button" className="text-sm rounded-xl bg-red-600 text-white px-4 py-2" onClick={() => onDeleteProject(deleteProjectTarget)} disabled={deletingProjectId === deleteProjectTarget.id}>
+                <button
+                  type="button"
+                  className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+                  onClick={() => void onDeleteProject(deleteProjectTarget)}
+                  disabled={deletingProjectId === deleteProjectTarget.id}
+                >
                   {deletingProjectId === deleteProjectTarget.id ? "删除中…" : "删除"}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </ModalDialog>
+      ) : null}
     </PageMain>
   );
 }
