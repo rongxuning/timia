@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
+import { isDialogLightDismissSuppressed } from "@/components/AnchoredPopover";
 
 type ModalDialogAriaProps =
   | { titleId: string; ariaLabel?: undefined }
@@ -36,12 +37,14 @@ export function ModalDialog({
   const busyRef = useRef(busy);
   const onCloseRef = useRef(onClose);
   const lightDismissRef = useRef(lightDismiss);
+  const intentionalCloseRef = useRef(false);
   busyRef.current = busy;
   onCloseRef.current = onClose;
   lightDismissRef.current = lightDismiss;
 
   const requestClose = () => {
     if (busyRef.current) return;
+    intentionalCloseRef.current = true;
     dialogRef.current?.close();
   };
 
@@ -56,6 +59,16 @@ export function ModalDialog({
     if (!dialog) return;
 
     const onDialogClose = () => {
+      if (intentionalCloseRef.current) {
+        intentionalCloseRef.current = false;
+        onCloseRef.current();
+        return;
+      }
+      // closedby cannot be cancelled; reopen when the backdrop click only closed a menu.
+      if (isDialogLightDismissSuppressed()) {
+        dialog.showModal();
+        return;
+      }
       onCloseRef.current();
     };
 
@@ -65,7 +78,14 @@ export function ModalDialog({
 
     // Safari and other browsers without closedby: click outside content box closes.
     const onClick = (event: MouseEvent) => {
-      if (!lightDismissRef.current || busyRef.current || supportsDialogClosedBy()) return;
+      if (
+        !lightDismissRef.current ||
+        busyRef.current ||
+        supportsDialogClosedBy() ||
+        isDialogLightDismissSuppressed()
+      ) {
+        return;
+      }
       if (event.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
       const { clientX, clientY } = event;
