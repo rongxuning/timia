@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
-import { isDialogLightDismissSuppressed } from "@/components/AnchoredPopover";
+import { consumeDialogLightDismissSuppression } from "@/components/AnchoredPopover";
 import { useDraggable } from "@/hooks/useDraggable";
 import {
   listStickyNotes,
@@ -121,7 +121,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
 
     // Full-viewport transparent dialog: scrim clicks hit the dialog box, not ::backdrop.
     const onClick = (event: MouseEvent) => {
-      if (isDialogLightDismissSuppressed()) return;
+      if (consumeDialogLightDismissSuppression()) return;
       if (event.target === dialog) onCloseRef.current();
     };
 

@@ -43,18 +43,21 @@ function resolvePortalRoot(anchor: HTMLElement | null): HTMLElement {
   return document.body;
 }
 
-/** After an outside press closes a menu, parent dialogs should ignore the following click. */
-let suppressDialogLightDismissUntil = 0;
+/**
+ * One-shot flag: after an outside press closes a menu, the next parent-dialog
+ * light-dismiss (click or closedby) should be ignored, then the flag clears.
+ */
+let suppressNextDialogLightDismiss = false;
 
-export function suppressDialogLightDismiss(ms = 500): void {
-  suppressDialogLightDismissUntil = Math.max(
-    suppressDialogLightDismissUntil,
-    performance.now() + ms,
-  );
+export function suppressDialogLightDismiss(): void {
+  suppressNextDialogLightDismiss = true;
 }
 
-export function isDialogLightDismissSuppressed(): boolean {
-  return performance.now() < suppressDialogLightDismissUntil;
+/** Returns true once if a menu outside-close asked to suppress the next dismiss. */
+export function consumeDialogLightDismissSuppression(): boolean {
+  if (!suppressNextDialogLightDismiss) return false;
+  suppressNextDialogLightDismiss = false;
+  return true;
 }
 
 /** Viewport-aware placement relative to an anchor (fallback when CSS anchor positioning is unavailable). */
@@ -178,7 +181,7 @@ export function AnchoredPopover({
       if (!current) return;
       if (current.contains(target) || anchorRef.current?.contains(target)) return;
       // Do not preventDefault (keeps focus on the clicked control); parent dialogs
-      // check isDialogLightDismissSuppressed() to ignore the following scrim click.
+      // consume the one-shot suppress flag on the following light-dismiss.
       suppressDialogLightDismiss();
       onCloseRef.current();
     }
