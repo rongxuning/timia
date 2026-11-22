@@ -36,6 +36,13 @@ function supportsPopover(): boolean {
   return typeof HTMLElement !== "undefined" && Object.hasOwn(HTMLElement.prototype, "popover");
 }
 
+/** Prefer the open dialog that owns the anchor so the menu is not inert under showModal(). */
+function resolvePortalRoot(anchor: HTMLElement | null): HTMLElement {
+  const dialog = anchor?.closest("dialog");
+  if (dialog instanceof HTMLElement) return dialog;
+  return document.body;
+}
+
 /** Viewport-aware placement relative to an anchor (fallback when CSS anchor positioning is unavailable). */
 export function computeAnchoredPosition(
   anchor: DOMRect,
@@ -156,6 +163,8 @@ export function AnchoredPopover({
       const current = panelRef.current;
       if (!current) return;
       if (current.contains(target) || anchorRef.current?.contains(target)) return;
+      // Suppress the following click so a parent modal scrim does not close in the same gesture.
+      event.preventDefault();
       onCloseRef.current();
     }
 
@@ -201,9 +210,10 @@ export function AnchoredPopover({
     </div>
   );
 
-  // Without Popover top-layer, portal out of overflow/transform ancestors (e.g. task drawer).
+  // Without Popover top-layer, portal out of overflow/transform ancestors.
+  // Stay inside the owning dialog when present so the menu is not inert under showModal().
   if (!useNativePopover && typeof document !== "undefined") {
-    return createPortal(panel, document.body);
+    return createPortal(panel, resolvePortalRoot(anchorRef.current));
   }
   return panel;
 }
