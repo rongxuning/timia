@@ -25,16 +25,18 @@ description: Use when implementing or changing codes/web Next.js pages, componen
 - Item PATCH 必须带 `version`；`401` 由 `apiFetch` 刷新 AT，不要自写 refresh
 - `/auth/*` 走同源代理；其它请求用 `NEXT_PUBLIC_API_BASE_URL`
 
-## Modern Web Guidance
+## Modern Web Guidance（必做）
 
-改 HTML/CSS/客户端交互（dialog、表单 Enter、排序、日期、无障碍、性能等）时，先跑：
+技能已安装：`.agents/skills/modern-web-guidance`（Cursor 经 `.cursor/skills/modern-web-guidance` 软链发现；版本锁 `skills-lock.json`）。改 HTML/CSS/客户端交互时 **先** 读该 SKILL 并 `search`/`retrieve`，再写代码。
 
 ```sh
 npx -y modern-web-guidance@latest search "<2-5 word capability>"
 npx -y modern-web-guidance@latest retrieve "<id>"
+npx -y modern-web-guidance@latest legacy-scan codes/web --json   # 整库遗留，约 20% 规则
+npx -y modern-web-guidance@latest update                         # 升级技能包
 ```
 
-整库扫遗留：`npx -y modern-web-guidance@latest legacy-scan codes/web --json`（只覆盖约 20% 确定性规则）。CJK 输入场景里，自定义 Enter 提交必须检查 `event.isComposing || event.keyCode === 229`。不可变排序用 `toSorted()` / `toReversed()`，不要 `[...arr].sort()`。默认按 Baseline Widely available；非 widely 的能力按指南加 fallback。
+硬规则：CJK 自定义 Enter → `event.nativeEvent.isComposing || event.keyCode === 229`；不可变排序 → `toSorted()` / `toReversed()`；阻塞型弹层 → `ModalDialog`（原生 `<dialog showModal>` + `closedby`，见 `src/components/ModalDialog.tsx`），不要再堆 `fixed inset-0` + `role="dialog"`。Baseline Widely available 默认可直用；否则按指南加 fallback。
 
 ## UI 要点
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
+import { ModalDialog } from "@/components/ModalDialog";
 import { useTranslations } from "next-intl";
 import { BOOK_CURRENCIES, EXPENSE_GROUPS, type ExpenseGroup } from "@/components/assets/categories";
 import { currencyLabel, groupHint, groupLabel } from "@/components/assets/copy";
@@ -53,29 +54,20 @@ export function ExpenseDialog({
   const [archiveReason, setArchiveReason] = useState("");
   const [confirmArchive, setConfirmArchive] = useState(false);
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !saving) onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
-
   return (
-    <div className="fixed inset-0 z-50">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label={t("form.close")} onClick={onClose} />
-      <div className="absolute inset-0 flex items-end justify-center p-4 sm:items-center">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="max-h-[calc(100vh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
-        >
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={saving}
+      className="max-h-[calc(100vh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
+    >
+      {({ requestClose }) => (
+        <>
           <div className="flex items-center justify-between gap-3">
             <h2 id={titleId} className="font-subhead text-subhead text-text-primary">
               {draft.mode === "create" ? t("expense.createTitle") : draft.name}
             </h2>
-            <button type="button" className="text-small text-text-secondary" onClick={onClose}>
+            <button type="button" className="text-small text-text-secondary" onClick={requestClose}>
               {t("form.close")}
             </button>
           </div>
@@ -224,8 +216,8 @@ export function ExpenseDialog({
               ) : null}
             </div>
           ) : null}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </ModalDialog>
   );
 }

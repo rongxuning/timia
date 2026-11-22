@@ -49,3 +49,21 @@ body {
   overflow: hidden;
 }
 
+dialog.modal-dialog[open] {
+  margin: auto;
+  border: none;
+  padding: 0;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+}
+
+dialog.modal-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+dialog.modal-dialog:modal {
+  overscroll-behavior: contain;
+}
+

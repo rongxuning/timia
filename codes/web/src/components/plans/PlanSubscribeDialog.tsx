@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
+import { ModalDialog } from "@/components/ModalDialog";
 import { subscribePlan } from "@/lib/api/plans";
 import { planApiMessage } from "./planLabels";
 import { dispatchPlanBadgeRefresh } from "./planEvents";
@@ -44,8 +44,6 @@ export function PlanSubscribeDialog({
   const [timezone, setTimezone] = useState(DEFAULT_PLAN_TIMEZONE);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEscapeDismiss({ open, onDismiss: onClose, disabled: submitting });
 
   useEffect(() => {
     if (!open) return;
@@ -91,20 +89,14 @@ export function PlanSubscribeDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={() => {
-          if (!submitting) onClose();
-        }}
-      />
-      <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
-        >
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={submitting}
+      className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+    >
+      {({ requestClose }) => (
+        <>
           <h2 id={titleId} className="font-semibold font-subhead text-text-primary">
             订阅模式
           </h2>
@@ -132,7 +124,7 @@ export function PlanSubscribeDialog({
             </p>
             {error ? <p className="text-small text-error">{error}</p> : null}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={onClose} disabled={submitting}>
+              <button type="button" onClick={requestClose} disabled={submitting}>
                 取消
               </button>
               <button
@@ -144,8 +136,8 @@ export function PlanSubscribeDialog({
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </ModalDialog>
   );
 }
