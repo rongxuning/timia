@@ -49,12 +49,14 @@ body {
   overflow: hidden;
 }
 
-dialog.modal-dialog[open] {
-  margin: auto;
-  border: none;
-  padding: 0;
-  max-width: calc(100vw - 2rem);
-  max-height: calc(100vh - 2rem);
+/* Keep reset in @layer base so Tailwind utilities (p-*, border-*) on ModalDialog win. */
+@layer base {
+  dialog.modal-dialog[open] {
+    margin: auto;
+    border-style: solid;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+  }
 }
 
 dialog.modal-dialog::backdrop {
