@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
-import { consumeDialogLightDismissSuppression } from "@/components/AnchoredPopover";
+import {
+  clearDialogLightDismissSuppression,
+  consumeDialogLightDismissSuppression,
+} from "@/components/AnchoredPopover";
 
 type ModalDialogAriaProps =
   | { titleId: string; ariaLabel?: undefined }
@@ -45,6 +48,7 @@ export function ModalDialog({
   const requestClose = () => {
     if (busyRef.current) return;
     intentionalCloseRef.current = true;
+    clearDialogLightDismissSuppression();
     dialogRef.current?.close();
   };
 

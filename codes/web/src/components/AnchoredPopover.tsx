@@ -60,6 +60,10 @@ export function consumeDialogLightDismissSuppression(): boolean {
   return true;
 }
 
+export function clearDialogLightDismissSuppression(): void {
+  suppressNextDialogLightDismiss = false;
+}
+
 /** Viewport-aware placement relative to an anchor (fallback when CSS anchor positioning is unavailable). */
 export function computeAnchoredPosition(
   anchor: DOMRect,
@@ -180,9 +184,12 @@ export function AnchoredPopover({
       const current = panelRef.current;
       if (!current) return;
       if (current.contains(target) || anchorRef.current?.contains(target)) return;
-      // Do not preventDefault (keeps focus on the clicked control); parent dialogs
-      // consume the one-shot suppress flag on the following light-dismiss.
-      suppressDialogLightDismiss();
+      // Only suppress parent light-dismiss when the press is on the dialog scrim
+      // or backdrop — not when focusing another control inside the dialog.
+      const dialog = anchorRef.current?.closest("dialog");
+      if (dialog && (target === dialog || !dialog.contains(target))) {
+        suppressDialogLightDismiss();
+      }
       onCloseRef.current();
     }
 
