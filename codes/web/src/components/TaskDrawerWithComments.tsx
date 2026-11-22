@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import { SystemSelect, type SystemSelectOption } from "@/components/SystemSelect";
 import { PinnedTagSelect } from "@/components/PinnedTagSelect";
+import { isDialogLightDismissSuppressed } from "@/components/AnchoredPopover";
 import { ModalDialog } from "@/components/ModalDialog";
 import { ProjectModal, type ProjectModalResult } from "@/components/ProjectModal";
 import { WorkspaceModal } from "@/components/WorkspaceModal";
@@ -734,7 +735,7 @@ export function TaskDrawerWithComments({
     // Full-viewport transparent dialog: the scrim is the dialog box itself, so
     // closedby="any" never sees an "outside" click. Always light-dismiss on target===dialog.
     const onClick = (event: MouseEvent) => {
-      if (drawerDismissDisabled) return;
+      if (drawerDismissDisabled || isDialogLightDismissSuppressed()) return;
       if (event.target === dialog) closeDrawerRef.current();
     };
 

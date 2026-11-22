@@ -43,6 +43,20 @@ function resolvePortalRoot(anchor: HTMLElement | null): HTMLElement {
   return document.body;
 }
 
+/** After an outside press closes a menu, parent dialogs should ignore the following click. */
+let suppressDialogLightDismissUntil = 0;
+
+export function suppressDialogLightDismiss(ms = 500): void {
+  suppressDialogLightDismissUntil = Math.max(
+    suppressDialogLightDismissUntil,
+    performance.now() + ms,
+  );
+}
+
+export function isDialogLightDismissSuppressed(): boolean {
+  return performance.now() < suppressDialogLightDismissUntil;
+}
+
 /** Viewport-aware placement relative to an anchor (fallback when CSS anchor positioning is unavailable). */
 export function computeAnchoredPosition(
   anchor: DOMRect,
@@ -163,8 +177,9 @@ export function AnchoredPopover({
       const current = panelRef.current;
       if (!current) return;
       if (current.contains(target) || anchorRef.current?.contains(target)) return;
-      // Suppress the following click so a parent modal scrim does not close in the same gesture.
-      event.preventDefault();
+      // Do not preventDefault (keeps focus on the clicked control); parent dialogs
+      // check isDialogLightDismissSuppressed() to ignore the following scrim click.
+      suppressDialogLightDismiss();
       onCloseRef.current();
     }
 
