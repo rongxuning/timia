@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 
 export type AnchoredPopoverPosition = {
   left: number;
@@ -24,7 +25,7 @@ type AnchoredPopoverProps = {
   onClose: () => void;
   children: ReactNode;
   className?: string;
-  /** Optional id for aria-controls on the trigger */
+  /** Optional id for the panel wrapper (not necessarily the listbox) */
   id?: string;
   minWidth?: number;
   maxMenuHeight?: number;
@@ -71,8 +72,10 @@ export function computeAnchoredPosition(
 }
 
 /**
- * Top-layer dropdown panel: uses Popover API when available (light-dismiss + top layer),
- * with JS viewport clamping for placement (anchor positioning is still limited).
+ * Top-layer dropdown panel.
+ * Uses Popover API with `popover=manual` when available (top layer without treating the
+ * trigger as an outside light-dismiss target — that would race with toggle clicks).
+ * Falls back to a body portal + fixed positioning so overflow/transform ancestors cannot clip.
  */
 export function AnchoredPopover({
   open,
@@ -126,16 +129,10 @@ export function AnchoredPopover({
     if (useNativePopover) {
       try {
         if (!panel.matches(":popover-open")) {
-          // Prefer source association when supported for implicit anchoring.
-          const show = panel.showPopover as (options?: { source?: Element }) => void;
-          try {
-            show.call(panel, { source: anchor });
-          } catch {
-            panel.showPopover();
-          }
+          panel.showPopover();
         }
       } catch {
-        // Older engines: attribute alone may not open; ignore and keep fixed styles.
+        // Attribute alone may not open on older engines; keep fixed styles.
       }
     }
 
@@ -154,23 +151,6 @@ export function AnchoredPopover({
     const panel = panelRef.current;
     if (!panel || !open) return;
 
-    function onToggle(event: Event) {
-      const toggle = event as ToggleEvent;
-      if (toggle.newState === "closed") onCloseRef.current();
-    }
-
-    if (useNativePopover) {
-      panel.addEventListener("toggle", onToggle);
-      return () => {
-        panel.removeEventListener("toggle", onToggle);
-        try {
-          if (panel.matches(":popover-open")) panel.hidePopover();
-        } catch {
-          /* ignore */
-        }
-      };
-    }
-
     function onPointerDown(event: MouseEvent) {
       const target = event.target as Node;
       const current = panelRef.current;
@@ -178,8 +158,21 @@ export function AnchoredPopover({
       if (current.contains(target) || anchorRef.current?.contains(target)) return;
       onCloseRef.current();
     }
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+
+    // Capture phase so we close before the trigger's click toggles open again
+    // when the user clicked elsewhere; trigger clicks are ignored above.
+    document.addEventListener("mousedown", onPointerDown, true);
+
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown, true);
+      if (useNativePopover) {
+        try {
+          if (panel.matches(":popover-open")) panel.hidePopover();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
   }, [open, useNativePopover, anchorRef]);
 
   if (!open) return null;
@@ -190,11 +183,11 @@ export function AnchoredPopover({
     margin: 0,
   };
 
-  return (
+  const panel = (
     <div
       ref={panelRef}
       id={panelId}
-      {...(useNativePopover ? ({ popover: "auto" } as { popover: "auto" }) : {})}
+      {...(useNativePopover ? ({ popover: "manual" } as { popover: "manual" }) : {})}
       className={`z-[70] flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface p-1.5 shadow-xl ${className}`.trim()}
       style={style}
       onKeyDown={(event) => {
@@ -207,4 +200,10 @@ export function AnchoredPopover({
       {children}
     </div>
   );
+
+  // Without Popover top-layer, portal out of overflow/transform ancestors (e.g. task drawer).
+  if (!useNativePopover && typeof document !== "undefined") {
+    return createPortal(panel, document.body);
+  }
+  return panel;
 }

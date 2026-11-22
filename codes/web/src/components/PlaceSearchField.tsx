@@ -226,11 +226,16 @@ export function PlaceSearchField({
         open={panelOpen && !pinned}
         anchorRef={inputRef}
         onClose={closePanel}
-        id={listboxId}
+        id={`${listboxId}-panel`}
         preferredBelowHeight={180}
         maxMenuHeight={280}
       >
-        <div className="min-h-0 overflow-y-auto" role="listbox" aria-label={t("label")}>
+        <div
+          id={listboxId}
+          className="min-h-0 overflow-y-auto"
+          role="listbox"
+          aria-label={t("label")}
+        >
           {searching ? (
             <div className="px-3 py-2 text-small text-text-secondary">{t("searching")}</div>
           ) : null}

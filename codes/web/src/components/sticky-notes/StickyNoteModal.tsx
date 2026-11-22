@@ -34,10 +34,6 @@ type Props = {
 
 const STICKY_NOTE_TRANSITION_MS = 600;
 
-function supportsDialogClosedBy(): boolean {
-  return typeof HTMLDialogElement !== "undefined" && "closedBy" in HTMLDialogElement.prototype;
-}
-
 function getTokenOrThrow(): string {
   const t = getAccessToken();
   if (!t) throw new Error("未登录");
@@ -122,8 +118,8 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
       onCloseRef.current();
     };
 
+    // Full-viewport transparent dialog: scrim clicks hit the dialog box, not ::backdrop.
     const onClick = (event: MouseEvent) => {
-      if (supportsDialogClosedBy()) return;
       if (event.target === dialog) onCloseRef.current();
     };
 

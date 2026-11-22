@@ -75,10 +75,6 @@ type ProjectMemberRow = {
 const COMMENT_BODY_PREVIEW_CHARS = 200;
 const DRAWER_TRANSITION_MS = 600;
 
-function supportsDialogClosedBy(): boolean {
-  return typeof HTMLDialogElement !== "undefined" && "closedBy" in HTMLDialogElement.prototype;
-}
-
 const TASK_STATUS_OPTIONS: SystemSelectOption[] = [
   { value: "todo", label: "待办", hint: "任务尚未开始", accentClass: "bg-zinc-300" },
   { value: "doing", label: "进行中", hint: "任务正在处理", accentClass: "bg-indigo-600" },
@@ -735,8 +731,10 @@ export function TaskDrawerWithComments({
       closeDrawerRef.current();
     };
 
+    // Full-viewport transparent dialog: the scrim is the dialog box itself, so
+    // closedby="any" never sees an "outside" click. Always light-dismiss on target===dialog.
     const onClick = (event: MouseEvent) => {
-      if (drawerDismissDisabled || supportsDialogClosedBy()) return;
+      if (drawerDismissDisabled) return;
       if (event.target === dialog) closeDrawerRef.current();
     };
 
