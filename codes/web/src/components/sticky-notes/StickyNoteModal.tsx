@@ -438,7 +438,7 @@ export function StickyNoteModal({ open, onClose, onConvertToTask }: Props) {
 
   const sortedNotes = useMemo<StickyNoteOut[]>(() => {
     if (!list) return [];
-    return [...list.items].sort((a, b) => {
+    return list.items.toSorted((a, b) => {
       return (b.recorded_at ?? "").localeCompare(a.recorded_at ?? "");
     });
   }, [list]);

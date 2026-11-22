@@ -165,7 +165,7 @@ function ExerciseDetail({
   rangeMode?: boolean;
   rangeDays?: number | null;
 }) {
-  const workouts = [...(detail.workouts ?? [])].sort(
+  const workouts = (detail.workouts ?? []).toSorted(
     (a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime(),
   );
   return (
@@ -267,7 +267,7 @@ function SleepDetail({
   rangeMode?: boolean;
   rangeDays?: number | null;
 }) {
-  const nights = [...(detail.sleep_nights ?? [])].sort((a, b) => b.local_date.localeCompare(a.local_date));
+  const nights = (detail.sleep_nights ?? []).toSorted((a, b) => b.local_date.localeCompare(a.local_date));
   const average = rangeMode ? averageSleepNight(nights) : null;
   const night = rangeMode ? average : detail.sleep;
   const structureHint = rangeMode
@@ -481,7 +481,7 @@ function WeightDetail({ detail }: { detail: HealthCardDetail }) {
 }
 
 function HrvDetail({ detail }: { detail: HealthCardDetail }) {
-  const days = [...(detail.hrv_days ?? [])].sort((a, b) => b.local_date.localeCompare(a.local_date));
+  const days = (detail.hrv_days ?? []).toSorted((a, b) => b.local_date.localeCompare(a.local_date));
   return (
     <>
       <HealthStatGrid
@@ -636,7 +636,7 @@ function SdnnHelp() {
 
 function Vo2Detail({ detail }: { detail: HealthCardDetail }) {
   const slope = detail.stats?.vo2_slope_per_week;
-  const workouts = [...(detail.workouts ?? [])].sort(
+  const workouts = (detail.workouts ?? []).toSorted(
     (a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime(),
   );
   return (
@@ -661,7 +661,7 @@ function Vo2Detail({ detail }: { detail: HealthCardDetail }) {
 }
 
 function RecoveryDetail({ detail }: { detail: HealthCardDetail }) {
-  const links = [...(detail.recovery_links ?? [])].sort(
+  const links = (detail.recovery_links ?? []).toSorted(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
   );
   return (
@@ -707,7 +707,7 @@ function RecoveryDetail({ detail }: { detail: HealthCardDetail }) {
 }
 
 function Spo2Detail({ detail }: { detail: HealthCardDetail }) {
-  const days = [...(detail.spo2_days ?? [])].sort((a, b) => b.local_date.localeCompare(a.local_date));
+  const days = (detail.spo2_days ?? []).toSorted((a, b) => b.local_date.localeCompare(a.local_date));
   const hourlyFraction =
     (detail.hourly?.length ?? 0) > 0
       ? detail.hourly

@@ -240,6 +240,8 @@ export function PlanSlotEditor({ periodKind, slots, onChange, readOnly = false, 
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
+                    // IME confirmation Enter must not save mid-composition (Safari keyCode 229).
+                    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                     savePopover();
                   }
                 }}

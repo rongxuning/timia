@@ -25,6 +25,17 @@ description: Use when implementing or changing codes/web Next.js pages, componen
 - Item PATCH 必须带 `version`；`401` 由 `apiFetch` 刷新 AT，不要自写 refresh
 - `/auth/*` 走同源代理；其它请求用 `NEXT_PUBLIC_API_BASE_URL`
 
+## Modern Web Guidance
+
+改 HTML/CSS/客户端交互（dialog、表单 Enter、排序、日期、无障碍、性能等）时，先跑：
+
+```sh
+npx -y modern-web-guidance@latest search "<2-5 word capability>"
+npx -y modern-web-guidance@latest retrieve "<id>"
+```
+
+整库扫遗留：`npx -y modern-web-guidance@latest legacy-scan codes/web --json`（只覆盖约 20% 确定性规则）。CJK 输入场景里，自定义 Enter 提交必须检查 `event.isComposing || event.keyCode === 229`。不可变排序用 `toSorted()` / `toReversed()`，不要 `[...arr].sort()`。默认按 Baseline Widely available；非 widely 的能力按指南加 fallback。
+
 ## UI 要点
 
 主题 token（`primary`、`surface`、`text-body`…），不要单页 palettes。Material Symbols Outlined 放在 `public/fonts`，页面从本站 `/fonts/` 取并用浏览器缓存，不要用 Google Fonts。加载 / 空 / 错误三条路径都要有 i18n。壳层 `pt-14` + `md:ml-48`，别让内容顶到固定头下面。

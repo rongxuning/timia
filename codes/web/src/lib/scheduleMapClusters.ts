@@ -55,10 +55,10 @@ export function findScheduleMapClusterByItemIds<T extends { id: string }>(
   clusters: readonly ScheduleMapCluster<T>[],
   itemIds: readonly string[],
 ): ScheduleMapCluster<T> | undefined {
-  const wanted = [...itemIds].sort().join("\0");
+  const wanted = itemIds.toSorted().join("\0");
   if (!wanted) return undefined;
   return clusters.find((cluster) => {
-    const ids = cluster.items.map((item) => item.id).sort().join("\0");
+    const ids = cluster.items.map((item) => item.id).toSorted().join("\0");
     return ids === wanted;
   });
 }

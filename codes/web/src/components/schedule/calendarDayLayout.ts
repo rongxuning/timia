@@ -135,7 +135,7 @@ function computeSegments(visible: VisibleItem[]): Map<string, DayTimelineSegment
 
     const totalDuration = active.reduce((sum, v) => sum + v.duration, 0);
     // 状态优先，同状态再按 startMin 升序、更长任务优先
-    const sortedActive = [...active].sort(
+    const sortedActive = active.toSorted(
       (a, b) =>
         calendarStatusRank(a.item.status) - calendarStatusRank(b.item.status) ||
         a.startMin - b.startMin ||

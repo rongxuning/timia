@@ -208,6 +208,7 @@ export function SystemSelect({
       moveActive(event.key === "ArrowDown" ? 1 : -1);
     } else if (event.key === "Enter" && filteredOptions.length > 0) {
       event.preventDefault();
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       pick(filteredOptions[activeIndex] ?? filteredOptions[0]);
     }
   }

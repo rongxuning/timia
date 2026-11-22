@@ -58,7 +58,7 @@ function daySummary(items: HealthWorkout[]) {
 
 function groupByLocalDate(workouts: HealthWorkout[], timeZone: string) {
   const groups = new Map<string, HealthWorkout[]>();
-  const sorted = [...workouts].sort(
+  const sorted = workouts.toSorted(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
   );
   for (const workout of sorted) {
@@ -67,7 +67,7 @@ function groupByLocalDate(workouts: HealthWorkout[], timeZone: string) {
     if (list) list.push(workout);
     else groups.set(key, [workout]);
   }
-  return [...groups.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  return [...groups.entries()].toSorted((a, b) => (a[0] < b[0] ? 1 : -1));
 }
 
 type MyHealthWorkoutsProps = {

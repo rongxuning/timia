@@ -51,7 +51,7 @@ function colorForZoneKey(key: string): string {
 }
 
 function colorForPace(pace: number, zones: PaceZone[]): string {
-  const ordered = [...zones].sort((a, b) => {
+  const ordered = zones.toSorted((a, b) => {
     const ai = ZONE_ORDER.indexOf(String(a.zone) as (typeof ZONE_ORDER)[number]);
     const bi = ZONE_ORDER.indexOf(String(b.zone) as (typeof ZONE_ORDER)[number]);
     return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
@@ -98,7 +98,7 @@ function buildPaceSegments(
   const validPaces = raw
     .map((seg) => seg.pace)
     .filter((pace) => Number.isFinite(pace) && pace > 0 && pace < 3600);
-  const pacesSorted = [...validPaces].sort((x, y) => x - y);
+  const pacesSorted = validPaces.toSorted((x, y) => x - y);
 
   const rankColor = (pace: number): string => {
     if (!Number.isFinite(pace) || pace <= 0 || pace >= 3600) return TRACK_FALLBACK;

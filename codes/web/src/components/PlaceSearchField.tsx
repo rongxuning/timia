@@ -209,6 +209,7 @@ export function PlaceSearchField({
     }
     if (event.key === "Enter" && panelOpen && results[activeIndex]) {
       event.preventDefault();
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       pick(results[activeIndex]);
     }
   }

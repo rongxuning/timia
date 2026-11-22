@@ -15,7 +15,7 @@ function fail(message) {
 
 const scanned = scanMaterialIconNames(root);
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-const declared = [...manifest.icons].sort();
+const declared = [...manifest.icons].toSorted();
 const missing = scanned.filter((name) => !declared.includes(name));
 const stale = declared.filter((name) => !scanned.includes(name));
 if (missing.length || stale.length) {

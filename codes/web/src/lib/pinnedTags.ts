@@ -1,7 +1,7 @@
 export function sortFavoriteThenCreatedAt<
   T extends { id: string; is_favorite: boolean; created_at: string },
 >(items: T[]): T[] {
-  return [...items].sort((a, b) => {
+  return items.toSorted((a, b) => {
     const favoriteOrder = Number(b.is_favorite) - Number(a.is_favorite);
     if (favoriteOrder !== 0) return favoriteOrder;
     const timeOrder =

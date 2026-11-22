@@ -42,8 +42,7 @@ export function PinnedTagSelect({
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const optionKey = options
     .map((o) => o.value)
-    .slice()
-    .sort()
+    .toSorted()
     .join(",");
   const sorted = useMemo(
     () =>

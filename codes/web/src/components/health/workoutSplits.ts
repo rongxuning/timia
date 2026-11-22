@@ -34,7 +34,7 @@ export function averageSeriesInWindow(
   t1: number,
 ): number | null {
   if (!points || points.length === 0 || t1 <= t0) return null;
-  const ordered = [...points].sort((a, b) => a.offset_seconds - b.offset_seconds);
+  const ordered = points.toSorted((a, b) => a.offset_seconds - b.offset_seconds);
   let total = 0;
   let weight = 0;
   for (let index = 0; index < ordered.length; index += 1) {
