@@ -1,13 +1,15 @@
 """Stock-account flow at a calendar day, in the display currency.
 
-净总资产 = 总市值 + 总现金。总资产与它相同。
+净总资产 = 总市值 + 总现金 + 冻结资金。总资产与它相同。
 总成本 = 银行转证券 − 证券转银行。
 总负债 = 净总资产 − 总成本，只在小于 0 时展示。
 总收益 = 总现金 − 总成本，只在大于等于 0 时展示。
 
-A cash mark sets that currency's balance. A transfer then moves cash from
-whatever balance is already there. At one timestamp, transfers apply first
-and a cash mark replaces the balance afterwards.
+A cash mark sets that currency's available balance. A transfer then moves
+cash from whatever balance is already there. At one timestamp, transfers
+apply first and a cash mark replaces the balance afterwards. A frozen mark
+sets that currency's frozen balance on its own and does not move with
+transfers.
 """
 
 from __future__ import annotations
@@ -80,6 +82,7 @@ class FlowSnapshot:
     fx_incomplete: bool
     market_value_minor: int
     cash_minor: int
+    frozen_minor: int
     net_assets_minor: int
     total_assets_minor: int
     bank_to_securities_minor: int
@@ -109,6 +112,7 @@ class FlowPoint:
     total_cost_minor: int
     market_value_minor: int
     cash_minor: int
+    frozen_minor: int
     liability_minor: int
     gain_minor: int
     positions: tuple[SeriesPosition, ...]
@@ -175,6 +179,19 @@ def _cash_balances(
     return balances
 
 
+def _frozen_balances(frozen_sets: list[CashSet], day: date, zone: ZoneInfo) -> dict[str, int]:
+    """Latest absolute frozen mark wins per currency. Transfers never move it."""
+    chosen: dict[str, tuple[tuple[datetime, datetime, str], int]] = {}
+    for row in frozen_sets:
+        if not _on_or_before(row.at, day, zone):
+            continue
+        rank = _rank(row.at, row.seq, row.tie)
+        current = chosen.get(row.currency)
+        if current is None or rank >= current[0]:
+            chosen[row.currency] = (rank, row.amount_minor)
+    return {currency: amount for currency, (_rank, amount) in chosen.items()}
+
+
 def _sum_converted(parts: list[tuple[int, str]], convert: Converter) -> tuple[int, bool]:
     total = 0
     missing = False
@@ -194,8 +211,10 @@ def snapshot_on(
     transfers: list[Transfer],
     convert: Converter,
     zone: ZoneInfo | None = None,
+    frozen_sets: list[CashSet] | None = None,
 ) -> FlowSnapshot:
     clock = zone or ZoneInfo("UTC")
+    frozen = frozen_sets or []
     chosen = latest_marks(marks, day, clock)
     positions: list[PositionSnap] = []
     market_parts: list[tuple[int, str]] = []
@@ -233,6 +252,10 @@ def snapshot_on(
     balances = _cash_balances(cash_sets, transfers, day, clock)
     cash_parts = [(amount, currency) for currency, amount in balances.items()]
     cash, cash_missing = _sum_converted(cash_parts, convert)
+    frozen_parts = [
+        (amount, currency) for currency, amount in _frozen_balances(frozen, day, clock).items()
+    ]
+    frozen_total, frozen_missing = _sum_converted(frozen_parts, convert)
     inbound: list[tuple[int, str]] = []
     outbound: list[tuple[int, str]] = []
     for row in transfers:
@@ -243,13 +266,16 @@ def snapshot_on(
     bank_in, in_missing = _sum_converted(inbound, convert)
     bank_out, out_missing = _sum_converted(outbound, convert)
     cost = bank_in - bank_out
-    net = market_value + cash
+    net = market_value + cash + frozen_total
     liability = net - cost
     gain = cash - cost
     return FlowSnapshot(
-        fx_incomplete=missing or market_missing or cash_missing or in_missing or out_missing,
+        fx_incomplete=(
+            missing or market_missing or cash_missing or frozen_missing or in_missing or out_missing
+        ),
         market_value_minor=market_value,
         cash_minor=cash,
+        frozen_minor=frozen_total,
         net_assets_minor=net,
         total_assets_minor=net,
         bank_to_securities_minor=bank_in,
@@ -329,6 +355,7 @@ def event_days(
     cash_sets: list[CashSet],
     transfers: list[Transfer],
     zone: ZoneInfo,
+    frozen_sets: list[CashSet] | None = None,
 ) -> list[tuple[date, date]]:
     """Weekday axis days with the snapshot day that should back each node."""
     iter_days(start, end)
@@ -346,6 +373,8 @@ def event_days(
         add(_local_day(row.at, zone))
     for row in cash_sets:
         add(_local_day(row.at, zone))
+    for row in frozen_sets or []:
+        add(_local_day(row.at, zone))
     for row in transfers:
         add(_local_day(row.at, zone))
     return sorted(snap_by_axis.items(), key=lambda item: item[0])
@@ -359,11 +388,13 @@ def flow_series(
     transfers: list[Transfer],
     convert: Converter,
     zone: ZoneInfo | None = None,
+    frozen_sets: list[CashSet] | None = None,
 ) -> list[FlowPoint]:
     clock = zone or ZoneInfo("UTC")
+    frozen = frozen_sets or []
     points: list[FlowPoint] = []
-    for axis_day, snap_day in event_days(start, end, marks, cash_sets, transfers, clock):
-        shot = snapshot_on(snap_day, marks, cash_sets, transfers, convert, clock)
+    for axis_day, snap_day in event_days(start, end, marks, cash_sets, transfers, clock, frozen):
+        shot = snapshot_on(snap_day, marks, cash_sets, transfers, convert, clock, frozen)
         marked_today = {
             mark.position_id
             for mark in latest_marks(marks, snap_day, clock).values()
@@ -377,6 +408,7 @@ def flow_series(
                 total_cost_minor=shot.total_cost_minor,
                 market_value_minor=shot.market_value_minor,
                 cash_minor=shot.cash_minor,
+                frozen_minor=shot.frozen_minor,
                 liability_minor=shot.liability_minor,
                 gain_minor=shot.gain_minor,
                 positions=tuple(

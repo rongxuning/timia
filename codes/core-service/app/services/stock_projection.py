@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.models.asset import (
     AssetAccount,
     AssetStockCash,
+    AssetStockFrozen,
     AssetStockMark,
     AssetStockPosition,
     AssetStockTransfer,
@@ -85,15 +86,17 @@ def project_stock_accounts(
         ledger = ledgers.get(account.id)
         if ledger is None:
             continue
-        marks, cash_sets, transfers, event_ats = ledger
-        if not marks and not cash_sets and not transfers:
+        marks, cash_sets, frozen_sets, transfers, event_ats = ledger
+        if not marks and not cash_sets and not frozen_sets and not transfers:
             continue
         first_day = min(_utc_date(moment) for moment in event_ats)
         if first_day > today:
             continue
         if (today - first_day).days > MAX_RANGE_DAYS:
             first_day = today - timedelta(days=MAX_RANGE_DAYS)
-        shot = snapshot_on(today, marks, cash_sets, transfers, convert, _UTC)
+        shot = snapshot_on(
+            today, marks, cash_sets, transfers, convert, _UTC, frozen_sets=frozen_sets
+        )
         line_id = f"{STOCK_LINE_PREFIX}{account.id}"
         adjusted_at = max(event_ats)
         fx_incomplete = fx_incomplete or shot.fx_incomplete
@@ -130,7 +133,16 @@ def project_stock_accounts(
             )
         )
         projected_ids.add(str(account.id))
-        series = flow_series(first_day, today, marks, cash_sets, transfers, convert, _UTC)
+        series = flow_series(
+            first_day,
+            today,
+            marks,
+            cash_sets,
+            transfers,
+            convert,
+            _UTC,
+            frozen_sets=frozen_sets,
+        )
         for point in series:
             adjustments.append(
                 BookAdjustment(
@@ -157,7 +169,10 @@ def _load_ledgers(
     db: Session,
     user_id: uuid.UUID,
     accounts: list[AssetAccount],
-) -> dict[uuid.UUID, tuple[list[PositionMark], list[CashSet], list[Transfer], list[datetime]]]:
+) -> dict[
+    uuid.UUID,
+    tuple[list[PositionMark], list[CashSet], list[CashSet], list[Transfer], list[datetime]],
+]:
     account_ids = [row.id for row in accounts]
     positions = list(
         db.scalars(
@@ -186,6 +201,14 @@ def _load_ledgers(
         )
     ).all():
         cash_by_account.setdefault(row.account_id, []).append(row)
+    frozen_by_account: dict[uuid.UUID, list[AssetStockFrozen]] = {}
+    for row in db.scalars(
+        select(AssetStockFrozen).where(
+            AssetStockFrozen.owner_user_id == user_id,
+            AssetStockFrozen.account_id.in_(account_ids),
+        )
+    ).all():
+        frozen_by_account.setdefault(row.account_id, []).append(row)
     transfer_by_account: dict[uuid.UUID, list[AssetStockTransfer]] = {}
     for row in db.scalars(
         select(AssetStockTransfer).where(
@@ -196,7 +219,8 @@ def _load_ledgers(
         transfer_by_account.setdefault(row.account_id, []).append(row)
 
     result: dict[
-        uuid.UUID, tuple[list[PositionMark], list[CashSet], list[Transfer], list[datetime]]
+        uuid.UUID,
+        tuple[list[PositionMark], list[CashSet], list[CashSet], list[Transfer], list[datetime]],
     ] = {}
     for account in accounts:
         pos_rows = by_account_positions.get(account.id, [])
@@ -231,6 +255,17 @@ def _load_ledgers(
             for row in cash_by_account.get(account.id, [])
         ]
         event_ats.extend(row.recorded_at for row in cash_by_account.get(account.id, []))
+        frozen_sets = [
+            CashSet(
+                at=row.recorded_at,
+                currency=row.currency,
+                amount_minor=row.amount_minor,
+                seq=row.created_at,
+                tie=str(row.id),
+            )
+            for row in frozen_by_account.get(account.id, [])
+        ]
+        event_ats.extend(row.recorded_at for row in frozen_by_account.get(account.id, []))
         transfers = [
             Transfer(
                 at=row.recorded_at,
@@ -243,7 +278,7 @@ def _load_ledgers(
             for row in transfer_by_account.get(account.id, [])
         ]
         event_ats.extend(row.recorded_at for row in transfer_by_account.get(account.id, []))
-        result[account.id] = (marks, cash_sets, transfers, event_ats)
+        result[account.id] = (marks, cash_sets, frozen_sets, transfers, event_ats)
     return result
 
 

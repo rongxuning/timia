@@ -94,6 +94,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       totalAssets: t("stockDetail.totalAssets"),
       marketValue: t("stockDetail.marketValue"),
       cash: t("stockDetail.cash"),
+      frozen: t("stockDetail.frozen"),
       liability: t("stockDetail.liability"),
       gain: t("stockDetail.gain"),
       bankIn: t("stockDetail.bankIn"),
@@ -111,6 +112,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       totalAssets: flow.total_assets_minor,
       marketValue: flow.market_value_minor,
       cash: flow.cash_minor,
+      frozen: flow.frozen_minor,
       liability: flow.liability_minor,
       showLiability: flow.show_liability,
       gain: flow.gain_minor,
@@ -125,13 +127,14 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
         share: marketShareLabel(position.market_value_minor, flow.market_value_minor, numberLocale),
       })),
     };
-  }, [detail]);
+  }, [detail, numberLocale]);
   const summaryLabels = useMemo(
     () => ({
       netAssets: t("stockDetail.netAssets"),
       totalCost: t("stockDetail.totalCost"),
       marketValue: t("stockDetail.marketValue"),
       cash: t("stockDetail.cash"),
+      frozen: t("stockDetail.frozen"),
       liability: t("stockDetail.liability"),
       gain: t("stockDetail.gain"),
     }),
@@ -209,6 +212,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
               <ActionButton label={t("stockDetail.addPosition")} onClick={() => openDialog("position")} />
               <ActionButton label={t("stockDetail.addTransfer")} onClick={() => openDialog("transfer")} />
               <ActionButton label={t("stockDetail.setCash")} onClick={() => openDialog("cash")} />
+              <ActionButton label={t("stockDetail.setFrozen")} onClick={() => openDialog("frozen")} />
             </div>
             {loading && !detail ? <p className="text-small text-text-secondary">{t("loading")}</p> : null}
             {detail?.flow.fx_incomplete ? (
@@ -228,6 +232,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
                     />
                   </div>
                   <aside className="space-y-3 border-t border-border-subtle pt-lg text-caption leading-relaxed text-text-secondary lg:w-60 lg:shrink-0 lg:border-l lg:border-t-0 lg:pl-lg lg:pt-1">
+                    <FormulaNote text={t("stockDetail.formulaAssets")} />
                     <FormulaNote text={t("stockDetail.formulaLiability")} />
                     <FormulaNote text={t("stockDetail.formulaGain")} />
                     <FormulaNote text={t("stockDetail.formulaFloating")} />

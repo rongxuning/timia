@@ -24,6 +24,7 @@ from app.models.asset import (
     AssetParty,
     AssetProfile,
     AssetStockCash,
+    AssetStockFrozen,
     AssetStockMark,
     AssetStockPosition,
     AssetStockTransfer,
@@ -56,6 +57,7 @@ def client_and_user():
     finally:
         db.execute(delete(AssetStockMark).where(AssetStockMark.owner_user_id == user.id))
         db.execute(delete(AssetStockCash).where(AssetStockCash.owner_user_id == user.id))
+        db.execute(delete(AssetStockFrozen).where(AssetStockFrozen.owner_user_id == user.id))
         db.execute(delete(AssetStockTransfer).where(AssetStockTransfer.owner_user_id == user.id))
         db.execute(delete(AssetStockPosition).where(AssetStockPosition.owner_user_id == user.id))
         db.execute(delete(AssetAdjustment).where(AssetAdjustment.owner_user_id == user.id))

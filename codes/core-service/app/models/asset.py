@@ -401,6 +401,32 @@ class AssetStockCash(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class AssetStockFrozen(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Absolute frozen-funds balance inside a stock account, in its own currency."""
+
+    __tablename__ = "asset_stock_frozen"
+    __table_args__ = (
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_stock_frozen_currency"),
+        CheckConstraint("char_length(reason) > 0", name="ck_asset_stock_frozen_reason"),
+        Index("ix_asset_stock_frozen_account_time", "account_id", "recorded_at"),
+    )
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class AssetStockTransfer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Money moved between the bank and this stock account. Also moves cash."""
 

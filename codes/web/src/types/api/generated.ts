@@ -1800,6 +1800,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-accounts/{account_id}/stock-frozen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Stock Frozen */
+        post: operations["post_stock_frozen_asset_accounts__account_id__stock_frozen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-accounts/{account_id}/stock-transfers": {
         parameters: {
             query?: never;
@@ -6939,6 +6956,8 @@ export interface components {
             market_value_minor: number;
             /** Cash Minor */
             cash_minor: number;
+            /** Frozen Minor */
+            frozen_minor: number;
             /** Liability Minor */
             liability_minor: number;
             /** Show Liability */
@@ -6951,6 +6970,17 @@ export interface components {
             bank_to_securities_minor: number;
             /** Securities To Bank Minor */
             securities_to_bank_minor: number;
+        };
+        /** StockFrozenCreate */
+        StockFrozenCreate: {
+            /** Currency */
+            currency: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Reason */
+            reason: string;
+            /** Recorded At */
+            recorded_at?: string | null;
         };
         /** StockMarkCreate */
         StockMarkCreate: {
@@ -7085,6 +7115,8 @@ export interface components {
             market_value_minor: number;
             /** Cash Minor */
             cash_minor: number;
+            /** Frozen Minor */
+            frozen_minor: number;
             /** Liability Minor */
             liability_minor: number;
             /** Gain Minor */
@@ -12155,6 +12187,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["StockCashCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_stock_frozen_asset_accounts__account_id__stock_frozen_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockFrozenCreate"];
             };
         };
         responses: {

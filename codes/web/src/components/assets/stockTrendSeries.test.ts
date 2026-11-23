@@ -8,6 +8,7 @@ const labels = {
   totalCost: "总成本",
   marketValue: "总市值",
   cash: "总现金",
+  frozen: "冻结资金",
   liability: "总负债",
   gain: "总收益",
 };
@@ -31,6 +32,7 @@ function detail(): StockDetail {
       total_assets_minor: 10,
       market_value_minor: 8,
       cash_minor: 2,
+      frozen_minor: 0,
       liability_minor: 6,
       show_liability: false,
       gain_minor: -2,
@@ -46,6 +48,7 @@ function detail(): StockDetail {
         total_cost_minor: 2,
         market_value_minor: 3,
         cash_minor: 4,
+        frozen_minor: 0,
         liability_minor: 5,
         gain_minor: 6,
         positions: [],
@@ -56,6 +59,7 @@ function detail(): StockDetail {
         total_cost_minor: 8,
         market_value_minor: 9,
         cash_minor: 10,
+        frozen_minor: 1,
         liability_minor: 11,
         gain_minor: 12,
         positions: [
@@ -83,12 +87,12 @@ describe("isolatedValueIndexes", () => {
 });
 
 describe("summaryTrend", () => {
-  it("keeps the six account totals and leaves individual stocks out", () => {
+  it("keeps the seven account totals and leaves individual stocks out", () => {
     const trend = summaryTrend(detail(), labels);
     assert.ok(trend);
     assert.deepEqual(
       trend.series.map((item) => item.label),
-      ["净总资产", "总成本", "总市值", "总现金", "总负债", "总收益"],
+      ["净总资产", "总成本", "总市值", "总现金", "冻结资金", "总负债", "总收益"],
     );
     assert.deepEqual(
       trend.series.find((item) => item.id === "net")?.values,
@@ -107,6 +111,7 @@ describe("summaryTrend", () => {
             total_cost_minor: 300,
             market_value_minor: 80,
             cash_minor: 20,
+            frozen_minor: 0,
             liability_minor: -200,
             gain_minor: -280,
             positions: [],
@@ -117,6 +122,7 @@ describe("summaryTrend", () => {
             total_cost_minor: 300,
             market_value_minor: 200,
             cash_minor: 300,
+            frozen_minor: 50,
             liability_minor: 200,
             gain_minor: 0,
             positions: [],

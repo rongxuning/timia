@@ -24,6 +24,7 @@ from app.models.asset import (
     AssetParty,
     AssetProfile,
     AssetStockCash,
+    AssetStockFrozen,
     AssetStockMark,
     AssetStockPosition,
     AssetStockTransfer,
@@ -57,6 +58,7 @@ def client_and_user():
     finally:
         db.execute(delete(AssetStockMark).where(AssetStockMark.owner_user_id == user.id))
         db.execute(delete(AssetStockCash).where(AssetStockCash.owner_user_id == user.id))
+        db.execute(delete(AssetStockFrozen).where(AssetStockFrozen.owner_user_id == user.id))
         db.execute(delete(AssetStockTransfer).where(AssetStockTransfer.owner_user_id == user.id))
         db.execute(delete(AssetStockPosition).where(AssetStockPosition.owner_user_id == user.id))
         db.execute(delete(AssetAdjustment).where(AssetAdjustment.owner_user_id == user.id))
@@ -87,8 +89,9 @@ def test_stock_account_totals_appear_on_assets_home(client_and_user):
     shares = 200
     market_price = 210_000
     cash_minor = 8_000_000
+    frozen_minor = 500_000
     market_value = quote_value_minor(shares, market_price, "CNY")
-    expected_net = market_value + cash_minor
+    expected_net = market_value + cash_minor + frozen_minor
 
     opened = client.post(
         f"/asset-accounts/{account_id}/stocks",
@@ -118,6 +121,18 @@ def test_stock_account_totals_appear_on_assets_home(client_and_user):
     )
     assert cash.status_code == 204, cash.text
 
+    frozen = client.post(
+        f"/asset-accounts/{account_id}/stock-frozen",
+        headers=headers,
+        json={
+            "currency": "CNY",
+            "amount_minor": frozen_minor,
+            "reason": "冻结资金",
+            "recorded_at": "2026-11-20T11:30:00+08:00",
+        },
+    )
+    assert frozen.status_code == 204, frozen.text
+
     detail = client.get(
         f"/views/me/assets/accounts/{account_id}/stocks",
         headers=headers,
@@ -128,6 +143,7 @@ def test_stock_account_totals_appear_on_assets_home(client_and_user):
         },
     )
     assert detail.status_code == 200, detail.text
+    assert detail.json()["flow"]["frozen_minor"] == frozen_minor
     assert detail.json()["flow"]["total_assets_minor"] == expected_net
 
     view = client.get("/views/me/assets", headers=headers)

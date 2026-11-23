@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models.asset import (
     AssetStockCash,
+    AssetStockFrozen,
     AssetStockMark,
     AssetStockPosition,
     AssetStockTransfer,
@@ -94,6 +95,16 @@ def build_stock_detail(
         )
         for row in _cash(db, account.id)
     ]
+    frozen_sets = [
+        CashSet(
+            at=row.recorded_at,
+            currency=row.currency,
+            amount_minor=row.amount_minor,
+            seq=row.created_at,
+            tie=str(row.id),
+        )
+        for row in _frozen(db, account.id)
+    ]
     transfers = [
         Transfer(
             at=row.recorded_at,
@@ -106,15 +117,35 @@ def build_stock_detail(
         for row in _transfers(db, account.id)
     ]
     try:
-        series = flow_series(start, end, marks, cash_sets, transfers, convert, zone)
+        series = flow_series(
+            start, end, marks, cash_sets, transfers, convert, zone, frozen_sets=frozen_sets
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    end_shot = snapshot_on(end, marks, cash_sets, transfers, convert, zone)
-    start_shot = snapshot_on(start - timedelta(days=1), marks, cash_sets, transfers, convert, zone)
+    end_shot = snapshot_on(end, marks, cash_sets, transfers, convert, zone, frozen_sets=frozen_sets)
+    start_shot = snapshot_on(
+        start - timedelta(days=1),
+        marks,
+        cash_sets,
+        transfers,
+        convert,
+        zone,
+        frozen_sets=frozen_sets,
+    )
     baseline_pnl = {row.position_id: row.total_pnl_minor for row in start_shot.positions}
     as_of = card_as_of(datetime.now(zone).date(), (_local_day(row.marked_at, zone) for row in positions))
-    latest_shot = snapshot_on(as_of, marks, cash_sets, transfers, convert, zone)
-    prior_shot = snapshot_on(as_of - timedelta(days=1), marks, cash_sets, transfers, convert, zone)
+    latest_shot = snapshot_on(
+        as_of, marks, cash_sets, transfers, convert, zone, frozen_sets=frozen_sets
+    )
+    prior_shot = snapshot_on(
+        as_of - timedelta(days=1),
+        marks,
+        cash_sets,
+        transfers,
+        convert,
+        zone,
+        frozen_sets=frozen_sets,
+    )
     prior_by_id = {row.position_id: row for row in prior_shot.positions}
     versions = {str(row.id): row.version for row in positions}
     cards = [
@@ -154,6 +185,7 @@ def build_stock_detail(
             total_assets_minor=end_shot.total_assets_minor,
             market_value_minor=end_shot.market_value_minor,
             cash_minor=end_shot.cash_minor,
+            frozen_minor=end_shot.frozen_minor,
             liability_minor=end_shot.liability_minor,
             show_liability=end_shot.show_liability,
             gain_minor=end_shot.gain_minor,
@@ -169,6 +201,7 @@ def build_stock_detail(
                 total_cost_minor=point.total_cost_minor,
                 market_value_minor=point.market_value_minor,
                 cash_minor=point.cash_minor,
+                frozen_minor=point.frozen_minor,
                 liability_minor=point.liability_minor,
                 gain_minor=point.gain_minor,
                 positions=[
@@ -219,6 +252,12 @@ def _marks(db: Session, position_ids: list[uuid.UUID]) -> list[AssetStockMark]:
 def _cash(db: Session, account_id: uuid.UUID) -> list[AssetStockCash]:
     return list(
         db.scalars(select(AssetStockCash).where(AssetStockCash.account_id == account_id)).all()
+    )
+
+
+def _frozen(db: Session, account_id: uuid.UUID) -> list[AssetStockFrozen]:
+    return list(
+        db.scalars(select(AssetStockFrozen).where(AssetStockFrozen.account_id == account_id)).all()
     )
 
 

@@ -10,12 +10,13 @@ import {
   createStockTransfer,
   markStockPosition,
   setStockCash,
+  setStockFrozen,
 } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
 import { formatQuote, localInputToIso, nowLocalInput, parseAmountToMinor, parseQuoteToMinor } from "@/lib/money";
 import type { StockMarket, StockPosition, StockTransferDirection } from "@/types/api/views/stock";
 
-export type StockDialogMode = "position" | "mark" | "transfer" | "cash";
+export type StockDialogMode = "position" | "mark" | "transfer" | "cash" | "frozen";
 
 type StockEntryDialogProps = {
   accountId: string;
@@ -113,6 +114,13 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
             reason: reason.trim(),
             recorded_at,
           });
+        } else if (mode === "frozen") {
+          await setStockFrozen(accessToken, accountId, {
+            currency,
+            amount_minor: amountMinor,
+            reason: reason.trim(),
+            recorded_at,
+          });
         } else {
           await setStockCash(accessToken, accountId, {
             currency,
@@ -136,7 +144,9 @@ export function StockEntryDialog({ accountId, mode, position, onClose, onSaved }
         ? t("stockDetail.updatePosition")
         : mode === "transfer"
           ? t("stockDetail.addTransfer")
-          : t("stockDetail.setCash");
+          : mode === "frozen"
+            ? t("stockDetail.setFrozen")
+            : t("stockDetail.setCash");
 
   return (
     <ModalDialog

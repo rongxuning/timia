@@ -15,6 +15,7 @@ const labels: StockFlowLabels = {
   totalAssets: "总资产",
   marketValue: "总市值",
   cash: "总现金",
+  frozen: "冻结资金",
   liability: "总负债",
   gain: "总收益",
   bankIn: "银行转证券",
@@ -29,6 +30,7 @@ function numbers(overrides: Partial<StockFlowNumbers> = {}): StockFlowNumbers {
     totalAssets: 500,
     marketValue: 200,
     cash: 300,
+    frozen: 0,
     liability: -200,
     showLiability: true,
     gain: -400,
@@ -104,6 +106,25 @@ describe("stockFlowGraph", () => {
     const loss = stockFlowGraph(numbers({ netAssets: 100, totalCost: 400 }), labels, String);
     assert.equal(loss.nodes.find((node) => node.id === "floating")?.value, -300);
     assert.equal(loss.nodes.find((node) => node.id === "floating")?.tone, "loss");
+  });
+
+  it("splits total assets into market value, cash, and frozen funds", () => {
+    const graph = stockFlowGraph(
+      numbers({
+        netAssets: 650,
+        totalAssets: 650,
+        marketValue: 200,
+        cash: 300,
+        frozen: 150,
+        showLiability: false,
+        positions: [],
+      }),
+      labels,
+      String,
+    );
+    assert.equal(graph.nodes.find((node) => node.id === "frozen")?.value, 150);
+    assert.equal(graph.nodes.find((node) => node.id === "frozen")?.tone, "frozen");
+    assert.equal(graph.links.find((link) => link.target === "frozen")?.source, "assets");
   });
 });
 

@@ -12,12 +12,13 @@ from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.stock import (
     StockCashCreate,
+    StockFrozenCreate,
     StockMarkCreate,
     StockPositionCreate,
     StockPositionWriteOut,
     StockTransferCreate,
 )
-from app.services.stock_book import add_mark, add_transfer, create_position, set_cash
+from app.services.stock_book import add_mark, add_transfer, create_position, set_cash, set_frozen
 
 router = APIRouter(prefix="/asset-accounts", tags=["assets"])
 
@@ -58,6 +59,16 @@ def post_stock_cash(
     user: User = Depends(get_current_user),
 ):
     set_cash(db, user, account_id, payload)
+
+
+@router.post("/{account_id}/stock-frozen", status_code=status.HTTP_204_NO_CONTENT)
+def post_stock_frozen(
+    account_id: uuid.UUID,
+    payload: StockFrozenCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    set_frozen(db, user, account_id, payload)
 
 
 @router.post("/{account_id}/stock-transfers", status_code=status.HTTP_204_NO_CONTENT)

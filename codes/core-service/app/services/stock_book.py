@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.models.asset import (
     AssetAccount,
     AssetStockCash,
+    AssetStockFrozen,
     AssetStockMark,
     AssetStockPosition,
     AssetStockTransfer,
@@ -21,6 +22,7 @@ from app.models.asset import (
 from app.models.user import User
 from app.schemas.stock import (
     StockCashCreate,
+    StockFrozenCreate,
     StockMarkCreate,
     StockPositionCreate,
     StockPositionWriteOut,
@@ -142,6 +144,32 @@ def set_cash(
     moment = _moment(payload.recorded_at)
     db.add(
         AssetStockCash(
+            account_id=account.id,
+            owner_user_id=user.id,
+            currency=currency,
+            amount_minor=payload.amount_minor,
+            reason=reason,
+            recorded_at=moment,
+        )
+    )
+    db.commit()
+
+
+def set_frozen(
+    db: Session,
+    user: User,
+    account_id: uuid.UUID,
+    payload: StockFrozenCreate,
+) -> None:
+    _ensure_profile(db, user.id)
+    account = _stock_account(db, user.id, account_id)
+    currency = _currency(payload.currency)
+    if payload.amount_minor < 0 or payload.amount_minor > MAX_MINOR:
+        raise HTTPException(status_code=400, detail="amount_invalid")
+    reason = _required_text(payload.reason, "reason_required")
+    moment = _moment(payload.recorded_at)
+    db.add(
+        AssetStockFrozen(
             account_id=account.id,
             owner_user_id=user.id,
             currency=currency,
