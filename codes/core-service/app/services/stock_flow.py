@@ -305,19 +305,12 @@ def _is_weekday(day: date) -> bool:
     return day.weekday() < 5
 
 
-def _last_weekday_on_or_before(day: date, start: date) -> date | None:
-    cursor = day
-    while cursor >= start and not _is_weekday(cursor):
-        cursor -= timedelta(days=1)
-    return cursor if cursor >= start and _is_weekday(cursor) else None
-
-
 def _park_event(day: date, start: date, end: date) -> tuple[date, date] | None:
     """Map a ledger day to (axis weekday, snapshot day).
 
-    Weekdays stay put. Sat/Sun park on the next Monday when it is still in range.
-    If Monday is past ``end``, keep weekend values via snapshot on the event day and
-    label the last weekday in range so charts never plot weekend nodes.
+    Weekdays stay put. Sat/Sun park on the next Monday when that Monday is still
+    in range. If Monday is past ``end``, omit the weekend event from the series
+    (wait for Monday) so Friday nodes are never overwritten by weekend books.
     """
     if day < start or day > end:
         return None
@@ -326,10 +319,7 @@ def _park_event(day: date, start: date, end: date) -> tuple[date, date] | None:
     monday = day + timedelta(days=(7 - day.weekday()))
     if monday <= end:
         return monday, monday
-    label = _last_weekday_on_or_before(end, start)
-    if label is None:
-        return None
-    return label, day
+    return None
 
 
 def event_days(

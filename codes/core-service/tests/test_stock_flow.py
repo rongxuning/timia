@@ -198,20 +198,23 @@ def test_weekend_mark_parks_on_monday_node():
     assert len(points[0].positions) == 1
 
 
-def test_weekend_mark_keeps_values_when_monday_is_past_range_end():
-    # Range ends Sunday; Monday is out of range — still surface Saturday books.
+def test_weekend_mark_waits_for_monday_when_monday_is_past_range_end():
+    # Range ends Sunday — do not park onto Friday (would overwrite Friday books).
     points = flow_series(
         date(2026, 11, 20),
         date(2026, 11, 22),
-        [_mark("2026-11-21", shares=3, price=60)],
+        [
+            _mark("2026-11-20", shares=2, price=50),
+            _mark("2026-11-21", shares=3, price=60),
+        ],
         [],
         [],
         _identity,
         ZoneInfo("UTC"),
     )
     assert [point.as_of for point in points] == [date(2026, 11, 20)]
-    assert points[0].market_value_minor == 180
-    assert len(points[0].positions) == 1
+    assert points[0].market_value_minor == 100
+    assert points[0].positions[0].shares == 2
 
 
 def test_missing_fx_flags_the_snapshot_and_skips_that_value():
