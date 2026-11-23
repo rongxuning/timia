@@ -358,5 +358,26 @@ def test_same_timestamp_cash_mark_wins_over_the_transfer():
         convert=_identity,
     )
     assert shot.cash_minor == 80
+    assert shot.frozen_minor == 0
     assert shot.total_cost_minor == 500
     assert shot.show_gain is False
+
+
+def test_frozen_funds_join_market_and_cash_in_total_assets():
+    shot = snapshot_on(
+        date(2026, 11, 21),
+        marks=[_mark("2026-11-21", shares=10, price=10_000)],
+        cash_sets=[CashSet(at=_at("2026-11-01"), currency="CNY", amount_minor=300)],
+        transfers=[],
+        convert=_identity,
+        frozen_sets=[
+            CashSet(at=_at("2026-11-01"), currency="CNY", amount_minor=50),
+            CashSet(at=_at("2026-11-10"), currency="CNY", amount_minor=120),
+        ],
+    )
+    # 10 * 100.00 = 1,000.00; cash 3.00; frozen latest 1.20
+    assert shot.market_value_minor == 100_000
+    assert shot.cash_minor == 300
+    assert shot.frozen_minor == 120
+    assert shot.total_assets_minor == 100_420
+    assert shot.net_assets_minor == shot.total_assets_minor

@@ -21,6 +21,7 @@ class StockFlowOut(BaseModel):
     total_assets_minor: int
     market_value_minor: int
     cash_minor: int
+    frozen_minor: int
     liability_minor: int
     show_liability: bool
     gain_minor: int
@@ -65,6 +66,7 @@ class StockSeriesPointOut(BaseModel):
     total_cost_minor: int
     market_value_minor: int
     cash_minor: int
+    frozen_minor: int
     liability_minor: int
     gain_minor: int
     positions: list[StockSeriesPositionOut] = Field(default_factory=list)

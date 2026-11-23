@@ -6,6 +6,7 @@ export type SummaryTrendLabels = {
   totalCost: string;
   marketValue: string;
   cash: string;
+  frozen: string;
   liability: string;
   gain: string;
 };
@@ -51,6 +52,7 @@ export function summaryTrend(
       line("cost", labels.totalCost, "text-indigo-600", detail.series.map((point) => point.total_cost_minor)),
       line("market", labels.marketValue, "text-success", detail.series.map((point) => point.market_value_minor)),
       line("cash", labels.cash, "text-text-secondary", detail.series.map((point) => point.cash_minor)),
+      line("frozen", labels.frozen, "text-indigo-500", detail.series.map((point) => point.frozen_minor)),
       // 总负债 = 净总资产 − 总成本，仅当为负时展示其绝对值。
       line(
         "liability",

@@ -45,6 +45,13 @@ class StockCashCreate(BaseModel):
     recorded_at: datetime | None = None
 
 
+class StockFrozenCreate(BaseModel):
+    currency: str = Field(min_length=3, max_length=3)
+    amount_minor: int
+    reason: str = Field(min_length=1, max_length=200)
+    recorded_at: datetime | None = None
+
+
 class StockTransferCreate(BaseModel):
     direction: Literal["bank_to_securities", "securities_to_bank"]
     currency: str = Field(min_length=3, max_length=3)

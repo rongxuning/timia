@@ -7957,6 +7957,68 @@
         }
       }
     },
+    "/asset-accounts/{account_id}/stock-frozen": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Stock Frozen",
+        "operationId": "post_stock_frozen_asset_accounts__account_id__stock_frozen_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockFrozenCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/asset-accounts/{account_id}/stock-transfers": {
       "post": {
         "tags": [
@@ -24982,6 +25044,10 @@
             "type": "integer",
             "title": "Cash Minor"
           },
+          "frozen_minor": {
+            "type": "integer",
+            "title": "Frozen Minor"
+          },
           "liability_minor": {
             "type": "integer",
             "title": "Liability Minor"
@@ -25016,6 +25082,7 @@
           "total_assets_minor",
           "market_value_minor",
           "cash_minor",
+          "frozen_minor",
           "liability_minor",
           "show_liability",
           "gain_minor",
@@ -25024,6 +25091,45 @@
           "securities_to_bank_minor"
         ],
         "title": "StockFlowOut"
+      },
+      "StockFrozenCreate": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "amount_minor",
+          "reason"
+        ],
+        "title": "StockFrozenCreate"
       },
       "StockMarkCreate": {
         "properties": {
@@ -25357,6 +25463,10 @@
             "type": "integer",
             "title": "Cash Minor"
           },
+          "frozen_minor": {
+            "type": "integer",
+            "title": "Frozen Minor"
+          },
           "liability_minor": {
             "type": "integer",
             "title": "Liability Minor"
@@ -25380,6 +25490,7 @@
           "total_cost_minor",
           "market_value_minor",
           "cash_minor",
+          "frozen_minor",
           "liability_minor",
           "gain_minor"
         ],

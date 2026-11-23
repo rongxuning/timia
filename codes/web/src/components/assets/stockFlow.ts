@@ -1,6 +1,15 @@
 /** Layout for the stock-account flow. Bar height follows the absolute amount. */
 
-export type FlowTone = "asset" | "cost" | "deduct" | "gain" | "cash" | "profit" | "loss" | "flat";
+export type FlowTone =
+  | "asset"
+  | "cost"
+  | "deduct"
+  | "gain"
+  | "cash"
+  | "frozen"
+  | "profit"
+  | "loss"
+  | "flat";
 
 export type FlowNodeInput = {
   id: string;
@@ -26,6 +35,7 @@ export type StockFlowNumbers = {
   totalAssets: number;
   marketValue: number;
   cash: number;
+  frozen: number;
   liability: number;
   showLiability: boolean;
   gain: number;
@@ -41,6 +51,7 @@ export type StockFlowLabels = {
   totalAssets: string;
   marketValue: string;
   cash: string;
+  frozen: string;
   liability: string;
   gain: string;
   bankIn: string;
@@ -87,11 +98,13 @@ export function stockFlowGraph(
     node("bankOut", labels.bankOut, numbers.bankOut, 1, "cash", format),
     node("market", labels.marketValue, numbers.marketValue, 2, "asset", format),
     node("cash", labels.cash, numbers.cash, 2, "cash", format),
+    node("frozen", labels.frozen, numbers.frozen, 2, "frozen", format),
   ];
   const links: FlowLinkInput[] = [
     { source: "net", target: "assets", tone: "asset" },
     { source: "assets", target: "market", tone: "asset" },
     { source: "assets", target: "cash", tone: "cash" },
+    { source: "assets", target: "frozen", tone: "frozen" },
     { source: "cost", target: "bank", tone: "cost" },
     { source: "cost", target: "bankOut", tone: "cash" },
     { source: "market", target: "positions", tone: "asset" },

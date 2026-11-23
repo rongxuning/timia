@@ -9,6 +9,7 @@ export type StockFlow = {
   total_assets_minor: number;
   market_value_minor: number;
   cash_minor: number;
+  frozen_minor: number;
   liability_minor: number;
   show_liability: boolean;
   gain_minor: number;
@@ -53,6 +54,7 @@ export type StockSeriesPoint = {
   total_cost_minor: number;
   market_value_minor: number;
   cash_minor: number;
+  frozen_minor: number;
   liability_minor: number;
   gain_minor: number;
   positions: StockSeriesPosition[];

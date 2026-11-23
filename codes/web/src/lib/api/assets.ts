@@ -339,6 +339,18 @@ export function setStockCash(
   });
 }
 
+export function setStockFrozen(
+  token: string,
+  accountId: string,
+  body: { currency: string; amount_minor: number; reason: string; recorded_at?: string },
+): Promise<void> {
+  return apiFetch<void>(`/asset-accounts/${accountId}/stock-frozen`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function createStockTransfer(
   token: string,
   accountId: string,

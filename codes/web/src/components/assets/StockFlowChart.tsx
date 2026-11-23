@@ -15,6 +15,7 @@ const FILL: Record<FlowTone, string> = {
   deduct: "fill-error",
   gain: "fill-success",
   cash: "fill-warning",
+  frozen: "fill-indigo-400",
   profit: "fill-error",
   loss: "fill-success",
   flat: "fill-neutral-muted",
