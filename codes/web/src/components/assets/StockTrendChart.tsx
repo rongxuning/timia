@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { chartAxisDates, formatChartDate, nearestChartIndex, pointerXInViewBox } from "@/components/assets/assetChartRange";
+import {
+  chartPointDateLabels,
+  formatChartDate,
+  formatChartMonth,
+  nearestChartIndex,
+  pointerXInViewBox,
+} from "@/components/assets/assetChartRange";
 import { layoutStockTrend, type TrendDirection, type TrendDot } from "@/components/assets/stockTrendLayout";
 
 export type TrendSeries = {
@@ -35,13 +41,13 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
   if (!layout || categories.length === 0) return null;
   const index = Math.min(hover ?? categories.length - 1, categories.length - 1);
   const activeX = layout.coords[index]?.x ?? layout.plot.left;
-  const dateLabels = chartAxisDates(categories);
-  const xTicks = dateLabels.flatMap((date, labelIndex) => {
-    const tick = layout.xTicks.find((item) => item.date === date);
-    if (!tick) return [];
+  const dateLabels = chartPointDateLabels(categories);
+  const xTicks = dateLabels.flatMap((label, labelIndex) => {
+    const tick = layout.xTicks[labelIndex];
+    if (!tick || tick.date !== label.date) return [];
     const anchor: "start" | "middle" | "end" =
       labelIndex === 0 ? "start" : labelIndex === dateLabels.length - 1 ? "end" : "middle";
-    return [{ ...tick, anchor }];
+    return [{ ...tick, anchor, day: label.day, month: label.month }];
   });
 
   function moveTo(offsetX: number, width: number, height: number) {
@@ -146,15 +152,26 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
           </text>
         ))}
         {xTicks.map((tick) => (
-          <text
-            key={`x-${tick.date}`}
-            x={tick.x}
-            y={layout.height - 8}
-            textAnchor={tick.anchor}
-            className="fill-current text-[10px] text-text-secondary"
-          >
-            {formatChartDate(tick.date, locale)}
-          </text>
+          <g key={`x-${tick.date}`}>
+            {tick.month ? (
+              <text
+                x={tick.x}
+                y={layout.height - 22}
+                textAnchor={tick.anchor}
+                className="fill-current text-[10px] text-text-secondary"
+              >
+                {formatChartMonth(tick.date, locale)}
+              </text>
+            ) : null}
+            <text
+              x={tick.x}
+              y={layout.height - 8}
+              textAnchor={tick.anchor}
+              className="fill-current text-[10px] text-text-secondary"
+            >
+              {tick.day}
+            </text>
+          </g>
         ))}
         {layout.segments.map((segment) => (
           <line
@@ -168,9 +185,18 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
             className={`stroke-current ${DIRECTION_TONE[segment.direction]}`}
           />
         ))}
-        {layout.dots.map((dot) => (
-          <circle key={dot.id} cx={dot.cx} cy={dot.cy} r="3.5" className="fill-current text-primary" />
-        ))}
+        {layout.dots.map((dot) => {
+          const item = series.find((entry) => entry.id === dot.seriesId);
+          return (
+            <circle
+              key={dot.id}
+              cx={dot.cx}
+              cy={dot.cy}
+              r="3.5"
+              className={`fill-current ${item ? valueTone(item, dot.value) : "text-primary"}`}
+            />
+          );
+        })}
         {pointLabels(layout.dots, index).map((dot) => {
           const item = series.find((entry) => entry.id === dot.seriesId);
           const text = item?.formatValue ? item.formatValue(dot.value) : formatMoney(dot.value);

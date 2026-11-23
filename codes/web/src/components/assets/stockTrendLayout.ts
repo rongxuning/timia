@@ -47,8 +47,8 @@ export type StockTrendLayout = {
 };
 
 const WIDTH = 720;
-const HEIGHT = 236;
-const PAD = { top: 14, right: 16, bottom: 32, left: 92 };
+const HEIGHT = 248;
+const PAD = { top: 14, right: 16, bottom: 44, left: 92 };
 const DAY_GUIDE_CAP = 45;
 
 export function layoutStockTrend(
