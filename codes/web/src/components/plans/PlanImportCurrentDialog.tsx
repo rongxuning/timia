@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
+import { ModalDialog } from "@/components/ModalDialog";
 import {
   fetchSubscriptionCurrentPeriod,
   importSubscriptionCurrentPeriod,
@@ -50,8 +50,6 @@ export function PlanImportCurrentDialog({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEscapeDismiss({ open, onDismiss: onClose, disabled: submitting || loading });
 
   useEffect(() => {
     if (!open) {
@@ -134,20 +132,14 @@ export function PlanImportCurrentDialog({
     (selectedCount > 0 || (tasks.length > 0 && unselectedSlotIds.size === 0));
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={() => {
-          if (!submitting && !loading) onClose();
-        }}
-      />
-      <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="flex w-[min(72rem,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface p-5 shadow-sm"
-        >
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={submitting || loading}
+      className="flex w-[min(72rem,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface p-5 shadow-sm"
+    >
+      {({ requestClose }) => (
+        <>
           <h2 id={titleId} className="shrink-0 font-semibold font-subhead text-text-primary">
             导入本期
           </h2>
@@ -257,7 +249,7 @@ export function PlanImportCurrentDialog({
             <button
               type="button"
               className="rounded-xl border border-border-subtle bg-white px-4 py-2 text-small text-text-secondary hover:bg-gray-50 disabled:opacity-50"
-              onClick={onClose}
+              onClick={requestClose}
               disabled={submitting}
             >
               取消
@@ -271,8 +263,8 @@ export function PlanImportCurrentDialog({
               {submitting ? "导入中…" : "确认导入"}
             </button>
           </div>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </ModalDialog>
   );
 }

@@ -49,3 +49,46 @@ body {
   overflow: hidden;
 }
 
+/* Keep reset in @layer base so Tailwind utilities (p-*, border-*) on ModalDialog win. */
+@layer base {
+  dialog.modal-dialog[open] {
+    margin: auto;
+    border-style: solid;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+  }
+}
+
+dialog.modal-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+dialog.modal-dialog.modal-dialog--lightbox::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+dialog.modal-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.task-drawer-dialog[open],
+dialog.sticky-note-dialog[open] {
+  inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+dialog.task-drawer-dialog::backdrop,
+dialog.sticky-note-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.3);
+}
+

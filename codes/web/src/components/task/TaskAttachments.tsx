@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
+import { ModalDialog } from "@/components/ModalDialog";
 import {
   deleteFile,
   fetchFileBlob,
@@ -122,11 +122,6 @@ export function TaskAttachments({
       return null;
     });
   }, []);
-
-  useEscapeDismiss({
-    open: preview != null,
-    onDismiss: closePreview,
-  });
 
   async function openRemotePreview(file: FileOut) {
     if (!token) return;
@@ -319,41 +314,38 @@ export function TaskAttachments({
       </div>
 
       {preview ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={preview.name}
-          onClick={closePreview}
+        <ModalDialog
+          ariaLabel={preview.name}
+          onClose={closePreview}
+          className="modal-dialog--lightbox relative max-h-[calc(100vh-3rem)] max-w-[calc(100vw-3rem)] border-0 bg-transparent p-0 shadow-none"
         >
-          <button
-            type="button"
-            className="absolute right-4 top-4 text-white"
-            aria-label={t("closePreview")}
-            onClick={(event) => {
-              event.stopPropagation();
-              closePreview();
-            }}
-          >
-            ×
-          </button>
-          {preview.kind === "video" ? (
-            <video
-              src={preview.url}
-              className="max-h-full max-w-full"
-              controls
-              autoPlay
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <img
-              src={preview.url}
-              alt={preview.name}
-              className="max-h-full max-w-full object-contain"
-              onClick={(e) => e.stopPropagation()}
-            />
+          {({ requestClose }) => (
+            <div className="relative flex items-center justify-center p-6">
+              <button
+                type="button"
+                className="absolute right-0 top-0 z-10 text-2xl leading-none text-white"
+                aria-label={t("closePreview")}
+                onClick={requestClose}
+              >
+                ×
+              </button>
+              {preview.kind === "video" ? (
+                <video
+                  src={preview.url}
+                  className="max-h-[calc(100vh-6rem)] max-w-full"
+                  controls
+                  autoPlay
+                />
+              ) : (
+                <img
+                  src={preview.url}
+                  alt={preview.name}
+                  className="max-h-[calc(100vh-6rem)] max-w-full object-contain"
+                />
+              )}
+            </div>
           )}
-        </div>
+        </ModalDialog>
       ) : null}
     </div>
   );

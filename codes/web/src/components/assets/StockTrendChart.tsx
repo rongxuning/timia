@@ -45,7 +45,7 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
   const xTicks = dateLabels.flatMap((label, labelIndex) => {
     const tick = layout.xTicks[labelIndex];
     if (!tick || tick.date !== label.date) return [];
-    const anchor =
+    const anchor: "start" | "middle" | "end" =
       labelIndex === 0 ? "start" : labelIndex === dateLabels.length - 1 ? "end" : "middle";
     return [{ ...tick, anchor, day: label.day, month: label.month }];
   });

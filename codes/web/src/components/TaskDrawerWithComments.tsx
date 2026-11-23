@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import { SystemSelect, type SystemSelectOption } from "@/components/SystemSelect";
 import { PinnedTagSelect } from "@/components/PinnedTagSelect";
+import { consumeDialogLightDismissSuppression } from "@/components/AnchoredPopover";
+import { ModalDialog } from "@/components/ModalDialog";
 import { ProjectModal, type ProjectModalResult } from "@/components/ProjectModal";
 import { WorkspaceModal } from "@/components/WorkspaceModal";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
@@ -242,6 +244,7 @@ export function TaskDrawerWithComments({
   initialCreateLocation,
 }: Props) {
   const uid = useId().replace(/:/g, "");
+  const deleteConfirmTitleId = useId();
   const effectiveShowComments = showCommentsProp ?? (variant !== "create");
   const [drawerMounted, setDrawerMounted] = useState(open);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -278,20 +281,10 @@ export function TaskDrawerWithComments({
 
   const assigneePickerRef = useRef<HTMLDivElement | null>(null);
   const participantPickerRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closingFromUnmountRef = useRef(false);
+  const closeDrawerRef = useRef(() => {});
 
-  useEscapeDismiss({
-    open,
-    onDismiss: closeDrawer,
-    disabled:
-      editLoading ||
-      deleteLoading ||
-      deleteConfirmOpen ||
-      assigneePanelOpen ||
-      participantPanelOpen ||
-      placeSearchOpen ||
-      createWorkspaceOpen ||
-      createProjectOpen,
-  });
   useEscapeDismiss({
     open: open && assigneePanelOpen,
     onDismiss: () => setAssigneePanelOpen(false),
@@ -299,11 +292,6 @@ export function TaskDrawerWithComments({
   useEscapeDismiss({
     open: open && participantPanelOpen,
     onDismiss: () => setParticipantPanelOpen(false),
-  });
-  useEscapeDismiss({
-    open: open && deleteConfirmOpen,
-    onDismiss: () => setDeleteConfirmOpen(false),
-    disabled: deleteLoading,
   });
 
   useEffect(() => {
@@ -319,7 +307,11 @@ export function TaskDrawerWithComments({
     } else {
       setDrawerVisible(false);
       setPendingFiles([]);
-      unmountTimer = window.setTimeout(() => setDrawerMounted(false), DRAWER_TRANSITION_MS);
+      unmountTimer = window.setTimeout(() => {
+        closingFromUnmountRef.current = true;
+        dialogRef.current?.close();
+        setDrawerMounted(false);
+      }, DRAWER_TRANSITION_MS);
     }
 
     return () => {
@@ -701,6 +693,61 @@ export function TaskDrawerWithComments({
     if (editLoading || deleteLoading) return;
     onClose();
   }
+
+  closeDrawerRef.current = closeDrawer;
+
+  const drawerDismissDisabled =
+    editLoading ||
+    deleteLoading ||
+    deleteConfirmOpen ||
+    assigneePanelOpen ||
+    participantPanelOpen ||
+    placeSearchOpen ||
+    createWorkspaceOpen ||
+    createProjectOpen;
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !drawerMounted || dialog.open) return;
+    dialog.showModal();
+  }, [drawerMounted]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !drawerMounted) return;
+
+    const onDialogClose = () => {
+      if (closingFromUnmountRef.current) {
+        closingFromUnmountRef.current = false;
+        return;
+      }
+      // Keep modal open while the panel slide-out runs (closedby=any closes the dialog immediately).
+      if (!dialog.open) dialog.showModal();
+      closeDrawerRef.current();
+    };
+
+    const onCancel = (event: Event) => {
+      event.preventDefault();
+      if (drawerDismissDisabled) return;
+      closeDrawerRef.current();
+    };
+
+    // Full-viewport transparent dialog: the scrim is the dialog box itself, so
+    // closedby="any" never sees an "outside" click. Always light-dismiss on target===dialog.
+    const onClick = (event: MouseEvent) => {
+      if (drawerDismissDisabled || consumeDialogLightDismissSuppression()) return;
+      if (event.target === dialog) closeDrawerRef.current();
+    };
+
+    dialog.addEventListener("close", onDialogClose);
+    dialog.addEventListener("cancel", onCancel);
+    dialog.addEventListener("click", onClick);
+    return () => {
+      dialog.removeEventListener("close", onDialogClose);
+      dialog.removeEventListener("cancel", onCancel);
+      dialog.removeEventListener("click", onClick);
+    };
+  }, [drawerMounted, drawerDismissDisabled]);
 
   const canDeleteTask = variant === "edit" && !!drawerItem && !!token;
 
@@ -1091,11 +1138,12 @@ export function TaskDrawerWithComments({
   const creatorLabel = variant === "edit" && drawerItem ? drawerItem.created_by?.display_name ?? "—" : "—";
 
   return (
-    <div className="fixed inset-0 z-[60]">
-      <div
-        className={`absolute inset-0 bg-black/30 ${drawerVisible ? "" : "pointer-events-none"}`}
-        onClick={closeDrawer}
-      />
+    <dialog
+      ref={dialogRef}
+      className="task-drawer-dialog fixed z-[60]"
+      aria-label="任务"
+      {...({ closedby: drawerDismissDisabled ? "none" : "any" } as HTMLAttributes<HTMLDialogElement>)}
+    >
       <aside
         className={`absolute inset-y-0 right-0 flex w-[min(1120px,100vw)] transform-gpu flex-col overflow-hidden border-l border-border-subtle bg-surface shadow-xl transition-transform duration-[600ms] ease-out motion-reduce:transition-none ${
           drawerVisible ? "translate-x-0" : "translate-x-full"
@@ -1647,24 +1695,23 @@ export function TaskDrawerWithComments({
       </aside>
 
       {deleteConfirmOpen && drawerItem ? (
-        <div className="fixed inset-0 z-[60]">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => {
-              if (!deleteLoading) setDeleteConfirmOpen(false);
-            }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="w-[min(720px,calc(100vw-2rem))] rounded-xl bg-surface border border-border-subtle p-6 space-y-5 shadow-sm max-h-[calc(100vh-6rem)] overflow-auto">
+        <ModalDialog
+          titleId={deleteConfirmTitleId}
+          onClose={() => setDeleteConfirmOpen(false)}
+          busy={deleteLoading}
+          className="max-h-[calc(100vh-6rem)] w-[min(720px,calc(100vw-2rem))] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+        >
+          {({ requestClose }) => (
+            <>
               <div className="flex items-center justify-between">
-                <div className="font-semibold font-subhead">删除任务</div>
+                <div id={deleteConfirmTitleId} className="font-semibold font-subhead">
+                  删除任务
+                </div>
                 <button
                   className="text-sm underline disabled:opacity-50"
                   type="button"
                   disabled={deleteLoading}
-                  onClick={() => {
-                    if (!deleteLoading) setDeleteConfirmOpen(false);
-                  }}
+                  onClick={requestClose}
                 >
                   关闭
                 </button>
@@ -1673,7 +1720,9 @@ export function TaskDrawerWithComments({
               <div className="space-y-3">
                 <div className="rounded-xl border border-error-container bg-error-container/10 p-4">
                   <div className="font-medium text-gray-900">确定要删除任务 “{drawerItem.title}” 吗？</div>
-                  <div className="text-small text-text-secondary mt-2">此操作不可恢复，任务下的评论也会一并删除。</div>
+                  <div className="mt-2 text-small text-text-secondary">
+                    此操作不可恢复，任务下的评论也会一并删除。
+                  </div>
                 </div>
 
                 {deleteError ? <div className="text-small text-error">{deleteError}</div> : null}
@@ -1681,15 +1730,15 @@ export function TaskDrawerWithComments({
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    className="text-sm rounded-xl border border-border-subtle px-4 py-2 disabled:opacity-50"
-                    onClick={() => setDeleteConfirmOpen(false)}
+                    className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
+                    onClick={requestClose}
                     disabled={deleteLoading}
                   >
                     取消
                   </button>
                   <button
                     type="button"
-                    className="text-sm rounded-xl bg-red-600 text-white px-4 py-2 hover:bg-red-700 disabled:opacity-50"
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
                     onClick={() => void onConfirmDeleteTask()}
                     disabled={deleteLoading}
                   >
@@ -1697,9 +1746,9 @@ export function TaskDrawerWithComments({
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+        </ModalDialog>
       ) : null}
       <WorkspaceModal
         open={createWorkspaceOpen}
@@ -1715,6 +1764,6 @@ export function TaskDrawerWithComments({
         mode="create"
         onSuccess={onProjectCreated}
       />
-    </div>
+    </dialog>
   );
 }

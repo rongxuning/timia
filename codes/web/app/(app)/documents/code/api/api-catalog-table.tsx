@@ -49,7 +49,7 @@ function UsageCell({ hits, loading }: { hits: ApiUsageHit[]; loading: boolean })
         {[...byFile.entries()].map(([file, lines]) => (
           <li key={file} className="font-mono text-[11px] leading-snug">
             {file}
-            <span className="opacity-70"> :{[...new Set(lines)].sort((a, b) => a - b).join(", ")}</span>
+            <span className="opacity-70"> :{[...new Set(lines)].toSorted((a, b) => a - b).join(", ")}</span>
           </li>
         ))}
       </ul>

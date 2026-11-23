@@ -82,7 +82,7 @@ export function MembershipManager({
   const owners = useMemo(() => {
     const list = members.filter((m) => m.role === "owner");
     if (!sortOwnersCreatorFirst) return list;
-    return [...list].sort((a, b) => {
+    return list.toSorted((a, b) => {
       if (a.is_creator && !b.is_creator) return -1;
       if (!a.is_creator && b.is_creator) return 1;
       return (a.display_name || a.email).localeCompare(b.display_name || b.email);

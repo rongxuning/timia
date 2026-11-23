@@ -19,9 +19,7 @@ export function HealthScatterChart({ points, format }: HealthScatterChartProps) 
   if (points.length === 0) {
     return <HealthEmptyHint text="这段时间还没有测量点。" />;
   }
-  const ordered = points
-    .slice()
-    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  const ordered = points.toSorted((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   const times = ordered.map((point) => new Date(point.at).getTime());
   const values = ordered.map((point) => point.value);
   const t0 = Math.min(...times);

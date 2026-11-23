@@ -140,7 +140,8 @@ export function layoutStockTrend(
   const xTicks = categories.flatMap((date, index) => {
     const point = coords[index];
     if (!point) return [];
-    const anchor = index === 0 ? "start" : index === categories.length - 1 ? "end" : "middle";
+    const anchor: TrendDateTick["anchor"] =
+      index === 0 ? "start" : index === categories.length - 1 ? "end" : "middle";
     return [{ date, x: point.x, anchor }];
   });
   const guideStep = categories.length <= DAY_GUIDE_CAP ? 1 : Math.ceil(categories.length / DAY_GUIDE_CAP);

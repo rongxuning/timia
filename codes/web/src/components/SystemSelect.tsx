@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { AnchoredPopover } from "@/components/AnchoredPopover";
 
 export type SystemSelectOption = {
   value: string;
@@ -37,14 +37,6 @@ type Props = {
   renderTrigger?: (state: SystemSelectTriggerState) => React.ReactNode;
 };
 
-type MenuPosition = {
-  left: number;
-  top?: number;
-  bottom?: number;
-  width: number;
-  maxHeight: number;
-};
-
 export function SystemSelect({
   label,
   value,
@@ -64,12 +56,10 @@ export function SystemSelect({
   const uid = useId().replace(/:/g, "");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const selected = options.find((option) => option.value === value) ?? null;
   const filteredOptions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -80,51 +70,6 @@ export function SystemSelect({
         (option.hint?.toLowerCase().includes(normalized) ?? false),
     );
   }, [options, query]);
-
-  function updateMenuPosition() {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    const viewportPadding = 12;
-    const gap = 8;
-    const availableBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
-    const availableAbove = rect.top - viewportPadding - gap;
-    const placeAbove = availableBelow < 220 && availableAbove > availableBelow;
-    const availableHeight = Math.max(140, placeAbove ? availableAbove : availableBelow);
-    const width = Math.min(Math.max(rect.width, 280), window.innerWidth - viewportPadding * 2);
-    const left = Math.min(
-      Math.max(viewportPadding, rect.left),
-      window.innerWidth - viewportPadding - width,
-    );
-    setMenuPosition({
-      left,
-      width,
-      maxHeight: Math.min(320, availableHeight),
-      ...(placeAbove
-        ? { bottom: window.innerHeight - rect.top + gap }
-        : { top: rect.bottom + gap }),
-    });
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-    function handleViewportChange() {
-      updateMenuPosition();
-    }
-    document.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("resize", handleViewportChange);
-    window.addEventListener("scroll", handleViewportChange, true);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("resize", handleViewportChange);
-      window.removeEventListener("scroll", handleViewportChange, true);
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open || !searchable) return;
@@ -139,7 +84,6 @@ export function SystemSelect({
   function openPanel() {
     setQuery("");
     setActiveIndex(Math.max(0, options.findIndex((option) => option.value === value)));
-    updateMenuPosition();
     setOpen(true);
   }
 
@@ -208,119 +152,103 @@ export function SystemSelect({
       moveActive(event.key === "ArrowDown" ? 1 : -1);
     } else if (event.key === "Enter" && filteredOptions.length > 0) {
       event.preventDefault();
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       pick(filteredOptions[activeIndex] ?? filteredOptions[0]);
     }
   }
 
-  const menuStyle: CSSProperties | undefined = menuPosition
-    ? {
-        left: menuPosition.left,
-        top: menuPosition.top,
-        bottom: menuPosition.bottom,
-        width: menuPosition.width,
-        maxHeight: menuPosition.maxHeight,
-      }
-    : undefined;
-
-  const menu =
-    open && menuStyle && typeof document !== "undefined"
-      ? createPortal(
-          <div
-            ref={menuRef}
-            className="fixed z-[70] flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface p-1.5 shadow-xl"
-            style={menuStyle}
-            onKeyDown={(event) => {
-              if (event.key !== "Escape") return;
-              event.preventDefault();
-              event.stopPropagation();
-              closePanel();
-              triggerRef.current?.focus();
-            }}
-          >
-            {searchable ? (
-              <div className="p-1.5">
-                <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-bright px-3 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
-                  <span className="material-symbols-outlined text-[18px] text-neutral-muted" aria-hidden>
-                    search
+  const menu = (
+    <AnchoredPopover
+      open={open}
+      anchorRef={triggerRef}
+      onClose={() => {
+        closePanel();
+        window.requestAnimationFrame(() => triggerRef.current?.focus());
+      }}
+      id={`${uid}-options-panel`}
+    >
+      {searchable ? (
+        <div className="p-1.5">
+          <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-bright px-3 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+            <span className="material-symbols-outlined text-[18px] text-neutral-muted" aria-hidden>
+              search
+            </span>
+            <input
+              ref={searchRef}
+              type="search"
+              autoComplete="off"
+              className="min-w-0 flex-1 bg-transparent py-2 text-small text-text-primary outline-none"
+              placeholder={searchPlaceholder}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setActiveIndex(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              aria-label={searchPlaceholder}
+            />
+          </div>
+        </div>
+      ) : null}
+      <ul
+        id={`${uid}-options`}
+        role="listbox"
+        aria-labelledby={hideLabel ? undefined : `${uid}-label`}
+        aria-label={hideLabel ? label : undefined}
+        className="min-h-0 overflow-y-auto"
+      >
+        {filteredOptions.length === 0 ? (
+          <li className="px-3 py-3 text-caption text-neutral-muted">{emptyText}</li>
+        ) : (
+          filteredOptions.map((option, index) => {
+            const isSelected = option.value === value;
+            const isActive = index === activeIndex;
+            return (
+              <li key={option.value}>
+                <button
+                  id={`${uid}-option-${index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                    isActive || isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "text-text-primary hover:bg-surface-container-lowest"
+                  }`}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => pick(option)}
+                >
+                  {showAccent ? (
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                        option.accentClass ?? "bg-zinc-300"
+                      }`}
+                    />
+                  ) : null}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-small font-medium">{option.label}</span>
+                    {option.hint ? (
+                      <span className="mt-0.5 block text-caption text-neutral-muted">
+                        {option.hint}
+                      </span>
+                    ) : null}
                   </span>
-                  <input
-                    ref={searchRef}
-                    type="search"
-                    autoComplete="off"
-                    className="min-w-0 flex-1 bg-transparent py-2 text-small text-text-primary outline-none"
-                    placeholder={searchPlaceholder}
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                      setActiveIndex(0);
-                    }}
-                    onKeyDown={handleSearchKeyDown}
-                    aria-label={searchPlaceholder}
-                  />
-                </div>
-              </div>
-            ) : null}
-            <ul
-              id={`${uid}-options`}
-              role="listbox"
-              aria-labelledby={hideLabel ? undefined : `${uid}-label`}
-              aria-label={hideLabel ? label : undefined}
-              className="min-h-0 overflow-y-auto"
-            >
-              {filteredOptions.length === 0 ? (
-                <li className="px-3 py-3 text-caption text-neutral-muted">{emptyText}</li>
-              ) : (
-                filteredOptions.map((option, index) => {
-                  const isSelected = option.value === value;
-                  const isActive = index === activeIndex;
-                  return (
-                    <li key={option.value}>
-                      <button
-                        id={`${uid}-option-${index}`}
-                        type="button"
-                        role="option"
-                        aria-selected={isSelected}
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                          isActive || isSelected
-                            ? "bg-primary/10 text-primary"
-                            : "text-text-primary hover:bg-surface-container-lowest"
-                        }`}
-                        onMouseEnter={() => setActiveIndex(index)}
-                        onClick={() => pick(option)}
-                      >
-                        {showAccent ? (
-                          <span
-                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                              option.accentClass ?? "bg-zinc-300"
-                            }`}
-                          />
-                        ) : null}
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-small font-medium">{option.label}</span>
-                          {option.hint ? (
-                            <span className="mt-0.5 block text-caption text-neutral-muted">
-                              {option.hint}
-                            </span>
-                          ) : null}
-                        </span>
-                        {isSelected ? (
-                          <span
-                            className="material-symbols-outlined shrink-0 text-[18px] text-primary"
-                            aria-hidden
-                          >
-                            check
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>,
-          document.body,
-        )
-      : null;
+                  {isSelected ? (
+                    <span
+                      className="material-symbols-outlined shrink-0 text-[18px] text-primary"
+                      aria-hidden
+                    >
+                      check
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })
+        )}
+      </ul>
+    </AnchoredPopover>
+  );
 
   const triggerState: SystemSelectTriggerState = {
     open,

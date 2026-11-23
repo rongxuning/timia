@@ -235,7 +235,12 @@ export function PlanEditorForm({
   }
 
   function onTagKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter" || event.key === ",") {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      // IME confirmation Enter must not commit the tag mid-composition.
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+      addTag(tagDraft);
+    } else if (event.key === ",") {
       event.preventDefault();
       addTag(tagDraft);
     } else if (event.key === "Backspace" && !tagDraft && tags.length > 0) {

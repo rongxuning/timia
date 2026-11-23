@@ -146,8 +146,7 @@ export function HealthSleepStageAverage({
         <div className="flex h-4 min-w-0 flex-1 overflow-hidden rounded-full">
           {shares
             .filter((part) => part.minutes > 0)
-            .slice()
-            .reverse()
+            .toReversed()
             .map((part) => (
               <span
                 key={part.key}

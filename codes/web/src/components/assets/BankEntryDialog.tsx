@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { errorText } from "@/components/assets/copy";
+import { ModalDialog } from "@/components/ModalDialog";
 import { fieldClass, labelClass } from "@/components/assets/fields";
 import {
   createBankCreditBill,
@@ -58,14 +59,6 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
       setYearMonth(nowLocalInput().slice(0, 7));
     }
   }, [mode, product]);
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !saving) onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
 
   async function submit() {
     const accessToken = getToken();
@@ -206,14 +199,15 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
   const activeKind = mode === "create" ? kind : product?.product_kind;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label={t("form.close")} onClick={onClose} />
-      <div className="absolute inset-0 flex items-end justify-center p-4 sm:items-center">
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={saving}
+      className="max-h-[calc(100vh-2rem)] w-[min(36rem,calc(100vw-2rem))] space-y-4 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
+    >
+      {({ requestClose }) => (
         <form
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="max-h-[calc(100vh-2rem)] w-[min(36rem,calc(100vw-2rem))] space-y-4 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
+          className="contents"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
@@ -223,7 +217,7 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
             <h2 id={titleId} className="font-subhead text-subhead text-text-primary">
               {title}
             </h2>
-            <button type="button" className="text-small text-text-secondary" onClick={onClose} disabled={saving}>
+            <button type="button" className="text-small text-text-secondary" onClick={requestClose} disabled={saving}>
               {t("form.close")}
             </button>
           </div>
@@ -302,7 +296,7 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
             <button
               type="button"
               className="rounded-xl border border-border-subtle px-4 py-2 text-small text-text-secondary"
-              onClick={onClose}
+              onClick={requestClose}
               disabled={saving}
             >
               {t("form.cancel")}
@@ -316,8 +310,8 @@ export function BankEntryDialog({ accountId, mode, product, onClose, onSaved }: 
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      )}
+    </ModalDialog>
   );
 }
 
