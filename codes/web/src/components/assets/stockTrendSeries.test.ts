@@ -95,23 +95,59 @@ describe("summaryTrend", () => {
       [1, 7],
     );
   });
+
+  it("shows liability as magnitude only when negative, and gain only when non-negative", () => {
+    const trend = summaryTrend(
+      {
+        ...detail(),
+        series: [
+          {
+            as_of: "2026-11-20",
+            net_assets_minor: 100,
+            total_cost_minor: 300,
+            market_value_minor: 80,
+            cash_minor: 20,
+            liability_minor: -200,
+            gain_minor: -280,
+            positions: [],
+          },
+          {
+            as_of: "2026-11-23",
+            net_assets_minor: 500,
+            total_cost_minor: 300,
+            market_value_minor: 200,
+            cash_minor: 300,
+            liability_minor: 200,
+            gain_minor: 0,
+            positions: [],
+          },
+        ],
+      },
+      labels,
+    );
+    assert.ok(trend);
+    assert.deepEqual(trend.series.find((item) => item.id === "liability")?.values, [200, null]);
+    assert.deepEqual(trend.series.find((item) => item.id === "gain")?.values, [null, 0]);
+    assert.deepEqual(trend.series.find((item) => item.id === "cash")?.values, [20, 300]);
+  });
 });
 
 describe("positionTrend", () => {
-  it("draws every figure on the position card, and leaves a gap before the position exists", () => {
+  it("only keeps days the position was marked", () => {
     const trend = positionTrend(detail(), "p1", positionLabels, {
       money: (amount) => `¥${amount}`,
       quote: (amount) => `q${amount}`,
       shares: (count) => `${count}股`,
     });
     assert.ok(trend);
+    assert.deepEqual(trend.categories, ["2026-11-02"]);
     assert.deepEqual(
       trend.series.map((item) => item.id),
       ["market", "cost", "shares", "total", "period"],
     );
-    assert.deepEqual(trend.series[0]?.values, [null, 3000]);
-    assert.deepEqual(trend.series[1]?.values, [null, 200819]);
-    assert.deepEqual(trend.series[2]?.values, [null, 100]);
+    assert.deepEqual(trend.series[0]?.values, [3000]);
+    assert.deepEqual(trend.series[1]?.values, [200819]);
+    assert.deepEqual(trend.series[2]?.values, [100]);
     assert.equal(trend.series[1]?.formatValue?.(200819), "q200819");
     assert.equal(trend.series[1]?.formatValue?.(null), "—");
     assert.equal(trend.series[2]?.formatValue?.(100), "100股");

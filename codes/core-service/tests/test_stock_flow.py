@@ -149,27 +149,50 @@ def test_series_uses_the_mark_in_effect_that_day():
         [],
         _identity,
     )
-    assert [point.market_value_minor for point in points] == [0, 100, 100]
-    assert points[1].positions[0].name == "茅台"
-    assert points[1].positions[0].shares == 2
-    assert points[1].positions[0].cost_price_minor == 1000
-    assert points[1].positions[0].total_pnl_minor == -100
+    # Event days only: one mark → one node (no daily fill).
+    assert [point.as_of for point in points] == [date(2026, 11, 4)]
+    assert [point.market_value_minor for point in points] == [100]
+    assert points[0].positions[0].name == "茅台"
+    assert points[0].positions[0].shares == 2
+    assert points[0].positions[0].cost_price_minor == 1000
+    assert points[0].positions[0].total_pnl_minor == -100
     assert series_period_pnl(-100, None, opened=False) == -100
     assert series_period_pnl(-100, -40, opened=True) == -60
     assert series_period_pnl(None, -40, opened=True) is None
     assert series_period_pnl(-100, None, opened=True) is None
 
 
+def test_series_skips_weekends_and_keeps_weekday_events():
+    # 2026-11-20 Fri, 21 Sat, 22 Sun, 23 Mon.
+    points = flow_series(
+        date(2026, 11, 20),
+        date(2026, 11, 23),
+        [
+            _mark("2026-11-20", shares=2, price=50),
+            _mark("2026-11-21", shares=3, price=60),
+            _mark("2026-11-23", shares=4, price=70),
+        ],
+        [],
+        [],
+        _identity,
+        ZoneInfo("UTC"),
+    )
+    assert [point.as_of for point in points] == [date(2026, 11, 20), date(2026, 11, 23)]
+    assert [point.market_value_minor for point in points] == [100, 280]
+    assert len(points[0].positions) == 1
+    assert len(points[1].positions) == 1
+
+
 def test_missing_fx_flags_the_snapshot_and_skips_that_value():
     shot = snapshot_on(
-        date(2026, 11, 21),
+        date(2026, 11, 20),
         marks=[
             PositionMark(
                 position_id="0700",
                 symbol="00700",
                 name="腾讯",
                 currency="HKD",
-                at=_at("2026-11-21"),
+                at=_at("2026-11-20"),
                 shares=10,
                 cost_price_minor=1000,
                 market_price_minor=1200,
@@ -185,15 +208,15 @@ def test_missing_fx_flags_the_snapshot_and_skips_that_value():
     assert shot.positions[0].total_pnl_minor is None
     assert shot.positions[0].market_value_minor is None
     points = flow_series(
-        date(2026, 11, 21),
-        date(2026, 11, 21),
+        date(2026, 11, 20),
+        date(2026, 11, 20),
         [
             PositionMark(
                 position_id="0700",
                 symbol="00700",
                 name="腾讯",
                 currency="HKD",
-                at=_at("2026-11-21"),
+                at=_at("2026-11-20"),
                 shares=10,
                 cost_price_minor=1000,
                 market_price_minor=1200,

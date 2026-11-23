@@ -297,6 +297,41 @@ def iter_days(start: date, end: date) -> list[date]:
     return [start + timedelta(days=offset) for offset in range(span + 1)]
 
 
+def _local_day(moment: datetime, zone: ZoneInfo) -> date:
+    return _utc(moment).astimezone(zone).date()
+
+
+def _is_weekday(day: date) -> bool:
+    return day.weekday() < 5
+
+
+def event_days(
+    start: date,
+    end: date,
+    marks: list[PositionMark],
+    cash_sets: list[CashSet],
+    transfers: list[Transfer],
+    zone: ZoneInfo,
+) -> list[date]:
+    """Weekdays that have a mark, cash set, or transfer — no daily fill, no weekends."""
+    # Validate the window even when there are no events.
+    iter_days(start, end)
+    days: set[date] = set()
+    for row in marks:
+        day = _local_day(row.at, zone)
+        if start <= day <= end and _is_weekday(day):
+            days.add(day)
+    for row in cash_sets:
+        day = _local_day(row.at, zone)
+        if start <= day <= end and _is_weekday(day):
+            days.add(day)
+    for row in transfers:
+        day = _local_day(row.at, zone)
+        if start <= day <= end and _is_weekday(day):
+            days.add(day)
+    return sorted(days)
+
+
 def flow_series(
     start: date,
     end: date,
@@ -306,9 +341,15 @@ def flow_series(
     convert: Converter,
     zone: ZoneInfo | None = None,
 ) -> list[FlowPoint]:
+    clock = zone or ZoneInfo("UTC")
     points: list[FlowPoint] = []
-    for day in iter_days(start, end):
-        shot = snapshot_on(day, marks, cash_sets, transfers, convert, zone)
+    for day in event_days(start, end, marks, cash_sets, transfers, clock):
+        shot = snapshot_on(day, marks, cash_sets, transfers, convert, clock)
+        marked_today = {
+            mark.position_id
+            for mark in latest_marks(marks, day, clock).values()
+            if _local_day(mark.at, clock) == day
+        }
         points.append(
             FlowPoint(
                 as_of=day,
@@ -328,6 +369,7 @@ def flow_series(
                         total_pnl_minor=row.total_pnl_minor,
                     )
                     for row in shot.positions
+                    if row.position_id in marked_today
                 ),
             )
         )

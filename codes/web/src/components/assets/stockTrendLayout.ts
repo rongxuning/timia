@@ -46,7 +46,7 @@ export type StockTrendLayout = {
   dots: TrendDot[];
 };
 
-const WIDTH = 720;
+const WIDTH = 960;
 const HEIGHT = 248;
 const PAD = { top: 14, right: 16, bottom: 44, left: 92 };
 const DAY_GUIDE_CAP = 45;
@@ -96,8 +96,8 @@ export function layoutStockTrend(
         return;
       }
       const current = { index, x: point.x, y: yOf(value), value };
-      const previousDate = previous == null ? undefined : categories[previous.index];
-      if (previous && previousDate && daysBetween(previousDate, categories[index]) === 1) {
+      // Event-day series skips weekends; connect successive valued points (Fri→Mon).
+      if (previous) {
         segments.push({
           id: `${item.id}-${previous.index}-${index}`,
           x1: previous.x,

@@ -53,7 +53,7 @@ describe("layoutStockTrend", () => {
     assert.equal(layout.yTicks.some((tick) => Object.is(tick.value, 0)), true);
   });
 
-  it("leaves a gap when the two days are not next to each other", () => {
+  it("connects successive event days across a weekend gap", () => {
     const layout = layoutStockTrend(
       ["2026-11-13", "2026-11-16", "2026-11-17"],
       [{ id: "market", scale: "money", values: [10, 40, 20] }],
@@ -61,7 +61,7 @@ describe("layoutStockTrend", () => {
     assert.ok(layout);
     assert.deepEqual(
       layout.segments.map((segment) => segment.id),
-      ["market-1-2"],
+      ["market-0-1", "market-1-2"],
     );
     assert.equal(layout.dots.length, 3);
     assert.equal(daysBetween("2026-11-13", "2026-11-14"), 1);
