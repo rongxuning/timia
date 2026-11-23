@@ -5,7 +5,9 @@ import { useTranslations } from "next-intl";
 import {
   CHART_HEIGHT,
   CHART_WIDTH,
+  chartPointDateLabels,
   formatChartDate,
+  formatChartMonth,
   lineChartLayout,
   nearestChartIndex,
   type ChartPoint,
@@ -92,6 +94,7 @@ function BalanceChart({
   const active = coords[index];
   const first = coords[0];
   const last = coords[coords.length - 1];
+  const dateLabels = chartPointDateLabels(coords.map((point) => point.as_of));
 
   function moveTo(offsetX: number, width: number) {
     if (width <= 0 || !layout) return;
@@ -146,16 +149,38 @@ function BalanceChart({
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
-        <circle cx={active.x} cy={active.y} r="4" className="fill-current" />
+        {coords.map((point, pointIndex) => (
+          <circle
+            key={point.as_of}
+            cx={point.x}
+            cy={point.y}
+            r={pointIndex === index ? 4.5 : 3.5}
+            className="fill-current"
+          />
+        ))}
       </svg>
-      {first.as_of === last.as_of ? (
-        <p className="text-caption text-neutral-muted">{formatChartDate(first.as_of, locale)}</p>
-      ) : (
-        <div className="flex justify-between text-caption text-neutral-muted">
-          <span>{formatChartDate(first.as_of, locale)}</span>
-          <span>{formatChartDate(last.as_of, locale)}</span>
-        </div>
-      )}
+      <div className="relative mt-1 h-8 w-full">
+        {dateLabels.map((label, labelIndex) => {
+          const point = coords[labelIndex];
+          if (!point) return null;
+          const anchor =
+            labelIndex === 0 ? "start" : labelIndex === dateLabels.length - 1 ? "end" : "middle";
+          const translate =
+            anchor === "start" ? "0%" : anchor === "end" ? "-100%" : "-50%";
+          return (
+            <div
+              key={label.date}
+              className="absolute top-0 flex h-8 flex-col justify-end text-caption leading-tight text-neutral-muted"
+              style={{ left: `${(point.x / layout.width) * 100}%`, transform: `translateX(${translate})` }}
+            >
+              <p className="h-3.5 whitespace-nowrap">
+                {label.month ? formatChartMonth(label.date, locale) : "\u00a0"}
+              </p>
+              <p className="tabular-nums">{label.day}</p>
+            </div>
+          );
+        })}
+      </div>
     </article>
   );
 }
