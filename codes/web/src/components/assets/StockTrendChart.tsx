@@ -96,8 +96,10 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
             x2={line.x2}
             y1={line.y1}
             y2={line.y2}
-            strokeDasharray="4 3"
-            className="stroke-current text-text-secondary opacity-30"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            vectorEffect="non-scaling-stroke"
+            className="stroke-outline-variant"
           />
         ))}
         {layout.dayGuides.map((line) => (
@@ -107,8 +109,10 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
             x2={line.x2}
             y1={line.y1}
             y2={line.y2}
-            strokeDasharray="2 3"
-            className="stroke-current text-text-secondary opacity-25"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            vectorEffect="non-scaling-stroke"
+            className="stroke-outline-variant"
           />
         ))}
         <line
@@ -116,14 +120,18 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
           x2={layout.axisX.x2}
           y1={layout.axisX.y1}
           y2={layout.axisX.y2}
-          className="stroke-current text-text-primary"
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
+          className="stroke-on-surface-variant"
         />
         <line
           x1={layout.axisY.x1}
           x2={layout.axisY.x2}
           y1={layout.axisY.y1}
           y2={layout.axisY.y2}
-          className="stroke-current text-text-primary"
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
+          className="stroke-on-surface-variant"
         />
         {layout.yTicks.map((tick) => (
           <text
@@ -155,6 +163,7 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
             x2={segment.x2}
             y2={segment.y2}
             strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
             className={`stroke-current ${DIRECTION_TONE[segment.direction]}`}
           />
         ))}
@@ -182,7 +191,9 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
           x2={activeX}
           y1={layout.plot.top}
           y2={layout.plot.bottom}
-          className="stroke-current text-text-primary opacity-50"
+          strokeWidth="1"
+          vectorEffect="non-scaling-stroke"
+          className="stroke-on-surface-variant opacity-60"
         />
       </svg>
     </div>

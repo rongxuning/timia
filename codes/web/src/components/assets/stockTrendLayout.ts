@@ -133,7 +133,10 @@ export function layoutStockTrend(
     axisDomain && yOfAxis
       ? tickValues(axisDomain.min, axisDomain.max).map((value) => ({ value, y: yOfAxis(value) }))
       : [];
-  const grid = yTicks.map((tick) => ({ x1: plot.left, y1: tick.y, x2: plot.right, y2: tick.y }));
+  // Interior dashed grid only — solid axes are drawn separately on the plot frame.
+  const grid = yTicks
+    .filter((tick) => tick.y > plot.top + 0.5 && tick.y < plot.bottom - 0.5)
+    .map((tick) => ({ x1: plot.left, y1: tick.y, x2: plot.right, y2: tick.y }));
   const xTicks = categories.flatMap((date, index) => {
     const point = coords[index];
     if (!point) return [];
@@ -145,6 +148,7 @@ export function layoutStockTrend(
   const dayGuides = guideIndexes.flatMap((index) => {
     const point = coords[index];
     if (!point) return [];
+    if (point.x <= plot.left + 0.5 || point.x >= plot.right - 0.5) return [];
     return [{ x1: point.x, y1: plot.top, x2: point.x, y2: plot.bottom }];
   });
 
