@@ -305,6 +305,33 @@ def _is_weekday(day: date) -> bool:
     return day.weekday() < 5
 
 
+def _last_weekday_on_or_before(day: date, start: date) -> date | None:
+    cursor = day
+    while cursor >= start and not _is_weekday(cursor):
+        cursor -= timedelta(days=1)
+    return cursor if cursor >= start and _is_weekday(cursor) else None
+
+
+def _park_event(day: date, start: date, end: date) -> tuple[date, date] | None:
+    """Map a ledger day to (axis weekday, snapshot day).
+
+    Weekdays stay put. Sat/Sun park on the next Monday when it is still in range.
+    If Monday is past ``end``, keep weekend values via snapshot on the event day and
+    label the last weekday in range so charts never plot weekend nodes.
+    """
+    if day < start or day > end:
+        return None
+    if _is_weekday(day):
+        return day, day
+    monday = day + timedelta(days=(7 - day.weekday()))
+    if monday <= end:
+        return monday, monday
+    label = _last_weekday_on_or_before(end, start)
+    if label is None:
+        return None
+    return label, day
+
+
 def event_days(
     start: date,
     end: date,
@@ -312,24 +339,26 @@ def event_days(
     cash_sets: list[CashSet],
     transfers: list[Transfer],
     zone: ZoneInfo,
-) -> list[date]:
-    """Weekdays that have a mark, cash set, or transfer — no daily fill, no weekends."""
-    # Validate the window even when there are no events.
+) -> list[tuple[date, date]]:
+    """Weekday axis days with the snapshot day that should back each node."""
     iter_days(start, end)
-    days: set[date] = set()
+    snap_by_axis: dict[date, date] = {}
+
+    def add(day: date) -> None:
+        parked = _park_event(day, start, end)
+        if parked is None:
+            return
+        axis, snap = parked
+        prior = snap_by_axis.get(axis)
+        snap_by_axis[axis] = snap if prior is None or snap > prior else prior
+
     for row in marks:
-        day = _local_day(row.at, zone)
-        if start <= day <= end and _is_weekday(day):
-            days.add(day)
+        add(_local_day(row.at, zone))
     for row in cash_sets:
-        day = _local_day(row.at, zone)
-        if start <= day <= end and _is_weekday(day):
-            days.add(day)
+        add(_local_day(row.at, zone))
     for row in transfers:
-        day = _local_day(row.at, zone)
-        if start <= day <= end and _is_weekday(day):
-            days.add(day)
-    return sorted(days)
+        add(_local_day(row.at, zone))
+    return sorted(snap_by_axis.items(), key=lambda item: item[0])
 
 
 def flow_series(
@@ -343,16 +372,17 @@ def flow_series(
 ) -> list[FlowPoint]:
     clock = zone or ZoneInfo("UTC")
     points: list[FlowPoint] = []
-    for day in event_days(start, end, marks, cash_sets, transfers, clock):
-        shot = snapshot_on(day, marks, cash_sets, transfers, convert, clock)
+    for axis_day, snap_day in event_days(start, end, marks, cash_sets, transfers, clock):
+        shot = snapshot_on(snap_day, marks, cash_sets, transfers, convert, clock)
         marked_today = {
             mark.position_id
-            for mark in latest_marks(marks, day, clock).values()
-            if _local_day(mark.at, clock) == day
+            for mark in latest_marks(marks, snap_day, clock).values()
+            if (parked := _park_event(_local_day(mark.at, clock), start, end)) is not None
+            and parked[0] == axis_day
         }
         points.append(
             FlowPoint(
-                as_of=day,
+                as_of=axis_day,
                 net_assets_minor=shot.net_assets_minor,
                 total_cost_minor=shot.total_cost_minor,
                 market_value_minor=shot.market_value_minor,
