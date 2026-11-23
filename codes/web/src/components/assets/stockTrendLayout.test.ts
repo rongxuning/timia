@@ -24,15 +24,18 @@ describe("layoutStockTrend", () => {
     assert.equal(layout.segments.find((segment) => segment.id === "pnl-2-3")?.direction, "down");
   });
 
-  it("draws a solid frame and a dashed guide on every day", () => {
+  it("draws a solid frame and interior dashed guides", () => {
     const layout = layoutStockTrend(days, series);
     assert.ok(layout);
     assert.equal(layout.axisX.y1, layout.axisX.y2);
     assert.equal(layout.axisY.x1, layout.axisY.x2);
     assert.equal(layout.axisX.x1, layout.plot.left);
     assert.equal(layout.axisY.y2, layout.plot.bottom);
-    assert.equal(layout.dayGuides.length, 4);
-    assert.ok(layout.grid.length >= 2);
+    // First/last day sit on the frame; only interior days get dashed verticals.
+    assert.equal(layout.dayGuides.length, 2);
+    assert.ok(layout.dayGuides.every((line) => line.x1 > layout.plot.left && line.x1 < layout.plot.right));
+    assert.ok(layout.grid.length >= 1);
+    assert.ok(layout.grid.every((line) => line.y1 > layout.plot.top && line.y1 < layout.plot.bottom));
     assert.ok(layout.yTicks.every((tick) => tick.y >= layout.plot.top && tick.y <= layout.plot.bottom));
     assert.deepEqual(
       layout.xTicks.map((tick) => tick.date),
