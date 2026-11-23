@@ -159,7 +159,7 @@ function BalanceChart({
           />
         ))}
       </svg>
-      <div className="relative mt-1 min-h-8 w-full">
+      <div className="relative mt-1 h-8 w-full">
         {dateLabels.map((label, labelIndex) => {
           const point = coords[labelIndex];
           if (!point) return null;
@@ -170,12 +170,12 @@ function BalanceChart({
           return (
             <div
               key={label.date}
-              className="absolute top-0 text-caption leading-tight text-neutral-muted"
+              className="absolute top-0 flex h-8 flex-col justify-end text-caption leading-tight text-neutral-muted"
               style={{ left: `${(point.x / layout.width) * 100}%`, transform: `translateX(${translate})` }}
             >
-              {label.month ? (
-                <p className="whitespace-nowrap">{formatChartMonth(label.date, locale)}</p>
-              ) : null}
+              <p className="h-3.5 whitespace-nowrap">
+                {label.month ? formatChartMonth(label.date, locale) : "\u00a0"}
+              </p>
               <p className="tabular-nums">{label.day}</p>
             </div>
           );
