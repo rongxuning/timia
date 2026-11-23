@@ -2,7 +2,6 @@
 
 import secrets
 import uuid
-from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -156,9 +155,12 @@ def test_savings_product_same_day_collapses_and_detail_series(client_and_user):
     assert body["summary"]["total_assets_minor"] == 180_00
     assert len(body["products"]) == 1
     assert body["products"][0]["product_kind"] == "savings"
+    # Nodes only on record days (same-day collapses to one; next day adds one).
+    assert [row["as_of"] for row in body["series"]] == ["2026-11-20", "2026-11-21"]
     assert body["series"][-1]["total_assets_minor"] == 180_00
     assert body["selected"]["product"]["balance_minor"] == 180_00
     assert len(body["selected"]["savings_txns"]) >= 1
+    assert [row["as_of"] for row in body["selected"]["series"]] == ["2026-11-20", "2026-11-21"]
     assert body["selected"]["series"][-1]["primary_minor"] == 180_00
 
 
@@ -245,6 +247,8 @@ def test_investment_and_credit_products(client_and_user):
     assert detail.status_code == 200, detail.text
     body = detail.json()
     assert body["summary"]["total_assets_minor"] == 220_00
+    assert [row["as_of"] for row in body["series"]] == ["2026-11-01", "2026-11-15"]
+    assert [row["as_of"] for row in body["selected"]["series"]] == ["2026-11-01", "2026-11-15"]
     assert body["selected"]["investment_ops"][0]["cost_delta_minor"] == 20_00
     kinds = {row["product_kind"] for row in body["products"]}
     assert kinds == {"investment", "credit"}
@@ -260,7 +264,10 @@ def test_investment_and_credit_products(client_and_user):
         },
     )
     assert credit_detail.status_code == 200, credit_detail.text
-    assert credit_detail.json()["selected"]["credit_bills"][0]["paid_off"] is True
+    credit_body = credit_detail.json()
+    assert credit_body["selected"]["credit_bills"][0]["paid_off"] is True
+    # Credit series: one node per billed month, not a month fill.
+    assert [row["as_of"] for row in credit_body["selected"]["series"]] == ["2026-11-01"]
 
 
 def test_backdated_savings_txn_keeps_latest_face(client_and_user):
