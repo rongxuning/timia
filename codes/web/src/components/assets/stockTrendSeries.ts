@@ -51,8 +51,20 @@ export function summaryTrend(
       line("cost", labels.totalCost, "text-indigo-600", detail.series.map((point) => point.total_cost_minor)),
       line("market", labels.marketValue, "text-success", detail.series.map((point) => point.market_value_minor)),
       line("cash", labels.cash, "text-text-secondary", detail.series.map((point) => point.cash_minor)),
-      line("liability", labels.liability, "text-error", detail.series.map((point) => point.liability_minor)),
-      line("gain", labels.gain, "text-warning", detail.series.map((point) => point.gain_minor)),
+      // 总负债 = 净总资产 − 总成本，仅当为负时展示其绝对值。
+      line(
+        "liability",
+        labels.liability,
+        "text-error",
+        detail.series.map((point) => (point.liability_minor < 0 ? -point.liability_minor : null)),
+      ),
+      // 总收益 = 总现金 − 总成本，仅当非负时展示。
+      line(
+        "gain",
+        labels.gain,
+        "text-warning",
+        detail.series.map((point) => (point.gain_minor >= 0 ? point.gain_minor : null)),
+      ),
     ],
   };
 }
@@ -64,20 +76,24 @@ export function positionTrend(
   format: PositionTrendFormat,
 ): { categories: string[]; series: TrendSeries[] } | null {
   if (detail.series.length === 0) return null;
-  const categories = detail.series.map((point) => point.as_of);
-  const points = detail.series.map(
-    (point) => point.positions.find((item) => item.id === positionId) ?? null,
-  );
+  // Only days this position was marked — no carry-forward nodes.
+  const points = detail.series.flatMap((point) => {
+    const item = point.positions.find((row) => row.id === positionId);
+    return item ? [{ date: point.as_of, item }] : [];
+  });
+  if (points.length === 0) return null;
+  const categories = points.map((point) => point.date);
+  const rows = points.map((point) => point.item);
   return {
     categories,
     series: [
-      metric("market", labels.marketValue, "text-primary", "money", points, (item) => item.market_value_minor, (value) =>
+      metric("market", labels.marketValue, "text-primary", "money", rows, (item) => item.market_value_minor, (value) =>
         value == null ? MISSING : format.money(value),
       ),
-      metric("cost", labels.costPrice, "text-indigo-600", "quote", points, (item) => item.cost_price_minor, (value) =>
+      metric("cost", labels.costPrice, "text-indigo-600", "quote", rows, (item) => item.cost_price_minor, (value) =>
         value == null ? MISSING : format.quote(value),
       ),
-      metric("shares", labels.shareCount, "text-text-secondary", "count", points, (item) => item.shares, (value) =>
+      metric("shares", labels.shareCount, "text-text-secondary", "count", rows, (item) => item.shares, (value) =>
         value == null ? MISSING : format.shares(value),
       ),
       metric(
@@ -85,7 +101,7 @@ export function positionTrend(
         labels.totalPnl,
         "text-text-secondary",
         "money",
-        points,
+        rows,
         (item) => item.total_pnl_minor,
         (value) => (value == null ? MISSING : format.money(value)),
         true,
@@ -95,7 +111,7 @@ export function positionTrend(
         labels.periodPnl,
         "text-text-secondary",
         "money",
-        points,
+        rows,
         (item) => item.period_pnl_minor,
         (value) => (value == null ? MISSING : format.money(value)),
         true,
@@ -104,7 +120,7 @@ export function positionTrend(
   };
 }
 
-function line(id: string, label: string, tone: string, values: number[]): TrendSeries {
+function line(id: string, label: string, tone: string, values: Array<number | null>): TrendSeries {
   return { id, label, tone, scale: "money", values };
 }
 
@@ -113,7 +129,7 @@ function metric(
   label: string,
   tone: string,
   scale: string,
-  points: Array<StockSeriesPosition | null>,
+  points: StockSeriesPosition[],
   read: (item: StockSeriesPosition) => number | null,
   formatValue: (value: number | null) => string,
   signed = false,
@@ -124,7 +140,7 @@ function metric(
     tone,
     scale,
     signed,
-    values: points.map((item) => (item ? read(item) : null)),
+    values: points.map((item) => read(item)),
     formatValue,
   };
 }

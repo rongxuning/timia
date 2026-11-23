@@ -240,7 +240,7 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
                 {detail.positions.map((position) => {
                   const chart = positionCharts.get(position.id);
                   return (
-                    <li key={position.id} className="grid items-start gap-lg xl:grid-cols-[17rem_minmax(0,1fr)]">
+                    <li key={position.id} className="grid w-full min-w-0 items-start gap-lg xl:grid-cols-[15rem_minmax(0,1fr)]">
                       <article className="rounded-xl border border-border-subtle bg-white p-md shadow-sm">
                         <div className="flex items-start justify-between gap-2">
                           <div>

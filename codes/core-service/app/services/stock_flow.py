@@ -297,6 +297,60 @@ def iter_days(start: date, end: date) -> list[date]:
     return [start + timedelta(days=offset) for offset in range(span + 1)]
 
 
+def _local_day(moment: datetime, zone: ZoneInfo) -> date:
+    return _utc(moment).astimezone(zone).date()
+
+
+def _is_weekday(day: date) -> bool:
+    return day.weekday() < 5
+
+
+def _park_event(day: date, start: date, end: date) -> tuple[date, date] | None:
+    """Map a ledger day to (axis weekday, snapshot day).
+
+    Weekdays stay put. Sat/Sun park on the next Monday when that Monday is still
+    in range. If Monday is past ``end``, omit the weekend event from the series
+    (wait for Monday) so Friday nodes are never overwritten by weekend books.
+    """
+    if day < start or day > end:
+        return None
+    if _is_weekday(day):
+        return day, day
+    monday = day + timedelta(days=(7 - day.weekday()))
+    if monday <= end:
+        return monday, monday
+    return None
+
+
+def event_days(
+    start: date,
+    end: date,
+    marks: list[PositionMark],
+    cash_sets: list[CashSet],
+    transfers: list[Transfer],
+    zone: ZoneInfo,
+) -> list[tuple[date, date]]:
+    """Weekday axis days with the snapshot day that should back each node."""
+    iter_days(start, end)
+    snap_by_axis: dict[date, date] = {}
+
+    def add(day: date) -> None:
+        parked = _park_event(day, start, end)
+        if parked is None:
+            return
+        axis, snap = parked
+        prior = snap_by_axis.get(axis)
+        snap_by_axis[axis] = snap if prior is None or snap > prior else prior
+
+    for row in marks:
+        add(_local_day(row.at, zone))
+    for row in cash_sets:
+        add(_local_day(row.at, zone))
+    for row in transfers:
+        add(_local_day(row.at, zone))
+    return sorted(snap_by_axis.items(), key=lambda item: item[0])
+
+
 def flow_series(
     start: date,
     end: date,
@@ -306,12 +360,19 @@ def flow_series(
     convert: Converter,
     zone: ZoneInfo | None = None,
 ) -> list[FlowPoint]:
+    clock = zone or ZoneInfo("UTC")
     points: list[FlowPoint] = []
-    for day in iter_days(start, end):
-        shot = snapshot_on(day, marks, cash_sets, transfers, convert, zone)
+    for axis_day, snap_day in event_days(start, end, marks, cash_sets, transfers, clock):
+        shot = snapshot_on(snap_day, marks, cash_sets, transfers, convert, clock)
+        marked_today = {
+            mark.position_id
+            for mark in latest_marks(marks, snap_day, clock).values()
+            if (parked := _park_event(_local_day(mark.at, clock), start, end)) is not None
+            and parked[0] == axis_day
+        }
         points.append(
             FlowPoint(
-                as_of=day,
+                as_of=axis_day,
                 net_assets_minor=shot.net_assets_minor,
                 total_cost_minor=shot.total_cost_minor,
                 market_value_minor=shot.market_value_minor,
@@ -328,6 +389,7 @@ def flow_series(
                         total_pnl_minor=row.total_pnl_minor,
                     )
                     for row in shot.positions
+                    if row.position_id in marked_today
                 ),
             )
         )
