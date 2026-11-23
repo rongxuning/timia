@@ -4,7 +4,10 @@ import {
   accountBalanceTotals,
   buildCalendarCells,
   chartAxisDates,
+  chartPointDateLabels,
   filterDailySeries,
+  formatChartDay,
+  formatChartMonth,
   lineChartLayout,
   monthRange,
   monthStep,
@@ -132,6 +135,29 @@ describe("chartAxisDates", () => {
       "2026-11-09",
       "2026-11-16",
     ]);
+  });
+});
+
+describe("chartPointDateLabels", () => {
+  it("labels every point with the day and the month once per calendar month", () => {
+    assert.deepEqual(chartPointDateLabels(["2026-11-01", "2026-11-02", "2026-12-01", "2026-12-05"]), [
+      { date: "2026-11-01", day: "1", month: "2026-11" },
+      { date: "2026-11-02", day: "2", month: null },
+      { date: "2026-12-01", day: "1", month: "2026-12" },
+      { date: "2026-12-05", day: "5", month: null },
+    ]);
+  });
+
+  it("marks the first point of a mid-month start as that month's label", () => {
+    assert.deepEqual(chartPointDateLabels(["2026-11-15", "2026-11-16"]), [
+      { date: "2026-11-15", day: "15", month: "2026-11" },
+      { date: "2026-11-16", day: "16", month: null },
+    ]);
+  });
+
+  it("formats day and month for the axis", () => {
+    assert.equal(formatChartDay("2026-11-09"), "9");
+    assert.match(formatChartMonth("2026-11-09", "zh-CN"), /11/);
   });
 });
 

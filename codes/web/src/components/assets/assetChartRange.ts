@@ -177,6 +177,43 @@ export function formatChartDate(iso: string, locale: string): string {
   );
 }
 
+/** Day-of-month only, e.g. "1" / "23". */
+export function formatChartDay(iso: string): string {
+  const day = Number(iso.slice(8, 10));
+  return Number.isFinite(day) && day > 0 ? String(day) : iso;
+}
+
+/** Month label for an axis tick, e.g. "11月" / "Nov". */
+export function formatChartMonth(iso: string, locale: string): string {
+  const [year, month] = iso.split("-").map(Number);
+  if (!year || !month) return iso.slice(0, 7);
+  return new Intl.DateTimeFormat(locale, { month: "short" }).format(new Date(year, month - 1, 1));
+}
+
+export type ChartPointDateLabel = {
+  date: string;
+  day: string;
+  /** Set on the first point of each calendar month in the series. */
+  month: string | null;
+};
+
+/**
+ * One label per data point: day number always, month once when that month first appears.
+ */
+export function chartPointDateLabels(dates: readonly string[]): ChartPointDateLabel[] {
+  const seen = new Set<string>();
+  return dates.map((date) => {
+    const key = date.slice(0, 7);
+    const firstOfMonth = !seen.has(key);
+    if (firstOfMonth) seen.add(key);
+    return {
+      date,
+      day: formatChartDay(date),
+      month: firstOfMonth ? key : null,
+    };
+  });
+}
+
 export function formatMonthTitle(month: string, locale: string): string {
   const [year, monthNum] = month.split("-").map(Number);
   return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(
