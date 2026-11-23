@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
+import { ModalDialog } from "@/components/ModalDialog";
 import { apiFetch } from "@/lib/api";
 import { fetchWorkspaceCards } from "@/lib/api/workspace-views";
 import type { WorkspaceOption } from "@/lib/api/workspaces";
@@ -49,6 +49,8 @@ export function ProjectModal({
   initialColor = "#FFFFFF",
   onSuccess,
 }: Props) {
+  const titleId = useId();
+  const transferConfirmTitleId = useId();
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [color, setColor] = useState("#FFFFFF");
@@ -58,17 +60,6 @@ export function ProjectModal({
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
   const [workspacesLoading, setWorkspacesLoading] = useState(false);
   const [confirmTransferOpen, setConfirmTransferOpen] = useState(false);
-
-  useEscapeDismiss({
-    open,
-    onDismiss: onClose,
-    disabled: loading || confirmTransferOpen,
-  });
-  useEscapeDismiss({
-    open: open && confirmTransferOpen,
-    onDismiss: () => setConfirmTransferOpen(false),
-    disabled: loading,
-  });
 
   useEffect(() => {
     if (!open) return;
@@ -200,143 +191,141 @@ export function ProjectModal({
   const title = mode === "create" ? "新建项目" : "编辑项目";
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={() => {
-          if (!loading) onClose();
-        }}
-      />
-      <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="font-subhead font-semibold">{title}</div>
-            <button
-              className="text-sm underline disabled:opacity-50"
-              type="button"
-              disabled={loading}
-              onClick={() => {
-                if (!loading) onClose();
-              }}
-            >
-              关闭
-            </button>
-          </div>
-          <form onSubmit={onSubmit} className="space-y-4">
-            {mode === "edit" ? (
-              <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
-                <div className="text-overline text-zinc-500 tracking-wide">归属</div>
-                <SearchableSelect
-                  label="工作空间"
-                  placeholder="搜索工作空间…"
-                  options={workspaceOptions.map((w) => ({ id: w.id, label: w.name }))}
-                  value={selectedWorkspaceId || null}
-                  onChange={setSelectedWorkspaceId}
-                  loading={workspacesLoading}
-                  disabled={loading}
-                  emptyText="暂无可迁移的工作空间（需为目标空间负责人）"
-                />
-                {workspaceChanged ? (
-                  <p className="text-caption text-neutral-muted">
-                    保存后将把项目及全部任务、成员迁移至「{targetWorkspaceName}」。
-                  </p>
-                ) : null}
+    <>
+      <ModalDialog
+        titleId={titleId}
+        onClose={onClose}
+        busy={loading}
+        lightDismiss={!confirmTransferOpen}
+        className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+      >
+        {({ requestClose }) => (
+          <>
+            <div className="flex items-center justify-between">
+              <div id={titleId} className="font-subhead font-semibold">
+                {title}
               </div>
-            ) : null}
-            {mode === "edit" ? (
-              <LabelColorPicker value={color} onChange={setColor} disabled={loading} />
-            ) : null}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-on-surface-variant" htmlFor="projectModalName">
-                项目名称
-              </label>
-              <input
-                id="projectModalName"
-                className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="例如：官网改版"
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-on-surface-variant" htmlFor="projectModalDesc">
-                描述（可选）
-              </label>
-              <textarea
-                id="projectModalDesc"
-                className="min-h-[96px] w-full resize-none rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="这个项目主要做什么？"
-                disabled={loading}
-              />
-            </div>
-            {error && <div className="text-small text-error">{error}</div>}
-            <div className="flex items-center justify-end gap-2">
               <button
+                className="text-sm underline disabled:opacity-50"
                 type="button"
-                className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
-                onClick={() => onClose()}
                 disabled={loading}
+                onClick={requestClose}
               >
-                取消
-              </button>
-              <button
-                type="submit"
-                className="rounded-xl bg-primary px-4 py-2 text-sm text-on-primary disabled:opacity-50"
-                disabled={loading || !name.trim()}
-              >
-                {loading ? (mode === "create" ? "创建中…" : "保存中…") : mode === "create" ? "创建" : "保存"}
+                关闭
               </button>
             </div>
-          </form>
-        </div>
-      </div>
+            <form onSubmit={onSubmit} className="space-y-4">
+              {mode === "edit" ? (
+                <div className="rounded-xl border border-border-subtle bg-surface-container-lowest/40 p-4 space-y-4">
+                  <div className="text-overline text-zinc-500 tracking-wide">归属</div>
+                  <SearchableSelect
+                    label="工作空间"
+                    placeholder="搜索工作空间…"
+                    options={workspaceOptions.map((w) => ({ id: w.id, label: w.name }))}
+                    value={selectedWorkspaceId || null}
+                    onChange={setSelectedWorkspaceId}
+                    loading={workspacesLoading}
+                    disabled={loading}
+                    emptyText="暂无可迁移的工作空间（需为目标空间负责人）"
+                  />
+                  {workspaceChanged ? (
+                    <p className="text-caption text-neutral-muted">
+                      保存后将把项目及全部任务、成员迁移至「{targetWorkspaceName}」。
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {mode === "edit" ? (
+                <LabelColorPicker value={color} onChange={setColor} disabled={loading} />
+              ) : null}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-on-surface-variant" htmlFor="projectModalName">
+                  项目名称
+                </label>
+                <input
+                  id="projectModalName"
+                  className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="例如：官网改版"
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-on-surface-variant" htmlFor="projectModalDesc">
+                  描述（可选）
+                </label>
+                <textarea
+                  id="projectModalDesc"
+                  className="min-h-[96px] w-full resize-none rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-body outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="这个项目主要做什么？"
+                  disabled={loading}
+                />
+              </div>
+              {error && <div className="text-small text-error">{error}</div>}
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
+                  onClick={requestClose}
+                  disabled={loading}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-primary px-4 py-2 text-sm text-on-primary disabled:opacity-50"
+                  disabled={loading || !name.trim()}
+                >
+                  {loading ? (mode === "create" ? "创建中…" : "保存中…") : mode === "create" ? "创建" : "保存"}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </ModalDialog>
 
       {confirmTransferOpen ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              if (!loading) setConfirmTransferOpen(false);
-            }}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="project-transfer-confirm-title"
-            className="relative w-[min(480px,calc(100vw-2rem))] rounded-xl border border-border-subtle bg-surface p-6 shadow-lg space-y-4"
-          >
-            <div id="project-transfer-confirm-title" className="font-subhead font-semibold">
-              确认迁移项目
-            </div>
-            <p className="text-small text-text-secondary">
-              将把项目「{name.trim() || "未命名"}」及全部任务、成员迁移至工作空间「{targetWorkspaceName}
-              」。项目成员在项目内的角色保持不变；尚未加入目标工作空间的成员将以成员身份加入。此操作不可从界面撤销，是否继续？
-            </p>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
-                onClick={() => setConfirmTransferOpen(false)}
-                disabled={loading}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="rounded-xl bg-primary px-4 py-2 text-sm text-on-primary disabled:opacity-50"
-                onClick={() => void saveProject()}
-                disabled={loading}
-              >
-                {loading ? "迁移中…" : "确认迁移"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalDialog
+          titleId={transferConfirmTitleId}
+          onClose={() => setConfirmTransferOpen(false)}
+          busy={loading}
+          className="w-[min(480px,calc(100vw-2rem))] space-y-4 rounded-xl border border-border-subtle bg-surface p-6 shadow-lg"
+        >
+          {({ requestClose }) => (
+            <>
+              <div id={transferConfirmTitleId} className="font-subhead font-semibold">
+                确认迁移项目
+              </div>
+              <p className="text-small text-text-secondary">
+                将把项目「{name.trim() || "未命名"}」及全部任务、成员迁移至工作空间「{targetWorkspaceName}
+                」。项目成员在项目内的角色保持不变；尚未加入目标工作空间的成员将以成员身份加入。此操作不可从界面撤销，是否继续？
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-xl border border-border-subtle px-4 py-2 text-sm disabled:opacity-50"
+                  onClick={requestClose}
+                  disabled={loading}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="rounded-xl bg-primary px-4 py-2 text-sm text-on-primary disabled:opacity-50"
+                  onClick={() => void saveProject()}
+                  disabled={loading}
+                >
+                  {loading ? "迁移中…" : "确认迁移"}
+                </button>
+              </div>
+            </>
+          )}
+        </ModalDialog>
       ) : null}
-    </div>
+    </>
   );
 }

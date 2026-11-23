@@ -54,7 +54,7 @@ alwaysApply: false
 
 - **链接**：正文内次要链可用 `text-primary hover:underline`；面包屑等浅灰导航用 `text-gray-500` + `hover:text-gray-700`。
 - **下拉/菜单**：`rounded-xl border border-border-subtle bg-surface shadow-sm`；项 `px-3 py-2 text-small hover:bg-surface-container-lowest`；区外点击关闭（`mousedown` 监听）与 `aria-expanded` / `role="menu"` 与现有一致。
-- **抽屉/模态**：遮罩 `bg-black/30`～`bg-black/40`；面板 `bg-surface border-border-subtle rounded-xl`；抽屉右侧 `shadow-xl border-l`；关闭按钮 `rounded-xl border-border-subtle` 方形容器。
+- **抽屉/模态**：阻塞型弹层用 `ModalDialog`（原生 `<dialog>` + `showModal()` + `closedby`，见 `src/components/ModalDialog.tsx`）；`::backdrop` 约 `rgba(0,0,0,0.4)`，面板 `bg-surface border-border-subtle rounded-xl`。不要手写 `fixed inset-0` + `role="dialog"` / 自管 Esc。抽屉（非 modal）右侧 `shadow-xl border-l`；关闭按钮 `rounded-xl border-border-subtle` 方形容器。改 UI 平台能力前走 `modern-web-guidance`（`.cursor/skills/modern-web-guidance`）。
 - **危险操作**：确认框内警示区 `border-error-container bg-error-container/10`；主删除按钮 `bg-red-600 hover:bg-red-700 text-white`；次要「取消」为描边按钮。
 - **强调/定位**：短时高亮可用 `ring-2 ring-primary/50 ring-offset-2` 等（如评论定位）。
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
+import { ModalDialog } from "@/components/ModalDialog";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { accountKindLabel, errorText } from "@/components/assets/copy";
@@ -123,14 +124,6 @@ function AddAccountDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !saving) onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
-
   async function submit() {
     const accessToken = getToken();
     if (!accessToken) return;
@@ -154,14 +147,15 @@ function AddAccountDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }
 
   return (
-    <div className="fixed inset-0 z-50">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label={t("form.close")} onClick={onClose} />
-      <div className="absolute inset-0 flex items-end justify-center p-4 sm:items-center">
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={saving}
+      className="max-h-[calc(100vh-2rem)] w-[min(36rem,calc(100vw-2rem))] space-y-4 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
+    >
+      {({ requestClose }) => (
         <form
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="max-h-[calc(100vh-2rem)] w-[min(36rem,calc(100vw-2rem))] space-y-4 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
+          className="contents"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
@@ -171,7 +165,7 @@ function AddAccountDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <h2 id={titleId} className="font-subhead text-subhead text-text-primary">
               {t("accounts.createTitle")}
             </h2>
-            <button type="button" className="text-small text-text-secondary" onClick={onClose} disabled={saving}>
+            <button type="button" className="text-small text-text-secondary" onClick={requestClose} disabled={saving}>
               {t("form.close")}
             </button>
           </div>
@@ -222,7 +216,7 @@ function AddAccountDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <button
               type="button"
               className="rounded-xl border border-border-subtle px-4 py-2 text-small text-text-secondary"
-              onClick={onClose}
+              onClick={requestClose}
               disabled={saving}
             >
               {t("form.cancel")}
@@ -236,7 +230,7 @@ function AddAccountDialog({ onClose, onSaved }: { onClose: () => void; onSaved: 
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      )}
+    </ModalDialog>
   );
 }

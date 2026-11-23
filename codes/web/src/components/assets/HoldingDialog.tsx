@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
+import { ModalDialog } from "@/components/ModalDialog";
 import { useTranslations } from "next-intl";
 import { categoriesFor, type AssetKind } from "@/components/assets/categories";
 import { categoryHint, categoryLabel, kindLabel } from "@/components/assets/copy";
@@ -64,14 +65,6 @@ export function HoldingDialog({
   const categories = categoriesFor(draft.kind);
   const digits = currencyDigits(draft.currency);
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !saving) onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
-
   function setKind(kind: AssetKind) {
     const next = categoriesFor(kind);
     const category = next.includes(draft.category as (typeof next)[number]) ? draft.category : next[0];
@@ -79,22 +72,14 @@ export function HoldingDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/40"
-        aria-label={t("form.close")}
-        onClick={() => {
-          if (!saving) onClose();
-        }}
-      />
-      <div className="absolute inset-0 flex items-end justify-center p-4 sm:items-center">
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="max-h-[calc(100vh-2rem)] w-[min(36rem,calc(100vw-2rem))] overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
-        >
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={saving}
+      className="max-h-[calc(100vh-2rem)] w-[min(36rem,calc(100vw-2rem))] overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-xl"
+    >
+      {({ requestClose }) => (
+        <>
           <div className="flex items-center justify-between gap-3">
             <h2 id={titleId} className="font-subhead text-subhead text-text-primary">
               {draft.mode === "create" ? t("form.createTitle") : draft.name}
@@ -102,7 +87,7 @@ export function HoldingDialog({
             <button
               type="button"
               className="rounded-xl border border-border-subtle px-3 py-1.5 text-small text-text-secondary"
-              onClick={onClose}
+              onClick={requestClose}
               disabled={saving}
             >
               {t("form.close")}
@@ -201,7 +186,7 @@ export function HoldingDialog({
               </label>
               {error ? <p className="text-small text-error">{error}</p> : null}
               <div className="flex justify-end gap-2">
-                <button type="button" className="rounded-xl border border-border-subtle px-4 py-2 text-small" onClick={onClose}>
+                <button type="button" className="rounded-xl border border-border-subtle px-4 py-2 text-small" onClick={requestClose}>
                   {t("form.cancel")}
                 </button>
                 <button
@@ -365,9 +350,9 @@ export function HoldingDialog({
               )}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </ModalDialog>
   );
 }
 

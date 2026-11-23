@@ -100,5 +100,5 @@ export function scanMaterialIconNames(root) {
       for (const name of iconsInInner(text.slice(tagEnd + 1, closeAt))) names.add(name);
     }
   }
-  return [...names].sort();
+  return [...names].toSorted();
 }

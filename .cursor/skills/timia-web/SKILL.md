@@ -25,6 +25,19 @@ description: Use when implementing or changing codes/web Next.js pages, componen
 - Item PATCH 必须带 `version`；`401` 由 `apiFetch` 刷新 AT，不要自写 refresh
 - `/auth/*` 走同源代理；其它请求用 `NEXT_PUBLIC_API_BASE_URL`
 
+## Modern Web Guidance（必做）
+
+技能已安装：`.agents/skills/modern-web-guidance`（Cursor 经 `.cursor/skills/modern-web-guidance` 软链发现；版本锁 `skills-lock.json`）。改 HTML/CSS/客户端交互时 **先** 读该 SKILL 并 `search`/`retrieve`，再写代码。
+
+```sh
+npx -y modern-web-guidance@latest search "<2-5 word capability>"
+npx -y modern-web-guidance@latest retrieve "<id>"
+npx -y modern-web-guidance@latest legacy-scan codes/web --json   # 整库遗留，约 20% 规则
+npx -y modern-web-guidance@latest update                         # 升级技能包
+```
+
+硬规则：CJK 自定义 Enter → `event.nativeEvent.isComposing || event.keyCode === 229`；不可变排序 → `toSorted()` / `toReversed()`；阻塞型弹层 → `ModalDialog`（原生 `<dialog showModal>` + `closedby`，见 `src/components/ModalDialog.tsx`），不要再堆 `fixed inset-0` + `role="dialog"`。Baseline Widely available 默认可直用；否则按指南加 fallback。
+
 ## UI 要点
 
 主题 token（`primary`、`surface`、`text-body`…），不要单页 palettes。Material Symbols Outlined 放在 `public/fonts`，页面从本站 `/fonts/` 取并用浏览器缓存，不要用 Google Fonts。加载 / 空 / 错误三条路径都要有 i18n。壳层 `pt-14` + `md:ml-48`，别让内容顶到固定头下面。

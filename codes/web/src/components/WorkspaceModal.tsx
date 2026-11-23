@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { LabelColorPicker } from "@/components/LabelColorPicker";
-import { useEscapeDismiss } from "@/hooks/useEscapeDismiss";
+import { ModalDialog } from "@/components/ModalDialog";
 import { apiFetch } from "@/lib/api";
 import type { WorkspaceOption } from "@/lib/api/workspaces";
 
@@ -14,17 +14,12 @@ type Props = {
 };
 
 export function WorkspaceModal({ open, onClose, token, onSuccess }: Props) {
+  const titleId = useId();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#FFFFFF");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEscapeDismiss({
-    open,
-    onDismiss: onClose,
-    disabled: loading,
-  });
 
   useEffect(() => {
     if (!open) return;
@@ -77,16 +72,17 @@ export function WorkspaceModal({ open, onClose, token, onSuccess }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={() => {
-          if (!loading) onClose();
-        }}
-      />
-      <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm">
-          <div className="font-semibold font-subhead">创建工作空间</div>
+    <ModalDialog
+      titleId={titleId}
+      onClose={onClose}
+      busy={loading}
+      className="w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] space-y-5 overflow-auto rounded-xl border border-border-subtle bg-surface p-6 shadow-sm"
+    >
+      {({ requestClose }) => (
+        <>
+          <div id={titleId} className="font-semibold font-subhead">
+            创建工作空间
+          </div>
           <form onSubmit={onSubmit} className="space-y-4">
             <input
               className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md"
@@ -105,7 +101,7 @@ export function WorkspaceModal({ open, onClose, token, onSuccess }: Props) {
             <LabelColorPicker value={color} onChange={setColor} disabled={loading} />
             {error ? <div className="text-small text-error">{error}</div> : null}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={onClose} disabled={loading}>
+              <button type="button" onClick={requestClose} disabled={loading}>
                 取消
               </button>
               <button
@@ -117,8 +113,8 @@ export function WorkspaceModal({ open, onClose, token, onSuccess }: Props) {
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </ModalDialog>
   );
 }
