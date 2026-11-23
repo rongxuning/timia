@@ -199,10 +199,20 @@ def _account_series(
     convert,
     zone,
 ) -> list[BankSeriesPointOut]:
+    """One node per calendar day that has a savings/investment record — not a daily fill."""
+    event_days = {
+        _local_day(row.recorded_at, zone)
+        for row in savings_txns
+        if start <= _local_day(row.recorded_at, zone) <= end
+    } | {
+        _local_day(row.recorded_at, zone)
+        for row in investment_ops
+        if start <= _local_day(row.recorded_at, zone) <= end
+    }
     points: list[BankSeriesPointOut] = []
-    day = start
-    while day <= end:
+    for day in sorted(event_days):
         total = 0
+        has_value = False
         for product in products:
             if product.product_kind == "savings":
                 balance = _balance_on(day, product.id, savings_txns, zone)
@@ -211,6 +221,7 @@ def _account_series(
                 converted = convert(balance, product.currency)
                 if converted is not None:
                     total += converted
+                    has_value = True
             elif product.product_kind == "investment":
                 value = _investment_on(day, product.id, investment_ops, zone)
                 if value is None:
@@ -218,8 +229,9 @@ def _account_series(
                 converted = convert(value[0], product.currency)
                 if converted is not None:
                     total += converted
-        points.append(BankSeriesPointOut(as_of=day, total_assets_minor=total))
-        day += timedelta(days=1)
+                    has_value = True
+        if has_value:
+            points.append(BankSeriesPointOut(as_of=day, total_assets_minor=total))
     return points
 
 
@@ -240,18 +252,23 @@ def _selected_detail(
     credit_out: list[BankCreditBillOut] = []
 
     if product.product_kind == "savings":
-        day = start
-        while day <= end:
+        event_days = sorted(
+            {
+                _local_day(row.recorded_at, zone)
+                for row in savings_txns
+                if row.product_id == product.id
+                and start <= _local_day(row.recorded_at, zone) <= end
+            }
+        )
+        for day in event_days:
             balance = _balance_on(day, product.id, savings_txns, zone)
-            if balance is not None:
-                converted = convert(balance, product.currency)
-                if converted is not None:
-                    series.append(
-                        BankProductSeriesPointOut(as_of=day, primary_minor=converted, secondary_minor=None)
-                    )
-            day += timedelta(days=1)
-        # Nodes only on change days: keep daily final, but UI can plot all days.
-        # Transaction list filtered to range.
+            if balance is None:
+                continue
+            converted = convert(balance, product.currency)
+            if converted is not None:
+                series.append(
+                    BankProductSeriesPointOut(as_of=day, primary_minor=converted, secondary_minor=None)
+                )
         for row in sorted(
             (txn for txn in savings_txns if txn.product_id == product.id),
             key=lambda item: (item.recorded_at, item.created_at),
@@ -273,21 +290,28 @@ def _selected_detail(
                     )
                 )
     elif product.product_kind == "investment":
-        day = start
-        while day <= end:
+        event_days = sorted(
+            {
+                _local_day(row.recorded_at, zone)
+                for row in investment_ops
+                if row.product_id == product.id
+                and start <= _local_day(row.recorded_at, zone) <= end
+            }
+        )
+        for day in event_days:
             shot = _investment_on(day, product.id, investment_ops, zone)
-            if shot is not None:
-                value = convert(shot[0], product.currency)
-                cost = convert(shot[1], product.currency)
-                if value is not None and cost is not None:
-                    series.append(
-                        BankProductSeriesPointOut(
-                            as_of=day,
-                            primary_minor=value,
-                            secondary_minor=cost,
-                        )
+            if shot is None:
+                continue
+            value = convert(shot[0], product.currency)
+            cost = convert(shot[1], product.currency)
+            if value is not None and cost is not None:
+                series.append(
+                    BankProductSeriesPointOut(
+                        as_of=day,
+                        primary_minor=value,
+                        secondary_minor=cost,
                     )
-            day += timedelta(days=1)
+                )
         for row in sorted(
             (op for op in investment_ops if op.product_id == product.id),
             key=lambda item: (item.recorded_at, item.created_at),
@@ -311,15 +335,21 @@ def _selected_detail(
                     )
                 )
     else:
-        months = _months_in_range(start, end)
-        for year_month in months:
+        # One node per month that actually has a bill — no carry-forward fill.
+        months_with_bill = sorted(
+            {
+                row.year_month
+                for row in credit_bills
+                if row.product_id == product.id and row.year_month in set(_months_in_range(start, end))
+            }
+        )
+        for year_month in months_with_bill:
             bill = _bill_on(year_month, product.id, credit_bills)
-            if bill is None:
+            if bill is None or bill.year_month != year_month:
                 continue
             statement = convert(bill.statement_minor, product.currency)
             if statement is None:
                 continue
-            # Plot on the first day of the month clipped into the range.
             as_of = max(start, date(int(year_month[:4]), int(year_month[5:7]), 1))
             if as_of > end:
                 continue
