@@ -67,11 +67,10 @@ export function TaskStatusIcon({
   const cfg = TASK_STATUS_ICON[key];
   const canToggleCompletion = cfg.toggleCompletionOnClick && !!onComplete;
   const toggleActionLabel = key === "done" ? "标记为未完成" : "标记为已完成";
-  const boxClass = size === "compact" ? "h-4 w-4" : "h-5 w-5";
+  const boxClass = size === "compact" ? "h-8 w-8" : "h-10 w-10";
   // `.material-symbols-outlined` sets font-size: 24px outside Tailwind layers, so
-  // text-[14px] never wins. A 24px circle in this 16px slot is clipped by
-  // overflow:hidden into a broken "C". Size the glyph inline so the ring is whole.
-  const iconPx = size === "compact" ? 14 : 18;
+  // text-[NNpx] never wins. Size the glyph inline so the ring fits its slot.
+  const iconPx = size === "compact" ? 28 : 36;
 
   if (!canToggleCompletion) {
     return (
