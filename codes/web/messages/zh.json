@@ -645,6 +645,8 @@
       "shares": "{count}股",
       "totalPnl": "总浮盈亏",
       "periodPnl": "区间浮盈亏",
+      "legendProfit": "盈利",
+      "legendLoss": "亏损",
       "summary": "汇总",
       "symbol": "代码",
       "direction": "方向"

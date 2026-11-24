@@ -68,9 +68,51 @@ describe("layoutStockTrend", () => {
     assert.equal(daysBetween("2026-11-13", "2026-11-16"), 3);
   });
 
+  it("keeps a readout-only series off the plot and off the scale", () => {
+    const layout = layoutStockTrend(
+      ["2026-11-13", "2026-11-14"],
+      [
+        { id: "market", scale: "money", drawn: false, values: [1_000_000, 1_000_000] },
+        { id: "pnl", scale: "money", paint: "signed", values: [10, -10] },
+      ],
+    );
+    assert.ok(layout);
+    assert.equal(
+      layout.segments.some((segment) => segment.seriesId === "market"),
+      false,
+    );
+    assert.equal(layout.dots.some((dot) => dot.seriesId === "market"), false);
+    assert.ok(layout.yTicks.every((tick) => Math.abs(tick.value) < 1000));
+  });
+
   it("names an upward move up and a downward move down", () => {
     assert.equal(trendDirection(1, 2), "up");
     assert.equal(trendDirection(2, 1), "down");
     assert.equal(trendDirection(2, 2), "flat");
+  });
+
+  it("keeps a falling profit run red and splits the line where it crosses zero", () => {
+    const layout = layoutStockTrend(
+      ["2026-11-13", "2026-11-14", "2026-11-15"],
+      [
+        { id: "cost", scale: "quote", paint: "solid", values: [10, 12, 11] },
+        { id: "pnl", scale: "money", paint: "signed", values: [100, 40, -100] },
+      ],
+    );
+    assert.ok(layout);
+    const cost = layout.segments.filter((segment) => segment.seriesId === "cost");
+    assert.equal(cost.length, 2);
+    assert.ok(cost.every((segment) => segment.paint === "solid"));
+    const pnl = layout.segments.filter((segment) => segment.seriesId === "pnl");
+    assert.deepEqual(
+      pnl.map((segment) => segment.sign),
+      ["profit", "profit", "loss"],
+    );
+    assert.equal(pnl[0]?.direction, "down");
+    assert.equal(pnl[1]?.x2, pnl[2]?.x1);
+    assert.equal(pnl[1]?.y2, pnl[2]?.y1);
+    const zero = layout.yTicks.find((tick) => Object.is(tick.value, 0));
+    assert.ok(zero);
+    assert.ok(pnl[1] && Math.abs(pnl[1].y2 - zero.y) < 0.01);
   });
 });

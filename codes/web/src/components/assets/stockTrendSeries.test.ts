@@ -19,6 +19,8 @@ const positionLabels = {
   shareCount: "股数",
   totalPnl: "总浮盈亏",
   periodPnl: "区间浮盈亏",
+  profit: "盈利",
+  loss: "亏损",
 };
 
 function detail(): StockDetail {
@@ -158,7 +160,22 @@ describe("positionTrend", () => {
     assert.equal(trend.series[1]?.formatValue?.(null), "—");
     assert.equal(trend.series[2]?.formatValue?.(100), "100股");
     assert.equal(trend.series.find((item) => item.id === "total")?.signed, true);
+    assert.equal(trend.series.find((item) => item.id === "total")?.paint, "signed");
+    assert.deepEqual(trend.series.find((item) => item.id === "total")?.key, [
+      { tone: "text-error", label: "盈利" },
+      { tone: "text-success", label: "亏损" },
+    ]);
+    assert.equal(trend.series.find((item) => item.id === "cost")?.paint, "solid");
+    assert.equal(trend.series.find((item) => item.id === "cost")?.tone, "text-text-primary");
+    assert.equal(trend.series.find((item) => item.id === "shares")?.paint, "solid");
+    assert.equal(trend.series.find((item) => item.id === "shares")?.dash, "6 4");
+    assert.equal(trend.series.find((item) => item.id === "shares")?.readout, "text-text-secondary");
+    assert.deepEqual(trend.series.find((item) => item.id === "shares")?.key, [
+      { tone: trend.series.find((item) => item.id === "shares")?.tone },
+    ]);
     assert.equal(trend.series.find((item) => item.id === "period")?.signed, true);
+    assert.equal(trend.series.find((item) => item.id === "period")?.drawn, false);
     assert.equal(trend.series.find((item) => item.id === "market")?.signed, false);
+    assert.equal(trend.series.find((item) => item.id === "market")?.drawn, false);
   });
 });

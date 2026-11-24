@@ -645,6 +645,8 @@
       "shares": "{count} shares",
       "totalPnl": "Unrealized P&L",
       "periodPnl": "P&L in range",
+      "legendProfit": "Profit",
+      "legendLoss": "Loss",
       "summary": "Summary",
       "symbol": "Symbol",
       "direction": "Direction"
