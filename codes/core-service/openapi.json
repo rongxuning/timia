@@ -8387,6 +8387,68 @@
         }
       }
     },
+    "/asset-accounts/{account_id}/bank-flows": {
+      "post": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Post Bank Flow",
+        "operationId": "post_bank_flow_asset_accounts__account_id__bank_flows_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankFlowCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/asset-expenses": {
       "post": {
         "tags": [
@@ -13860,6 +13922,13 @@
             "type": "array",
             "title": "Series"
           },
+          "flows": {
+            "items": {
+              "$ref": "#/components/schemas/BankFlowOut"
+            },
+            "type": "array",
+            "title": "Flows"
+          },
           "selected": {
             "anyOf": [
               {
@@ -13877,6 +13946,111 @@
           "summary"
         ],
         "title": "BankDetailOut"
+      },
+      "BankFlowCreate": {
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Direction"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 24,
+            "minLength": 1,
+            "title": "Category"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Minor"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "default": "CNY"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "direction",
+          "category",
+          "amount_minor"
+        ],
+        "title": "BankFlowCreate"
+      },
+      "BankFlowOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Direction"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "title": "Amount Minor"
+          },
+          "display_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Minor"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "direction",
+          "category",
+          "currency",
+          "amount_minor",
+          "display_minor",
+          "recorded_at"
+        ],
+        "title": "BankFlowOut"
       },
       "BankInvestmentOpCreate": {
         "properties": {
@@ -14484,6 +14658,16 @@
           "total_assets_minor": {
             "type": "integer",
             "title": "Total Assets Minor"
+          },
+          "income_minor": {
+            "type": "integer",
+            "title": "Income Minor",
+            "default": 0
+          },
+          "expense_minor": {
+            "type": "integer",
+            "title": "Expense Minor",
+            "default": 0
           }
         },
         "type": "object",

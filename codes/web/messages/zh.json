@@ -680,6 +680,38 @@
         "savings": "储蓄",
         "investment": "投资",
         "credit": "信用"
+      },
+      "flows": {
+        "income": "收入",
+        "expense": "支出",
+        "addIncome": "记收入",
+        "addExpense": "记支出",
+        "amount": "金额",
+        "type": "类型",
+        "empty": "还没有收支记录。",
+        "categories": {
+          "dining": "餐饮",
+          "transport": "交通",
+          "shopping": "购物",
+          "housing": "居住",
+          "utilities": "水电通讯",
+          "medical": "医疗",
+          "education": "教育",
+          "entertainment": "娱乐",
+          "social": "人情",
+          "travel": "旅行",
+          "salary": "工资",
+          "bonus": "奖金",
+          "investment": "理财收益",
+          "interest": "利息",
+          "side_job": "兼职",
+          "reimbursement": "报销",
+          "gift": "红包礼金",
+          "refund": "退款",
+          "rent": "租金",
+          "transfer_in": "转入",
+          "other": "其他"
+        }
       }
     }
   }

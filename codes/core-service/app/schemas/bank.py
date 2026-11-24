@@ -10,6 +10,36 @@ from pydantic import BaseModel, Field, model_validator
 from app.services.assets_math import MAX_MINOR
 
 BankProductKind = Literal["savings", "investment", "credit"]
+BankFlowDirection = Literal["income", "expense"]
+
+BANK_FLOW_CATEGORIES: dict[str, tuple[str, ...]] = {
+    "expense": (
+        "dining",
+        "transport",
+        "shopping",
+        "housing",
+        "utilities",
+        "medical",
+        "education",
+        "entertainment",
+        "social",
+        "travel",
+        "other",
+    ),
+    "income": (
+        "salary",
+        "bonus",
+        "investment",
+        "interest",
+        "side_job",
+        "reimbursement",
+        "gift",
+        "refund",
+        "rent",
+        "transfer_in",
+        "other",
+    ),
+}
 
 
 class BankProductCreate(BaseModel):
@@ -75,6 +105,14 @@ class BankCreditBillCreate(BaseModel):
     statement_minor: int = Field(ge=0, le=MAX_MINOR)
     paid_off: bool
     reason: str = Field(min_length=1, max_length=200)
+    recorded_at: datetime | None = None
+
+
+class BankFlowCreate(BaseModel):
+    direction: BankFlowDirection
+    category: str = Field(min_length=1, max_length=24)
+    amount_minor: int = Field(gt=0, le=MAX_MINOR)
+    currency: str = Field(default="CNY", min_length=3, max_length=3)
     recorded_at: datetime | None = None
 
 

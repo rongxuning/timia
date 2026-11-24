@@ -228,6 +228,24 @@ export function createBankProduct(
   });
 }
 
+export function createBankFlow(
+  token: string,
+  accountId: string,
+  body: {
+    direction: "income" | "expense";
+    category: string;
+    amount_minor: number;
+    currency?: string;
+    recorded_at?: string;
+  },
+): Promise<void> {
+  return apiFetch<void>(`/asset-accounts/${accountId}/bank-flows`, {
+    token,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function createBankSavingsTxn(
   token: string,
   accountId: string,

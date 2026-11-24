@@ -1902,6 +1902,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/asset-accounts/{account_id}/bank-flows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Bank Flow */
+        post: operations["post_bank_flow_asset_accounts__account_id__bank_flows_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/asset-expenses": {
         parameters: {
             query?: never;
@@ -3238,7 +3255,51 @@ export interface components {
             products?: components["schemas"]["BankProductOut"][];
             /** Series */
             series?: components["schemas"]["BankSeriesPointOut"][];
+            /** Flows */
+            flows?: components["schemas"]["BankFlowOut"][];
             selected?: components["schemas"]["BankProductDetailOut"] | null;
+        };
+        /** BankFlowCreate */
+        BankFlowCreate: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "income" | "expense";
+            /** Category */
+            category: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /**
+             * Currency
+             * @default CNY
+             */
+            currency: string;
+            /** Recorded At */
+            recorded_at?: string | null;
+        };
+        /** BankFlowOut */
+        BankFlowOut: {
+            /** Id */
+            id: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "income" | "expense";
+            /** Category */
+            category: string;
+            /** Currency */
+            currency: string;
+            /** Amount Minor */
+            amount_minor: number;
+            /** Display Minor */
+            display_minor: number | null;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
         };
         /** BankInvestmentOpCreate */
         BankInvestmentOpCreate: {
@@ -3455,6 +3516,16 @@ export interface components {
             fx_incomplete: boolean;
             /** Total Assets Minor */
             total_assets_minor: number;
+            /**
+             * Income Minor
+             * @default 0
+             */
+            income_minor: number;
+            /**
+             * Expense Minor
+             * @default 0
+             */
+            expense_minor: number;
         };
         /** CalendarDayDetailOut */
         CalendarDayDetailOut: {
@@ -12417,6 +12488,41 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BankProductWriteOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_bank_flow_asset_accounts__account_id__bank_flows_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankFlowCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models.asset import (
     AssetBankCreditBill,
+    AssetBankFlow,
     AssetBankInvestmentOp,
     AssetBankProduct,
     AssetBankSavingsTxn,
@@ -22,6 +23,7 @@ from app.schemas.views.bank_detail import (
     BankAccountOut,
     BankCreditBillOut,
     BankDetailOut,
+    BankFlowOut,
     BankInvestmentOpOut,
     BankProductDetailOut,
     BankProductOut,
@@ -101,6 +103,8 @@ def build_bank_detail(
         convert,
         zone,
     )
+    flows, income, expense, flows_missing = _flows(db, account.id, start, end, convert, zone)
+    fx_incomplete = fx_incomplete or flows_missing
     selected = None
     if product_id is not None:
         product = by_id.get(product_id)
@@ -129,11 +133,59 @@ def build_bank_detail(
             display_currency=display,
             fx_incomplete=fx_incomplete,
             total_assets_minor=total_assets,
+            income_minor=income,
+            expense_minor=expense,
         ),
         products=cards,
         series=series,
+        flows=flows,
         selected=selected,
     )
+
+
+def _flows(
+    db: Session,
+    account_id: uuid.UUID,
+    start: date,
+    end: date,
+    convert,
+    zone,
+) -> tuple[list[BankFlowOut], int, int, bool]:
+    rows = sorted(
+        (
+            row
+            for row in db.scalars(
+                select(AssetBankFlow).where(AssetBankFlow.account_id == account_id)
+            ).all()
+            if start <= _local_day(row.recorded_at, zone) <= end
+        ),
+        key=lambda row: (row.recorded_at, row.created_at, str(row.id)),
+        reverse=True,
+    )
+    out: list[BankFlowOut] = []
+    income = 0
+    expense = 0
+    missing = False
+    for row in rows:
+        converted = convert(row.amount_minor, row.currency)
+        if converted is None:
+            missing = True
+        elif row.direction == "income":
+            income += converted
+        else:
+            expense += converted
+        out.append(
+            BankFlowOut(
+                id=str(row.id),
+                direction=row.direction,  # type: ignore[arg-type]
+                category=row.category,
+                currency=row.currency,
+                amount_minor=row.amount_minor,
+                display_minor=converted,
+                recorded_at=row.recorded_at,
+            )
+        )
+    return out, income, expense, missing
 
 
 def _product_card(

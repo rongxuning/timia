@@ -22,6 +22,18 @@ class BankSummaryOut(BaseModel):
     display_currency: str
     fx_incomplete: bool
     total_assets_minor: int
+    income_minor: int = 0
+    expense_minor: int = 0
+
+
+class BankFlowOut(BaseModel):
+    id: str
+    direction: Literal["income", "expense"]
+    category: str
+    currency: str
+    amount_minor: int
+    display_minor: int | None
+    recorded_at: datetime
 
 
 class BankProductOut(BaseModel):
@@ -101,4 +113,5 @@ class BankDetailOut(BaseModel):
     summary: BankSummaryOut
     products: list[BankProductOut] = Field(default_factory=list)
     series: list[BankSeriesPointOut] = Field(default_factory=list)
+    flows: list[BankFlowOut] = Field(default_factory=list)
     selected: BankProductDetailOut | None = None

@@ -15,6 +15,7 @@ from app.models.asset import (
     AssetAccount,
     AssetAdjustment,
     AssetBankCreditBill,
+    AssetBankFlow,
     AssetBankInvestmentOp,
     AssetBankProduct,
     AssetBankSavingsTxn,
@@ -53,6 +54,7 @@ def client_and_user():
     try:
         yield client, _headers(token), db, user
     finally:
+        db.execute(delete(AssetBankFlow).where(AssetBankFlow.owner_user_id == user.id))
         db.execute(delete(AssetBankSavingsTxn).where(AssetBankSavingsTxn.owner_user_id == user.id))
         db.execute(delete(AssetBankInvestmentOp).where(AssetBankInvestmentOp.owner_user_id == user.id))
         db.execute(delete(AssetBankCreditBill).where(AssetBankCreditBill.owner_user_id == user.id))
@@ -385,3 +387,50 @@ def test_stock_account_rejected_for_bank_products(client_and_user):
     )
     assert bad.status_code == 400
     assert bad.json()["detail"] == "account_not_bank"
+
+
+def test_income_and_expense_flows_in_range_totals(client_and_user):
+    client, headers, _db, _user = client_and_user
+    account_id = _account(client, headers)
+    for body in (
+        {"direction": "income", "category": "salary", "amount_minor": 5000_00,
+         "recorded_at": "2026-11-20T10:00:00+08:00"},
+        {"direction": "expense", "category": "dining", "amount_minor": 30_00,
+         "recorded_at": "2026-11-21T12:00:00+08:00"},
+        {"direction": "expense", "category": "other", "amount_minor": 20_00,
+         "recorded_at": "2026-10-01T12:00:00+08:00"},
+    ):
+        created = client.post(f"/asset-accounts/{account_id}/bank-flows", headers=headers, json=body)
+        assert created.status_code == 204, created.text
+
+    detail = client.get(
+        f"/views/me/assets/accounts/{account_id}/bank",
+        headers=headers,
+        params={"start": "2026-11-01", "end": "2026-11-30", "timezone": "Asia/Shanghai"},
+    )
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["summary"]["income_minor"] == 5000_00
+    assert body["summary"]["expense_minor"] == 30_00
+    assert [(row["direction"], row["category"]) for row in body["flows"]] == [
+        ("expense", "dining"),
+        ("income", "salary"),
+    ]
+
+
+def test_flow_rejects_category_of_other_direction(client_and_user):
+    client, headers, _db, _user = client_and_user
+    account_id = _account(client, headers)
+    bad = client.post(
+        f"/asset-accounts/{account_id}/bank-flows",
+        headers=headers,
+        json={"direction": "income", "category": "dining", "amount_minor": 1},
+    )
+    assert bad.status_code == 400
+    assert bad.json()["detail"] == "category_invalid"
+    zero = client.post(
+        f"/asset-accounts/{account_id}/bank-flows",
+        headers=headers,
+        json={"direction": "expense", "category": "dining", "amount_minor": 0},
+    )
+    assert zero.status_code == 422

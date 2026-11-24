@@ -14,13 +14,16 @@ from sqlalchemy.orm import Session
 from app.models.asset import (
     AssetAccount,
     AssetBankCreditBill,
+    AssetBankFlow,
     AssetBankInvestmentOp,
     AssetBankProduct,
     AssetBankSavingsTxn,
 )
 from app.models.user import User
 from app.schemas.bank import (
+    BANK_FLOW_CATEGORIES,
     BankCreditBillCreate,
+    BankFlowCreate,
     BankInvestmentOpCreate,
     BankProductCreate,
     BankProductWriteOut,
@@ -265,6 +268,31 @@ def add_credit_bill(
     db.commit()
     db.refresh(product)
     return _write_out(product)
+
+
+def add_flow(
+    db: Session,
+    user: User,
+    account_id: uuid.UUID,
+    payload: BankFlowCreate,
+) -> None:
+    _ensure_profile(db, user.id)
+    account = _bank_account(db, user.id, account_id)
+    if payload.category not in BANK_FLOW_CATEGORIES[payload.direction]:
+        raise HTTPException(status_code=400, detail="category_invalid")
+    currency = _currency(payload.currency)
+    db.add(
+        AssetBankFlow(
+            owner_user_id=user.id,
+            account_id=account.id,
+            direction=payload.direction,
+            category=payload.category,
+            currency=currency,
+            amount_minor=payload.amount_minor,
+            recorded_at=_moment(payload.recorded_at),
+        )
+    )
+    db.commit()
 
 
 def _sync_savings_latest(db: Session, product: AssetBankProduct) -> None:
