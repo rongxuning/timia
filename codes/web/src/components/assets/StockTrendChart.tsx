@@ -8,7 +8,13 @@ import {
   nearestChartIndex,
   pointerXInViewBox,
 } from "@/components/assets/assetChartRange";
-import { layoutStockTrend, type TrendDirection } from "@/components/assets/stockTrendLayout";
+import { layoutStockTrend, type TrendDirection, type TrendPaint, type TrendSegment } from "@/components/assets/stockTrendLayout";
+
+export type TrendSwatch = {
+  tone: string;
+  /** Visible name for this color, when one curve uses more than one. */
+  label?: string;
+};
 
 export type TrendSeries = {
   id: string;
@@ -19,6 +25,16 @@ export type TrendSeries = {
   scale?: string;
   /** Color the readout by sign: a gain is red and a loss is green. */
   signed?: boolean;
+  /** `solid` uses `tone`. `signed` is red in profit and green in loss. Omitted stays up-red / down-green. */
+  paint?: TrendPaint;
+  /** Readout color when it should not follow the line. Small text cannot use a yellow stroke. */
+  readout?: string;
+  /** Readout-only series stay out of the plot. */
+  drawn?: boolean;
+  /** SVG stroke dash. The color key repeats it so the swatch matches the line. */
+  dash?: string;
+  /** Color key drawn under the readout. */
+  key?: TrendSwatch[];
   formatValue?: (value: number | null) => string;
 };
 
@@ -41,6 +57,7 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
   if (!layout || categories.length === 0) return null;
   const index = Math.min(hover ?? categories.length - 1, categories.length - 1);
   const activeX = layout.coords[index]?.x ?? layout.plot.left;
+  const legend = series.filter((item) => item.key && item.key.length > 0);
   const dateLabels = chartPointDateLabels(categories);
   const xTicks = dateLabels.flatMap((label, labelIndex) => {
     const tick = layout.xTicks[labelIndex];
@@ -66,14 +83,21 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
               const value = item.values[index] ?? null;
               return (
                 <li key={item.id} className="min-w-0">
-                  <p className={`text-caption ${valueTone(item, value)}`}>{item.label}</p>
-                  <p className={`truncate text-small tabular-nums ${valueTone(item, value)}`}>
+                  <p className={`text-caption ${readoutTone(item, value)}`}>{item.label}</p>
+                  <p className={`truncate text-small tabular-nums ${readoutTone(item, value)}`}>
                     {item.formatValue ? item.formatValue(value) : value == null ? "—" : formatMoney(value)}
                   </p>
                 </li>
               );
             })}
           </ul>
+          {legend.length > 0 ? (
+            <ul className="space-y-1.5 border-t border-border-subtle pt-3">
+              {legend.map((item) => (
+                <LegendRow key={item.id} item={item} />
+              ))}
+            </ul>
+          ) : null}
         </aside>
         <svg
           viewBox={`0 0 ${layout.width} ${layout.height}`}
@@ -177,8 +201,10 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
               x2={segment.x2}
               y2={segment.y2}
               strokeWidth="2"
+              strokeDasharray={segment.dash}
               vectorEffect="non-scaling-stroke"
-              className={`stroke-current ${DIRECTION_TONE[segment.direction]}`}
+              className={`stroke-current ${segmentTone(segment, series)}`}
+              style={{ forcedColorAdjust: "none" }}
             />
           ))}
           {layout.dots.map((dot) => {
@@ -189,7 +215,8 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
                 cx={dot.cx}
                 cy={dot.cy}
                 r="3.5"
-                className={`fill-current ${item ? valueTone(item, dot.value) : "text-primary"}`}
+                className={`fill-current ${item ? markTone(item, dot.value) : "text-primary"}`}
+                style={{ forcedColorAdjust: "none" }}
               />
             );
           })}
@@ -208,8 +235,69 @@ export function StockTrendChart({ categories, series, locale, formatMoney }: Sto
   );
 }
 
-function valueTone(item: TrendSeries, value: number | null): string {
-  if (!item.signed) return item.tone;
-  if (value == null || value === 0) return "text-text-primary";
-  return value > 0 ? "text-error" : "text-success";
+function LegendRow({ item }: { item: TrendSeries }) {
+  const swatches = item.key ?? [];
+  const named = swatches.some((swatch) => swatch.label);
+  if (!named) {
+    const swatch = swatches[0];
+    if (!swatch) return null;
+    return (
+      <li className="flex items-center gap-2 text-caption text-text-primary">
+        <ColorMark tone={swatch.tone} dashed={Boolean(item.dash)} />
+        <span className="min-w-0 truncate">{item.label}</span>
+      </li>
+    );
+  }
+  return (
+    <li className="space-y-1 text-caption">
+      <p className="text-text-primary">{item.label}</p>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-text-secondary">
+        {swatches.map((swatch) => (
+          <span key={`${swatch.tone}-${swatch.label ?? ""}`} className="inline-flex items-center gap-1">
+            <ColorMark tone={swatch.tone} />
+            {swatch.label}
+          </span>
+        ))}
+      </p>
+    </li>
+  );
+}
+
+function ColorMark({ tone, dashed = false }: { tone: string; dashed?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block w-5 shrink-0 border-t-2 border-current ${dashed ? "border-dashed" : ""} ${tone}`}
+      style={{ forcedColorAdjust: "none" }}
+    />
+  );
+}
+
+function readoutTone(item: TrendSeries, value: number | null): string {
+  if (item.signed) {
+    if (value == null || value === 0) return "text-text-primary";
+    return value > 0 ? "text-error" : "text-success";
+  }
+  return item.readout ?? item.tone;
+}
+
+function markTone(item: TrendSeries, value: number): string {
+  if (item.paint === "signed" || item.signed) {
+    if (value > 0) return "text-error";
+    if (value < 0) return "text-success";
+    return "text-text-primary";
+  }
+  return item.tone;
+}
+
+function segmentTone(segment: TrendSegment, series: TrendSeries[]): string {
+  if (segment.paint === "solid") {
+    return series.find((item) => item.id === segment.seriesId)?.tone ?? "text-text-primary";
+  }
+  if (segment.paint === "signed") {
+    if (segment.sign === "profit") return "text-error";
+    if (segment.sign === "loss") return "text-success";
+    return "text-text-secondary";
+  }
+  return DIRECTION_TONE[segment.direction];
 }

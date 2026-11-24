@@ -1,19 +1,31 @@
 export type TrendDirection = "up" | "down" | "flat";
+export type TrendPaint = "direction" | "solid" | "signed";
+export type TrendSign = "profit" | "loss" | "flat";
 
 export type TrendLayoutSeries = {
   id: string;
   scale?: string;
   signed?: boolean;
+  /** `solid` keeps `tone`. `signed` is red above zero and green below. Omitted stays up-red / down-green. */
+  paint?: TrendPaint;
+  /** Readout-only series stay out of the plot and out of its scale. */
+  drawn?: boolean;
+  /** SVG stroke dash, so a series that sits on another line stays visible. */
+  dash?: string;
   values: ReadonlyArray<number | null>;
 };
 
 export type TrendSegment = {
   id: string;
+  seriesId: string;
   x1: number;
   y1: number;
   x2: number;
   y2: number;
   direction: TrendDirection;
+  paint: TrendPaint;
+  sign: TrendSign;
+  dash?: string;
 };
 
 export type TrendDot = {
@@ -58,6 +70,7 @@ export function layoutStockTrend(
   if (categories.length === 0 || series.length === 0) return null;
   const grouped = new Map<string, number[]>();
   for (const item of series) {
+    if (item.drawn === false) continue;
     const key = item.scale ?? "money";
     const bucket = grouped.get(key) ?? [];
     for (const value of item.values) {
@@ -85,6 +98,7 @@ export function layoutStockTrend(
   const segments: TrendSegment[] = [];
   const dots: TrendDot[] = [];
   for (const item of series) {
+    if (item.drawn === false) continue;
     const yOf = yFor.get(item.scale ?? "money");
     if (!yOf) continue;
     let previous: { index: number; x: number; y: number; value: number } | null = null;
@@ -98,14 +112,33 @@ export function layoutStockTrend(
       const current = { index, x: point.x, y: yOf(value), value };
       // Event-day series skips weekends; connect successive valued points (Fri→Mon).
       if (previous) {
-        segments.push({
-          id: `${item.id}-${previous.index}-${index}`,
-          x1: previous.x,
-          y1: previous.y,
-          x2: current.x,
-          y2: current.y,
-          direction: direction(previous.value, value),
-        });
+        const paint = item.paint ?? "direction";
+        if (paint === "signed" && crossesZero(previous.value, value)) {
+          const t = (0 - previous.value) / (value - previous.value);
+          const mid = {
+            x: previous.x + (current.x - previous.x) * t,
+            y: previous.y + (current.y - previous.y) * t,
+            value: 0,
+          };
+          segments.push(
+            segment(item.id, paint, previous, mid, `${previous.index}-${index}-a`, signOf(previous.value), item.dash),
+          );
+          segments.push(
+            segment(item.id, paint, mid, current, `${previous.index}-${index}-b`, signOf(value), item.dash),
+          );
+        } else {
+          segments.push(
+            segment(
+              item.id,
+              paint,
+              previous,
+              current,
+              `${previous.index}-${index}`,
+              segmentSign(paint, previous.value, value),
+              item.dash,
+            ),
+          );
+        }
       }
       placed.push(current);
       previous = current;
@@ -185,6 +218,47 @@ function direction(previous: number, next: number): TrendDirection {
   if (next > previous) return "up";
   if (next < previous) return "down";
   return "flat";
+}
+
+function crossesZero(left: number, right: number): boolean {
+  return (left > 0 && right < 0) || (left < 0 && right > 0);
+}
+
+function signOf(value: number): TrendSign {
+  if (value > 0) return "profit";
+  if (value < 0) return "loss";
+  return "flat";
+}
+
+/** A signed run that touches zero keeps the non-zero side's color. */
+function segmentSign(paint: TrendPaint, left: number, right: number): TrendSign {
+  if (paint !== "signed") return "flat";
+  if (left > 0 || right > 0) return "profit";
+  if (left < 0 || right < 0) return "loss";
+  return "flat";
+}
+
+function segment(
+  seriesId: string,
+  paint: TrendPaint,
+  from: { x: number; y: number; value: number },
+  to: { x: number; y: number; value: number },
+  id: string,
+  sign: TrendSign,
+  dash?: string,
+): TrendSegment {
+  return {
+    id: `${seriesId}-${id}`,
+    seriesId,
+    x1: from.x,
+    y1: from.y,
+    x2: to.x,
+    y2: to.y,
+    direction: direction(from.value, to.value),
+    paint,
+    sign,
+    dash,
+  };
 }
 
 function domain(values: number[]) {

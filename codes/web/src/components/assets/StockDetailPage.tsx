@@ -147,6 +147,8 @@ export function StockDetailPage({ accountId }: StockDetailPageProps) {
       shareCount: t("stockDetail.shareCount"),
       totalPnl: t("stockDetail.totalPnl"),
       periodPnl: t("stockDetail.periodPnl"),
+      profit: t("stockDetail.legendProfit"),
+      loss: t("stockDetail.legendLoss"),
     }),
     [t],
   );

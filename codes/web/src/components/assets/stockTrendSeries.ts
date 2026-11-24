@@ -17,7 +17,12 @@ export type PositionTrendLabels = {
   shareCount: string;
   totalPnl: string;
   periodPnl: string;
+  profit: string;
+  loss: string;
 };
+
+/** Golden yellow that still clears 3:1 on white. Theme warning (#F59E0B) does not. */
+const SHARE_TONE = "text-[#C88800]";
 
 export type PositionTrendFormat = {
   money: (amount: number) => string;
@@ -89,14 +94,35 @@ export function positionTrend(
   return {
     categories,
     series: [
-      metric("market", labels.marketValue, "text-primary", "money", rows, (item) => item.market_value_minor, (value) =>
-        value == null ? MISSING : format.money(value),
+      metric(
+        "market",
+        labels.marketValue,
+        "text-primary",
+        "money",
+        rows,
+        (item) => item.market_value_minor,
+        (value) => (value == null ? MISSING : format.money(value)),
+        { drawn: false },
       ),
-      metric("cost", labels.costPrice, "text-indigo-600", "quote", rows, (item) => item.cost_price_minor, (value) =>
-        value == null ? MISSING : format.quote(value),
+      metric(
+        "cost",
+        labels.costPrice,
+        "text-text-primary",
+        "quote",
+        rows,
+        (item) => item.cost_price_minor,
+        (value) => (value == null ? MISSING : format.quote(value)),
+        { paint: "solid", key: [{ tone: "text-text-primary" }] },
       ),
-      metric("shares", labels.shareCount, "text-text-secondary", "count", rows, (item) => item.shares, (value) =>
-        value == null ? MISSING : format.shares(value),
+      metric(
+        "shares",
+        labels.shareCount,
+        SHARE_TONE,
+        "count",
+        rows,
+        (item) => item.shares,
+        (value) => (value == null ? MISSING : format.shares(value)),
+        { paint: "solid", readout: "text-text-secondary", dash: "6 4", key: [{ tone: SHARE_TONE }] },
       ),
       metric(
         "total",
@@ -106,7 +132,14 @@ export function positionTrend(
         rows,
         (item) => item.total_pnl_minor,
         (value) => (value == null ? MISSING : format.money(value)),
-        true,
+        {
+          signed: true,
+          paint: "signed",
+          key: [
+            { tone: "text-error", label: labels.profit },
+            { tone: "text-success", label: labels.loss },
+          ],
+        },
       ),
       metric(
         "period",
@@ -116,7 +149,7 @@ export function positionTrend(
         rows,
         (item) => item.period_pnl_minor,
         (value) => (value == null ? MISSING : format.money(value)),
-        true,
+        { signed: true, drawn: false },
       ),
     ],
   };
@@ -134,14 +167,19 @@ function metric(
   points: StockSeriesPosition[],
   read: (item: StockSeriesPosition) => number | null,
   formatValue: (value: number | null) => string,
-  signed = false,
+  options: Pick<TrendSeries, "signed" | "paint" | "readout" | "key" | "drawn" | "dash"> = {},
 ): TrendSeries {
   return {
     id,
     label,
     tone,
     scale,
-    signed,
+    signed: options.signed === true,
+    paint: options.paint,
+    readout: options.readout,
+    key: options.key,
+    drawn: options.drawn,
+    dash: options.dash,
     values: points.map((item) => read(item)),
     formatValue,
   };
