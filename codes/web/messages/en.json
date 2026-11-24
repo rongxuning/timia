@@ -680,6 +680,38 @@
         "savings": "Savings",
         "investment": "Investment",
         "credit": "Credit"
+      },
+      "flows": {
+        "income": "Income",
+        "expense": "Expense",
+        "addIncome": "Add income",
+        "addExpense": "Add expense",
+        "amount": "Amount",
+        "type": "Type",
+        "empty": "No income or expenses yet.",
+        "categories": {
+          "dining": "Dining",
+          "transport": "Transport",
+          "shopping": "Shopping",
+          "housing": "Housing",
+          "utilities": "Utilities",
+          "medical": "Medical",
+          "education": "Education",
+          "entertainment": "Entertainment",
+          "social": "Gifts & social",
+          "travel": "Travel",
+          "salary": "Salary",
+          "bonus": "Bonus",
+          "investment": "Investment returns",
+          "interest": "Interest",
+          "side_job": "Side income",
+          "reimbursement": "Reimbursement",
+          "gift": "Gifts received",
+          "refund": "Refund",
+          "rent": "Rent",
+          "transfer_in": "Transfer in",
+          "other": "Other"
+        }
       }
     }
   }

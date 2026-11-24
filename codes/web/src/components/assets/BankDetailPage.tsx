@@ -12,16 +12,18 @@ import {
   type DateRange,
 } from "@/components/assets/assetChartRange";
 import { BankEntryDialog, type BankDialogMode } from "@/components/assets/BankEntryDialog";
+import { BankFlowDialog } from "@/components/assets/BankFlowDialog";
 import { errorText } from "@/components/assets/copy";
 import { StockTrendChart, type TrendSeries } from "@/components/assets/StockTrendChart";
 import { primeBankAccountNameForBreadcrumb } from "@/components/Breadcrumbs";
+import type { BankFlowCategory } from "@/lib/bankFlowCategories";
 import { PageMain } from "@/components/layout";
 import { fetchBankDetail } from "@/lib/api/assets";
 import { getToken } from "@/lib/auth";
 import { htmlLang, type Locale } from "@/i18n/config";
 import { formatMinor } from "@/lib/money";
 import { useAccountWeekStart } from "@/lib/use-account-week-start";
-import type { BankDetail, BankProduct } from "@/types/api/views/bank";
+import type { BankDetail, BankFlowDirection, BankProduct } from "@/types/api/views/bank";
 
 type BankDetailPageProps = {
   accountId: string;
@@ -46,6 +48,7 @@ export function BankDetailPage({ accountId }: BankDetailPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<BankDialogMode | null>(null);
   const [editing, setEditing] = useState<BankProduct | null>(null);
+  const [flowDialog, setFlowDialog] = useState<BankFlowDirection | null>(null);
   const cancelPending = useCallback(() => setPending(null), []);
 
   const load = useCallback(
@@ -162,6 +165,7 @@ export function BankDetailPage({ accountId }: BankDetailPageProps) {
     if (!accessToken) return;
     setDialog(null);
     setEditing(null);
+    setFlowDialog(null);
     await load(accessToken, range, selectedId);
   }
 
@@ -286,6 +290,63 @@ export function BankDetailPage({ accountId }: BankDetailPageProps) {
               </ul>
             </section>
 
+            {detail ? (
+              <section className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-baseline gap-x-lg gap-y-1 text-small tabular-nums">
+                    <span className="text-error">
+                      {t("bankDetail.flows.income")} {money(detail.summary.income_minor)}
+                    </span>
+                    <span className="text-success">
+                      {t("bankDetail.flows.expense")} {money(detail.summary.expense_minor)}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-xl border border-border-subtle bg-white px-3 py-2 text-small text-text-primary hover:border-primary hover:text-primary"
+                      onClick={() => setFlowDialog("income")}
+                    >
+                      {t("bankDetail.flows.addIncome")}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-xl border border-border-subtle bg-white px-3 py-2 text-small text-text-primary hover:border-primary hover:text-primary"
+                      onClick={() => setFlowDialog("expense")}
+                    >
+                      {t("bankDetail.flows.addExpense")}
+                    </button>
+                  </div>
+                </div>
+                {detail.flows.length === 0 ? (
+                  <p className="rounded-xl border border-border-subtle bg-white px-lg py-md text-small text-text-secondary">
+                    {t("bankDetail.flows.empty")}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-white">
+                    {detail.flows.map((flow) => (
+                      <li key={flow.id} className="flex items-center justify-between gap-3 px-lg py-md">
+                        <div className="min-w-0">
+                          <p className="text-small text-text-primary">
+                            {t(`bankDetail.flows.categories.${flow.category as BankFlowCategory}`)}
+                          </p>
+                          <p className="mt-1 text-caption text-text-secondary">
+                            {formatStamp(flow.recorded_at, numberLocale)}
+                          </p>
+                        </div>
+                        <p
+                          className={`shrink-0 text-small tabular-nums ${flow.direction === "income" ? "text-error" : "text-success"}`}
+                        >
+                          {flow.direction === "income" ? "+" : "-"}
+                          {formatMinor(flow.amount_minor, flow.currency, numberLocale)}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+
             {detail?.selected ? (
               <section className="space-y-lg">
                 <div className="space-y-2">
@@ -311,6 +372,14 @@ export function BankDetailPage({ accountId }: BankDetailPageProps) {
           </div>
         </div>
       </div>
+      {flowDialog ? (
+        <BankFlowDialog
+          accountId={accountId}
+          direction={flowDialog}
+          onClose={() => setFlowDialog(null)}
+          onSaved={refresh}
+        />
+      ) : null}
       {dialog ? (
         <BankEntryDialog
           accountId={accountId}

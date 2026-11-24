@@ -596,3 +596,31 @@ class AssetBankCreditBill(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     paid_off: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     reason: Mapped[str] = mapped_column(String(200), nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssetBankFlow(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """One income or expense record on a bank account. Does not move product balances."""
+
+    __tablename__ = "asset_bank_flows"
+    __table_args__ = (
+        CheckConstraint("direction IN ('income', 'expense')", name="ck_asset_bank_flows_direction"),
+        CheckConstraint(_in_list("currency", _CURRENCIES), name="ck_asset_bank_flows_currency"),
+        CheckConstraint("amount_minor > 0", name="ck_asset_bank_flows_amount"),
+        Index("ix_asset_bank_flows_account_time", "account_id", "recorded_at"),
+    )
+
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("asset_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    category: Mapped[str] = mapped_column(String(24), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

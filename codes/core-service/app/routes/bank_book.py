@@ -12,6 +12,7 @@ from app.db.deps import get_db
 from app.models.user import User
 from app.schemas.bank import (
     BankCreditBillCreate,
+    BankFlowCreate,
     BankInvestmentOpCreate,
     BankProductCreate,
     BankProductWriteOut,
@@ -19,6 +20,7 @@ from app.schemas.bank import (
 )
 from app.services.bank_book import (
     add_credit_bill,
+    add_flow,
     add_investment_op,
     add_savings_txn,
     create_product,
@@ -81,3 +83,13 @@ def post_credit_bill(
     user: User = Depends(get_current_user),
 ):
     return add_credit_bill(db, user, account_id, product_id, payload)
+
+
+@router.post("/{account_id}/bank-flows", status_code=status.HTTP_204_NO_CONTENT)
+def post_bank_flow(
+    account_id: uuid.UUID,
+    payload: BankFlowCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    add_flow(db, user, account_id, payload)

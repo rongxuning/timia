@@ -12,6 +12,20 @@ export type BankSummary = {
   display_currency: string;
   fx_incomplete: boolean;
   total_assets_minor: number;
+  income_minor: number;
+  expense_minor: number;
+};
+
+export type BankFlowDirection = "income" | "expense";
+
+export type BankFlow = {
+  id: string;
+  direction: BankFlowDirection;
+  category: string;
+  currency: string;
+  amount_minor: number;
+  display_minor: number | null;
+  recorded_at: string;
 };
 
 export type BankProduct = {
@@ -87,6 +101,7 @@ export type BankDetail = {
   summary: BankSummary;
   products: BankProduct[];
   series: BankSeriesPoint[];
+  flows: BankFlow[];
   selected: BankProductDetail | null;
 };
 
