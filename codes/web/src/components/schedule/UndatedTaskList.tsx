@@ -90,7 +90,7 @@ export function UndatedTaskList({
     >
       <div className="shrink-0 border-b border-border-subtle p-lg">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-base font-semibold text-primary">未确认启动时间</div>
+          <div className="text-small font-semibold text-primary">未确认启动时间</div>
           {onAddTask ? (
             <button
               type="button"
@@ -110,7 +110,7 @@ export function UndatedTaskList({
             value={titleQuery}
             onChange={(event) => setTitleQuery(event.target.value)}
             placeholder="搜索任务标题"
-            className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-[17px] leading-[1.6] outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
+            className="w-full rounded-xl border border-border-subtle bg-surface-bright px-lg py-md text-small outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10"
           />
         </label>
       </div>

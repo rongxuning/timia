@@ -67,10 +67,11 @@ export function TaskStatusIcon({
   const cfg = TASK_STATUS_ICON[key];
   const canToggleCompletion = cfg.toggleCompletionOnClick && !!onComplete;
   const toggleActionLabel = key === "done" ? "标记为未完成" : "标记为已完成";
-  const boxClass = size === "compact" ? "h-8 w-8" : "h-10 w-10";
+  // compact: calendar card status slot; diameter is 70% of prior 32px hit target
+  const boxClass = size === "compact" ? "h-[22px] w-[22px]" : "h-10 w-10";
   // `.material-symbols-outlined` sets font-size: 24px outside Tailwind layers, so
   // text-[NNpx] never wins. Size the glyph inline so the ring fits its slot.
-  const iconPx = size === "compact" ? 28 : 36;
+  const iconPx = size === "compact" ? 20 : 36;
 
   if (!canToggleCompletion) {
     return (
